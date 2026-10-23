@@ -42,8 +42,10 @@ unexpected errors. The rest:
 - `voiceRegions.js`: the LiveKit servers voice can use (see Voice regions in `docs/voice-and-calls.md`).
 - `storageStats.js`: how full the object store is, from MinIO's metrics (Settings → Admin → Storage, see
   Admin settings in `docs/client.md`).
-- `watchParty.js`: Watch Together, each voice channel's YouTube queue and clock (see Voice
-  channels); `routes/watchParty.js` has its routes.
+- `watchParty.js`: Watch Together, each voice channel's queue (YouTube's and the guild media
+  server's videos) and clock (see Voice channels); `routes/watchParty.js` has its routes.
+- `mediaServers.js`: guilds' Jellyfin or Emby servers for Watch Together (see Media servers in
+  `docs/voice-and-calls.md`); `routes/mediaServers.js` connects and disconnects them.
 - `calls.js`: DM and group DM calls (ringing, answering, hanging up; see DM calls).
 - `callLog.js`: a call's row in its chat's history once it ends (see Calls in the chat history, under DM calls).
 - `groupDms.js`: group DMs (membership log checks, epochs, summaries; see Group DMs).

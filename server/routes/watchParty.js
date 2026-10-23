@@ -4,12 +4,15 @@ const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess } = require('../guilds');
 const voice = require('../voice');
 const watchParty = require('../watchParty');
+const mediaServers = require('../mediaServers');
+const { ActionError } = require('../actionError');
 const { MAX_QUERY } = require('../youtubeSearch');
 const { rateLimitsEnabled } = require('../config');
 const { createLimiter } = require('../rateLimit');
 
 // Watch Together in voice channels (see watchParty.js). Reading needs only View Channel; every
-// change (and searching YouTube) needs you in the channel's voice, and then Queue Videos (search,
+// change (and searching YouTube or the guild's media server, and getting a media server video's
+// address) needs you in the channel's voice, and then Queue Videos (search,
 // add, remove your own), Manage
 // Queue (reorder, remove anyone's) or Control Playback (play, pause, seek, skip; whoever added
 // the video playing may skip it too). Each answer is { party, server_time } (the server's clock,
@@ -51,12 +54,12 @@ const can = (req, bit) => has(req.access.permissions, bit);
 const forbidden = (res) => res.status(403).json({ error: "You don't have permission to do that" });
 const itemId = (value) => (Number.isInteger(value) ? value : Number.NaN);
 
-// Errors watchParty.js throws ({ status, message }) as answers.
+// Errors watchParty.js and mediaServers.js throw ({ status, message }) as answers.
 const handled = (handler) => async (req, res) => {
   try {
     await handler(req, res);
   } catch (err) {
-    if (!err.status) throw err;
+    if (!err.status && !(err instanceof ActionError)) throw err;
     res.status(err.status).json({ error: err.message });
   }
 };
@@ -68,25 +71,55 @@ router.get(BASE, authenticateJWT, voiceChannel, (req, res) => res.json({
   server_time: Date.now(),
 }));
 
-// Search YouTube: ?q= (youtubeSearch.js) -> { results }. Limited per person, since every new
-// query is a request from the server to YouTube.
+// Searches are limited per person, since each is a request from the server to YouTube or the
+// media server: true when this one may go ahead (else it has answered 429).
 const searches = createLimiter({ windowMs: 60 * 1000, max: 20 });
+function searchAllowed(req, res) {
+  if (!rateLimitsEnabled) return true;
+  const { allowed, retryAfterMs } = searches.hit(String(req.user.id));
+  if (allowed) return true;
+  res.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
+  res.status(429).json({ error: 'Too many searches. Wait a moment and try again.' });
+  return false;
+}
+
+// ?q= as a search, or null (having answered 400).
+function searchQuery(req, res) {
+  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  let error = null;
+  if (!query) error = 'Type something to search for';
+  else if (query.length > MAX_QUERY) error = `Searches can be at most ${MAX_QUERY} characters`;
+  if (!error) return query;
+  res.status(400).json({ error });
+  return null;
+}
+
+// Search YouTube: ?q= (youtubeSearch.js) -> { results }.
 router.get(`${BASE}/search`, authenticateJWT, voiceChannel, inVoice, handled(async (req, res) => {
   if (!can(req, PERMISSIONS.QUEUE_VIDEOS)) return forbidden(res);
-  const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  if (!query) return res.status(400).json({ error: 'Type something to search for' });
-  if (query.length > MAX_QUERY) return res.status(400).json({ error: `Searches can be at most ${MAX_QUERY} characters` });
-  if (rateLimitsEnabled) {
-    const { allowed, retryAfterMs } = searches.hit(String(req.user.id));
-    if (!allowed) {
-      res.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)));
-      return res.status(429).json({ error: 'Too many searches. Wait a moment and try again.' });
-    }
-  }
+  const query = searchQuery(req, res);
+  if (query == null || !searchAllowed(req, res)) return;
   res.json({ results: await watchParty.youtube.search(query) });
 }));
 
-// Add a video: { videoId } (YouTube's 11-character id).
+// Search the guild's media server: ?q= -> { results } (mediaServers.js itemOf; shows among
+// them, whose episodes come from the next route).
+router.get(`${BASE}/media-search`, authenticateJWT, voiceChannel, inVoice, handled(async (req, res) => {
+  if (!can(req, PERMISSIONS.QUEUE_VIDEOS)) return forbidden(res);
+  const query = searchQuery(req, res);
+  if (query == null || !searchAllowed(req, res)) return;
+  res.json({ results: await mediaServers.search(req.access.channel.guild_id, query) });
+}));
+
+// A show's episodes on the guild's media server -> { results }.
+router.get(`${BASE}/media-episodes/:seriesId`, authenticateJWT, voiceChannel, inVoice, handled(async (req, res) => {
+  if (!can(req, PERMISSIONS.QUEUE_VIDEOS)) return forbidden(res);
+  if (!searchAllowed(req, res)) return;
+  res.json({ results: await mediaServers.episodes(req.access.channel.guild_id, req.params.seriesId) });
+}));
+
+// Add a video: { videoId } (YouTube's 11-character id) or { mediaId } (the guild's media
+// server's).
 router.post(`${BASE}/queue`, authenticateJWT, voiceChannel, inVoice, handled(async (req, res) => {
   if (!can(req, PERMISSIONS.QUEUE_VIDEOS)) return forbidden(res);
   await watchParty.addVideo({
@@ -94,6 +127,7 @@ router.post(`${BASE}/queue`, authenticateJWT, voiceChannel, inVoice, handled(asy
     channelId: req.channelId,
     userId: req.user.id,
     videoId: req.body?.videoId,
+    mediaId: req.body?.mediaId,
   });
   reply(res, req.channelId);
 }));
@@ -141,6 +175,12 @@ router.post(`${BASE}/skip`, authenticateJWT, voiceChannel, inVoice, withParty, h
 router.put(`${BASE}/duration`, authenticateJWT, voiceChannel, inVoice, withParty, handled(async (req, res) => {
   await watchParty.setDuration(req.party, itemId(req.body?.itemId), Number(req.body?.duration));
   res.json({ success: true });
+}));
+
+// Where your player loads the media server's video playing (`itemId`): { type: 'file' |
+// 'hls', url }. The address carries the guild's token, so only for people in the channel.
+router.get(`${BASE}/stream/:itemId`, authenticateJWT, voiceChannel, inVoice, withParty, handled(async (req, res) => {
+  res.json(await watchParty.streamFor(req.party, Number(req.params.itemId)));
 }));
 
 module.exports = router;

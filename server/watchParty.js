@@ -1,6 +1,7 @@
 const { sendToChannel } = require('./guilds');
 
-// Watch Together: a voice channel's YouTube watch party. Everyone in the channel plays the same
+// Watch Together: a voice channel's watch party, of YouTube videos and the guild's own media
+// server's (mediaServers.js: Jellyfin or Emby). Everyone in the channel plays the same
 // video at the same point; the server keeps the queue and the clock, the clients only follow it
 // (client voice/watchParty.js). Kept in memory, like who's in voice: an API restart ends every
 // watch party.
@@ -8,9 +9,14 @@ const { sendToChannel } = require('./guilds');
 // A party is { guildId, channelId, current, queue, playing, position, updatedAt }: `current` is
 // the item playing (or paused), `queue` the ones after it, in order; `position` (seconds) is
 // where `current` was at `updatedAt` (ms), so anyone can work out where it is now. Items are
-// { id, videoId, title, author, duration, addedBy, addedAt }; `duration` (seconds) comes from the
-// first player that knows it (YouTube's oEmbed doesn't say), and lets the server move on to the
-// next video by itself when one ends. A live stream has none, and plays until skipped.
+// { id, source, videoId, title, author, duration, addedBy, addedAt }: `source` 'youtube', or
+// 'media' (the guild's media server) with `mediaId` and `media` ({ type, series, season,
+// episode, year, image_url }) in place of `videoId`. `duration` (seconds) comes from the first
+// player that knows it (YouTube's oEmbed doesn't say; a media server does, at once), and lets the
+// server move on to the next video by itself when one ends. A live stream has none, and plays
+// until skipped. A media server's video also keeps how it plays (`playback`, asked of the media
+// server the first time someone's player wants it, `streamFor`), never sent to the clients but
+// as each one's address (routes/watchParty.js); its transcode is stopped once it stops playing.
 //
 // Only people in the channel's voice (voice.js `states`) can change anything; what they may do
 // follows Queue Videos, Manage Queue and Control Playback (routes/watchParty.js). Everyone who
@@ -70,7 +76,9 @@ const youtube = {
 
 const publicItem = (item) => item && ({
   id: item.id,
+  source: item.source,
   video_id: item.videoId,
+  ...(item.source === 'media' && { media_id: item.mediaId, media: item.media }),
   title: item.title,
   author: item.author,
   duration: item.duration,
@@ -91,7 +99,7 @@ function publicParty(party) {
 // What the channel list shows under a voice channel (guild layout).
 function summaryOf(channelId) {
   const party = parties.get(channelId);
-  return party ? { video_id: party.current.videoId, title: party.current.title, playing: party.playing } : null;
+  return party ? { source: party.current.source, video_id: party.current.videoId, title: party.current.title, playing: party.playing } : null;
 }
 
 // Where the current video is now, in seconds.
@@ -122,6 +130,7 @@ function log(party, { userId = null, action, item, from, to }) {
     user_id: userId,
     action,
     video_id: item?.videoId ?? null,
+    ...(item?.source === 'media' && { media_id: item.mediaId }),
     title: item?.title ?? null,
     ...(from !== undefined && { from }),
     ...(to !== undefined && { to }),
@@ -149,7 +158,14 @@ function schedule(party) {
   party.timer.unref?.();
 }
 
+// A media server's transcode of a video that isn't playing any more (best effort).
+function stopped(party, item) {
+  if (item?.source !== 'media' || !item.playback) return;
+  item.playback.then((playback) => require('./mediaServers').stopPlayback(party.guildId, playback)).catch(() => {});
+}
+
 function startItem(party, item) {
+  if (party.current && party.current !== item) stopped(party, party.current);
   party.current = item;
   party.playing = true;
   party.position = 0;
@@ -164,6 +180,7 @@ async function advance(party, entry) {
     schedule(party);
   } else {
     clearTimeout(party.timer);
+    stopped(party, party.current);
     parties.delete(party.channelId);
   }
   await announce(party, entry);
@@ -172,6 +189,7 @@ async function advance(party, entry) {
 function makeItem(videoId, info, userId) {
   return {
     id: nextItemId++,
+    source: 'youtube',
     videoId,
     title: info?.title ?? null,
     author: info?.author ?? null,
@@ -181,18 +199,37 @@ function makeItem(videoId, info, userId) {
   };
 }
 
+// A media server's video (mediaServers.js videoInfo).
+function makeMediaItem(info, userId) {
+  return {
+    id: nextItemId++,
+    source: 'media',
+    videoId: null,
+    mediaId: info.media_id,
+    media: { type: info.type, series: info.series, season: info.season, episode: info.episode, year: info.year, image_url: info.image_url },
+    title: info.title,
+    author: null,
+    duration: info.duration && info.duration <= MAX_DURATION ? info.duration : null,
+    addedBy: userId,
+    addedAt: Date.now(),
+    playback: null,
+  };
+}
+
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
-// Adds a video (by YouTube id) to the channel's queue; with nothing playing it starts at once.
-async function addVideo({ guildId, channelId, userId, videoId }) {
-  if (typeof videoId !== 'string' || !VIDEO_ID.test(videoId)) throw fail(400, 'Not a YouTube video');
+// Adds a video to the channel's queue: `videoId` (YouTube's) or `mediaId` (the guild's media
+// server's); with nothing playing it starts at once.
+async function addVideo({ guildId, channelId, userId, videoId, mediaId }) {
+  if (mediaId === undefined && (typeof videoId !== 'string' || !VIDEO_ID.test(videoId))) throw fail(400, 'Not a YouTube video');
   const existing = parties.get(channelId);
   if (existing && existing.queue.length >= MAX_QUEUE) throw fail(400, `The queue is full (${MAX_QUEUE} videos)`);
-  const info = await youtube.videoInfo(videoId);
-  // Asking YouTube took a moment: the party may have started or ended meanwhile.
+  const item = mediaId !== undefined
+    ? makeMediaItem(await require('./mediaServers').videoInfo(guildId, mediaId), userId)
+    : makeItem(videoId, await youtube.videoInfo(videoId), userId);
+  // Asking took a moment: the party may have started or ended meanwhile.
   let party = parties.get(channelId);
   if (party && party.queue.length >= MAX_QUEUE) throw fail(400, `The queue is full (${MAX_QUEUE} videos)`);
-  const item = makeItem(videoId, info, userId);
   if (party) {
     party.queue.push(item);
   } else {
@@ -275,6 +312,41 @@ async function setDuration(party, itemId, duration) {
   }
 }
 
+// Where someone's player loads `itemId` (the media server's video playing): { type: 'file' |
+// 'hls', url } (the address has the guild's token in it). Asked of the media server once per
+// video, so everyone shares its transcode. Throws { status, message }.
+async function streamFor(party, itemId) {
+  const item = party.current;
+  if (item.id !== itemId) throw fail(409, 'Another video is playing now');
+  if (item.source !== 'media') throw fail(400, 'Not a media server\'s video');
+  const mediaServers = require('./mediaServers');
+  if (!item.playback) {
+    item.playback = mediaServers.playbackOf(party.guildId, item.mediaId);
+    // A failure isn't kept: the next player asks again.
+    item.playback.catch(() => { item.playback = null; });
+  }
+  const playback = await item.playback;
+  const url = await mediaServers.streamUrl(party.guildId, playback);
+  if (!url) throw fail(410, 'The guild\'s media server has changed');
+  return { type: playback.type, url };
+}
+
+// The guild's media server was connected, changed or disconnected: its videos leave every
+// queue of the guild, and one playing is skipped (logged as `ended`: nobody did it).
+async function mediaServerChanged(guildId) {
+  for (const party of [...parties.values()]) {
+    if (party.guildId !== guildId) continue;
+    const before = party.queue.length;
+    party.queue = party.queue.filter((item) => item.source !== 'media');
+    if (party.current.source === 'media') {
+      clearTimeout(party.timer);
+      await advance(party, log(party, { action: 'ended', item: party.current }));
+    } else if (party.queue.length !== before) {
+      await announce(party);
+    }
+  }
+}
+
 // Ends the channel's party at once and forgets its log (the channel emptied a while ago).
 async function endParty(channelId) {
   clearTimeout(emptyTimers.get(channelId));
@@ -283,6 +355,7 @@ async function endParty(channelId) {
   const party = parties.get(channelId);
   if (!party) return;
   clearTimeout(party.timer);
+  stopped(party, party.current);
   parties.delete(channelId);
   await announce(party);
 }
@@ -306,7 +379,9 @@ function voiceChanged(channelId, occupied) {
 
 // The channel is being deleted: its party goes without telling anyone (the channel goes too).
 function dropChannel(channelId) {
-  clearTimeout(parties.get(channelId)?.timer);
+  const party = parties.get(channelId);
+  clearTimeout(party?.timer);
+  if (party) stopped(party, party.current);
   logs.delete(channelId);
   clearTimeout(emptyTimers.get(channelId));
   emptyTimers.delete(channelId);
@@ -341,6 +416,8 @@ module.exports = {
   setPlayback,
   skipVideo,
   setDuration,
+  streamFor,
+  mediaServerChanged,
   endParty,
   voiceChanged,
   dropChannel,

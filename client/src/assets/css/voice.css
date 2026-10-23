@@ -1320,6 +1320,45 @@ body.popout-window {
   background-color: var(--vc-bg-subtle);
 }
 
+/* A film's or show's poster from the guild's media server: as tall as a still is wide. */
+.watch-party-result-thumb.poster {
+  width: 30px;
+  margin: 0 25px;
+  aspect-ratio: 2 / 3;
+}
+
+/* Search the guild's media server or YouTube (WatchPartyPanel). */
+.watch-party-sources {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+}
+
+.watch-party-source {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watch-party-source:hover {
+  color: var(--vc-fg);
+}
+
+.watch-party-source.active {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
 /* Up to two lines: search results' titles are long. */
 .watch-party-result-title {
   display: -webkit-box;
@@ -1578,12 +1617,18 @@ body.popout-window {
   aspect-ratio: 16 / 9;
 }
 
-.watch-party-stage iframe {
+.watch-party-stage iframe,
+.watch-party-stage .watch-party-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+.watch-party-stage .watch-party-video {
+  object-fit: contain;
+  background-color: #000;
 }
 
 .watch-party-shield {
@@ -1619,6 +1664,27 @@ body.popout-window {
 }
 
 .watch-party-consent p {
+  margin: 0;
+  max-width: 360px;
+}
+
+/* A media server's video that couldn't be played: over the shield, so Try again can be clicked. */
+.watch-party-media-error {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.watch-party-media-error p {
   margin: 0;
   max-width: 360px;
 }

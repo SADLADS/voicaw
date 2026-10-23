@@ -8,12 +8,13 @@ const DRIFT_PAUSED = 0.75;
 const RETRY_PLAY_MS = 1500;
 const BLOCKED_AFTER = 3; // play commands ignored in a row: the browser won't autoplay
 
-// Keeps `embed` (a YouTubeEmbed) on the party's video, at the point the server's clock says,
+// Keeps `embed` (a YouTubeEmbed, or a MediaElementPlayer for a media server's video) on the party's video, at the point the server's clock says,
 // playing or paused as the party is: twice a second it compares and, if it has to, loads, plays,
 // pauses or seeks. Also tells the server how long a video is (the first player to know does) and
 // sets the volume (0–100) once the frame is `ready`. Returns { blocked } (the browser wouldn't start it: a click on the
-// player has to) and `retry()`, for that click. `initialItemId`: the item the frame was opened on.
-export function useWatchPartySync({ embed, ready, party, guildId, channelId, volume, initialItemId = null }) {
+// player has to) and `retry()`, for that click. `embed.initialItemId`: the item a YouTube frame
+// was opened on (its address loads it).
+export function useWatchPartySync({ embed, ready, party, guildId, channelId, volume }) {
   const latest = useRef(party);
   latest.current = party;
   const [blocked, setBlocked] = useState(false);
@@ -22,10 +23,11 @@ export function useWatchPartySync({ embed, ready, party, guildId, channelId, vol
   useEffect(() => {
     if (!embed) return undefined;
     // The frame opens on its first video by itself (its address): not loaded a second time.
-    local.current = { itemId: initialItemId, lastPlay: -Infinity, lastSeek: -Infinity, attempts: 0 };
+    local.current = { itemId: embed.initialItemId ?? null, lastPlay: -Infinity, lastSeek: -Infinity, attempts: 0 };
     const check = () => {
       const p = latest.current;
-      if (!p?.current || !embed.info.ready) return;
+      // The other kind of player is on its way (the video's source changed).
+      if (!p?.current || !embed.info.ready || !embed.accepts(p.current)) return;
       const now = performance.now();
       const state = local.current;
       const expected = expectedPosition(p);
@@ -35,7 +37,7 @@ export function useWatchPartySync({ embed, ready, party, guildId, channelId, vol
         state.attempts = 0;
         state.lastPlay = now;
         state.lastSeek = now;
-        embed.load(p.current.video_id, expected, p.playing);
+        embed.load(p.current, expected, p.playing);
         return;
       }
 
@@ -65,8 +67,8 @@ export function useWatchPartySync({ embed, ready, party, guildId, channelId, vol
         if (playerState === STATE.PLAYING || playerState === STATE.BUFFERING) embed.pause();
         if (drift > DRIFT_PAUSED && now - state.lastSeek > 1000) {
           state.lastSeek = now;
-          // Seeking a cued video starts it: cue it again at the new point instead.
-          if (playerState === STATE.CUED || playerState === STATE.UNSTARTED) embed.load(p.current.video_id, expected, false);
+          // Seeking a cued YouTube video starts it: cue it again at the new point instead.
+          if (embed.seekStartsCued && (playerState === STATE.CUED || playerState === STATE.UNSTARTED)) embed.load(p.current, expected, false);
           else embed.seek(expected);
         }
       }
@@ -74,7 +76,6 @@ export function useWatchPartySync({ embed, ready, party, guildId, channelId, vol
     const timer = setInterval(check, CHECK_EVERY_MS);
     check();
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the first video only, when the frame is new
   }, [embed, guildId, channelId]);
 
   // A change from the server is acted on at once, not at the next check.
@@ -92,6 +93,11 @@ export function useWatchPartySync({ embed, ready, party, guildId, channelId, vol
     if (!embed) return;
     local.current.attempts = 0;
     setBlocked(false);
+    // It couldn't be loaded (a media server's video): try again.
+    if (embed.info.error && latest.current?.current) {
+      embed.load(latest.current.current, expectedPosition(latest.current), latest.current.playing);
+      return;
+    }
     embed.seek(expectedPosition(latest.current));
     embed.play();
   };

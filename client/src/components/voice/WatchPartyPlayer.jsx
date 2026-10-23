@@ -10,8 +10,9 @@ import { InteractionContext, LayoutContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useWatchPartySync } from '../../hooks/useWatchPartySync';
 import { embedUrl, YouTubeEmbed } from '../../voice/youtubeEmbed';
+import { MediaElementPlayer } from '../../voice/mediaElementPlayer';
 import {
-  expectedPosition, formatClock, serverNow, setPlayback, skipVideo, usePlayerSlot, useWatchParty,
+  expectedPosition, formatClock, serverNow, setPlayback, skipVideo, streamOf, usePlayerSlot, useWatchParty,
 } from '../../voice/watchParty';
 import {
   closeWatchPartyWindow, openWatchPartyWindow, setWatchPartyWindowTitle, useWatchPartyWindow,
@@ -41,7 +42,8 @@ function saveVolume(volume) {
 const allowedChannels = new Set();
 
 // Watch Together's player (voice/watchParty.js): the voice channel you're in, while its party
-// has a video. Drawn from Layout and never moved, so it plays on whatever page you open: over
+// has a video: YouTube's in its frame, the guild's media server's in a <video>
+// (voice/mediaElementPlayer.js), whichever is playing. Drawn from Layout and never moved, so it plays on whatever page you open: over
 // the channel page's slot (WatchPartyPanel) while that's on screen, else small in a corner
 // (close it there to stop watching until you open the channel again), or, popped out
 // (computers), in a window of its own (voice/watchPartyWindow.js), where it starts afresh.
@@ -110,27 +112,25 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
   const canControl = has(permissions, PERMISSIONS.CONTROL_PLAYBACK);
   const canSkip = canControl || (myId != null && party.current.added_by === myId);
 
+  const isMedia = party.current.source === 'media';
   const autoLoad = usePrivacyPrefs().youtubeEmbeds;
-  const [allowed, setAllowed] = useState(() => autoLoad || allowedChannels.has(channelId));
+  // YouTube waits for a click with "Show YouTube videos straight away" off; the guild's own
+  // media server doesn't.
+  const [youtubeAllowed, setAllowed] = useState(() => autoLoad || allowedChannels.has(channelId));
+  const allowed = isMedia || youtubeAllowed;
   const boxRef = useRef(null);
   const [onSlot, setOnSlot] = useState(Boolean(slot));
   // Popped out, it fills its window and has all its controls, as over the slot.
   const docked = popout || onSlot;
   const [popupBlocked, setPopupBlocked] = useState(false);
-  const [frame, setFrame] = useState(null);
+  const [frame, setFrame] = useState(null); // the <iframe> or <video>
   const [embed, setEmbed] = useState(null);
   const [ready, setReady] = useState(false);
+  const [mediaError, setMediaError] = useState(null);
   const [volume, setVolume] = useState(loadVolume);
   const [, setTick] = useState(0);
   const [dragging, setDragging] = useState(null); // the seek bar's value while dragged
   const [fullscreen, setFullscreen] = useState(false);
-  // The frame's first address only: later videos are loaded through it (a new src would reload it).
-  const [initialItemId] = useState(party.current.id);
-  const [src] = useState(() => embedUrl(party.current.video_id, {
-    start: expectedPosition(party),
-    autoplay: party.playing,
-    origin: window.location.origin,
-  }));
 
   // Over the slot while it's on screen (followed every frame: the phone layout slides panes).
   useLayoutEffect(() => {
@@ -156,17 +156,28 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
 
   useEffect(() => {
     if (!frame) return undefined;
-    const controller = new YouTubeEmbed(frame, { onChange: (info) => setReady(info.ready) });
+    const onChange = (info) => {
+      setReady(info.ready);
+      setMediaError(info.error);
+    };
+    let controller;
+    if (frame.tagName === 'VIDEO') {
+      controller = new MediaElementPlayer(frame, { onChange, getStream: (item) => streamOf(guildId, channelId, item.id) });
+    } else {
+      controller = new YouTubeEmbed(frame, { onChange: (info) => setReady(info.ready) });
+      controller.initialItemId = Number(frame.dataset.itemId);
+    }
     setEmbed(controller);
     return () => {
       controller.destroy();
       setEmbed(null);
       setReady(false);
+      setMediaError(null);
     };
-  }, [frame]);
+  }, [frame, guildId, channelId]);
 
   const { blocked, retry } = useWatchPartySync({
-    embed, ready, party, guildId, channelId, volume: deafened ? 0 : volume, initialItemId,
+    embed, ready, party, guildId, channelId, volume: deafened ? 0 : volume,
   });
 
   // The clock and seek bar move on.
@@ -240,17 +251,18 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
       <div className="watch-party-stage">
         {allowed ? (
           <>
-            <iframe
-              ref={setFrame}
-              src={src}
-              title={t('voice.watchParty.playerTitle')}
-              allow="autoplay; encrypted-media; picture-in-picture"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-            {/* Clicks go to our controls, not YouTube's player (everyone's must stay in step). */}
+            {isMedia
+              ? <video ref={setFrame} className="watch-party-video" playsInline title={t('voice.watchParty.playerTitle')} />
+              : <YouTubeFrame party={party} frameRef={setFrame} />}
+            {/* Clicks go to our controls, not the player's own (everyone's must stay in step). */}
             <div className="watch-party-shield" onDoubleClick={toggleFullscreen} />
             {popupBlocked && <p className="watch-party-popup-blocked" role="alert">{t('voice.watchParty.popupBlocked')}</p>}
-            {blocked && (
+            {isMedia && mediaError ? (
+              <div className="watch-party-media-error" role="alert">
+                <p>{typeof mediaError === 'string' ? mediaError : t('voice.watchParty.media.cantPlay')}</p>
+                <button type="button" className="watch-party-primary" onClick={retry}>{t('voice.watchParty.media.tryAgain')}</button>
+              </div>
+            ) : blocked && (
               <button type="button" className="watch-party-blocked" onClick={retry}>
                 <Icon icon={faPlay} /> {t('voice.watchParty.clickToWatch')}
               </button>
@@ -360,5 +372,24 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
         )}
       </div>
     </div>
+  );
+}
+
+// YouTube's frame, opened on the video playing when it appeared (later ones are loaded through
+// it: a new address would reload it), at the party's point; `data-item-id` tells the sync which.
+function YouTubeFrame({ party, frameRef }) {
+  const [initial] = useState(() => ({
+    itemId: party.current.id,
+    src: embedUrl(party.current.video_id, { start: expectedPosition(party), autoplay: party.playing, origin: window.location.origin }),
+  }));
+  return (
+    <iframe
+      ref={frameRef}
+      src={initial.src}
+      data-item-id={initial.itemId}
+      title={t('voice.watchParty.playerTitle')}
+      allow="autoplay; encrypted-media; picture-in-picture"
+      referrerPolicy="strict-origin-when-cross-origin"
+    />
   );
 }

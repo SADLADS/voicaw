@@ -556,6 +556,21 @@ export async function fetchEventUsers(eventId, { occurrence = null } = {}) {
 
 // ---- Levels (server/guildLevels.js) ----
 
+// The guild's media server for Watch Together (Manage Guild): { kind, name, url, username,
+// connected_by, connected_at } or null.
+export async function fetchMediaServer(guildId) {
+  return (await api.get(`/guilds/${guildId}/media-server`)).data.server;
+}
+
+// { kind: 'jellyfin' | 'emby', url, username, password } -> the server, as fetchMediaServer.
+export async function connectMediaServer(guildId, { kind, url, username, password }) {
+  return (await api.put(`/guilds/${guildId}/media-server`, { kind, url, username, password })).data.server;
+}
+
+export async function disconnectMediaServer(guildId) {
+  await api.delete(`/guilds/${guildId}/media-server`);
+}
+
 export async function updateLevelSettings(guildId, changes) {
   return (await api.patch(`/guilds/${guildId}/levels`, changes)).data;
 }

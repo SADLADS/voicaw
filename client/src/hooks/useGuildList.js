@@ -339,7 +339,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
             const guild = prev[event.guildId];
             if (!guild) return prev;
             const summary = event.party?.current
-              ? { video_id: event.party.current.video_id, title: event.party.current.title, playing: event.party.playing }
+              ? { source: event.party.current.source, video_id: event.party.current.video_id, title: event.party.current.title, playing: event.party.playing }
               : null;
             const channels = guild.channels.map((c) => (c.id === event.channelId ? { ...c, watch_party: summary } : c));
             return { ...prev, [event.guildId]: { ...guild, channels } };

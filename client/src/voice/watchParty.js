@@ -2,10 +2,13 @@ import { useEffect, useSyncExternalStore } from 'react';
 import api from '../utils/api';
 import { onConnectionState, onGuildEvent } from '../utils/ws-client';
 import { youtubeVideoId } from '../utils/youtube';
+import { t } from '../i18n';
 
 // Watch Together (server/watchParty.js): each voice channel's party as the server last said,
 // and the server's clock, which every player follows. A party is { current, queue, playing,
-// position, updated_at } (items { id, video_id, title, author, duration, added_by }), or null.
+// position, updated_at } (items { id, source, video_id, title, author, duration, added_by }:
+// `source` 'youtube', or 'media', the guild's media server, with `media_id` and `media` { type,
+// series, season, episode, year, image_url } in place of `video_id`), or null.
 // It comes from GET (`loadWatchParty`, when a channel page or the player wants it), from what
 // every change answers, and from `guild_watch_party` events (everyone who can see the
 // channel). Read with `useWatchParty(channelId)`.
@@ -171,6 +174,45 @@ export async function searchVideos(guildId, channelId, query) {
 export const addVideo = (guildId, channelId, videoId) =>
   change(guildId, channelId, (base) => api.post(`${base}/queue`, { videoId }));
 
+// The guild's media server (Jellyfin or Emby, server/mediaServers.js): what it has matching
+// `query`, and a show's episodes: [{ media_id, type, title, series, season, episode, year,
+// duration, image_url }] (type 'Series' for a show, whose episodes come from mediaEpisodes).
+export async function searchMedia(guildId, channelId, query) {
+  const res = await api.get(`${path(guildId, channelId)}/media-search`, { params: { q: query } });
+  return res.data?.results ?? [];
+}
+
+export async function mediaEpisodes(guildId, channelId, seriesId) {
+  const res = await api.get(`${path(guildId, channelId)}/media-episodes/${encodeURIComponent(seriesId)}`);
+  return res.data?.results ?? [];
+}
+
+export const addMedia = (guildId, channelId, mediaId) =>
+  change(guildId, channelId, (base) => api.post(`${base}/queue`, { mediaId }));
+
+// Where the media server's video playing (`itemId`) loads from: { type: 'file' | 'hls', url }.
+export async function streamOf(guildId, channelId, itemId) {
+  return (await api.get(`${path(guildId, channelId)}/stream/${itemId}`)).data;
+}
+
+// A link to an item in the media server's own web app (Jellyfin's …/web/#/details?id=…, Emby's
+// …/web/index.html#!/item?id=…), as its id; null for anything else. `serverUrl` is the guild's
+// server (`media_server.url`): links to other servers aren't its items.
+export function mediaIdFromLink(input, serverUrl) {
+  if (!serverUrl) return null;
+  let url;
+  try {
+    url = new URL((input ?? '').trim());
+  } catch {
+    return null;
+  }
+  const server = new URL(serverUrl);
+  if (url.origin !== server.origin || !url.pathname.startsWith(server.pathname.replace(/\/$/, ''))) return null;
+  const query = url.hash.includes('?') ? url.hash.slice(url.hash.indexOf('?') + 1) : url.search.slice(1);
+  const id = new URLSearchParams(query).get('id');
+  return id && /^[\w-]{1,64}$/.test(id) ? id : null;
+}
+
 export const removeVideo = (guildId, channelId, itemId) =>
   change(guildId, channelId, (base) => api.delete(`${base}/queue/${itemId}`));
 
@@ -203,6 +245,20 @@ export function movedItem(previous, next) {
     if (a.length === b.length && a.every((other, j) => other === b[j])) return { id, beforeId: next[i + 1] ?? null };
   }
   return null;
+}
+
+// What a media server's item is, under its title: an episode's show and number ("A Show · S1
+// E2"), a film's year, or that it's a show.
+export function mediaByline(media) {
+  if (!media) return null;
+  if (media.type === 'Series') return t('voice.watchParty.media.show');
+  if (media.series) {
+    const number = media.season != null && media.episode != null
+      ? t('voice.watchParty.media.episodeNumber', { season: media.season, episode: media.episode })
+      : null;
+    return [media.series, number].filter(Boolean).join(' · ');
+  }
+  return media.year != null ? String(media.year) : null;
 }
 
 // A video position as the player shows it: 0:07, 3:25, 1:02:09.

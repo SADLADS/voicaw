@@ -29,6 +29,8 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //     unix s, channel by name), cover?: 'added' | 'changed' | 'removed', repeat?: 'changed' |
 //     'removed' } (target: the event; channel: its voice channel, if any)
 //   levels_update { changes: { field or 'sources.<source>.<enabled|xp>': [before, after] } }
+//   media_server_connect { kind, name, url, username } (Watch Together's Jellyfin or Emby,
+//     mediaServers.js), media_server_disconnect { kind, name }
 //   member_xp_update { before, after } (XP; target: the member)
 //   audit_log_clear { olderThanDays (0: everything), deleted }
 // Never a message's content: deleting it should get rid of it.

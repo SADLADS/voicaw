@@ -107,9 +107,19 @@ export class YouTubeEmbed {
     return currentTime + (performance.now() - timeAt) / 1000;
   }
 
-  load(videoId, start, play) {
+  // Only YouTube's videos: a media server's play in a <video> (mediaElementPlayer.js).
+  accepts(item) {
+    return (item?.source ?? 'youtube') === 'youtube';
+  }
+
+  // Seeking a cued video starts it: useWatchPartySync cues it again at the new point instead.
+  get seekStartsCued() {
+    return true;
+  }
+
+  load(item, start, play) {
     this.info = { ...this.info, duration: 0, error: null, currentTime: start, timeAt: performance.now() };
-    this.command(play ? 'loadVideoById' : 'cueVideoById', { videoId, startSeconds: start });
+    this.command(play ? 'loadVideoById' : 'cueVideoById', { videoId: item.video_id, startSeconds: start });
   }
 
   play() { this.command('playVideo'); }

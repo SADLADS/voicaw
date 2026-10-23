@@ -143,6 +143,23 @@
       "watchingNow": "Watching together: {{title}}. Join to watch.",
       "sidebarPlaying": "Watching {{title}}",
       "sidebarPaused": "Paused: {{title}}",
+      "media": {
+        "youtube": "YouTube",
+        "searchWhere": "Where to search",
+        "placeholder": "Search {{server}} or paste a link",
+        "emptyCanAdd": "Search {{server}} or YouTube, or paste a link, to watch together with everyone in the channel.",
+        "notAVideo": "That isn't a link to a YouTube video or to something on {{server}}.",
+        "searching": "Searching…",
+        "none": "Nothing found.",
+        "noEpisodes": "No episodes.",
+        "show": "Show",
+        "episodes": "Episodes",
+        "episodesOf": "Episodes of {{title}}",
+        "episodeNumber": "S{{season}} E{{episode}}",
+        "back": "Back to the results",
+        "cantPlay": "This video couldn't be played.",
+        "tryAgain": "Try again"
+      },
       "search": {
         "submit": "Search",
         "resultsFor": "Results for “{{query}}”",

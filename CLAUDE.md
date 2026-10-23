@@ -322,6 +322,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   Videos and Control Playback (defaults) and Manage Queue (not). Search (2026-10-06): the server
   asks YouTube's own keyless search endpoint (InnerTube; undocumented, may break: then only
   links work, and the Data API with a key is the fallback), so YouTube never sees who searched.
+- **Media servers in Watch Together** (built 2026-10-23, see Media servers in
+  `docs/voice-and-calls.md`): a guild's own Jellyfin or Emby, connected in Guild Settings →
+  Watch Together with an account's login (only the token kept; administrators refused). The
+  user chose: viewers stream straight from the media server (no bandwidth through our host; it
+  sees their IP addresses, and the token reaches them, so a restricted account), the media
+  server transcodes what browsers can't play (HLS, one transcode per channel), public https
+  addresses only (no home-network servers).
 - **Open polls** (built 2026-10-06, see Polls in `docs/messages.md`): anyone adds answers, each
   a reaction from whoever added it (not a table: reactions already have the encryption, group
   signing and delivery, and the server still can't tell which messages are polls), so

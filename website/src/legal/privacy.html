@@ -155,6 +155,15 @@
     Privacy. Searching YouTube for Watch Together goes through Voicaw's server, so YouTube sees
     the server asking and what was searched for, not who searched; the results' pictures load
     from YouTube (unless you've made YouTube wait), which then sees your IP address.</li>
+  <li><strong>A guild's own media server.</strong> A guild's admins can connect its Jellyfin or
+    Emby server to Watch Together. Voicaw keeps that server's address, the name of the account it
+    logs in with, and the access token the login gave (not the password), until the guild
+    disconnects it or is deleted; connecting and disconnecting go in the guild's audit log.
+    Searches go through Voicaw's server, so the media server sees Voicaw's server asking and what
+    was searched for. Its videos and pictures load from the media server itself, which sees your
+    IP address and what you watch; whoever runs it (usually someone in the guild, not Voicaw)
+    decides what it keeps. To play, your app is given the guild's access token while you're in
+    the voice channel.</li>
   <li><strong>Link previews.</strong> When a link is posted in a guild, Voicaw's server visits
     it to show a preview (the page's title, description and picture), so that website sees
     Voicaw's server asking, not who posted it. You can turn these off for the whole of a Voicaw

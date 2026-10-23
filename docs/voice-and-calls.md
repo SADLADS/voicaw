@@ -294,7 +294,8 @@ LiveKit carries the audio.
   connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
 - **Watch Together** (YouTube watch parties, like Discord's activity): everyone in a voice
-  channel plays the same YouTube video at the same point. The server keeps each channel's queue
+  channel plays the same YouTube video at the same point. A guild can connect its own Jellyfin
+  or Emby server, whose films and shows then play the same way (Media servers, below). The server keeps each channel's queue
   and clock (`server/watchParty.js`, `routes/watchParty.js`, in memory like who's in voice: an
   API restart ends every party); the clients only follow it.
   - **State:** a party is `{ current, queue, playing, position, updated_at }`: `position`
@@ -417,13 +418,83 @@ LiveKit carries the audio.
     app reloads); nothing else (no thumbnails) is fetched from YouTube. The desktop app's
     Referer fix covers the embed (see Desktop app); its voicaw:// pages can't be given as the
     `origin`, and Watch Together hasn't been checked there yet.
-  - `e2e/watchparty.mjs` checks it with real videos (needs the internet).
+  - **Media servers** (built 2026-10-23; `server/mediaServers.js`, `routes/mediaServers.js`):
+    a guild's own Jellyfin or Emby (one API: Emby's is under `/emby`, and its authorisation
+    header says `Emby` where Jellyfin's says `MediaBrowser`). **Connecting** (Guild Settings →
+    Watch Together, Manage Guild; `PUT /guilds/:g/media-server { kind, url, username,
+    password }`, 10 tries a minute each): the address (https only; a pasted `…/web/` or Emby's
+    `…/emby` is trimmed; public addresses only, any port, through `safeFetch`, whose private
+    addresses and http are allowed only with `LINK_PREVIEWS_ALLOW_PRIVATE=1`, tests and e2e),
+    `System/Info/Public` says it's that kind (Jellyfin names itself in `ProductName`, Emby
+    doesn't: a mismatch is refused, "That's a Jellyfin server, not Emby"), then
+    `Users/AuthenticateByName` as the guild (`Device="Voicaw: <guild name>"`,
+    `DeviceId="voicaw-guild-<id>"`). Only the access token is kept (`guild_media_servers`, one
+    per guild, deleted with it), never the password. An account that's the server's
+    administrator is refused and its login ended (the user chose: viewers get the token, see
+    below); a restricted account made for the guild decides which libraries it can see.
+    Replacing or disconnecting (`DELETE`) ends the old login there (`Sessions/Logout`), takes
+    that server's videos out of every queue of the guild (one playing is skipped, logged
+    `ended`), and is in the audit log (`media_server_connect { kind, name, url, username }`,
+    `media_server_disconnect`). `GET` gives Manage Guild `{ kind, name, url, username,
+    connected_by, connected_at }`; every member sees `media_server: { kind, name, url }` in the
+    guild's layout (null: none).
+    **Searching** (`GET …/watch-party/media-search?q=`, and a show's episodes
+    `…/media-episodes/:seriesId`; in voice with Queue Videos, sharing YouTube search's 20 a
+    minute): films, episodes, music videos, other videos and shows the account can see, 30 at
+    most, as `{ media_id, type, title, series, season, episode, year, duration, image_url }`
+    (`image_url`: the server's `Items/:id/Images/Primary`, which needs no token). In the panel
+    a switch above the box picks the media server (first) or YouTube; a show's Episodes button
+    lists its episodes (Back returns to the results); films' and shows' pictures are drawn as
+    posters, episodes' as stills; a link to the server's own web app (Jellyfin's
+    `…/web/#/details?id=…`, Emby's `…/web/index.html#!/item?id=…`; `mediaIdFromLink`, only
+    the guild's server) adds that item, and a YouTube link still adds YouTube's video.
+    **Items** (`POST …/queue { mediaId }`, checked with `Users/:user/Items/:id`: a video the
+    account can see) are `{ source: 'media', media_id, media: { type, series, season, episode,
+    year, image_url }, title, duration }` (`source: 'youtube'` for the others); the length comes
+    from the server, so it moves on by itself at once. **Playing:** the first player to want the
+    video playing asks `GET …/watch-party/stream/:itemId` (in voice; 409 for another video),
+    and the server asks the media server once per item (`Items/:id/PlaybackInfo` with a device
+    profile of what every browser plays: H.264 with AAC, MP3, Opus or FLAC in MP4, VP8/VP9/AV1
+    in WebM, up to 12 Mbit/s). A file it plays as it is comes as `{ type: 'file', url }` (Emby's
+    `DirectStreamUrl`, Jellyfin's `Videos/:id/stream?static=true`); anything else (MKV, HEVC,
+    AC-3…) as `{ type: 'hls', url }`, the server's transcode to H.264/AAC (`TranscodingUrl`).
+    The servers put the token in those addresses; it's taken out of what's kept and put back
+    (`api_key`) for each answer. Everyone gets the same PlaySessionId, so the media server makes
+    one transcode for the channel (checked: three viewers, one set of segments), seeking
+    restarts it there; it's stopped (`DELETE Videos/ActiveEncodings`) once the video stops
+    being the one playing. A failed answer isn't kept (the next player asks again); an address
+    from a login since replaced answers 410. **The player:** `voice/mediaElementPlayer.js`, a
+    `<video>` with YouTubeEmbed's face (`accepts`, `load`, `play`, `pause`, `seek`,
+    `setVolume`, `info` in YouTube's states), so `useWatchPartySync` drives either; Layout's
+    player draws the `<video>` for a media item and YouTube's frame (`YouTubeFrame`, opened on
+    the item playing when it appears) for a YouTube one, swapping when the party moves between
+    them (the sync leaves an item to the player that `accepts` it). HLS goes through hls.js
+    (^1.7, imported the first time it's needed) wherever it works, else the browser's own
+    (iPhones without MediaSource; newer Chromes have one too, but hls.js has been tried for
+    longer), starting at the party's point (`startPosition`, and the element's own
+    `currentTime`, which can keep the last video's point through the change). While the address
+    is asked for it says buffering, so the sync doesn't take the wait for autoplay being
+    refused; a 403 (just joined: LiveKit's webhook telling the server you're in comes a moment
+    after the app joins), 502 or no answer is asked again (4 tries, 1.5 s apart), the wait added
+    to the start if it should be playing. Couldn't play: a note over the player (the server's
+    reason, or "This video couldn't be played") with Try again (`retry`, which loads it again).
+    No consent step like YouTube's: it's the guild's own server.
+  - **Media servers' privacy** (also the privacy policy): the video and its pictures load from
+    the media server, which sees each viewer's IP address and what they watch; searches come
+    from our server. The token is handed to whoever is in the voice channel (in the addresses,
+    and so readable by them), so they could use it to browse what the account can see: hence a
+    restricted account, and administrators refused. Bots can't search or add media server
+    videos (no bot API for Watch Together yet).
+  - `e2e/watchparty.mjs` checks it with real videos (needs the internet); `e2e/mediaservers.mjs`
+    with real Jellyfin and Emby servers in Docker (`e2e/mediacontainers.mjs` starts them).
 - **Not done yet:** a per-user local mute (Discord has one), push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
   push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
   native keyboard hook), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"), switching between a phone's front and back camera in a call,
   background blur, a camera spotlight (one camera big, like a watched stream), viewers picking
-  a stream's quality (its simulcast copy; see Stream quality); Watch Together: a party surviving an API restart, other sites than YouTube,
+  a stream's quality (its simulcast copy; see Stream quality); Watch Together: a party surviving an API restart, other sites than YouTube and the guild's
+  Jellyfin or Emby (Plex), choosing a media server video's subtitles or audio track (the
+  account's settings on the server decide; not checked how subtitles come out),
   playlists, start times from links (`t=`). Phones: a PWA's audio stops when it's in the background (iOS also when locked; it
   rejoins when the app is back, see Lost connections). Staying in while locked needs a native
   app: background audio, and voice through LiveKit's native SDK (iOS also pauses microphone

@@ -161,7 +161,7 @@ describe('Watch Together', () => {
     expect(events).toHaveLength(2);
     expect(events[1]).toMatchObject({ guildId: guild.id, channelId: lounge.id, party: { queue: [{ video_id: VIDEO_B }] } });
     const layout = (await api.get(owner, `/guilds/${guild.id}`)).body;
-    expect(layout.channels.find((c) => c.id === lounge.id).watch_party).toEqual({ video_id: VIDEO_A, title: `Video ${VIDEO_A}`, playing: true });
+    expect(layout.channels.find((c) => c.id === lounge.id).watch_party).toEqual({ source: 'youtube', video_id: VIDEO_A, title: `Video ${VIDEO_A}`, playing: true });
     expect((await api.get(bob, base)).body.party.queue).toHaveLength(1);
   });
 

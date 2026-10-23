@@ -22,6 +22,8 @@ function fakeEmbed(info = {}) {
     pause: vi.fn(),
     seek: vi.fn(),
     setVolume: vi.fn(),
+    accepts: (i) => (i.source ?? 'youtube') === 'youtube',
+    seekStartsCued: true,
   };
 }
 
@@ -48,14 +50,15 @@ describe('useWatchPartySync', () => {
   it('loads the party\'s video at the point the server says, and sets the volume', () => {
     const embed = fakeEmbed();
     render(embed, party());
-    expect(embed.load).toHaveBeenCalledWith('aaaaaaaaaaa', 10, true);
+    expect(embed.load).toHaveBeenCalledWith(item, 10, true);
     expect(embed.setVolume).toHaveBeenCalledWith(80);
   });
 
   it('doesn\'t load again the video the frame was opened on', () => {
     const embed = fakeEmbed({ playerState: STATE.PLAYING });
     embed.time = 10;
-    renderHook(() => useWatchPartySync({ embed, ready: true, party: party(), guildId: 1, channelId: 2, volume: 80, initialItemId: 1 }));
+    embed.initialItemId = 1;
+    renderHook(() => useWatchPartySync({ embed, ready: true, party: party(), guildId: 1, channelId: 2, volume: 80 }));
     act(() => vi.advanceTimersByTime(1000));
     expect(embed.load).not.toHaveBeenCalled();
   });
@@ -108,9 +111,26 @@ describe('useWatchPartySync', () => {
     act(() => vi.advanceTimersByTime(500));
     expect(reportDuration).toHaveBeenCalledWith(1, 2, 1, 212);
 
-    rerender({ party: party({ current: { id: 2, video_id: 'bbbbbbbbbbb', duration: 60 } }) });
+    const next = { id: 2, video_id: 'bbbbbbbbbbb', duration: 60 };
+    rerender({ party: party({ current: next }) });
     expect(embed.load).toHaveBeenCalledTimes(1);
     act(() => vi.advanceTimersByTime(500));
-    expect(embed.load).toHaveBeenLastCalledWith('bbbbbbbbbbb', 10, true);
+    expect(embed.load).toHaveBeenLastCalledWith(next, 10, true);
+  });
+
+  it('leaves a video of the other kind to its own player', () => {
+    const embed = fakeEmbed();
+    render(embed, party({ current: { id: 3, source: 'media', media_id: 'film1', duration: 60 } }));
+    act(() => vi.advanceTimersByTime(1000));
+    expect(embed.load).not.toHaveBeenCalled();
+    expect(embed.play).not.toHaveBeenCalled();
+  });
+
+  it('loads the video again on a click after it failed', () => {
+    const embed = fakeEmbed({ playerState: STATE.PAUSED });
+    const { result } = render(embed, party());
+    embed.info.error = 'gone';
+    act(() => result.current.retry());
+    expect(embed.load).toHaveBeenLastCalledWith(item, 10, true);
   });
 });

@@ -16,7 +16,7 @@ vi.mock('../utils/api', () => ({ default: { get: vi.fn(), post: vi.fn(), put: vi
 import api from '../utils/api';
 import {
   expectedPosition, formatClock, getWatchParty, getWatchPartyLog, loadWatchParty, movedItem, reportDuration, resetWatchParties,
-  looksLikeLink, serverNow, skipVideo, subscribeWatchParties, videoIdFromInput,
+  looksLikeLink, mediaIdFromLink, serverNow, skipVideo, subscribeWatchParties, videoIdFromInput,
 } from './watchParty';
 
 const party = (changes = {}) => ({
@@ -35,6 +35,26 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe('mediaIdFromLink', () => {
+  it('reads the item out of links to the guild\'s media server\'s web app', () => {
+    const jellyfin = 'https://media.example.com';
+    expect(mediaIdFromLink('https://media.example.com/web/#/details?id=56c8ee1a5415471a&serverId=x', jellyfin)).toBe('56c8ee1a5415471a');
+    expect(mediaIdFromLink(' https://media.example.com/web/index.html#!/item?id=6&serverId=x ', jellyfin)).toBe('6');
+    const underPath = 'https://example.com/jellyfin';
+    expect(mediaIdFromLink('https://example.com/jellyfin/web/#/details?id=abc', underPath)).toBe('abc');
+    expect(mediaIdFromLink('https://example.com/other/web/#/details?id=abc', underPath)).toBeNull();
+  });
+
+  it('leaves other servers\' links and anything else alone', () => {
+    const server = 'https://media.example.com';
+    expect(mediaIdFromLink('https://elsewhere.example.com/web/#/details?id=abc', server)).toBeNull();
+    expect(mediaIdFromLink('https://media.example.com/web/#/home', server)).toBeNull();
+    expect(mediaIdFromLink('https://media.example.com/web/#/details?id=../x', server)).toBeNull();
+    expect(mediaIdFromLink('a film', server)).toBeNull();
+    expect(mediaIdFromLink('https://media.example.com/web/#/details?id=abc', null)).toBeNull();
+  });
 });
 
 describe('videoIdFromInput', () => {

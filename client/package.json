@@ -27,6 +27,7 @@
     "dictionary-en": "^4.0.0",
     "dictionary-en-gb": "^3.0.0",
     "highlight.js": "^11.11.1",
+    "hls.js": "^1.7.3",
     "i18next": "^26.4.2",
     "livekit-client": "^2.22.3",
     "nspell": "^2.1.5",

@@ -693,6 +693,24 @@ CREATE TABLE IF NOT EXISTS voice_regions (
 );
 `);
 
+// GUILD MEDIA SERVERS (mediaServers.js, Guild Settings → Watch Together): a guild's Jellyfin or
+// Emby server, at most one, logged in as one of its accounts. `url` is the server's address
+// (Emby's API under it at /emby); `token` the access token its login gave (the password is never
+// kept); `remote_user_id` that account's id there.
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_media_servers (
+  guild_id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL,
+  url TEXT NOT NULL,
+  server_name TEXT NOT NULL DEFAULT '',
+  username TEXT NOT NULL,
+  remote_user_id TEXT NOT NULL,
+  token TEXT NOT NULL,
+  connected_by INTEGER,
+  connected_at INTEGER NOT NULL
+);
+`);
+
 // GIF FAVOURITES (the emoji picker's GIFs tab): per user, the GIF as the picker shows it (JSON).
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS gif_favorites (

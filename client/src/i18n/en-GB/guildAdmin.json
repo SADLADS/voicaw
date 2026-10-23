@@ -345,6 +345,8 @@
         "eventDelete": "{{actor}} cancelled the event {{event}}",
         "guildUpdate": "{{actor}} changed the guild settings",
         "levelsUpdate": "{{actor}} changed the level settings",
+        "mediaServerConnect": "{{actor}} connected the media server {{server}} to Watch Together, as {{account}}",
+        "mediaServerDisconnect": "{{actor}} disconnected the media server {{server}}",
         "memberXpUpdate": "{{actor}} changed the XP of {{target}}",
         "auditLogClearOlder_one": "{{actor}} cleared entries older than {{age}} ({{count}} entry)",
         "auditLogClearOlder_other": "{{actor}} cleared entries older than {{age}} ({{count}} entries)",
@@ -539,10 +541,29 @@
         "roles": "Roles",
         "emoji": "Emoji",
         "levels": "Levels",
+        "watchTogether": "Watch Together",
         "invites": "Invites",
         "bans": "Bans"
       },
       "noPermission": "You don't have permission to change anything here."
+    },
+    "mediaServer": {
+      "title": "Media server",
+      "hint": "Connect the guild's own Jellyfin or Emby server, and people in voice channels can watch its films and shows together, as well as YouTube.",
+      "kind": "Server",
+      "url": "Address",
+      "urlHint": "Its https:// address on the internet, as you'd open it in a browser.",
+      "username": "Username",
+      "password": "Password",
+      "accountHint": "Use an account made for the guild, with only the libraries it should see (administrators aren't accepted). Everyone watching gets this account's access, and the server sees their IP addresses. The password isn't kept.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "connected": "Connected.",
+      "disconnected": "Disconnected.",
+      "change": "Change",
+      "disconnect": "Disconnect",
+      "account": "As {{username}}, connected by {{name}} on {{date}}",
+      "someone": "someone"
     },
     "invite": {
       "never": "Never",

@@ -3,19 +3,24 @@ import { Icon } from '../Icon';
 import { faClapperboard, faGripVertical, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { useDragReorder } from '../../hooks/useDragReorder';
 import {
-  addVideo, formatClock, looksLikeLink, movedItem, moveVideo, removeVideo, searchVideos, setPlayerSlot, useWatchParty, videoIdFromInput,
+  addMedia, addVideo, formatClock, looksLikeLink, mediaByline, mediaEpisodes, mediaIdFromLink, movedItem, moveVideo, removeVideo,
+  searchMedia, searchVideos, setPlayerSlot, useWatchParty, videoIdFromInput,
 } from '../../voice/watchParty';
 import { closeWatchPartyWindow, useWatchPartyWindow } from '../../voice/watchPartyWindow';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import WatchPartyActivity from './WatchPartyActivity';
 import WatchPartySearchResults from './WatchPartySearchResults';
+import WatchPartyMediaResults from './WatchPartyMediaResults';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
 
 const errorOf = (err) => err?.response?.data?.error ?? t('voice.watchParty.failed');
 
 // Watch Together on a voice channel's page, once you're in its voice: paste a YouTube link to
-// add it, or search YouTube and add from what it finds (WatchPartySearchResults), the player's place (WatchPartyPlayer draws itself over it, or a note while it's
+// add it, or search YouTube and add from what it finds (WatchPartySearchResults); with the
+// guild's media server (Jellyfin or Emby, `guild.media_server`) a switch beside the box searches
+// it instead (WatchPartyMediaResults, shows opening to their episodes), and links to its own web
+// app add that item; the player's place (WatchPartyPlayer draws itself over it, or a note while it's
 // popped out into its own window), what's playing and the
 // queue (dragged into order with Manage Queue; your own videos, or anyone's with Manage Queue,
 // can be taken out), and who did what (WatchPartyActivity). What you may do follows the
@@ -35,6 +40,11 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
   const [added, setAdded] = useState(() => new Set());
   const [adding, setAdding] = useState(null);
   const latestSearch = useRef(0);
+  const mediaServer = guild.media_server ?? null;
+  // Where words are searched for: the media server, once the guild has one (its admins set it
+  // up to be used), or YouTube.
+  const [source, setSource] = useState('media');
+  const searchesMedia = mediaServer != null && source === 'media';
   const isLink = !link.trim() || looksLikeLink(link) || videoIdFromInput(link) != null;
   const queue = party?.queue ?? [];
   const ids = queue.map((item) => item.id);
@@ -51,18 +61,32 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
     setSearch(null);
   };
 
-  const runSearch = async (query) => {
+  // `kind` 'youtube' or 'media'; `series` (a show on the media server: { id, title }) lists its
+  // episodes, `back` being the search to go back to.
+  const runSearch = async (query, { kind = 'youtube', series = null, back = null } = {}) => {
     const ticket = ++latestSearch.current;
-    setSearch({ query, results: null });
-    setAdded(new Set());
+    const shown = { kind, query, series, back };
+    setSearch({ ...shown, results: null });
+    if (!series) setAdded(new Set());
     try {
-      const results = await searchVideos(guild.id, channel.id, query);
-      if (ticket === latestSearch.current) setSearch({ query, results });
+      const results = series
+        ? await mediaEpisodes(guild.id, channel.id, series.id)
+        : kind === 'media' ? await searchMedia(guild.id, channel.id, query) : await searchVideos(guild.id, channel.id, query);
+      if (ticket === latestSearch.current) setSearch({ ...shown, results });
     } catch (err) {
       if (ticket !== latestSearch.current) return;
-      setSearch(null);
+      setSearch(back);
       setError(errorOf(err));
     }
+  };
+
+  const openSeries = (show) => {
+    setError(null);
+    runSearch(search.query, { kind: 'media', series: { id: show.media_id, title: show.title }, back: search });
+  };
+  const backToResults = () => {
+    latestSearch.current += 1;
+    setSearch(search?.back ?? null);
   };
 
   // A link is added; words are searched for.
@@ -74,17 +98,19 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
     if (!isLink) {
       // On a phone the keyboard goes, so the results have the screen.
       if (document.body.classList.contains('mobile-mode')) e.currentTarget.querySelector('input')?.blur();
-      runSearch(text);
+      runSearch(text, { kind: searchesMedia ? 'media' : 'youtube' });
       return;
     }
     const videoId = videoIdFromInput(text);
-    if (!videoId) {
-      setError(t('voice.watchParty.notAVideo'));
+    const mediaId = videoId ? null : mediaIdFromLink(text, mediaServer?.url);
+    if (!videoId && !mediaId) {
+      setError(mediaServer ? t('voice.watchParty.media.notAVideo', { server: mediaServer.name }) : t('voice.watchParty.notAVideo'));
       return;
     }
     setBusy(true);
     try {
-      await addVideo(guild.id, channel.id, videoId);
+      if (mediaId) await addMedia(guild.id, channel.id, mediaId);
+      else await addVideo(guild.id, channel.id, videoId);
       setLink('');
     } catch (err) {
       setError(errorOf(err));
@@ -93,12 +119,15 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
     }
   };
 
+  // A search's find: a YouTube video ({ video_id }) or the media server's ({ media_id }).
   const addFound = async (video) => {
-    setAdding(video.video_id);
+    const key = video.media_id != null ? `media:${video.media_id}` : video.video_id;
+    setAdding(key);
     setError(null);
     try {
-      await addVideo(guild.id, channel.id, video.video_id);
-      setAdded((previous) => new Set(previous).add(video.video_id));
+      if (video.media_id != null) await addMedia(guild.id, channel.id, video.media_id);
+      else await addVideo(guild.id, channel.id, video.video_id);
+      setAdded((previous) => new Set(previous).add(key));
     } catch (err) {
       setError(errorOf(err));
     } finally {
@@ -119,6 +148,8 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
   };
 
   const addedBy = (item) => t('voice.watchParty.addedBy', { name: displayName(item.added_by) });
+  const byline = (item) => (item.source === 'media' ? mediaByline(item.media) : item.author);
+  const placeholder = searchesMedia ? t('voice.watchParty.media.placeholder', { server: mediaServer.name }) : t('voice.watchParty.linkPlaceholder');
 
   return (
     <section className="watch-party-panel" aria-label={t('voice.watchParty.title')}>
@@ -133,7 +164,10 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
         ) : (
           <div className="watch-party-empty">
             <Icon icon={faClapperboard} size="2x" />
-            <p>{canQueue ? t('voice.watchParty.emptyCanAdd') : t('voice.watchParty.emptyCantAdd')}</p>
+            <p>
+              {!canQueue ? t('voice.watchParty.emptyCantAdd')
+                : mediaServer ? t('voice.watchParty.media.emptyCanAdd', { server: mediaServer.name }) : t('voice.watchParty.emptyCanAdd')}
+            </p>
           </div>
         )}
         <div className="watch-party-side" onMouseDown={keepTyping}>
@@ -145,14 +179,29 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
               </button>
             )}
           </div>
+          {canQueue && mediaServer && (
+            <div className="watch-party-sources" role="group" aria-label={t('voice.watchParty.media.searchWhere')}>
+              {[['media', mediaServer.name], ['youtube', t('voice.watchParty.media.youtube')]].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`watch-party-source${source === key ? ' active' : ''}`}
+                  aria-pressed={source === key}
+                  onClick={() => setSource(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           {canQueue && (
             <form className="watch-party-add" onSubmit={submit}>
               <input
                 type="text"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
-                placeholder={t('voice.watchParty.linkPlaceholder')}
-                aria-label={t('voice.watchParty.linkPlaceholder')}
+                placeholder={placeholder}
+                aria-label={placeholder}
                 disabled={busy}
               />
               <button type="submit" className="watch-party-primary" disabled={busy || !link.trim()}>
@@ -161,7 +210,19 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
             </form>
           )}
           {error && <p className="watch-party-error" role="alert">{error}</p>}
-          {canQueue && search && (
+          {canQueue && search?.kind === 'media' && (
+            <WatchPartyMediaResults
+              search={search}
+              added={added}
+              adding={adding}
+              playsNow={!party?.current}
+              onAdd={addFound}
+              onOpenSeries={openSeries}
+              onBack={backToResults}
+              onClose={closeSearch}
+            />
+          )}
+          {canQueue && search && search.kind !== 'media' && (
             <WatchPartySearchResults
               search={search}
               added={added}
@@ -176,7 +237,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
               <span className="watch-party-label">{t('voice.watchParty.nowPlaying')}</span>
               <span className="watch-party-item-title">{party.current.title ?? t('voice.watchParty.untitled')}</span>
               <span className="watch-party-item-meta">
-                {[party.current.author, party.current.duration ? formatClock(party.current.duration) : null, addedBy(party.current)].filter(Boolean).join(' · ')}
+                {[byline(party.current), party.current.duration ? formatClock(party.current.duration) : null, addedBy(party.current)].filter(Boolean).join(' · ')}
               </span>
             </div>
           )}
@@ -201,7 +262,7 @@ export default function WatchPartyPanel({ guild, channel, myId, onClose }) {
                         <span className="watch-party-item-text">
                           <span className="watch-party-item-title">{item.title ?? t('voice.watchParty.untitled')}</span>
                           <span className="watch-party-item-meta">
-                            {[item.duration ? formatClock(item.duration) : null, addedBy(item)].filter(Boolean).join(' · ')}
+                            {[item.source === 'media' ? byline(item) : null, item.duration ? formatClock(item.duration) : null, addedBy(item)].filter(Boolean).join(' · ')}
                           </span>
                         </span>
                         {canRemove && (

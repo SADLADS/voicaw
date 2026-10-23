@@ -26,7 +26,7 @@ export const AUDIT_FILTERS = [
   { key: 'webhooks', label: t('guildAdmin.auditLog.filters.webhooks'), actions: ['webhook_create', 'webhook_update', 'webhook_delete'] },
   { key: 'events', label: t('guildAdmin.auditLog.filters.events'), actions: ['event_create', 'event_update', 'event_delete'] },
   { key: 'levels', label: t('guildAdmin.auditLog.filters.levels'), actions: ['levels_update', 'member_xp_update'] },
-  { key: 'guild', label: t('guildAdmin.auditLog.filters.guild'), actions: ['guild_update', 'audit_log_clear'] },
+  { key: 'guild', label: t('guildAdmin.auditLog.filters.guild'), actions: ['guild_update', 'audit_log_clear', 'media_server_connect', 'media_server_disconnect'] },
 ];
 
 // What the owner can clear (server/auditLog.js CLEAR_CHOICES): entries older than these days, 0 all.
@@ -132,6 +132,8 @@ export function describeEntry(entry, names) {
     case 'event_delete': return sentence('eventDelete', { actor, event: named(d.name) });
     case 'guild_update': return sentence('guildUpdate', { actor });
     case 'levels_update': return sentence('levelsUpdate', { actor });
+    case 'media_server_connect': return sentence('mediaServerConnect', { actor, server: named(d.name) }, { account: d.username });
+    case 'media_server_disconnect': return sentence('mediaServerDisconnect', { actor, server: named(d.name) });
     case 'member_xp_update': return sentence('memberXpUpdate', { actor, target: target() });
     case 'audit_log_clear': return d.olderThanDays
       ? sentence('auditLogClearOlder', { actor }, { age: clearAge(d.olderThanDays), count: d.deleted })

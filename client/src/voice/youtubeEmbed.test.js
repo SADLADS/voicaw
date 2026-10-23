@@ -75,7 +75,7 @@ describe('YouTubeEmbed', () => {
     const embed = new YouTubeEmbed(iframe);
     fromFrame({ event: 'infoDelivery', info: { currentTime: 10, playerState: STATE.PLAYING } });
     posted.length = 0;
-    embed.load('bbbbbbbbbbb', 30, true);
+    embed.load({ id: 2, video_id: 'bbbbbbbbbbb' }, 30, true);
     embed.seek(42);
     embed.pause();
     embed.setVolume(0);

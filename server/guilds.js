@@ -186,6 +186,8 @@ async function layoutFor(member, overridesByChannel) {
   return {
     ...guild,
     levels,
+    // Its media server for Watch Together (mediaServers.js): { kind, name, url } or null.
+    media_server: await require('./mediaServers').summaryOf(guild.id),
     // The join log (joinLog.js): { channel_id (null: off), leaves }.
     join_log: require('./joinLog').settingsOf(settings),
     my_notify_level: own?.notify_level ?? 'mentions',
@@ -365,7 +367,7 @@ async function deleteGuild(guildId) {
     await require('./guildEvents').deleteGuildEvents(guildId);
     await require('./guildLevels').deleteGuildLevels(guildId);
     for (const table of [
-      'guild_emojis', 'guild_audit_log', 'webhook_blocks',
+      'guild_emojis', 'guild_audit_log', 'webhook_blocks', 'guild_media_servers',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
       'guild_member_roles', 'guild_roles', 'guild_members', 'guild_mutes',
     ]) {
