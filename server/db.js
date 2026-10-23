@@ -710,6 +710,9 @@ CREATE TABLE IF NOT EXISTS guild_media_servers (
   connected_at INTEGER NOT NULL
 );
 `);
+// The device the media server knows the login as (mediaServers.js deviceIdOf; null: from before,
+// voicaw-guild-<id>).
+addColumn('ALTER TABLE guild_media_servers ADD COLUMN device_id TEXT');
 
 // GIF FAVOURITES (the emoji picker's GIFs tab): per user, the GIF as the picker shows it (JSON).
 sqlite.exec(`

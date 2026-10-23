@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('./db');
 const { PERMISSIONS, has } = require('./permissions');
 const { ActionError } = require('./actionError');
@@ -21,12 +22,15 @@ const { safeFetch } = require('./safeFetch');
 // don't ask for one). One transcode is shared by everyone watching (the same PlaySessionId),
 // and stopped when its video stops being the one playing.
 //
-// Jellyfin and Emby are one API (Jellyfin is Emby's fork): Emby's lives under /emby and wants
-// its own word in the authorisation header.
+// Jellyfin and Emby are one API (Jellyfin is Emby's fork), but they log in differently: Emby's
+// lives under /emby and takes its X-Emby-Authorization and X-Emby-Token headers and `api_key` in
+// addresses; Jellyfin takes the standard Authorization header (with the token in it) and
+// `ApiKey` (10.10 also takes Emby's ways; 12 refuses Emby's header with a 400 and ignores the
+// rest).
 
 const KINDS = {
-  jellyfin: { prefix: '', scheme: 'MediaBrowser', name: 'Jellyfin' },
-  emby: { prefix: '/emby', scheme: 'Emby', name: 'Emby' },
+  jellyfin: { prefix: '', scheme: 'MediaBrowser', name: 'Jellyfin', keyParam: 'ApiKey' },
+  emby: { prefix: '/emby', scheme: 'Emby', name: 'Emby', keyParam: 'api_key' },
 };
 const MAX_URL = 300;
 const MAX_USERNAME = 100;
@@ -86,13 +90,19 @@ function normalizeUrl(input, kind) {
 
 const apiBase = (server) => `${server.url}${KINDS[server.kind].prefix}`;
 
+// The device the media server knows the guild's login as: made at random on each connect (the
+// servers keep one login per device, and guild ids repeat between Voicaw servers, so an id made
+// from the guild's would sign another server's guild out); connections from before had
+// voicaw-guild-<id>.
+const deviceIdOf = (server) => server.device_id || `voicaw-guild-${server.guild_id}`;
+
 // The authorisation header: who's asking (the guild), and the token once logged in.
-function authHeader(kind, guildId, guildName, token = null) {
+function authHeader(kind, deviceId, guildName, token = null) {
   const quote = (value) => String(value).replace(/["\\\r\n]/g, '');
   const parts = [
     `Client="Voicaw"`,
     `Device="${quote(`Voicaw: ${guildName}`).slice(0, 100)}"`,
-    `DeviceId="voicaw-guild-${guildId}"`,
+    `DeviceId="${quote(deviceId)}"`,
     'Version="1.0.0"',
     ...(token ? [`Token="${quote(token)}"`] : []),
   ];
@@ -103,11 +113,13 @@ const unreachable = (kind) => new ActionError(502, `The ${KINDS[kind].name} serv
 
 // One request to the server's API: the JSON answer, or { status } for an error status. Throws
 // ActionError when it can't be reached.
-async function call(server, path, { method = 'GET', body = null, token = server.token, guildName = '', timeoutMs = 10000 } = {}) {
+// `anonymous`: no authorisation header at all (the server's public info).
+async function call(server, path, { method = 'GET', body = null, token = server.token, guildName = '', timeoutMs = 10000, anonymous = false } = {}) {
   const headers = {
     Accept: 'application/json',
-    'X-Emby-Authorization': authHeader(server.kind, server.guild_id, guildName, token),
-    ...(token && { 'X-Emby-Token': token }),
+    ...(anonymous ? {} : server.kind === 'emby'
+      ? { 'X-Emby-Authorization': authHeader(server.kind, deviceIdOf(server), guildName, token), ...(token && { 'X-Emby-Token': token }) }
+      : { Authorization: authHeader(server.kind, deviceIdOf(server), guildName, token) }),
     ...(body && { 'Content-Type': 'application/json' }),
   };
   let res;
@@ -175,10 +187,20 @@ async function connect(actor, { kind, url, username, password }) {
   if (typeof (password ?? '') !== 'string' || (password ?? '').length > MAX_PASSWORD) throw new ActionError(400, 'Invalid password');
   const guildId = actor.guild.id;
   const { name: productName } = KINDS[kind];
-  const server = { guild_id: guildId, kind, url: base, token: null };
+  const server = { guild_id: guildId, kind, url: base, token: null, device_id: `voicaw-${crypto.randomBytes(8).toString('hex')}` };
 
-  const info = await call(server, '/System/Info/Public', { guildName: actor.guild.name });
-  if (info.status || !info.Id) throw new ActionError(400, `There's no ${productName} server at that address`);
+  const publicInfo = async (asKind) => {
+    const answer = await call({ ...server, kind: asKind }, '/System/Info/Public', { anonymous: true }).catch(() => null);
+    return answer && !answer.status && answer.Id ? answer : null;
+  };
+  // Not there as the kind chosen: asked as the other (Jellyfin 12 has no /emby paths), to say
+  // which it is.
+  const info = await publicInfo(kind) ?? await publicInfo(kind === 'jellyfin' ? 'emby' : 'jellyfin');
+  if (!info) {
+    // Unreachable altogether, or nothing of the sort there.
+    await call(server, '/System/Info/Public', { anonymous: true });
+    throw new ActionError(400, `There's no ${productName} server at that address`);
+  }
   // Jellyfin says it's Jellyfin; Emby says nothing.
   const isJellyfin = /jellyfin/i.test(String(info.ProductName ?? ''));
   if (isJellyfin !== (kind === 'jellyfin')) {
@@ -190,7 +212,8 @@ async function connect(actor, { kind, url, username, password }) {
     guildName: actor.guild.name,
   });
   if (login.status === 401 || login.status === 403) throw new ActionError(400, 'Wrong username or password');
-  if (login.status || !login.AccessToken || !login.User?.Id) throw unreachable(kind);
+  if (login.status) throw new ActionError(502, `The ${productName} server refused the login (error ${login.status})`);
+  if (!login.AccessToken || !login.User?.Id) throw unreachable(kind);
   const connected = { ...server, token: login.AccessToken };
   if (login.User.Policy?.IsAdministrator) {
     await logOut(connected);
@@ -201,12 +224,12 @@ async function connect(actor, { kind, url, username, password }) {
   const serverName = String(info.ServerName ?? '').slice(0, 100);
   await db.transaction(async () => {
     await db.run(
-      `INSERT INTO guild_media_servers (guild_id, kind, url, server_name, username, remote_user_id, token, connected_by, connected_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))
+      `INSERT INTO guild_media_servers (guild_id, kind, url, server_name, username, remote_user_id, token, device_id, connected_by, connected_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))
        ON CONFLICT(guild_id) DO UPDATE SET kind = excluded.kind, url = excluded.url, server_name = excluded.server_name,
          username = excluded.username, remote_user_id = excluded.remote_user_id, token = excluded.token,
-         connected_by = excluded.connected_by, connected_at = excluded.connected_at`,
-      [guildId, kind, base, serverName, String(login.User.Name ?? username.trim()).slice(0, MAX_USERNAME), String(login.User.Id), login.AccessToken, actor.userId]
+         device_id = excluded.device_id, connected_by = excluded.connected_by, connected_at = excluded.connected_at`,
+      [guildId, kind, base, serverName, String(login.User.Name ?? username.trim()).slice(0, MAX_USERNAME), String(login.User.Id), login.AccessToken, server.device_id, actor.userId]
     );
     await logAudit({
       guildId, actorId: actor.userId, action: 'media_server_connect',
@@ -330,7 +353,7 @@ async function playbackOf(guildId, mediaId) {
     const path = source.DirectStreamUrl
       ? withoutToken(source.DirectStreamUrl)
       : `/Videos/${encodeURIComponent(mediaId)}/stream?${new URLSearchParams({
-        static: 'true', MediaSourceId: String(source.Id ?? mediaId), PlaySessionId: playSessionId, DeviceId: `voicaw-guild-${guildId}`,
+        static: 'true', MediaSourceId: String(source.Id ?? mediaId), PlaySessionId: playSessionId, DeviceId: deviceIdOf(server),
       })}`;
     return { type: 'file', path, playSessionId, token: server.token };
   }
@@ -344,7 +367,7 @@ async function streamUrl(guildId, playback) {
   const server = await getServer(guildId);
   if (!server || server.token !== playback.token) return null;
   const separator = playback.path.includes('?') ? '&' : '?';
-  return `${apiBase(server)}${playback.path}${separator}api_key=${encodeURIComponent(server.token)}`;
+  return `${apiBase(server)}${playback.path}${separator}${KINDS[server.kind].keyParam}=${encodeURIComponent(server.token)}`;
 }
 
 // The transcode for `playback` is no longer wanted (best effort; the server ends idle ones
@@ -353,7 +376,7 @@ async function stopPlayback(guildId, playback) {
   if (playback?.type !== 'hls') return;
   const server = await getServer(guildId);
   if (!server || server.token !== playback.token) return;
-  const params = new URLSearchParams({ deviceId: `voicaw-guild-${guildId}`, playSessionId: playback.playSessionId });
+  const params = new URLSearchParams({ deviceId: deviceIdOf(server), playSessionId: playback.playSessionId });
   await call(server, `/Videos/ActiveEncodings?${params}`, { method: 'DELETE' }).catch(() => {});
 }
 

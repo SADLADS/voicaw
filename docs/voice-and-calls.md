@@ -419,16 +419,25 @@ LiveKit carries the audio.
     Referer fix covers the embed (see Desktop app); its voicaw:// pages can't be given as the
     `origin`, and Watch Together hasn't been checked there yet.
   - **Media servers** (built 2026-10-23; `server/mediaServers.js`, `routes/mediaServers.js`):
-    a guild's own Jellyfin or Emby (one API: Emby's is under `/emby`, and its authorisation
-    header says `Emby` where Jellyfin's says `MediaBrowser`). **Connecting** (Guild Settings →
+    a guild's own Jellyfin or Emby (one API, but logged in to differently: Emby's is under
+    `/emby` and takes `X-Emby-Authorization: Emby …`, `X-Emby-Token` and `?api_key=`; Jellyfin
+    takes the standard `Authorization: MediaBrowser …, Token="…"` and `?ApiKey=`. Jellyfin 10.10
+    took Emby's ways too, but 12 refuses `X-Emby-Authorization` with a 400, ignores the token
+    headers and `api_key`, and has no `/emby` paths: found 2026-10-23 on a real 12.2, and
+    `e2e/mediacontainers.mjs` now runs one). **Connecting** (Guild Settings →
     Watch Together, Manage Guild; `PUT /guilds/:g/media-server { kind, url, username,
     password }`, 10 tries a minute each): the address (https only; a pasted `…/web/` or Emby's
     `…/emby` is trimmed; public addresses only, any port, through `safeFetch`, whose private
     addresses and http are allowed only with `LINK_PREVIEWS_ALLOW_PRIVATE=1`, tests and e2e),
-    `System/Info/Public` says it's that kind (Jellyfin names itself in `ProductName`, Emby
-    doesn't: a mismatch is refused, "That's a Jellyfin server, not Emby"), then
-    `Users/AuthenticateByName` as the guild (`Device="Voicaw: <guild name>"`,
-    `DeviceId="voicaw-guild-<id>"`). Only the access token is kept (`guild_media_servers`, one
+    `System/Info/Public` (asked with no authorisation; if it isn't there as the kind chosen, as
+    the other) says it's that kind (Jellyfin names itself in `ProductName`, Emby doesn't: a
+    mismatch is refused, "That's a Jellyfin server, not Emby"), then `Users/AuthenticateByName`
+    as the guild (`Device="Voicaw: <guild name>"`, and a `DeviceId` made at random on each
+    connect, kept as `device_id`: the servers keep one login per device, and an id made from the
+    guild's, as connections before had, `voicaw-guild-<id>`, would sign out a guild with the same
+    id on another Voicaw server, or a test server's). A refusal other than a wrong password says
+    its status ("refused the login (error 400)"), not "couldn't be reached". Only the access
+    token is kept (`guild_media_servers`, one
     per guild, deleted with it), never the password. An account that's the server's
     administrator is refused and its login ended (the user chose: viewers get the token, see
     below); a restricted account made for the guild decides which libraries it can see.
@@ -459,7 +468,7 @@ LiveKit carries the audio.
     `DirectStreamUrl`, Jellyfin's `Videos/:id/stream?static=true`); anything else (MKV, HEVC,
     AC-3…) as `{ type: 'hls', url }`, the server's transcode to H.264/AAC (`TranscodingUrl`).
     The servers put the token in those addresses; it's taken out of what's kept and put back
-    (`api_key`) for each answer. Everyone gets the same PlaySessionId, so the media server makes
+    (`ApiKey` for Jellyfin, `api_key` for Emby) for each answer. Everyone gets the same PlaySessionId, so the media server makes
     one transcode for the channel (checked: three viewers, one set of segments), seeking
     restarts it there; it's stopped (`DELETE Videos/ActiveEncodings`) once the video stops
     being the one playing. A failed answer isn't kept (the next player asks again); an address

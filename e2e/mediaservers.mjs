@@ -202,10 +202,7 @@ try {
   await waitVideo(c, (v) => !v.paused && v.time > 2, 'carol plays Hevc Film', 45000);
   console.log('hevc', ha);
   if (shots) await c.screenshot({ path: `${shots}/05a-phone-hls.png` });
-  await inStep([a, b, c], 'HLS in step');
-  const sessions = await (await fetch(`${JELLYFIN}/Sessions`, { headers: { 'X-Emby-Token': await jellyfinAdminToken() } })).json();
-  const transcodes = sessions.filter((s) => s.TranscodingInfo).length;
-  console.log('jellyfin sessions transcoding:', transcodes);
+  await inStep([a, b, c], 'HLS in step', 2);
   await a.evaluate(() => {
     const seek = document.querySelector('.watch-party-seek');
     const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
@@ -275,11 +272,3 @@ try {
   await browser.close();
 }
 
-async function jellyfinAdminToken() {
-  const res = await fetch(`${JELLYFIN}/Users/AuthenticateByName`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Emby-Authorization': 'MediaBrowser Client="e2e", Device="e2e", DeviceId="voicaw-e2e", Version="1"' },
-    body: JSON.stringify({ Username: 'admin', Pw: 'adminpw' }),
-  });
-  return (await res.json()).AccessToken;
-}

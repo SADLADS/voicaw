@@ -1,5 +1,6 @@
 // Throwaway Jellyfin and Emby servers in Docker for e2e/mediaservers.mjs: each on 127.0.0.1
-// (E2E_JELLYFIN_PORT 18096, E2E_EMBY_PORT 18097), with two made-up videos (ffmpeg): "Test Clip"
+// (E2E_JELLYFIN_PORT 18096, E2E_EMBY_PORT 18097, and Jellyfin 12, which refuses Emby's old
+// authorisation header, E2E_JELLYFIN12_PORT 18098), with two made-up videos (ffmpeg): "Test Clip"
 // (H.264/AAC MP4, played as it is) and "Hevc Film" (HEVC/AC-3 MKV, which browsers can't play:
 // transcoded to HLS), an administrator "admin" and an ordinary account "guild", passwords
 // "adminpw" and "guildpw". Kept in E2E_MEDIA_DIR (default /tmp/voicaw-e2e-media) and reused
@@ -13,6 +14,7 @@ import { join } from 'path';
 const dir = process.env.E2E_MEDIA_DIR || '/tmp/voicaw-e2e-media';
 const SERVERS = [
   { kind: 'jellyfin', name: 'voicaw-e2e-jellyfin', image: 'jellyfin/jellyfin:10.10.7', port: process.env.E2E_JELLYFIN_PORT || '18096', api: '' },
+  { kind: 'jellyfin', name: 'voicaw-e2e-jellyfin12', image: 'jellyfin/jellyfin:12.2', port: process.env.E2E_JELLYFIN12_PORT || '18098', api: '', dir: 'jellyfin12' },
   { kind: 'emby', name: 'voicaw-e2e-emby', image: 'emby/embyserver:4.8.11.0', port: process.env.E2E_EMBY_PORT || '18097', api: '/emby' },
 ];
 const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -47,13 +49,15 @@ const uid = String(process.getuid());
 const gid = String(process.getgid());
 
 async function call(server, path, { method = 'GET', body, token } = {}) {
-  const scheme = server.kind === 'emby' ? 'Emby' : 'MediaBrowser';
+  // Jellyfin's own header (12 refuses Emby's), Emby's for Emby.
+  const auth = `Client="e2e", Device="e2e", DeviceId="voicaw-e2e", Version="1"${token ? `, Token="${token}"` : ''}`;
   const res = await fetch(`http://127.0.0.1:${server.port}${server.api}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'X-Emby-Authorization': `${scheme} Client="e2e", Device="e2e", DeviceId="voicaw-e2e", Version="1"`,
-      ...(token && { 'X-Emby-Token': token }),
+      ...(server.kind === 'emby'
+        ? { 'X-Emby-Authorization': `Emby ${auth}`, ...(token && { 'X-Emby-Token': token }) }
+        : { Authorization: `MediaBrowser ${auth}` }),
     },
     body: body && JSON.stringify(body),
   });
@@ -65,13 +69,13 @@ async function call(server, path, { method = 'GET', body, token } = {}) {
 const login = (server, username, password) => call(server, '/Users/AuthenticateByName', { method: 'POST', body: { Username: username, Pw: password } });
 
 for (const server of SERVERS) {
-  const config = join(dir, server.kind);
+  const config = join(dir, server.dir ?? server.kind);
   mkdirSync(config, { recursive: true });
   const running = run('docker', ['ps', '-a', '--filter', `name=^${server.name}$`, '--format', '{{.State}}']);
   if (running !== 'running') {
     if (running) run('docker', ['rm', '-f', server.name]);
-    const user = server.kind === 'jellyfin' ? ['--user', `${uid}:${gid}`, '-v', `${config}:/config`, '-v', `${join(dir, 'cache')}:/cache`] : ['-e', `UID=${uid}`, '-e', `GID=${gid}`, '-v', `${config}:/config`];
-    mkdirSync(join(dir, 'cache'), { recursive: true });
+    const user = server.kind === 'jellyfin' ? ['--user', `${uid}:${gid}`, '-v', `${config}:/config`, '-v', `${join(dir, `cache-${server.dir ?? server.kind}`)}:/cache`] : ['-e', `UID=${uid}`, '-e', `GID=${gid}`, '-v', `${config}:/config`];
+    mkdirSync(join(dir, `cache-${server.dir ?? server.kind}`), { recursive: true });
     run('docker', ['run', '-d', '--name', server.name, '--memory', '1g', '-p', `127.0.0.1:${server.port}:8096`,
       ...user, '-v', `${join(dir, 'media')}:/media:ro`, server.image]);
   }
@@ -100,11 +104,13 @@ for (const server of SERVERS) {
     // Emby ignores a new account's password.
     if (server.kind === 'emby') await call(server, `/Users/${created.Id}/Password`, { method: 'POST', token, body: { NewPw: 'guildpw', CurrentPw: '' } });
   }
-  // Until both videos are in the library.
-  for (let i = 0; i < 60; i++) {
-    const items = await call(server, '/Items?Recursive=true&IncludeItemTypes=Movie', { token });
-    if (items.Items.length >= 2) break;
+  // Until both videos are in the library (Jellyfin 12 doesn't scan a new library by itself).
+  let found = 0;
+  for (let i = 0; i < 60 && found < 2; i++) {
+    if (i % 10 === 0) await call(server, '/Library/Refresh', { method: 'POST', token });
     await sleep(2000);
+    found = (await call(server, '/Items?Recursive=true&IncludeItemTypes=Movie', { token })).Items.length;
   }
+  if (found < 2) throw new Error(`${server.kind} on ${server.port}: the videos never showed up in its library`);
   console.log(`${server.kind}: http://127.0.0.1:${server.port} (${info.ServerName}, ${info.Version})`);
 }

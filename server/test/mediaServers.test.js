@@ -27,11 +27,18 @@ mediaServers.transport.fetch = async (href, options) => {
   const url = new URL(href);
   requests.push({ url, ...options });
   if (url.hostname !== 'media.example') throw new Error('unreachable');
-  // Both answer with or without /emby (Jellyfin kept Emby's paths), but tell what they are.
+  // Emby answers with or without /emby; Jellyfin 12 only without.
+  if (server.kind === 'jellyfin' && url.pathname.startsWith('/emby/')) return json(404);
   const path = url.pathname.replace(/^\/emby/, '');
-  const token = options.headers['X-Emby-Token'];
+  // As Jellyfin 12: only the standard Authorization header (Emby's is refused with a 400);
+  // Emby: its own headers.
+  if (server.kind === 'jellyfin' && options.headers['X-Emby-Authorization']) return json(400);
+  const token = server.kind === 'jellyfin'
+    ? /Token="([^"]+)"/.exec(options.headers.Authorization ?? '')?.[1]
+    : options.headers['X-Emby-Token'];
   const live = token && !server.loggedOut.includes(token);
   if (path === '/System/Info/Public') {
+    if (options.headers.Authorization || options.headers['X-Emby-Authorization']) return json(500); // asked as nobody
     return json(200, { Id: 'srv', ServerName: 'Home Media', ...(server.kind === 'jellyfin' && { ProductName: 'Jellyfin Server' }) });
   }
   if (path === '/Users/AuthenticateByName' && options.method === 'POST') {
@@ -58,7 +65,7 @@ mediaServers.transport.fetch = async (href, options) => {
       PlaySessionId: `session-${id}`,
       MediaSources: [id === 'film1'
         ? { Id: id, SupportsDirectPlay: true }
-        : { Id: id, SupportsDirectPlay: false, TranscodingUrl: `/videos/${id}/master.m3u8?PlaySessionId=session-${id}&api_key=${token}` }],
+        : { Id: id, SupportsDirectPlay: false, TranscodingUrl: `/videos/${id}/master.m3u8?PlaySessionId=session-${id}&ApiKey=${token}` }],
     });
   }
   if (path === '/Videos/ActiveEncodings' && options.method === 'DELETE') return json(204);
@@ -134,7 +141,8 @@ describe('Guild media servers', () => {
     expect(JSON.stringify(row)).not.toMatch(/"pw"/);
     // The login says who's asking.
     const login = requests.find((r) => r.url.pathname === '/Users/AuthenticateByName');
-    expect(login.headers['X-Emby-Authorization']).toMatch(/^MediaBrowser Client="Voicaw", Device="Voicaw: Film Club", DeviceId="voicaw-guild-\d+"/);
+    expect(login.headers.Authorization).toMatch(/^MediaBrowser Client="Voicaw", Device="Voicaw: Film Club", DeviceId="voicaw-[0-9a-f]{16}"/);
+    expect(login.headers['X-Emby-Authorization']).toBeUndefined();
 
     // Members see what it is (the layout), not the account.
     const layout = (await api.get(alice, `/guilds/${guild.id}`)).body;
@@ -193,6 +201,10 @@ describe('Guild media servers', () => {
     expect(found[1].type).toBe('Series');
     const search = requests.find((r) => r.url.pathname === '/Items');
     expect(search.url.searchParams.get('userId')).toBe('user-guild');
+    // As the device it logged in as, with the token in Jellyfin's own header.
+    const { device_id: deviceId, token } = await db.get('SELECT device_id, token FROM guild_media_servers ORDER BY connected_at DESC, guild_id DESC LIMIT 1');
+    expect(search.headers.Authorization).toContain(`DeviceId="${deviceId}"`);
+    expect(search.headers.Authorization).toContain(`Token="${token}"`);
     expect(search.url.searchParams.get('SearchTerm')).toBe('film');
     const episodes = (await api.get(alice, `${base}/media-episodes/show1`)).body.results;
     expect(episodes[0]).toMatchObject({ media_id: 'ep1', series: 'A Show', season: 1, episode: 1 });
@@ -215,7 +227,7 @@ describe('Guild media servers', () => {
     const url = new URL(stream.url);
     expect(url.origin + url.pathname).toBe('https://media.example/Videos/film1/stream');
     expect(url.searchParams.get('static')).toBe('true');
-    expect(url.searchParams.get('api_key')).toMatch(/^token-/);
+    expect(url.searchParams.get('ApiKey')).toMatch(/^token-/);
     // Asked of the media server once, however many players ask.
     await api.get(alice, `${base}/stream/${item}`);
     expect(requests.filter((r) => r.url.pathname.endsWith('/PlaybackInfo'))).toHaveLength(1);
@@ -227,8 +239,8 @@ describe('Guild media servers', () => {
     await api.post(alice, `${base}/skip`, { itemId: item });
     const hls = (await api.get(alice, `${base}/stream/${item + 1}`)).body;
     expect(hls.type).toBe('hls');
-    expect(hls.url.match(/api_key=/g)).toHaveLength(1);
-    expect(hls.url).toMatch(/^https:\/\/media\.example\/videos\/ep1\/master\.m3u8\?PlaySessionId=session-ep1&api_key=token-/);
+    expect(hls.url.match(/ApiKey=/g)).toHaveLength(1);
+    expect(hls.url).toMatch(/^https:\/\/media\.example\/videos\/ep1\/master\.m3u8\?PlaySessionId=session-ep1&ApiKey=token-/);
     // Skipping it stops its transcode there.
     await api.post(alice, `${base}/skip`, { itemId: item + 1 });
     await new Promise((resolve) => setTimeout(resolve, 10));
