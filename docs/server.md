@@ -23,7 +23,9 @@ unexpected errors. The rest:
 - `guildTasks.js`: list channels' tasks (tree helpers, limits, the assignment notification; see
   List channels); `routes/guildTasks.js` has their routes.
 - `guildDocuments.js`: document channels' documents (rows, limits, cleanup; see Document
-  channels); `routes/guildDocuments.js` has their routes.
+  channels); `routes/guildDocuments.js` has their routes. `documentCollab.js`: live editing's
+  sessions, in memory (applies everyone's steps, saves the markdown; loads the client's
+  `documentSchema.js` and `documentSerializer.js` with `import()`; see Live editing).
 - `channelMutes.js`: each member's muted channels and guilds, and own channel notification levels (see Mentions).
 - `conversationSettings.js`: each person's pinned and muted DMs and group DMs (see
   `docs/client.md`); `routes/conversationSettings.js`.

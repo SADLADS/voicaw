@@ -2,8 +2,8 @@
 // (markdown typed as in a message, toolbar bold, a checklist, a table, a cover image), publishes
 // it; Bob sees its card (cover, title, excerpt) live, opens it, reacts and replies in its
 // thread, which Alice sees live with the card's reply count. Bob can't edit Alice's; Alice
-// edits and Bob's open page follows. Then a phone: Document / Replies tabs, nothing wider
-// than the screen.
+// edits and Bob's open page follows (it's saved as she types). Then a phone: Document / Replies
+// tabs, nothing wider than the screen. Two people editing at once: e2e/docslive.mjs.
 //   node e2e/serve.mjs &   then   node e2e/docs.mjs [screenshot dir]
 import zlib from 'zlib';
 import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
@@ -196,15 +196,16 @@ try {
   if (await a.$eval('.document-page .document-reactions .reaction-add', (el) => getComputedStyle(el).opacity) !== '1') throw new Error('document + hidden');
   console.log('alice: reaction and reply live');
 
-  // Alice edits; Bob's open page follows.
+  // Alice edits (live: saved as she goes); Bob's open page follows before she's even done.
   await a.click('.document-page-actions button:has-text("Edit")');
-  await a.waitForSelector('.doc-editor-text h1');
+  await a.waitForSelector('.doc-editor-status:has-text("All changes saved")');
   await a.click('.doc-editor-text h1');
   await move(a, 'End');
   await a.keyboard.type(' quickly');
-  await a.click('button:has-text("Save")');
-  await a.waitForSelector('.document-page-inner .document-body h1:has-text("Getting started quickly")');
   await b.waitForSelector('.document-page-inner .document-body h1:has-text("Getting started quickly")');
+  await a.waitForSelector('.doc-editor-status:has-text("All changes saved")');
+  await a.click('button:has-text("Done")');
+  await a.waitForSelector('.document-page-inner .document-body h1:has-text("Getting started quickly")');
   console.log('edited; bob\'s page followed');
 
   // Back on the feed, the card counts the reply.

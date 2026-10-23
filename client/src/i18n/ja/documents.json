@@ -95,11 +95,6 @@
       },
       "imageFile": "画像ファイル",
       "coverImageFile": "カバー画像ファイル",
-      "conflict": {
-        "message": "あなたが編集している間に、他の人がこのドキュメントを保存しました。",
-        "loadTheirs": "相手のバージョンを読み込む",
-        "saveMine": "自分のバージョンで上書き保存"
-      },
       "changeCover": "カバーを変更",
       "removeCover": "カバーを削除",
       "addCover": "カバー画像を追加",
@@ -107,7 +102,6 @@
       "untitled": "無題のドキュメント",
       "discard": {
         "title": "変更を破棄",
-        "editing": "編集をやめて変更を破棄しますか？",
         "new": "このドキュメントを破棄しますか？",
         "confirm": "破棄"
       }

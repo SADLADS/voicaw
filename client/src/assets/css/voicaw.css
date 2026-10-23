@@ -138,6 +138,15 @@
   --vc-duration-fast: 120ms;
   --vc-duration-base: 180ms;
   --vc-duration-slow: 240ms;
+  /* Other people's cursors in a document edited live (documents/collabCursors.js), one
+     colour per person. */
+  --vc-collab-1: #f07a72;
+  --vc-collab-2: #e8a33a;
+  --vc-collab-3: #3fb871;
+  --vc-collab-4: #4fa3e8;
+  --vc-collab-5: #b98af5;
+  --vc-collab-6: #e86fb5;
+
   color-scheme: dark;
 }
 
@@ -201,6 +210,13 @@
   --vc-mention-badge: #d8b930;
   --vc-on-mention-badge: #17151d;
 
+  --vc-collab-1: #c4342c;
+  --vc-collab-2: #b86a10;
+  --vc-collab-3: #1d7f48;
+  --vc-collab-4: #1f6fbf;
+  --vc-collab-5: #6a52c9;
+  --vc-collab-6: #b8338a;
+
   color-scheme: light;
 }
 
@@ -263,6 +279,13 @@
   --vc-mention-badge: #d22d39;
   --vc-on-mention-badge: #ffffff;
 
+  --vc-collab-1: #f07a72;
+  --vc-collab-2: #e8a33a;
+  --vc-collab-3: #3fb871;
+  --vc-collab-4: #4fa3e8;
+  --vc-collab-5: #b98af5;
+  --vc-collab-6: #e86fb5;
+
   color-scheme: dark;
 }
 
@@ -324,6 +347,13 @@
   --vc-unread: #ff8a2a;
   --vc-mention-badge: #e8b830;
   --vc-on-mention-badge: #120d17;
+
+  --vc-collab-1: #f07a72;
+  --vc-collab-2: #e8a33a;
+  --vc-collab-3: #3fb871;
+  --vc-collab-4: #4fa3e8;
+  --vc-collab-5: #b98af5;
+  --vc-collab-6: #e86fb5;
 
   color-scheme: dark;
 }

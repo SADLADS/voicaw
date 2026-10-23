@@ -202,8 +202,11 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
   }
   if (!document) return <div className="document-page" aria-busy="true" />;
 
+  // As the server's (routes/guildDocuments.js): its author with Create Documents, or Manage
+  // Messages, manage it; anyone with Create Documents edits it once it's open to editing.
   const mine = document.created_by === user.id;
-  const canEdit = has(permissions, PERMISSIONS.MANAGE_MESSAGES) || (mine && has(permissions, PERMISSIONS.CREATE_DOCUMENTS));
+  const canManage = has(permissions, PERMISSIONS.MANAGE_MESSAGES) || (mine && has(permissions, PERMISSIONS.CREATE_DOCUMENTS));
+  const canEdit = canManage || (Boolean(document.open_editing) && has(permissions, PERMISSIONS.CREATE_DOCUMENTS));
 
   if (editing && canEdit) {
     return (
@@ -211,8 +214,9 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
         <DocumentEditor
           channel={channel}
           document={document}
-          onSaved={(saved) => { replace(saved); setEditing(false); }}
-          onCancel={() => setEditing(false)}
+          userId={user.id}
+          canManage={canManage}
+          onDone={(latest) => { replace(latest); setEditing(false); }}
         />
       </Suspense>
     );
@@ -295,7 +299,7 @@ function DocumentPage({ guild, channel, user, documentId, editing, setEditing, o
               <Icon icon={faPen} />{!isMobile && ` ${t('common.edit')}`}
             </button>
           )}
-          {canEdit && (
+          {canManage && (
             <button type="button" className="btn btn-outline-danger btn-sm" aria-label={t('documents.page.deleteDocument')} title={t('documents.page.deleteDocument')} onClick={() => setConfirmDelete(true)}>
               <Icon icon={faTrash} />
             </button>
@@ -366,6 +370,8 @@ function DocChannelContent({ guild, channel, user, isMobile, nameColors, chatPro
         <DocumentEditor
           channel={channel}
           document={null}
+          userId={user.id}
+          canManage
           onSaved={(saved) => {
             feed.apply({ type: 'guild_document_upsert', document: { ...saved, content_start: saved.content.slice(0, 1000) } });
             go(saved.id, { replace: true });

@@ -446,6 +446,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   user ids repeat between servers; changing server forgets the login and reloads. Federation
   plan when it comes: `user@host` addresses, signed server-to-server requests, 1:1 DMs between
   allow-listed servers first, group DMs later.
+- **Live document editing** (built 2026-10-23, see Live editing in `docs/guilds.md`): as Google
+  Docs, everyone editing a document sees the others' changes, carets and selections as they
+  type, and the server saves as they go (no Save; Done closes the editor). ProseMirror's collab
+  model with the server as the authority (chosen over a CRDT such as Yjs: no new data format,
+  the server checks every step against the schema and writes the markdown itself, which stays
+  the stored format), sessions kept in memory. Editing others' documents needs the author's
+  "Others can edit" (off by default), on top of Create Documents.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

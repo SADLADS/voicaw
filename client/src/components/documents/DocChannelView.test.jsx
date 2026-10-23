@@ -11,6 +11,7 @@ vi.mock('../../utils/ws-client', () => ({
     guildListeners.list.push(cb);
     return () => { guildListeners.list = guildListeners.list.filter((x) => x !== cb); };
   },
+  onConnectionState: () => () => {},
 }));
 
 vi.mock('../../services/guildService', () => ({
@@ -30,6 +31,12 @@ vi.mock('../../services/guildService', () => ({
   deleteDocument: vi.fn(async () => {}),
   addDocumentReaction: vi.fn(),
   removeDocumentReaction: vi.fn(async () => {}),
+  joinDocumentCollab: vi.fn(),
+  sendDocumentSteps: vi.fn(),
+  fetchDocumentSteps: vi.fn(),
+  sendDocumentPresence: vi.fn(async () => ({ version: 0 })),
+  setDocumentDetails: vi.fn(async () => ({})),
+  leaveDocumentCollab: vi.fn(async () => {}),
 }));
 
 vi.mock('../../voice/voiceClient', () => ({
@@ -60,9 +67,12 @@ import {
   fetchChannelMessages,
   fetchDocument,
   fetchDocuments,
+  joinDocumentCollab,
+  leaveDocumentCollab,
   markChannelRead,
-  saveDocument,
+  setDocumentDetails,
 } from '../../services/guildService';
+import { markdownToDoc } from '../../documents/documentMarkdown';
 import { PERMISSIONS as P } from '../../utils/permissions';
 
 const me = { id: 1, username: 'me' };
@@ -210,31 +220,62 @@ describe('document channels', () => {
     expect(await screen.findByText('Give the document a title.')).toBeTruthy();
 
     fireEvent.change(title, { target: { value: '  My   doc ' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Others can edit' }));
     fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
-    await waitFor(() => expect(createDocument).toHaveBeenCalledWith(20, { title: 'My doc', cover: null, content: '' }));
+    await waitFor(() => expect(createDocument).toHaveBeenCalledWith(20, { title: 'My doc', cover: null, content: '', open_editing: true }));
     await waitFor(() => expect(where()).toBe('/guild/5/20?doc=4'));
     // Your own: you can edit it.
     expect(await screen.findByRole('button', { name: /Edit/ })).toBeTruthy();
   });
 
-  it('refuses to overwrite a newer save until you choose', async () => {
+  it('offers Edit on someone else\'s document once it\'s open to editing, but not Delete', async () => {
+    fetchDocument.mockResolvedValue({ ...full(card(2, 'Shared')), open_editing: 1 });
+    renderView('/guild/5/20?doc=2');
+    expect(await screen.findByRole('button', { name: /Edit/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Delete document' })).toBeNull();
+  });
+
+  it('edits live: joins the session, shows who else is there and their changes, and sends the title', async () => {
     const mine = { ...full(card(2, 'Mine')), created_by: 1 };
     fetchDocument.mockResolvedValue(mine);
-    const theirs = { ...mine, title: 'Theirs', content: 'Their text', version: 2 };
-    saveDocument.mockRejectedValueOnce({ response: { status: 409, data: { error: 'conflict', document: theirs } } });
-    saveDocument.mockResolvedValueOnce({ ...theirs, title: 'Theirs', version: 3 });
+    const doc = markdownToDoc(mine.content);
+    const alice = { clientID: 'alice-tab', userId: 2, anchor: 1, head: 1, version: 0 };
+    joinDocumentCollab.mockResolvedValue({
+      session: 's1', version: 0, doc: doc.toJSON(), title: 'Mine', cover: null, open_editing: 0, editors: [alice],
+    });
     renderView('/guild/5/20?doc=2&edit=1');
 
-    const title = await screen.findByRole('textbox', { name: 'Title' });
-    fireEvent.change(title, { target: { value: 'Mine, edited' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(await screen.findByText(/Someone else saved this document/)).toBeTruthy();
-    expect(saveDocument).toHaveBeenCalledWith(2, expect.objectContaining({ version: 1, title: 'Mine, edited' }));
+    expect(await screen.findByText('All changes saved')).toBeTruthy();
+    expect(joinDocumentCollab).toHaveBeenCalledWith(2, expect.objectContaining({ clientID: expect.any(String) }));
+    const text = screen.getByLabelText('Document');
+    expect(text.getAttribute('contenteditable')).toBe('true');
+    // Alice is here: her picture in the bar, her caret in the text.
+    expect(screen.getByRole('group', { name: '1 other person editing' })).toBeTruthy();
+    expect(text.querySelector('.collab-caret')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Load their version' }));
+    // Her typing arrives.
+    emit({
+      type: 'guild_document_steps', documentId: 2, session: 's1', version: 1, clientIDs: ['alice-tab'],
+      steps: [{ stepType: 'replace', from: 1, to: 1, slice: { content: [{ type: 'text', text: 'All ' }] } }],
+    });
+    // (Her caret, with her name, sits where she typed.)
+    const caret = text.querySelector('.collab-caret');
+    expect(caret.previousSibling?.textContent ?? caret.parentNode.textContent).toMatch(/All $/);
+    expect(text.textContent.replace(caret.textContent, '')).toContain('All Mine');
+
+    // The title goes to the others once typing pauses.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Ours' } });
+    await waitFor(() => expect(setDocumentDetails).toHaveBeenCalledWith(2, expect.objectContaining({ session: 's1', title: 'Ours' })));
+    // Their title change doesn't replace it while you're typing one; it does afterwards.
+    emit({ type: 'guild_document_details', documentId: 2, session: 's1', by: 'alice-tab', title: 'Theirs', cover: null, open_editing: 1 });
     expect(screen.getByRole('textbox', { name: 'Title' }).value).toBe('Theirs');
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(saveDocument).toHaveBeenLastCalledWith(2, expect.objectContaining({ version: 2, content: 'Their text' })));
+    // Open to editing, as Alice (who may: Manage Messages) set it.
+    expect(screen.getByRole('checkbox', { name: 'Others can edit' }).checked).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(where()).toBe('/guild/5/20?doc=2'));
+    expect(leaveDocumentCollab).toHaveBeenCalledWith(2, expect.objectContaining({ session: 's1' }));
+    expect(screen.getByTestId('document-body').textContent).toContain('All Mine');
+    expect(screen.getByRole('heading', { level: 1, name: 'Theirs' })).toBeTruthy();
   });
 });

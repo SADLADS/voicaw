@@ -481,6 +481,76 @@ div.document-body .attachment-media {
   text-align: center;
 }
 
+/* ---- Live editing (documents/documentCollab.js, collabCursors.js) ---- */
+
+/* Each person's colour, as --collab for the rules below. */
+.collab-colour-1 { --collab: var(--vc-collab-1); }
+.collab-colour-2 { --collab: var(--vc-collab-2); }
+.collab-colour-3 { --collab: var(--vc-collab-3); }
+.collab-colour-4 { --collab: var(--vc-collab-4); }
+.collab-colour-5 { --collab: var(--vc-collab-5); }
+.collab-colour-6 { --collab: var(--vc-collab-6); }
+
+/* Who else is editing, in the bar. */
+.doc-editors {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.doc-editor-person {
+  display: inline-flex;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--collab);
+  margin-right: 6px;
+}
+
+.doc-editor-person-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.doc-open-editing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Someone's caret: a line in their colour, their name above it. */
+.collab-caret {
+  position: relative;
+  margin: 0 -1px;
+  border-left: 2px solid var(--collab);
+  pointer-events: none;
+  word-break: normal;
+}
+
+.collab-caret-name {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  padding: 0 4px;
+  border-radius: 3px 3px 3px 0;
+  background: var(--collab);
+  color: var(--vc-on-accent);
+  font-size: var(--vc-text-xs);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.collab-selection {
+  background: color-mix(in srgb, var(--collab) 25%, transparent);
+}
+
 .doc-toolbar {
   display: flex;
   flex-wrap: wrap;

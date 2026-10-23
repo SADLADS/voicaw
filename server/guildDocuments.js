@@ -1,9 +1,12 @@
 const db = require('./db');
 const { s3Endpoint } = require('./config');
+const { linkUploads } = require('./uploads');
+const { uploadKeysIn } = require('./uploadKeys');
 
 // Document channels (Guilded's docs): a feed of markdown documents, each with a title, an
 // optional cover image, reactions and a thread of replies (guild_messages with document_id).
-// Rows, limits and cleanup; routes are in routes/guildDocuments.js.
+// Rows, limits and cleanup; routes are in routes/guildDocuments.js, live co-editing in
+// documentCollab.js.
 
 const MAX_TITLE = 200;
 const MAX_CONTENT = 100000;
@@ -15,7 +18,7 @@ const MAX_EMOJI_LENGTH = 64;
 const CARD_CONTENT = 1000;
 
 const DOCUMENT_COLUMNS = `d.id, d.channel_id, d.title, d.cover, d.created_by, d.created_at,
-  d.updated_by, d.updated_at, d.version`;
+  d.updated_by, d.updated_at, d.version, d.open_editing`;
 
 // The documents with their `reactions` ([{ id, user_id, emoji, timestamp }], oldest first),
 // `reply_count`, `last_reply_at` (unix s or null) and `last_reply_id`.
@@ -70,6 +73,13 @@ async function getDocument(id) {
   if (!Number.isInteger(id)) return null;
   const row = await db.get(`SELECT ${DOCUMENT_COLUMNS}, d.content FROM guild_documents d WHERE d.id = ?`, [id]);
   return row ? (await withDetails([row]))[0] : null;
+}
+
+// Links document `id` to the uploads its text and cover show (uploads.js). Inside the
+// transaction that wrote them.
+async function linkDocumentUploads(id) {
+  const row = await db.get('SELECT content, cover FROM guild_documents WHERE id = ?', [id]);
+  await linkUploads('doc', id, uploadKeysIn([row.content, row.cover].filter(Boolean).join('\n')));
 }
 
 // ---- Checking what's sent ----
@@ -133,6 +143,7 @@ module.exports = {
   channelDocuments,
   documentCard,
   getDocument,
+  linkDocumentUploads,
   cleanTitle,
   cleanContent,
   cleanCover,

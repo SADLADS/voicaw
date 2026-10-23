@@ -4,9 +4,9 @@ const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess, sendToChannel } = require('../guilds');
 const { logAudit } = require('../auditLog');
-const { linkUploads, releaseUploads } = require('../uploads');
-const { uploadKeysIn } = require('../uploadKeys');
+const { releaseUploads } = require('../uploads');
 const levels = require('../guildLevels');
+const collab = require('../documentCollab');
 const {
   MAX_TITLE,
   MAX_CONTENT,
@@ -16,6 +16,7 @@ const {
   channelDocuments,
   documentCard,
   getDocument,
+  linkDocumentUploads,
   cleanTitle,
   cleanContent,
   cleanCover,
@@ -24,10 +25,13 @@ const {
 
 // Document channels: documents and their reactions (replies are guild messages, see
 // routes/guildMessages.js). The channel's permissions decide: View Channel sees the feed
-// (without it, 404), Create Documents writes new ones and edits your own, Manage Messages
-// edits and deletes anyone's, Add Reactions reacts. Saving needs the `version` you last saw,
-// so a save never silently overwrites someone else's (409 with the newer document). Events go
-// to whoever can see the channel.
+// (without it, 404), Create Documents writes new ones and edits your own (and others' that
+// their author opened to editing), Manage Messages edits and deletes anyone's, Add Reactions
+// reacts. Editing is live (documentCollab.js, the /collab routes): everyone editing a document
+// sees the others' changes and cursors as they happen, and the server saves. A whole-document
+// save (PATCH) still works, needing the `version` you last saw, so it never silently
+// overwrites someone else's (409 with the newer document). Events go to whoever can see the
+// channel.
 const router = express.Router();
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -59,9 +63,16 @@ async function requireDocument(req, res, next) {
   next();
 }
 
-// Authors with Create Documents, or anyone with Manage Messages.
-const mayChange = (req) => has(req.access.permissions, PERMISSIONS.MANAGE_MESSAGES)
-  || (req.document.created_by === req.user.id && has(req.access.permissions, PERMISSIONS.CREATE_DOCUMENTS));
+// Deleting, and opening a document to everyone's editing: its author with Create Documents, or
+// anyone with Manage Messages.
+const managing = (permissions, document, userId) => has(permissions, PERMISSIONS.MANAGE_MESSAGES)
+  || (document.created_by === userId && has(permissions, PERMISSIONS.CREATE_DOCUMENTS));
+// Editing: those, and anyone with Create Documents once the author opened it to editing (the
+// live session's say, when it's being edited: newer than the saved row).
+const editing = (permissions, document, userId) => managing(permissions, document, userId)
+  || (Boolean(collab.openEditingOf(document.id) ?? document.open_editing) && has(permissions, PERMISSIONS.CREATE_DOCUMENTS));
+const mayManage = (req) => managing(req.access.permissions, req.document, req.user.id);
+const mayChange = (req) => editing(req.access.permissions, req.document, req.user.id);
 
 const event = (access, type, fields) => ({ type, guildId: access.channel.guild_id, channelId: access.channel.id, ...fields });
 
@@ -74,14 +85,7 @@ router.get('/channels/:channelId/documents', authenticateJWT, requireDocChannel,
   res.json(await channelDocuments(req.access.channel.id));
 });
 
-// Links document `id` to the uploads its text and cover show (uploads.js). Inside the
-// transaction that wrote them.
-async function linkDocumentUploads(id) {
-  const row = await db.get('SELECT content, cover FROM guild_documents WHERE id = ?', [id]);
-  await linkUploads('doc', id, uploadKeysIn([row.content, row.cover].filter(Boolean).join('\n')));
-}
-
-// { title, cover?, content? }
+// { title, cover?, content?, open_editing? }
 router.post('/channels/:channelId/documents', authenticateJWT, requireDocChannel, async (req, res) => {
   if (!has(req.access.permissions, PERMISSIONS.CREATE_DOCUMENTS)) return forbidden(res);
   const title = cleanTitle(req.body?.title);
@@ -97,9 +101,9 @@ router.post('/channels/:channelId/documents', authenticateJWT, requireDocChannel
     if (count >= MAX_DOCUMENTS_PER_CHANNEL) return null;
     const at = now();
     const { lastID } = await db.run(
-      `INSERT INTO guild_documents (channel_id, title, cover, content, created_by, created_at, updated_by, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [channel.id, title, cover ?? null, content, req.user.id, at, req.user.id, at]
+      `INSERT INTO guild_documents (channel_id, title, cover, content, created_by, created_at, updated_by, updated_at, open_editing)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [channel.id, title, cover ?? null, content, req.user.id, at, req.user.id, at, req.body?.open_editing ? 1 : 0]
     );
     await linkDocumentUploads(lastID);
     return lastID;
@@ -114,11 +118,17 @@ router.get('/documents/:documentId', authenticateJWT, requireDocument, (req, res
   res.json(req.document);
 });
 
-// { version, title?, cover?, content? }: `version` is the one the edit started from.
+// { version, title?, cover?, content?, open_editing? }: `version` is the one the edit started
+// from. Anything the live session (if any) hasn't saved yet counts as a newer save; a save that
+// goes through ends the session (its editors load the document again).
 router.patch('/documents/:documentId', authenticateJWT, requireDocument, async (req, res) => {
   if (!mayChange(req)) return forbidden(res);
   const body = req.body ?? {};
   const changes = {};
+  if (body.open_editing !== undefined) {
+    if (!mayManage(req)) return forbidden(res);
+    changes.open_editing = body.open_editing ? 1 : 0;
+  }
   if (body.title !== undefined) {
     changes.title = cleanTitle(body.title);
     if (!changes.title) return res.status(400).json({ error: `Titles are 1–${MAX_TITLE} characters` });
@@ -132,6 +142,7 @@ router.patch('/documents/:documentId', authenticateJWT, requireDocument, async (
   if (cover !== undefined) changes.cover = cover;
   if (!Number.isInteger(body.version)) return res.status(400).json({ error: 'Missing version' });
 
+  await collab.flush(req.document.id);
   const saved = await db.transaction(async () => {
     const sets = Object.keys(changes).map((column) => `${column} = ?`);
     const { changes: updated } = await db.run(
@@ -149,6 +160,7 @@ router.patch('/documents/:documentId', authenticateJWT, requireDocument, async (
       document: await getDocument(req.document.id),
     });
   }
+  await collab.closeSession(req.document.id);
   const document = await getDocument(req.document.id);
   await sendToChannel(req.access.channel, event(req.access, 'guild_document_update', { document }));
   await announceCard(req.access, req.document.id);
@@ -157,8 +169,9 @@ router.patch('/documents/:documentId', authenticateJWT, requireDocument, async (
 
 // With its replies and reactions. In the audit log like a message delete (never its text).
 router.delete('/documents/:documentId', authenticateJWT, requireDocument, async (req, res) => {
-  if (!mayChange(req)) return forbidden(res);
+  if (!mayManage(req)) return forbidden(res);
   const { channel } = req.access;
+  await collab.closeSession(req.document.id);
   const replyIds = await db.transaction(async () => {
     await logAudit({
       guildId: channel.guild_id,
@@ -174,6 +187,81 @@ router.delete('/documents/:documentId', authenticateJWT, requireDocument, async 
   releaseUploads();
   await sendToChannel(channel, event(req.access, 'guild_document_delete', { documentId: req.document.id, replyIds }));
   res.json({ success: true, deletedId: req.document.id });
+});
+
+// ---- Live editing (documentCollab.js) ----
+
+// Those who may edit it; someone who no longer may is taken out of the session.
+function requireEditor(req, res, next) {
+  if (mayChange(req)) return next();
+  const { session, clientID } = { ...req.query, ...req.body };
+  collab.leave(req.document.id, req.user.id, { session, clientID });
+  return forbidden(res);
+}
+
+// Runs a documentCollab call, its errors ({ status, extra }) as responses.
+const collabRoute = (handler) => async (req, res) => {
+  try {
+    res.json(await handler(req));
+  } catch (err) {
+    if (!err.status) throw err;
+    res.status(err.status).json({ error: err.message, ...err.extra });
+  }
+};
+
+const collabRoutes = [authenticateJWT, requireDocument, requireEditor];
+
+// Joins (or starts) the editing session: { clientID, doc?, basedOn? } (see collab.join).
+router.post('/documents/:documentId/collab', ...collabRoutes, collabRoute((req) => (
+  collab.join(req.document, req.user.id, req.body?.clientID, { doc: req.body?.doc, basedOn: req.body?.basedOn })
+)));
+
+// { session, clientID, version, steps }
+router.post('/documents/:documentId/collab/steps', ...collabRoutes, collabRoute((req) => (
+  collab.receiveSteps(req.document.id, req.user.id, req.body ?? {})
+)));
+
+// ?session&clientID&since: the steps after version `since`.
+router.get('/documents/:documentId/collab/steps', ...collabRoutes, collabRoute((req) => (
+  collab.stepsSince(req.document.id, req.user.id, { ...req.query, since: Number(req.query.since) })
+)));
+
+// { session, clientID, version, anchor, head }: where your selection is; also a heartbeat.
+router.post('/documents/:documentId/collab/presence', ...collabRoutes, collabRoute((req) => (
+  collab.setPresence(req.document.id, req.user.id, req.body ?? {})
+)));
+
+// { session, clientID, title?, cover?, open_editing? }
+router.post('/documents/:documentId/collab/details', ...collabRoutes, collabRoute(async (req) => {
+  const body = req.body ?? {};
+  const changes = {};
+  const invalid = (message) => Object.assign(new Error(message), { status: 400 });
+  if (body.title !== undefined) {
+    changes.title = cleanTitle(body.title);
+    if (!changes.title) throw invalid(`Titles are 1–${MAX_TITLE} characters`);
+  }
+  const cover = cleanCover(body.cover);
+  if (cover === false) throw invalid('Invalid cover image');
+  if (cover !== undefined) changes.cover = cover;
+  if (body.open_editing !== undefined) {
+    if (!mayManage(req)) throw Object.assign(new Error("You don't have permission to do that"), { status: 403 });
+    changes.openEditing = Boolean(body.open_editing);
+  }
+  const result = collab.setDetails(req.document.id, req.user.id, body, changes);
+  // Closed to editing: whoever may no longer edit leaves the session now.
+  if (changes.openEditing === false) {
+    for (const userId of collab.editorUserIds(req.document.id)) {
+      const access = await docChannelAccess(req.document.channel_id, userId);
+      if (!access || !editing(access.permissions, req.document, userId)) collab.removeUser(req.document.id, userId);
+    }
+  }
+  return result;
+}));
+
+// { session, clientID }
+router.post('/documents/:documentId/collab/leave', authenticateJWT, requireDocument, (req, res) => {
+  collab.leave(req.document.id, req.user.id, req.body ?? {});
+  res.json({ success: true });
 });
 
 // ---- Reactions (plain emoji, one of each per person) ----

@@ -413,17 +413,54 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   **Create Documents** (a channel permission, on for @everyone) writes new ones and edits your
   own, Manage Messages ("Manage Documents and Replies") edits and deletes anyone's (and their
   replies), Send Messages replies, Add Reactions reacts. Taking Create Documents away also stops
-  editing your own.
+  editing your own. **Others can edit** (`guild_documents.open_editing`, off by default; the
+  author or Manage Messages ticks it, when writing one or in the editor's bar) lets everyone with
+  Create Documents in the channel edit it too; deleting it and changing that stay the author's
+  (and Manage Messages').
 - **Server** (`server/guildDocuments.js`, `routes/guildDocuments.js`; tables
   `guild_documents`, `guild_document_reactions`): `GET/POST /channels/:id/documents` (cards: no
   `content`, `content_start` = its first 1000 characters, `reply_count`, `last_reply_at`,
-  `last_reply_id`, `reactions`), `GET/PATCH/DELETE /documents/:id`, `POST
+  `last_reply_id`, `reactions`, `open_editing`), `GET/PATCH/DELETE /documents/:id`, `POST
   /documents/:id/reactions`, `DELETE /document-reactions/:id` (own only). The cover is an upload
   of ours (`<S3_ENDPOINT>/uploads/…`, an encrypted channel attachment's URL with its key, like
-  images in messages). **Saving needs `version`** (the one the edit started from; every save
-  bumps it): a stale one is 409 with the newer `document`, so nobody's save is silently
-  overwritten (no live co-editing; that would need a CRDT and its own sync). Deleting is in the
+  images in messages). A whole-document save (`PATCH`, the app no longer sends one: it edits
+  live, below) needs `version` (the one the edit started from; every save bumps it): a stale one
+  is 409 with the newer `document`, so nobody's save is silently overwritten. Deleting is in the
   audit log as `document_delete` (never its title or text) and takes its replies and reactions.
+- **Live editing** (`server/documentCollab.js`, the `/documents/:id/collab` routes;
+  client `documents/documentCollab.js`, `documents/collabCursors.js`): everyone editing a
+  document sees the others' changes as they type, their carets (with their names) and
+  selections, and their pictures in the editor's bar. ProseMirror's collab model, the server the
+  authority (no CRDT): a session per document being edited, in memory only, holds the document
+  (as a ProseMirror node in the editor's own schema) and its steps, numbered by version. An
+  editor `POST`s `collab/steps` made on the version it has; the server applies them (refusing a
+  step that doesn't fit the schema, or one taking the document past 100,000 characters: 400) and
+  sends them to the session's editors only (`guild_document_steps`); a stale version is 409, and
+  the editor fetches what it missed (`GET collab/steps?since=`), rebases and sends again. The
+  first editor starts the session from their parse of the stored markdown (`POST collab` with
+  `doc` and `basedOn`, after a 409 `needsDoc`): the server has no markdown parser (that's the
+  page's remark pipeline), only the schema and the writer (`documentSchema.js` and
+  `documentSerializer.js`, loaded from `client/src/documents/` with `import()`: those two
+  import only packages, with `.js` on every path, so keep them that way). **The server saves**
+  the markdown itself 2 s after the last change (at most every 10 s while typing goes on), with
+  the title, cover and Others can edit (`collab/details`, last change wins), and sends the save
+  to the channel as before (`guild_document_update`, `guild_document_upsert`; `updated_by` is the
+  last to change it), so the feed and readers follow along; the editors get
+  `guild_document_saved` (the bar's "All changes saved"). There's no Save: Done closes the
+  editor (after its last steps are confirmed), and an existing document's editor has no Cancel.
+  Selections (`collab/presence`, at the server's version, mapped through the steps on each
+  side) double as a 20 s heartbeat: an editor silent for 45 s is dropped, and the session ends
+  (saved) when its last editor leaves. Who may edit is checked on every request (with the
+  session's Others can edit, newer than the saved row); unticking it takes out at once those it
+  let in (`guild_document_collab_end` to them; joining again is refused). A whole-document
+  `PATCH` first saves the session (so its version check sees the live edits), then ends it: the
+  editors load the document again. Deleting the document ends it too. An API restart loses
+  sessions (at most the last 2 s of typing, which the editors still have): their apps join a
+  new one and send what wasn't confirmed again if the document there is the one it was made on
+  (otherwise they say some changes couldn't be kept); stopping the API (SIGINT/SIGTERM) saves
+  first. Offline, the editor keeps what's typed and sends it once a request goes through. The
+  session's starting document has to fit the 1 MB request limit (JSON is bigger than the
+  markdown; plain 100,000-character documents fit).
 - **Replies are `guild_messages` with `document_id`** (null for every other message), so
   mentions, pushes (url `/guild/<g>/<c>?doc=<id>`), edits, deletes, reactions, polls (their
   "poll ended" row too) and the audit log work as in a text channel. `GET/POST
@@ -434,7 +471,7 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
 - **Client:** `GuildView` shows `documents/DocChannelView.jsx` for a document channel (no member
   list): the feed, or `?doc=<id>` (the document, its replies in a `ChatPane` over
   `useChannel({ channelId, documentId })` beside it, tabs Document / Replies on a phone),
-  `?doc=new` and `&edit=1` (the editor). `hooks/useDocuments.js` keeps the feed and an open
+  `?doc=new` and `&edit=1` (the editor, live; a new one is a draft until Publish). `hooks/useDocuments.js` keeps the feed and an open
   document current. `DocumentMarkdown` (`MessageList.jsx`) renders a document with
   `remarkDocument` (`utils/remarkDiscord.js`) and the messages' mentions, emoji and attachments.
 - **The editor** (`documents/DocumentEditor.jsx`, lazily loaded with ProseMirror,
@@ -450,12 +487,12 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   the text our spellcheck (see Spellcheck in `docs/client.md`). **Markdown is the format**:
   `documents/documentSchema.js` only has what markdown can hold (no colours, sizes or alignment,
   on purpose), `documentMarkdown.js` parses with the page's own remark pipeline
-  (`documentText.js`) and writes markdown back (a test checks every construct round-trips
-  exactly). A 409 shows "Load their version" / "Save mine over it". Styles are
+  (`documentText.js`) and writes markdown back (`documentSerializer.js`; a test checks every
+  construct round-trips exactly). Styles are
   `assets/css/documents.css`. ProseMirror reads the selection from the browser's
   `selectionchange`, so a script pressing keys back to back must pause after one that only moves
   the selection (`e2e/docs.mjs` `move`); people can't type that fast.
-- **Not done yet:** live co-editing, a document's history (old versions), mentions in a
+- **Not done yet:** a document's history (old versions), mentions in a
   document notifying anyone, searching documents (and their replies), pinning or ordering
   documents in the feed, comments on a passage, and templates.
 

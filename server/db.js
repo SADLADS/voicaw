@@ -1494,6 +1494,9 @@ addColumn('ALTER TABLE tester_requests ADD COLUMN removed_at INTEGER');
 // Null = no join log.
 addColumn('ALTER TABLE guilds ADD COLUMN join_log_channel_id INTEGER');
 addColumn('ALTER TABLE guilds ADD COLUMN join_log_leaves INTEGER NOT NULL DEFAULT 0');
+// DOCUMENT CHANNELS: 1 = everyone with Create Documents in the channel may edit the document,
+// not only its author (and Manage Messages); the author turns it on (routes/guildDocuments.js).
+addColumn('ALTER TABLE guild_documents ADD COLUMN open_editing INTEGER NOT NULL DEFAULT 0');
 // ACTIVITY HISTORY (activityHistory.js): people's game sessions from Rich Presence, for their
 // profile's Activity tab; the game's name and when (unix s), kept 30 days.
 sqlite.exec(`

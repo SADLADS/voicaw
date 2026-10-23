@@ -96,11 +96,6 @@
       },
       "imageFile": "Image file",
       "coverImageFile": "Cover image file",
-      "conflict": {
-        "message": "Someone else saved this document while you were editing it.",
-        "loadTheirs": "Load their version",
-        "saveMine": "Save mine over it"
-      },
       "changeCover": "Change cover",
       "removeCover": "Remove cover",
       "addCover": "Add a cover image",
@@ -108,9 +103,25 @@
       "untitled": "Untitled document",
       "discard": {
         "title": "Discard changes",
-        "editing": "Stop editing and lose your changes?",
         "new": "Throw this document away?",
         "confirm": "Discard"
+      },
+      "live": {
+        "connecting": "Connecting…",
+        "saved": "All changes saved",
+        "offline": "Offline: your changes will be sent when you're back",
+        "done": "Done",
+        "editors_one": "{{count}} other person editing",
+        "editors_other": "{{count}} other people editing",
+        "isEditing": "{{name}} is editing",
+        "othersCanEdit": "Others can edit",
+        "othersCanEditHint": "Everyone who can write documents in this channel can edit this one too",
+        "lost": "Some of your latest changes couldn't be kept: the document was changed in the meantime.",
+        "refused": "Your latest change couldn't be kept: {{error}}",
+        "refusedUnknown": "it doesn't fit the document",
+        "deleted": "This document has been deleted.",
+        "forbidden": "You can't edit this document any more.",
+        "dismiss": "Dismiss"
       }
     }
   }

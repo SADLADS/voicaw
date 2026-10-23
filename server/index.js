@@ -18,7 +18,7 @@ app.set('trust proxy', 'loopback');
 // group DM's (routes/groupDms.js).
 const json = express.json();
 const documentJson = express.json({ limit: '1mb' });
-const DOCUMENT_PATH = /^\/api\/(channels\/\d+\/documents|documents\/\d+|applications\/\d+|group-dms\/[0-9a-f-]{36})$/;
+const DOCUMENT_PATH = /^\/api\/(channels\/\d+\/documents|documents\/\d+(\/collab(\/\w+)?)?|applications\/\d+|group-dms\/[0-9a-f-]{36})$/;
 app.use((req, res, next) => {
   if (/\/webhooks(\/|$)/.test(req.path) || /^\/api\/v\d+\//.test(req.path)) return next();
   return (DOCUMENT_PATH.test(req.path) ? documentJson : json)(req, res, next);
@@ -151,4 +151,14 @@ if (require.main === module) {
   // routes/testerRequests.js).
   require('./signups').startHistoryPrune();
   require('./routes/testerRequests').startHistoryPrune();
+  // Documents being edited live are saved a moment after each change (documentCollab.js);
+  // stopping (pm2 sends SIGINT, then kills after 1.6 s) saves what's left first.
+  for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.once(signal, () => {
+      const timeout = new Promise((resolve) => setTimeout(resolve, 1000));
+      Promise.race([require('./documentCollab').saveAll(), timeout])
+        .catch((err) => console.error('Failed to save live documents', err))
+        .finally(() => process.exit(0));
+    });
+  }
 }

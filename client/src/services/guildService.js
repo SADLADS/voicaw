@@ -424,7 +424,7 @@ export async function fetchDocuments(channelId) {
   return (await api.get(`/channels/${channelId}/documents`)).data;
 }
 
-// { title, cover?, content? }
+// { title, cover?, content?, open_editing? }
 export async function createDocument(channelId, document) {
   return (await api.post(`/channels/${channelId}/documents`, document)).data;
 }
@@ -433,10 +433,43 @@ export async function fetchDocument(documentId) {
   return (await api.get(`/documents/${documentId}`)).data;
 }
 
-// { version (the one the edit started from), title?, cover?, content? }. A 409 means someone
-// else saved first; its `document` is theirs.
+// { version (the one the edit started from), title?, cover?, content?, open_editing? }. A 409
+// means someone else saved first; its `document` is theirs. The editor edits live instead
+// (above); this saves a whole document.
 export async function saveDocument(documentId, changes) {
   return (await api.patch(`/documents/${documentId}`, changes)).data;
+}
+
+// ---- Live editing (documents/documentCollab.js; server documentCollab.js) ----
+
+// { clientID, doc?, basedOn? }: the session's state. A 409 with `needsDoc` asks for the
+// document (parsed from `document`, the version given) to start the session with.
+export async function joinDocumentCollab(documentId, body) {
+  return (await api.post(`/documents/${documentId}/collab`, body)).data;
+}
+
+// { session, clientID, version, steps }: { version }; a 409 means behind (catch up first).
+export async function sendDocumentSteps(documentId, body) {
+  return (await api.post(`/documents/${documentId}/collab/steps`, body)).data;
+}
+
+// { session, clientID, since }: { version, steps, clientIDs }.
+export async function fetchDocumentSteps(documentId, params) {
+  return (await api.get(`/documents/${documentId}/collab/steps`, { params })).data;
+}
+
+// { session, clientID, version, anchor, head }
+export async function sendDocumentPresence(documentId, body) {
+  return (await api.post(`/documents/${documentId}/collab/presence`, body)).data;
+}
+
+// { session, clientID, title?, cover?, open_editing? }
+export async function setDocumentDetails(documentId, body) {
+  return (await api.post(`/documents/${documentId}/collab/details`, body)).data;
+}
+
+export async function leaveDocumentCollab(documentId, body) {
+  await api.post(`/documents/${documentId}/collab/leave`, body);
 }
 
 export async function deleteDocument(documentId) {
