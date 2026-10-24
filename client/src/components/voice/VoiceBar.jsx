@@ -55,12 +55,17 @@ export default function VoiceBar({ user }) {
   const chatUnread = !inCall && !chatOpen && guildList.unread.some((u) => u.channel_id === voice.channelId
     && (u.mentions > 0 || !guildList.isMuted(u.channel_id)));
 
+  // Two rows, as Discord's: the state (a signal in a tinted tile), the channel or call and
+  // Disconnect; then the actions as equal buttons across the width.
   return (
     <div className="voice-bar" aria-label={t('voice.bar.label')}>
-      <div className="voice-bar-row">
+      <div className="voice-bar-row voice-bar-head">
+        <span className={`voice-bar-signal ${voice.status}`} aria-hidden="true">
+          <Icon icon={faSignal} />
+        </span>
         <div className="voice-bar-text">
           <span className={`voice-bar-status ${voice.status}`}>
-            <Icon icon={faSignal} /> {inCall && voice.status === 'connected' ? t('voice.bar.callConnected') : t(STATUS_TEXT[voice.status])}
+            {inCall && voice.status === 'connected' ? t('voice.bar.callConnected') : t(STATUS_TEXT[voice.status])}
           </span>
           {inCall && call?.groupId ? (
             <Link to={`/dm/g/${call.groupId}`} className="voice-bar-channel">{title}</Link>
@@ -70,19 +75,6 @@ export default function VoiceBar({ user }) {
             <Link to={channelPath} className="voice-bar-channel">{title}</Link>
           )}
         </div>
-        {!inCall && (
-          <Link
-            to={chatOpen ? channelPath : `${channelPath}?chat=1`}
-            onClick={showContent}
-            className={`user-panel-button voice-bar-chat${chatOpen ? ' active' : ''}${chatUnread ? ' unread' : ''}`}
-            aria-label={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
-            title={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
-          >
-            <Icon icon={faMessage} />
-          </Link>
-        )}
-        <CameraButton />
-        <ScreenShareButton />
         <button
           type="button"
           className="user-panel-button voice-bar-leave"
@@ -92,6 +84,21 @@ export default function VoiceBar({ user }) {
         >
           <Icon icon={faPhoneSlash} />
         </button>
+      </div>
+      <div className="voice-bar-actions">
+        {!inCall && (
+          <Link
+            to={chatOpen ? channelPath : `${channelPath}?chat=1`}
+            onClick={showContent}
+            className={`user-panel-button voice-bar-action voice-bar-chat${chatOpen ? ' active' : ''}${chatUnread ? ' unread' : ''}`}
+            aria-label={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
+            title={chatOpen ? t('voice.bar.closeChat') : t('voice.bar.openChat')}
+          >
+            <Icon icon={faMessage} />
+          </Link>
+        )}
+        <CameraButton className="user-panel-button voice-bar-action" />
+        <ScreenShareButton className="user-panel-button voice-bar-action" />
       </div>
       {voice.audioBlocked && (
         <button type="button" className="voice-bar-audio" onClick={resumeAudio}>

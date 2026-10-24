@@ -62,10 +62,87 @@ button.user-panel-button {
 /* ---- Voice bar ---- */
 
 .voice-bar {
-  padding: 8px 8px 6px 10px;
+  padding: 10px 10px 10px;
   border-top: 1px solid var(--vc-border-dark);
   background-color: var(--vc-bg-base);
   color: var(--vc-fg);
+}
+
+/* On a computer it's the top of the docked user card (voicaw.css): the two are one card, a line
+   between them. */
+body:not(.mobile-mode) .sidebar-wrapper > .voice-bar {
+  margin: 0 var(--vc-dock-inset);
+  border: 1px solid var(--vc-border-dark);
+  border-bottom: 0;
+  border-radius: var(--vc-radius-lg) var(--vc-radius-lg) 0 0;
+  background-color: var(--vc-bg-subtle);
+}
+
+body:not(.mobile-mode) .sidebar-wrapper > .voice-bar + .user-panel {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* The state, the channel and Disconnect. */
+.voice-bar-head {
+  gap: 10px;
+}
+
+/* The signal, in a tile tinted with the state's colour: green connected, orange on the way. */
+.voice-bar-signal {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--vc-radius-md);
+  background-color: color-mix(in srgb, var(--vc-warning) 16%, transparent);
+  color: var(--vc-warning);
+  font-size: 15px;
+}
+
+.voice-bar-signal.connected {
+  background-color: color-mix(in srgb, var(--vc-online) 16%, transparent);
+  color: var(--vc-online);
+}
+
+/* Chat, camera and screen share: equal buttons across the width. */
+.voice-bar-actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.voice-bar-actions:empty {
+  display: none;
+}
+
+.user-panel-button.voice-bar-action {
+  width: auto;
+  height: 32px;
+  border-radius: var(--vc-radius-md);
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: 15px;
+}
+
+.user-panel-button.voice-bar-action:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+/* On (camera, screen share): the button takes the green too. The chat, when open, the selection tint. */
+.user-panel-button.voice-bar-action.active:is(.camera-toggle, .screen-share-toggle) {
+  background-color: color-mix(in srgb, var(--vc-online) 16%, transparent);
+  color: var(--vc-online);
+}
+
+.user-panel-button.voice-bar-action.voice-bar-chat.active {
+  background-color: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
 }
 
 .voice-bar-row {
@@ -83,7 +160,7 @@ button.user-panel-button {
 }
 
 .voice-bar-status {
-  font-size: 14px;
+  font-size: var(--vc-text-md);
   font-weight: 600;
   color: var(--vc-warning);
 }
@@ -93,7 +170,7 @@ button.user-panel-button {
 }
 
 .voice-bar-channel {
-  font-size: 12px;
+  font-size: var(--vc-text-sm);
   color: var(--vc-fg-muted);
   text-decoration: none;
   overflow: hidden;
