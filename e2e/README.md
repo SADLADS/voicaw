@@ -166,7 +166,7 @@ node e2e/streamvolume.mjs [dir] # stream volume: a shared screen with sound (mad
 node e2e/streamquality.mjs [dir] # stream quality: Go Live dialog (1080p 15 fps default), 720p 30 fps = what Chrome is asked, the encoder told (2.5 Mbps) and Bob receives, half-size simulcast copy, admin limits 720p 15 fps = rest greyed out and sent at 15, Settings → Voice & video section, admin menus, phone width
 node e2e/noise.mjs [dir]  # noise suppression + gate: each mode on a made-up recording (fan, clicks, voice) measured, DeepFilterNet speed, sensitivity by hand, Strong in the mic test, phone
 node e2e/sounds.mjs [dir] # sounds: Settings → Sounds, play buttons, mute/deafen, Message in another chat (not the open one, not when off), the open one with another tab in front (one ding for two tabs, the service worker told), phone
-node e2e/scrollbars.mjs [dir] # scrollbars: styled with a mouse, overlay only (no grabbable bar) on a phone, also in a browser without scrollbar-color
+node e2e/scrollbars.mjs [dir] # scrollbars: styled and thin everywhere with a mouse, overlay only (no grabbable bar) on a phone, also in a browser without scrollbar-color
 node e2e/sidebar.mjs [dir] # one sidebar width (DM list, channels, Settings), headers line up, drag/keys/reset, kept; phone untouched
 node e2e/focus.mjs [dir] # opening a chat focuses its box on a computer (DM by link and from the list, guild channel, thread beside it), not another text box's focus, not on a phone
 node e2e/drafts.mjs [dir] # unsent messages: back after another DM, Settings, a guild, an attachment too (box and tray, then sent); no typing event; sent = gone; reload forgets; phone

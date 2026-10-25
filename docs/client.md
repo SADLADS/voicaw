@@ -444,8 +444,8 @@
   chat, Settings and its first category) is `--vc-header-height` (50px, borders included), so
   their lines meet; use both tokens for anything new there. DM banners (notifications, recovery
   code) go under the chat header. Phones: lists stay full width and Settings one screen.
-- Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area inherits the pane
-  look (like the message list); small boxes and pop-ups are listed there for the thin one. Don't
+- Scrollbars are styled once, in `voicaw.css` (SCROLLBARS): every scroll area gets the same thin
+  bar (set on `*`, as a guild's channel list had first; the 12px pane look is gone). Don't
   style a new scroll area's scrollbar locally. All of it is inside `@media (pointer: fine)`:
   touch screens keep the system's overlay bar, which shows while swiping and can't be tapped or
   dragged (a styled bar becomes a classic, grabbable one on Android browsers that don't know

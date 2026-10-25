@@ -1,4 +1,4 @@
-// Scrollbars: styled (and grabbable) with a mouse, the system's overlay bar on touch screens,
+// Scrollbars: styled (and grabbable) with a mouse, thin everywhere, the system's overlay bar on touch screens,
 // which takes no room and can't be tapped or dragged (Android's Chrome makes any styled bar a
 // classic one). Measures every scrolling element's bar in a long chat, desktop and phone. The
 // phone also plays a browser without scrollbar-color/scrollbar-width (Chrome before 121, older
@@ -37,6 +37,9 @@ try {
   phone.push(...await bars(bob.page));
   if (!desktop.length || !phone.length) throw new Error('nothing scrolls');
   if (!desktop.some(([, w]) => w > 0)) throw new Error(`desktop: no styled bars ${JSON.stringify(desktop)}`);
+  // One look everywhere: every bar as thin as the channel list's (Chrome's thin is 11 px, auto 15).
+  const thick = desktop.filter(([, w, h]) => w > 11 || h > 11);
+  if (thick.length) throw new Error(`desktop: thick bars ${JSON.stringify(thick)}`);
   const grabbable = phone.filter(([, w, h]) => w > 0 || h > 0);
   if (grabbable.length) throw new Error(`phone: classic bars ${JSON.stringify(grabbable)}`);
   if (dir) {

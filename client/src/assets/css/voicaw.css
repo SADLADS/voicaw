@@ -2470,44 +2470,24 @@ body:not(.mobile-mode) .user-panel {
 
 
 /* SCROLLBARS
-   Two looks, set here for the whole app:
-   - Panes (the message list, conversation list, Settings, …): a normal-width bar, grey thumb
-     on the pane's own background. This is the default: every scrolling element inherits it
-     (scrollbar-color inherits), including ones added later.
-   - Small boxes and pop-ups (emoji picker, suggestions, action sheet, attachment tray, image
-    viewer thumbnails, code, the task assignee picker) and a guild's channel list:
-     a thin bar, listed below.
-   The message editor keeps its own (.message-editor). Chrome and Firefox use the standard
-   properties; the ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome
-   ignores those rules wherever scrollbar-color applies).
+   One look, set here for the whole app: a thin bar with a light thumb on the pane's own
+   background, as in a guild's channel list. scrollbar-width doesn't inherit, so it's set on
+   every element (`*`, no specificity: a class hiding its bar with scrollbar-width: none, or
+   giving it its own colours, still wins). Chrome and Firefox use the standard properties; the
+   ::-webkit-scrollbar rules are for Safari, which doesn't support them (Chrome ignores those
+   rules wherever scrollbar-color applies).
    Only with a mouse (pointer: fine): on touch screens the system's own overlay bar shows while
    swiping and can't be grabbed, but a styled one (::-webkit-scrollbar, in Android's Chrome and
    WebView) becomes a classic bar that taps and drags. Phones scroll by swiping only. */
 @media (pointer: fine) {
-  html {
-    scrollbar-color: var(--vc-fg-muted) transparent;
-  }
-
-  .emoji-picker-scroll,
-  .emoji-suggestions,
-  .action-sheet,
-  .context-menu,
-  .pins-panel-list,
-  .guild-search-suggestions,
-  .task-assignee-picker ul,
-  .guild-channel-list,
-  .attachment-tray,
-  .image-viewer-thumbnails,
-  .doc-toolbar,
-  .document-body :is(table, .tableWrapper),
-  .dm-message-content pre code {
+  * {
     scrollbar-width: thin;
     scrollbar-color: var(--vc-border-light) transparent;
   }
 
   ::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
@@ -2515,32 +2495,7 @@ body:not(.mobile-mode) .user-panel {
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: var(--vc-fg-muted);
-    border: 3px solid transparent;
-    border-radius: 6px;
-    background-clip: padding-box;
-  }
-
-  .emoji-picker-scroll::-webkit-scrollbar,
-  .emoji-suggestions::-webkit-scrollbar,
-  .action-sheet::-webkit-scrollbar,
-  .guild-channel-list::-webkit-scrollbar,
-  .attachment-tray::-webkit-scrollbar,
-  .image-viewer-thumbnails::-webkit-scrollbar,
-  .dm-message-content pre code::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .emoji-picker-scroll::-webkit-scrollbar-thumb,
-  .emoji-suggestions::-webkit-scrollbar-thumb,
-  .action-sheet::-webkit-scrollbar-thumb,
-  .guild-channel-list::-webkit-scrollbar-thumb,
-  .attachment-tray::-webkit-scrollbar-thumb,
-  .image-viewer-thumbnails::-webkit-scrollbar-thumb,
-  .dm-message-content pre code::-webkit-scrollbar-thumb {
     background-color: var(--vc-border-light);
-    border: 0;
     border-radius: 4px;
   }
 }
