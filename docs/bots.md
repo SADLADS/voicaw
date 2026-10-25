@@ -78,7 +78,7 @@ Unknown paths get Discord's 404.
   emoji and colour aren't in Discord's API, so bots don't see them). Rate limits: 50 requests a second per bot, and per route and
   channel or guild, with Discord's `X-RateLimit-*` headers and 429 bodies (off with
   `DISABLE_RATE_LIMITS`, as in tests).
-- **CDN**: `/api/cdn/avatars/:id/:hash.*`, `/icons/:guildId/:hash.*`, `/emojis/:id.*`,
+- **CDN**: `/api/cdn/avatars/:id/:hash.*`, `/icons/:guildId/:hash.*`, `/emojis/:id.*`, `/soundboard-sounds/:id`,
   `/guild-events/:id/:hash.*` (a cover a bot can read: not an encrypted one from the app) redirect to
   our pictures, so a library's CDN address can point at `https://api.voicaw.com/api/cdn`.
 
@@ -265,6 +265,18 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
   `GET /guilds/:id/regions` list the regions (`optimal`: the default). The join token answers
   with the channel's region's `url`. When a channel moves to another region a bot in it is
   disconnected, to join again with a new token.
+- **Soundboard** (2026-10-25, see Soundboard in `docs/voice-and-calls.md`): Discord's
+  endpoints: `GET /soundboard-default-sounds` (always `[]`: there are none), `GET/POST
+  /guilds/:id/soundboard-sounds` (`{ items }`; create takes `sound` as a data URI of an MP3,
+  Ogg or WAV up to 512 KB, Manage Guild Expressions), `GET/PATCH/DELETE
+  /guilds/:id/soundboard-sounds/:soundId`, and `POST /channels/:id/send-soundboard-sound {
+  sound_id, source_guild_id? }` (in that channel's voice, Speak + Use Soundboard, bit 42; only
+  the channel's guild's sounds). Sound objects are Discord's (`D.soundObject`: a custom emoji
+  as `emoji_id`, Unicode as `emoji_name`); the file is at `/api/cdn/soundboard-sounds/:id`.
+  Gateway: GUILD_CREATE's `soundboard_sounds`, GUILD_SOUNDBOARD_SOUNDS_UPDATE (Guild
+  Expressions) after any change, and VOICE_CHANNEL_EFFECT_SEND (Guild Voice States) for a sound
+  played, or someone's join sound, in the bot's voice channel. A bot plays nothing itself: the
+  apps in the channel play the file.
 - **Checked** (2026-10-05, e2e's throwaway API with its own LiveKit): a Node bot
   (`@livekit/rtc-node`) publishing a tone with Speak; a bot with Listen hears it (Node, and
   Python `livekit`); a bot without Listen gets no audio at all (LiveKit refuses to subscribe it).

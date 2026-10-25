@@ -269,7 +269,7 @@ class Session {
         }
         return;
       // A sound played in the bot's voice channel (soundboard.js; also someone's join sound).
-      case 'voice_channel_effect': {
+      case 'guild_soundboard_play': {
         if (!this.wants(INTENTS.GUILD_VOICE_STATES)) return;
         const sound = D.soundObject(event.sound);
         this.dispatch('VOICE_CHANNEL_EFFECT_SEND', {

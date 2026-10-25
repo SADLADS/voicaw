@@ -3101,3 +3101,101 @@ img.emoji.custom-emoji {
 .join-log-time {
   font-size: 12px;
 }
+
+/* ---- Soundboard (Guild Settings → Soundboard) ---- */
+
+.soundboard-settings-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.soundboard-settings-row,
+.soundboard-settings-new-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.soundboard-settings-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--vc-border-dark);
+}
+
+.soundboard-settings-play,
+.soundboard-settings-emoji {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+}
+
+.soundboard-settings-play:hover,
+.soundboard-settings-emoji:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.soundboard-settings-emoji .emoji {
+  width: 20px;
+  height: 20px;
+}
+
+.soundboard-settings-name.form-control {
+  flex: 1 1 140px;
+  min-width: 0;
+  max-width: 240px;
+}
+
+.soundboard-settings-volume input {
+  width: 110px;
+}
+
+.soundboard-settings-by {
+  flex-shrink: 0;
+  max-width: 25%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.soundboard-settings-row .emoji-settings-delete {
+  margin-left: auto;
+}
+
+.soundboard-settings-new {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 12px;
+  padding: 12px;
+  border-radius: var(--vc-radius-md);
+  background-color: var(--vc-bg-subtle);
+}
+
+.soundboard-settings-trim {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.soundboard-settings-trim input {
+  width: 100%;
+  accent-color: var(--vc-accent);
+}
+
+.soundboard-settings-new-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}

@@ -6,7 +6,7 @@ import { isMobileDevice } from '../utils/presence';
 // Voice settings on this device (Settings → Voice & video, localStorage `audioSettings`):
 // which microphone and speakers, their volumes, what's done to the microphone (echo
 // cancellation and automatic gain by the browser; noise suppression; the gate's input
-// sensitivity, see noise/gate.js). voiceClient.js applies them to the
+// sensitivity, see noise/gate.js), and whether and how loud soundboard and join sounds play. voiceClient.js applies them to the
 // call you're in as they change; the microphone test (micTest.js) and the app's sounds use
 // them too. Device ids are the browser's, so they only mean something on this device; one
 // that's gone (unplugged) falls back to the system's default.
@@ -23,6 +23,12 @@ export const DEFAULT_AUDIO_SETTINGS = {
   autoGainControl: true,
   autoSensitivity: true, // the gate opens on speech (RNNoise's); else on loudness:
   sensitivity: -50, // dB, -100 (ALWAYS_OPEN_DB) to 0
+  // Soundboards (voice/soundboard.js): the guild's sounds others play, and the join sounds
+  // played when someone joins, each heard or not and at its own volume (0–1).
+  soundboardOn: true,
+  soundboardVolume: 1,
+  joinSoundsOn: true,
+  joinSoundVolume: 1,
 };
 
 // Noise suppression: Standard is RNNoise (noise/rnnoise.js), Strong DeepFilterNet
@@ -56,6 +62,10 @@ export function cleanAudioSettings(raw) {
     autoGainControl: bool('autoGainControl'),
     autoSensitivity: bool('autoSensitivity'),
     sensitivity: clamp(saved.sensitivity, ALWAYS_OPEN_DB, 0, d.sensitivity),
+    soundboardOn: bool('soundboardOn'),
+    soundboardVolume: clamp(saved.soundboardVolume, 0, 1, d.soundboardVolume),
+    joinSoundsOn: bool('joinSoundsOn'),
+    joinSoundVolume: clamp(saved.joinSoundVolume, 0, 1, d.joinSoundVolume),
   };
 }
 

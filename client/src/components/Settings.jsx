@@ -139,6 +139,7 @@ export default function Settings({ onLogout }) {
         sub('noise-suppression', 'noiseSuppression'),
         sub('input-sensitivity', 'inputSensitivity'),
         sub('voice-processing', 'voiceProcessing'),
+        sub('soundboard', 'soundboard'),
         sub('camera', 'camera'),
         sub('screen-share', 'screenShare', { available: canShareScreen() }),
       ],

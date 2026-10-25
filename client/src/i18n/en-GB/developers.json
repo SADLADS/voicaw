@@ -119,6 +119,7 @@
       "SPEAK": "Speak",
       "VOICAW_LISTEN": "Listen (hear voice channels)",
       "STREAM": "Video",
+      "USE_SOUNDBOARD": "Use Soundboard",
       "VOICAW_EDIT_TASKS": "Edit Tasks",
       "VOICAW_CREATE_DOCUMENTS": "Create Documents",
       "VOICAW_QUEUE_VIDEOS": "Queue Videos",

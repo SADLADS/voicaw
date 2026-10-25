@@ -19,7 +19,7 @@ const { createLimiter } = require('./rateLimit');
 // Manage Expressions, which covers both).
 //
 // Playing one isn't mixed into anyone's microphone: the server tells everyone in the channel
-// (`voice_channel_effect`), and each app plays the file itself, at its own soundboard volume
+// (`guild_soundboard_play`), and each app plays the file itself, at its own soundboard volume
 // (or not at all), as Discord's do. That takes being in the channel's voice with Speak and Use
 // Soundboard, not deafened. A member's join sound (one of the guild's sounds) is played the
 // same way when they join one of its voice channels (voice.js participantJoined).
@@ -283,7 +283,7 @@ async function setJoinSound(guildId, userId, soundId) {
 // `userId`'s join sound). Bots in there get Discord's VOICE_CHANNEL_EFFECT_SEND (gateway.js).
 function broadcast({ guildId, channelId, userId, sound, join }) {
   const event = {
-    type: 'voice_channel_effect',
+    type: 'guild_soundboard_play',
     guildId,
     channelId,
     userId,

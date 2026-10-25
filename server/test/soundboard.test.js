@@ -42,7 +42,7 @@ function listen(user) {
   clients.set(String(user.id), [...(clients.get(String(user.id)) || []), ws]);
   return events;
 }
-const effects = (events) => events.filter((e) => e.type === 'voice_channel_effect');
+const effects = (events) => events.filter((e) => e.type === 'guild_soundboard_play');
 
 // Small files with the right first bytes.
 const MP3 = Buffer.concat([Buffer.from('ID3'), Buffer.alloc(200, 1)]);
@@ -183,7 +183,7 @@ describe('soundboard', () => {
     expect(res.status).toBe(200);
     for (const who of ['alice', 'owner']) {
       expect(effects(heard[who])).toEqual([{
-        type: 'voice_channel_effect', guildId: guild.id, channelId: lounge.id, userId: alice.id, join: false,
+        type: 'guild_soundboard_play', guildId: guild.id, channelId: lounge.id, userId: alice.id, join: false,
         sound: { id: sound.id, guild_id: guild.id, name: 'Airhorn', emoji: '📯', volume: 0.8 },
       }]);
     }

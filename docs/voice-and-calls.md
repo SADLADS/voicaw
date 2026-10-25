@@ -513,6 +513,67 @@ LiveKit carries the audio.
   app: background audio, and voice through LiveKit's native SDK (iOS also pauses microphone
   capture in a Capacitor WebView).
 
+## Soundboard
+
+Built 2026-10-25, like Discord's: each guild's short sounds, played in its voice channels for
+everyone there to hear.
+- **Sounds** (`server/soundboard.js`, `routes/soundboard.js`, table `guild_sounds`): per guild,
+  plain files (not encrypted, like custom emoji) in the public `sounds` bucket at `sounds/<id>`,
+  each with a name (2–32 characters, not unique), an optional emoji (Unicode or `<:name:id>`)
+  and its own volume (0–1). Added like emoji, in two steps: `POST /guilds/:g/soundboard { name,
+  emoji, volume, type, size }` makes an unavailable row and signs an upload to
+  `sounds/src/<id>`; `POST …/:id/ready` checks the bytes (an MP3, Ogg or WAV by its first
+  bytes, `sniffAudio`, at most 512 KB), stores it as `sounds/<id>` and sends
+  `guild_soundboard_update { guildId, sounds, joinSoundId }` to every member. `PATCH …/:id`
+  (name, emoji, volume), `DELETE …/:id` (the file goes too; members' join sounds that were it
+  are cleared). Adding, editing and deleting take **Manage Emoji** (Discord's Manage
+  Expressions; its label is now Manage Emoji and Sounds) and are in the audit log
+  (`sound_create` / `sound_update` / `sound_delete`). At most 48 per guild; unfinished uploads
+  are forgotten after an hour; deleted with the guild. `GET /guilds/:g/soundboard` (any member)
+  answers `{ sounds, join_sound_id }`.
+- **Length:** Discord's 5.2 seconds. The server can't check it without decoding, so the apps
+  do: Guild Settings → Soundboard (`guild/SoundboardSettings.jsx`, `voice/soundClip.js`)
+  decodes the file picked (anything the browser reads: MP3, WAV, Ogg, M4A, FLAC, a video's
+  sound…); an MP3 or WAV that's short and small enough goes up as it is, anything else is cut
+  to the 5.2 s chosen with a slider (10 ms fades at the cuts), mixed to mono and made a 16-bit
+  48 kHz WAV (always under 512 KB; also what makes Ogg playable on Safari). And every app stops
+  any sound at 5.2 s when playing it.
+- **Playing** (`POST /guilds/:g/channels/:c/soundboard/:soundId`): you must be in that channel's
+  voice (any device), not deafened, with **Speak** and **Use Soundboard** there (`USE_SOUNDBOARD`,
+  a new permission and channel override, Discord's bit 42, an @everyone default; migration 19
+  gave it to existing guilds), and only the channel's guild's sounds (no sounds from other
+  guilds, which Discord sells). Three sounds in five seconds each (`plays`, off in tests). The
+  sound isn't mixed into anyone's microphone: the server sends `guild_soundboard_play {
+  guildId, channelId, userId, join, sound }` to everyone in the channel who can hear it
+  (Listen), and each app plays the file itself (`voice/soundboard.js`), so each listener
+  chooses whether and how loud. Nothing about who played what is stored.
+- **Join sounds** (Discord's entrance sounds): each member may pick one of the guild's sounds
+  (`guild_members.join_sound_id`; `PUT /guilds/:g/soundboard/join-sound { soundId | null }`,
+  their other devices follow with `guild_join_sound`). When LiveKit says they joined one of the
+  guild's voice channels (`voice.js` `participantJoined`, not a new session in the same
+  channel), it's sent the same way with `join: true`, if they have Speak and Use Soundboard
+  there; coming back to the same channel within 30 s (a dropped connection) doesn't play it
+  again. They hear it too.
+- **Listening** (`voice/soundboard.js`, started from Layout): the device that's in that channel
+  plays it through the app's sounds' AudioContext (`sounds.js` `playClip`: the chosen speakers,
+  the decoded file kept, the last 100), unless deafened, at Settings → Voice & video →
+  Soundboard's volume for its kind × the sound's own × the output volume. Two kinds, each with
+  its own switch and volume (`audioSettings` `soundboardOn`/`soundboardVolume`,
+  `joinSoundsOn`/`joinSoundVolume`, per device, on and 100% by default): sounds people play,
+  and join sounds. The emoji of each sound played pops up on its player's tile for 3 s
+  (`useSoundEffects`; a note where it has none), heard or not.
+- **UI:** the note button (`voice/SoundboardButton.jsx`) in the voice bar and the channel page
+  while connected to a guild voice channel opens `voice/SoundboardPanel.jsx` (floating on a
+  computer, a sheet on a phone): the sounds as buttons (a click plays it for everyone; off,
+  with a note, without the permissions or deafened), a speaker on each playing it only to you
+  (at your soundboard volume), your join sound (a star on it, and a list to change it), and a
+  link to the settings.
+- **Bots** see it as Discord's API (see Soundboard in `docs/bots.md`).
+- `e2e/soundboard.mjs` checks adding (as it is, and cut), playing for both (cut at 5.2 s), the
+  tile's emoji, preview, the setting, deafened, a phone's sheet and a join sound.
+- **Not done yet:** Discord's default sounds, sounds from other guilds, favourites, a
+  per-sound cooldown shown in the panel, playing a sound from a keyboard shortcut.
+
 ## TURN (networks that only allow the web)
 
 Built 2026-10-14. Media normally goes straight to LiveKit on UDP 7882, or TCP 7881 when UDP is

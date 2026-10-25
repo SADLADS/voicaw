@@ -23,6 +23,7 @@ export const AUDIT_FILTERS = [
   },
   { key: 'invites', label: t('guildAdmin.auditLog.filters.invites'), actions: ['invite_create', 'invite_delete', 'vanity_update'] },
   { key: 'emoji', label: t('guildAdmin.auditLog.filters.emoji'), actions: ['emoji_create', 'emoji_update', 'emoji_delete'] },
+  { key: 'sounds', label: t('guildAdmin.auditLog.filters.sounds'), actions: ['sound_create', 'sound_update', 'sound_delete'] },
   { key: 'webhooks', label: t('guildAdmin.auditLog.filters.webhooks'), actions: ['webhook_create', 'webhook_update', 'webhook_delete'] },
   { key: 'events', label: t('guildAdmin.auditLog.filters.events'), actions: ['event_create', 'event_update', 'event_delete'] },
   { key: 'levels', label: t('guildAdmin.auditLog.filters.levels'), actions: ['levels_update', 'member_xp_update'] },
@@ -124,6 +125,9 @@ export function describeEntry(entry, names) {
     case 'emoji_create': return sentence('emojiCreate', { actor, emoji: named(`:${d.name}:`) });
     case 'emoji_update': return sentence('emojiUpdate', { actor, emoji: named(`:${d.changes?.name?.[0] ?? d.name}:`) });
     case 'emoji_delete': return sentence('emojiDelete', { actor, emoji: named(`:${d.name}:`) });
+    case 'sound_create': return sentence('soundCreate', { actor, sound: named(d.name) });
+    case 'sound_update': return sentence('soundUpdate', { actor, sound: named(d.changes?.name?.[0] ?? d.name) });
+    case 'sound_delete': return sentence('soundDelete', { actor, sound: named(d.name) });
     case 'webhook_create': return sentence('webhookCreate', { actor, webhook: named(d.name), channel: channel(d.channelName) });
     case 'webhook_update': return sentence('webhookUpdate', { actor, webhook: named(d.name) });
     case 'webhook_delete': return sentence('webhookDelete', { actor, webhook: named(d.name) });
@@ -144,7 +148,7 @@ export function describeEntry(entry, names) {
 
 const FIELDS = [
   'name', 'topic', 'category', 'color', 'hoist', 'mentionable', 'channel', 'permissions', 'nsfw', 'archived',
-  'description', 'location', 'start_time', 'end_time', 'all_day', 'emoji', 'join_log', 'join_log_leaves',
+  'description', 'location', 'start_time', 'end_time', 'all_day', 'emoji', 'join_log', 'join_log_leaves', 'volume',
 ];
 const fieldLabel = (field) => (FIELDS.includes(field) ? t(`guildAdmin.auditLog.fields.${field}`) : field);
 
@@ -155,6 +159,7 @@ function showValue(field, value) {
   if (['hoist', 'mentionable', 'nsfw', 'archived', 'all_day', 'join_log_leaves'].includes(field)) return value ? t('guildAdmin.auditLog.values.yes') : t('guildAdmin.auditLog.values.no');
   if (field === 'channel' || field === 'join_log') return `#${value}`;
   if (field === 'start_time' || field === 'end_time') return formatDateTime(value * 1000);
+  if (field === 'volume') return `${Math.round(value * 100)}%`;
   return String(value);
 }
 

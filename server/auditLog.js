@@ -20,6 +20,8 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   invite_create { code, maxAge, maxUses }, invite_delete { code }
 //   vanity_update { before, after } (the vanity invite's code; null: none)
 //   emoji_create / emoji_delete { name }, emoji_update { changes }
+//   sound_create / sound_delete { name }, sound_update { name, changes (name, emoji, volume) }
+//     (soundboard sounds, soundboard.js)
 //   webhook_create / webhook_delete { name, channelName }, webhook_update { name, changes }
 //   message_delete { messageId, sentAt, channelName, webhookName? } (target: the author)
 //   message_pin / message_unpin { messageId, channelName } (target: the author)

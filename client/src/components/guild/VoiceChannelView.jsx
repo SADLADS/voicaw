@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import '../../assets/css/voice.css';
 import { Icon } from '../Icon';
-import { faClapperboard, faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faClapperboard, faMusic, faPhoneSlash, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useVolumeMenu } from '../../hooks/useVolumeMenu';
@@ -13,11 +13,14 @@ import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import CameraButton from '../voice/CameraButton';
+import SoundboardButton from '../voice/SoundboardButton';
 import CameraVideo from '../voice/CameraVideo';
 import StreamView from '../voice/StreamView';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import WatchPartyPanel from '../voice/WatchPartyPanel';
 import { useWatchParty } from '../../voice/watchParty';
+import { useSoundEffects } from '../../voice/soundboard';
+import { ReactionEmoji } from '../MessageReactions';
 import { CameraIcon, EarIcon, HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
 import { displayName, isBot, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
@@ -31,7 +34,8 @@ import { t } from '../../i18n';
 // while you're in sets how loud they are for you. Watch Together (WatchPartyPanel) takes the
 // page once you're in and open it, or while a video is playing; the people become a row.
 // Outside, a note says what's playing. Once you're in, someone whose camera is on shows it in
-// their tile (outside, a camera icon says it's on).
+// their tile (outside, a camera icon says it's on). A soundboard sound someone plays pops its
+// emoji up on their tile.
 export default function VoiceChannelView({ guild, channel, nameColors }) {
   useProfiles();
   const { voiceEnabled } = useContext(ConfigContext);
@@ -53,6 +57,8 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const listeningBot = (m) => isBot(m.user_id) && m.listening !== false;
   // Without Listen you're there but hear nobody (LiveKit sends you nothing).
   const cantHear = here && !has(channel.my_permissions, PERMISSIONS.LISTEN);
+  // Soundboard sounds just played here: their emoji (or a note) pops up on the player's tile.
+  const soundEffects = useSoundEffects(here ? channel.id : null);
   const streams = new Set(here ? voice.streams : []);
   const cameras = new Set(here ? voice.cameras : []);
   const watched = here && voice.watching != null ? members.find((m) => String(m.user_id) === voice.watching) : null;
@@ -77,6 +83,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
         <VoiceControls className="voice-view-button" />
         <CameraButton className="voice-view-button" />
         <ScreenShareButton className="voice-view-button" />
+        <SoundboardButton className="voice-view-button" />
         <button
           type="button"
           className={`voice-view-button watch-party-toggle${showWatchParty ? ' active' : ''}`}
@@ -168,6 +175,11 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
                   <CameraVideo userId={m.user_id} name={displayName(m.user_id, m.username)} own={String(m.user_id) === voice.identity} className="voice-tile-video" />
                 ) : (
                   <UserAvatar userId={m.user_id} className="voice-tile-avatar" />
+                )}
+                {soundEffects[m.user_id] && (
+                  <span key={soundEffects[m.user_id].key} className="voice-tile-effect" title={soundEffects[m.user_id].name} aria-hidden="true">
+                    {soundEffects[m.user_id].emoji ? <ReactionEmoji native={soundEffects[m.user_id].emoji} /> : <Icon icon={faMusic} />}
+                  </span>
                 )}
                 <span className="voice-tile-name" style={nameColors?.[m.user_id] ? { color: nameColors[m.user_id] } : undefined}>
                   {displayName(m.user_id, m.username)}

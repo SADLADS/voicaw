@@ -196,6 +196,58 @@ export function playSound(name, { preview = false } = {}) {
   }
 }
 
+// Soundboard sounds (voice/soundboard.js): a file by its address, decoded once and kept (the
+// last MAX_CLIPS), played at `volume` (not the app sounds' volume) for at most `maxSeconds`.
+// Resolves to a function that stops it, or null if it couldn't play.
+const MAX_CLIPS = 100;
+const clips = new Map(); // url → Promise<AudioBuffer | null>
+
+function loadClip(ctx, url) {
+  if (!clips.has(url)) {
+    if (clips.size >= MAX_CLIPS) clips.delete(clips.keys().next().value);
+    const loading = fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.arrayBuffer();
+      })
+      .then((data) => ctx.decodeAudioData(data))
+      .catch((err) => {
+        console.warn('Could not load a soundboard sound', err);
+        clips.delete(url); // tried again next time
+        return null;
+      });
+    clips.set(url, loading);
+  }
+  return clips.get(url);
+}
+
+export async function playClip(url, { volume = 1, maxSeconds = Infinity } = {}) {
+  try {
+    const ctx = audioContext();
+    if (!ctx) return null;
+    const buffer = await loadClip(ctx, url);
+    if (!buffer) return null;
+    const gain = ctx.createGain();
+    gain.gain.value = volume;
+    gain.connect(ctx.destination);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(gain);
+    source.start(0, 0, Math.min(buffer.duration, maxSeconds));
+    source.onended = () => gain.disconnect();
+    return () => {
+      try {
+        source.stop();
+      } catch {
+        // Already over.
+      }
+    };
+  } catch (err) {
+    console.warn('Could not play a soundboard sound', err);
+    return null;
+  }
+}
+
 // One looping sound at a time (the rings), every `every` ms until stopLoop().
 let loop = null;
 
