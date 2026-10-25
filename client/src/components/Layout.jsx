@@ -41,7 +41,7 @@ import { useGameOverlay } from '../hooks/useGameOverlay';
 import { useAndroidApp } from '../hooks/useAndroidApp';
 import { useFaviconDot } from '../hooks/useFaviconDot';
 import { useRouteTitle } from '../hooks/usePageTitle';
-import { latestUnread } from '../utils/latestUnread';
+import { unreadChats } from '../utils/latestUnread';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { clearProfiles, isBot, mergeProfiles } from '../utils/profiles';
 import { setPersonMessenger } from '../utils/personMenu';
@@ -314,10 +314,10 @@ export default function Layout({ user, onLogout }) {
     () => unreadDms.filter((u) => !conversationSettings.isMuted('dm', u.from_user_id)),
     [unreadDms, conversationSettings]
   );
-  // The rail's DM button shows whoever sent the newest unread message (not muted, not the open
-  // chat) and opens that chat.
-  const newestUnread = useMemo(
-    () => latestUnread({
+  // Under the rail's DM button, each chat with unread messages (not muted, not the open one): its
+  // newest sender's picture, opening it.
+  const railUnreadChats = useMemo(
+    () => unreadChats({
       unreadDms: activeUnreadDms,
       groups: activeGroups.filter((g) => g.id !== groupId),
       botDms: activeBotDms.filter((d) => d.id !== botDmId),
@@ -362,7 +362,7 @@ export default function Layout({ user, onLogout }) {
             user={user}
             onLogout={onLogout}
             hasUnreadDms={activeUnreadDms.length > 0 || hasUnreadGroups || hasFriendRequests}
-            newestUnread={newestUnread}
+            unreadChats={railUnreadChats}
             guilds={guildList.guilds}
             unreadGuildIds={unreadGuildIds}
             guildMentions={guildMentions}

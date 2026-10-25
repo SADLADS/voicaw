@@ -7,6 +7,7 @@ const OPTIONS = [
   { value: 'light', labelKey: 'settings.theme.light' },
   { value: 'familiar', labelKey: 'settings.theme.familiar' },
   { value: 'halloween', labelKey: 'settings.theme.halloween' },
+  { value: 'slack', labelKey: 'settings.theme.slack' },
   { value: 'system', labelKey: 'settings.theme.system' },
 ];
 

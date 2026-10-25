@@ -45,6 +45,7 @@ import ProfilePopover from './ProfilePopover';
 import { openUserProfile } from '../utils/userProfile';
 import Avatar from './Avatar';
 import { formatDateTime, formatLongDate, formatTime, useDateFormat } from '../utils/dateFormat';
+import { useMessageDisplay } from '../utils/messageDisplay';
 import { parsePoll, pollEnded } from '../utils/pollMarkup';
 import { hasEditHistory } from '../utils/editHistory';
 import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
@@ -428,6 +429,9 @@ const MessageRow = memo(function MessageRow({
 }) {
   const emojiIndex = useEmojiIndex();
   useDateFormat(); // redraws the times when Settings → Date & time changes
+  // Settings → Appearance → Message display: compact rows have no picture, a short time and
+  // the name on every line (utils/messageDisplay.js; laid out in dms.css, COMPACT MESSAGES).
+  const compact = useMessageDisplay() === 'compact';
   useProfiles(); // and names when someone changes theirs
   // A webhook's message (guilds): its own name and picture as sent, no person behind it.
   const webhook = Boolean(msg.webhook_id);
@@ -579,12 +583,22 @@ const MessageRow = memo(function MessageRow({
         `}
       >
         {grouped ? (
-          <small className="message-hover-time" title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
-            {formatTime(msg.timestamp * 1000)}
-          </small>
+          <>
+            <small className="message-hover-time" title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
+              {formatTime(msg.timestamp * 1000)}
+            </small>
+            {compact && (
+              <><strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)} {...webhookProps}>{senderName}</strong>{' '}</>
+            )}
+          </>
         ) : (
         <>
-        {webhook ? (
+        {compact && (
+          <small className="message-compact-time" title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
+            {formatTime(msg.timestamp * 1000)}
+          </small>
+        )}
+        {compact ? null : webhook ? (
           // Its picture may be another site's (a webhook's avatar_url): no referrer.
           <img
             className="message-avatar"
@@ -608,8 +622,9 @@ const MessageRow = memo(function MessageRow({
         {msg.sender_bot ? <><span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span>{' '}</> : null}
 
         <small>
-          <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>
-          {msg.edited ? <em style={{ marginLeft: '6px' }}>{editedLabel(t('chat.message.edited'))}</em> : null}
+          {/* Compact: the time is in the left column already. */}
+          {!compact && <span title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>{formatDateTime(msg.timestamp * 1000)}</span>}
+          {msg.edited ? <em style={{ marginLeft: compact ? 0 : '6px' }}>{editedLabel(t('chat.message.edited'))}</em> : null}
           {pinMark}
           {/* Group DMs: sent before messages were signed (the sender can't be verified), or a
               signature that doesn't match the sender. */}

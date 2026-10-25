@@ -46,3 +46,10 @@
     flex: 1;
   }
 }
+
+/* Reply lines stop short of the chat's right edge, as the message text does (about 20px: the
+   message's padding and margin), ending in "…" before they reach the scrollbar. Phones keep the
+   room. */
+.desktop-mode .reply-snippet {
+  padding-right: 22px;
+}

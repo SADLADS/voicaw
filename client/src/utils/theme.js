@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { setAndroidSystemBars } from './android';
 
 // The theme, per device (localStorage `theme`: 'light', 'familiar' (Ol' Familiar, Discord's Ash
-// colours), 'halloween', 'system', or nothing for dark, the default). Never sent to the server, so each
+// colours), 'halloween', 'slack' (Slack's colours), 'system', or nothing for dark, the default). Never sent to the server, so each
 // browser (and the desktop app) keeps its own. 'system' follows the system's light or dark
 // setting live (prefers-color-scheme).
 //
@@ -20,8 +20,8 @@ import { setAndroidSystemBars } from './android';
 //
 // index.html has a copy of `resolve` that runs before the CSS, so a light page never starts dark.
 
-export const THEMES = ['dark', 'light', 'familiar', 'halloween', 'system'];
-const BASES = { dark: 'dark', light: 'light', familiar: 'dark', halloween: 'dark' };
+export const THEMES = ['dark', 'light', 'familiar', 'halloween', 'slack', 'system'];
+const BASES = { dark: 'dark', light: 'light', familiar: 'dark', halloween: 'dark', slack: 'light' };
 const STORAGE_KEY = 'theme';
 const listeners = new Set();
 
@@ -40,7 +40,7 @@ const systemQuery = typeof window !== 'undefined' && window.matchMedia
   ? window.matchMedia('(prefers-color-scheme: light)')
   : null;
 
-// 'dark', 'light', 'familiar' or 'halloween': what the page actually shows.
+// 'dark', 'light', 'familiar', 'halloween' or 'slack': what the page actually shows.
 export function resolveTheme(value = choice) {
   if (value === 'system') return systemQuery?.matches ? 'light' : 'dark';
   return BASES[value] ? value : 'dark';

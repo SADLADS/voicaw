@@ -54,6 +54,8 @@ try {
   const card = a.locator('.member-card');
   await card.waitFor();
   await a.waitForFunction(() => getComputedStyle(document.querySelector('.member-card')).visibility === 'visible');
+  // Its entrance (a fade and a 4px rise, dms.css .profile-popover) finished, so it's where it rests.
+  await card.evaluate((e) => Promise.all(e.closest('.profile-popover, .member-card').getAnimations({ subtree: true }).map((x) => x.finished)));
   const cardBox = await card.boundingBox();
   const listBox = await a.locator('.member-list').boundingBox();
   const rowBox = await bobRow.boundingBox();

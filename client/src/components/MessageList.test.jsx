@@ -19,6 +19,7 @@ import { EmojiContext } from '../emoji/emojiContext';
 import { recordEmojiUse, resetEmojiUsage } from '../emoji/emojiUsage';
 import { loadDecryptedAttachment } from '../services/attachmentCache';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
+import { setMessageDisplay } from '../utils/messageDisplay';
 
 const user = { id: 1, username: 'alice' };
 
@@ -161,6 +162,26 @@ describe('MessageList', () => {
     expect(row('three')).not.toHaveClass('grouped');
     expect(row('much later')).not.toHaveClass('grouped');
     expect(screen.getAllByText('bob', { selector: '.message-author' })).toHaveLength(1);
+  });
+
+  it('compact: no pictures, a short time on the first line, the name on every line', () => {
+    setMessageDisplay('compact');
+    try {
+      const messages = [
+        { id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'one', timestamp: 1000 },
+        { id: 2, sender_id: 2, sender_username: 'bob', plaintext: 'two', timestamp: 1060 },
+      ];
+      render(<MessageList {...baseProps({ messages })} />);
+      const row = (text) => screen.getByText(text).closest('.each-dm-message-wrapper');
+      expect(document.querySelector('.message-avatar')).toBeNull();
+      expect(row('one').querySelector('.message-compact-time')).toBeInTheDocument();
+      expect(row('two')).toHaveClass('grouped');
+      expect(row('two').querySelector('.message-compact-time')).toBeNull();
+      expect(row('two').querySelector('.message-hover-time')).toBeInTheDocument();
+      expect(screen.getAllByText('bob', { selector: '.message-author' })).toHaveLength(2);
+    } finally {
+      setMessageDisplay('cozy');
+    }
   });
 
   it('opens the edit history from "edited", except on bots\' messages', () => {

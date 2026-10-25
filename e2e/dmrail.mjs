@@ -1,7 +1,7 @@
-// The rail's DM button: its icon while nothing's unread, the picture of whoever sent the newest
-// unread DM otherwise (live, and after a reload), which opens that chat when clicked, the one
-// before once that's read, the icon again when everything is; on a phone too (opening the chat
-// pane).
+// The rail's unread chats: the bird stays the DM button, and under it each chat with unread
+// messages gets its newest sender's picture (newest first) with how many are unread (live, and
+// after a reload), opening that chat when clicked and going once it's read; the separator moves
+// down under them; on a phone too (opening the chat pane).
 //   node e2e/serve.mjs &   then   node e2e/dmrail.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send, devices, BASE } from './helpers.mjs';
@@ -24,15 +24,27 @@ const check = (ok, what) => {
   console.log(`  ok: ${what}`);
 };
 
-// Whose picture the DM button shows (its label names them), or null for the plain icon (which
-// links to /dm; the picture links to its chat).
-const BUTTON = '.sidebar a.rail-dm-unread, .sidebar a[aria-label="Direct Messages"]';
-const button = (page) => page.locator(BUTTON);
-const waitForButton = (page, name) => page.waitForFunction(([sel, want]) => {
-  const a = document.querySelector(sel);
-  const label = a?.getAttribute('aria-label') ?? '';
-  return want ? label.endsWith(`from ${want}`) && a.querySelector('img') : label === 'Direct Messages' && !a.querySelector('img');
-}, [BUTTON, name], { timeout: 10000 });
+// The rail as it stands: whether the bird is there, then each unread chat's sender (from its
+// label) and count, in order, and whether the separator comes after them.
+const rail = (page) => page.evaluate(() => {
+  const sidebar = document.querySelector('.sidebar');
+  const chats = [...sidebar.querySelectorAll('.rail-unread-chat')];
+  const separator = sidebar.querySelector('.rail-separator');
+  return {
+    bird: !!sidebar.querySelector('a[aria-label="Direct Messages"] .rail-logo'),
+    chats: chats.map((c) => ({
+      name: c.querySelector('a').getAttribute('aria-label').replace(/^.* from /, ''),
+      count: c.querySelector('.rail-mention-badge')?.textContent,
+      picture: !!c.querySelector('a img'),
+    })),
+    separatorAfter: !separator || chats.every((c) => c.compareDocumentPosition(separator) & Node.DOCUMENT_POSITION_FOLLOWING),
+  };
+});
+const waitForChats = (page, names) => page.waitForFunction((want) => {
+  const got = [...document.querySelectorAll('.sidebar .rail-unread-chat a')].map((a) => a.getAttribute('aria-label').replace(/^.* from /, ''));
+  return got.join('|') === want.join('|');
+}, names, { timeout: 10000 });
+const picture = (page, name) => page.locator(`.sidebar .rail-unread-chat a[aria-label$="from ${name}"]`);
 
 const browser = await launchChrome();
 try {
@@ -46,68 +58,71 @@ try {
   const ownId = own.id ?? own.guild?.id;
   await b.goto(`${BASE}/guild/${ownId}`);
   await b.waitForSelector('#dm-input');
-  await waitForButton(b, null);
-  check(true, 'nothing unread: the DM icon');
+  let state = await rail(b);
+  check(state.bird && state.chats.length === 0, 'nothing unread: the bird alone');
 
   await openChat(alice.page, bob.id);
   await send(alice.page, 'hi from alice');
-  await waitForButton(b, alice.name);
-  check(true, "a DM: the sender's picture, live");
-  const box = await button(b).boundingBox();
-  check(Math.round(box.width) === 48 && Math.round(box.height) === 48, 'the picture fills the 48px button');
+  await send(alice.page, 'are you there?');
+  await waitForChats(b, [alice.name]);
+  await b.waitForFunction(() => document.querySelector('.sidebar .rail-unread-chat .rail-mention-badge')?.textContent === '2', null, { timeout: 10000 });
+  state = await rail(b);
+  check(state.bird && state.chats[0].picture && state.chats[0].count === '2', "a DM: the bird stays, the sender's picture under it with 2, live");
+  const box = await picture(b, alice.name).boundingBox();
+  check(Math.round(box.width) === 48 && Math.round(box.height) === 48, 'the picture is a 48px icon, like a guild');
+  check(state.separatorAfter, 'the separator is under it');
   if (dir) await b.locator('.sidebar').screenshot({ path: `${dir}/rail-unread.png` });
 
   await openChat(carol.page, bob.id);
   await send(carol.page, 'hi from carol');
-  await waitForButton(b, carol.name);
-  check(true, 'a newer DM from someone else: their picture');
+  await waitForChats(b, [carol.name, alice.name]);
+  check(true, 'a newer DM from someone else: their picture first, the other under it');
 
   await b.reload();
   await b.waitForSelector('#dm-input');
-  await waitForButton(b, carol.name);
-  check(true, 'after a reload: still the newest sender');
+  await waitForChats(b, [carol.name, alice.name]);
+  check(true, 'after a reload: the same, newest first');
+  if (dir) await b.locator('.sidebar').screenshot({ path: `${dir}/rail-unread-two.png` });
 
-  await button(b).click();
+  await picture(b, carol.name).click();
   await b.waitForURL(`${BASE}/dm/${carol.id}`);
   await b.waitForSelector('#dm-input');
-  check(true, "clicking the picture opens that sender's chat");
-  await waitForButton(b, alice.name);
-  check(true, "reading the newest: the one before's picture");
+  check(true, "clicking a picture opens that sender's chat");
+  await waitForChats(b, [alice.name]);
+  check(true, 'reading it: its picture goes, the other stays');
 
-  await button(b).click();
+  await picture(b, alice.name).click();
   await b.waitForURL(`${BASE}/dm/${alice.id}`);
-  await waitForButton(b, null);
-  check(true, 'clicking it again opens the one before; all read: the DM icon again');
+  await waitForChats(b, []);
+  state = await rail(b);
+  check(state.bird, 'all read: the bird alone again');
 
   // A phone: the rail beside a guild's channel list.
   const dave = await signUp(browser, 'dave', { ...devices['Pixel 7'] });
   const p = dave.page;
   const daves = await api(p, 'POST', '/guilds', { name: 'Phone' });
   await p.goto(`${BASE}/guild/${daves.id ?? daves.guild?.id}`);
-  await waitForButton(p, null);
   await openChat(alice.page, dave.id);
   await send(alice.page, 'hi dave');
-  await waitForButton(p, alice.name);
-  check(true, 'phone: the picture too');
-  if (dir) {
-    // A quick flick right shows the list (and the rail).
-    const cdp = await p.context().newCDPSession(p);
-    const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: 400 }] });
-    await touch('touchStart', 40);
-    for (let i = 1; i <= 5; i++) { await touch('touchMove', 40 + i * 50); await p.waitForTimeout(16); }
-    await touch('touchEnd');
-    await cdp.detach();
-    await p.waitForTimeout(600);
-    await p.screenshot({ path: `${dir}/rail-phone.png` });
-  }
-  await button(p).click();
+  await waitForChats(p, [alice.name]);
+  check((await rail(p)).bird, 'phone: the picture under the bird too');
+  // A quick flick right shows the list (and the rail), where the picture is.
+  const cdp = await p.context().newCDPSession(p);
+  const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: 400 }] });
+  await touch('touchStart', 40);
+  for (let i = 1; i <= 5; i++) { await touch('touchMove', 40 + i * 50); await p.waitForTimeout(16); }
+  await touch('touchEnd');
+  await cdp.detach();
+  await p.waitForTimeout(600);
+  if (dir) await p.screenshot({ path: `${dir}/rail-phone.png` });
+  await picture(p, alice.name).click();
   await p.waitForURL(`${BASE}/dm/${alice.id}`);
   await p.waitForFunction(() => {
     const box = document.querySelector('#dm-input')?.getBoundingClientRect();
     return box && box.left >= 0 && box.right <= window.innerWidth + 1;
   }, null, { timeout: 5000 });
   check(true, 'phone: clicking the picture opens the chat, its pane in view');
-  await waitForButton(p, null);
+  await waitForChats(p, []);
   if (dir) await p.screenshot({ path: `${dir}/rail-phone-opened.png` });
   console.log('dmrail: ok');
 } catch (err) {

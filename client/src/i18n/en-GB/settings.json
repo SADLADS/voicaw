@@ -98,6 +98,10 @@
         "title": "Theme",
         "keywords": "theme dark mode light mode night colours colors system keyboard"
       },
+      "messageDisplay": {
+        "title": "Message display",
+        "keywords": "compact cosy cozy messages pictures avatars dense layout spacing"
+      },
       "language": {
         "title": "Language",
         "keywords": "language translation english russian japanese русский язык 日本語"
@@ -713,10 +717,18 @@
       "light": "Light",
       "familiar": "Ol’ Familiar",
       "halloween": "Halloween",
+      "slack": "Slack",
       "system": "Match system",
       "hint": "Saved on this device only.",
       "hintSystemDark": "Your system is using dark mode now. Saved on this device only.",
       "hintSystemLight": "Your system is using light mode now. Saved on this device only."
+    },
+    "messageDisplay": {
+      "title": "Message display",
+      "cozy": "Cosy",
+      "cozyHint": "Profile pictures, with the name and time above each group of messages.",
+      "compact": "Compact",
+      "compactHint": "No profile pictures: the time, name and message on one line, so more fit on screen."
     },
     "voice": {
       "title": "Voice",

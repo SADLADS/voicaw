@@ -61,19 +61,23 @@
 - `Layout.jsx` — the logged-in shell: sidebars, users list and unread counts (`LayoutContext`),
   and the favicon dot (`useFaviconDot`, see Favicon dot).
   `DmSidebar` draws the unread dots from those counts. The rail's DM button is the bird logo
-  (built 2026-10-22, replacing a speech-bubble icon below it), the size of the guild icons
-  (48 px, as in Discord), and it shows where you are: it
+  (built 2026-10-22, replacing a speech-bubble icon below it), 38 px in a cell as tall as the
+  headers beside it (`--vc-header-height`), so it lines up with their tops (2026-10-23), and it
+  shows where you are: it
   faces left (as the logo does) in the end-to-end encrypted chats (DMs, group DMs, notes) and
   Friends, and turns round to face right everywhere else, guilds, bot DMs (not encrypted) and
   Settings included. Moving between them, it turns over about its upright axis (CSS
   `rotateY`, 0.28 s; none with reduced motion), while a click's pop is on the link around it,
   so the two don't cut each other short. No sound (the old logo's click played a Philly hit:
-  the Logo sound went with it). The DM button (`Sidebar`
-  `newestUnread`) shows the picture of whoever sent the newest unread DM, group or bot DM
-  message (`utils/latestUnread.js`: `/dm-get-unread`'s `last_timestamp`, a group's or bot DM's
-  `last_unread_sender_id` / `last_unread_timestamp`; muted ones and the open chat left out),
-  and clicking it then opens that chat (the content pane on a phone), the bird coming back;
-  it's the bird when nothing's unread. Clicking the bird while on a DM page (it only pops), or the
+  the Logo sound went with it). Under the bird (which always stays), each DM, group or bot DM
+  with unread messages gets its own icon, as in Discord (2026-10-23; it used to be one picture
+  in the bird's place): the picture of whoever sent its newest unread message, round, 48 px
+  like a guild's, with how many are unread in a badge (9+ past nine), newest first (`Sidebar`
+  `unreadChats`, from `utils/latestUnread.js` `unreadChats`: `/dm-get-unread`'s `count` and
+  `last_timestamp`, a group's or bot DM's `unread`, `last_unread_sender_id` /
+  `last_unread_timestamp`; muted ones and the open chat left out). Clicking one opens that chat
+  (the content pane on a phone) and, read, it goes; the rail's short separator moves down under
+  them (`e2e/dmrail.mjs`). Clicking the bird while on a DM page (it only pops), or the
   open guild's icon, goes nowhere (as in Discord): following the link went to bare `/dm` or
   `/guild/:id`, which showed an empty page for a moment before redirecting (`e2e/samepage.mjs`).
   `SidebarWrapper` puts the sidebars in a
@@ -293,8 +297,18 @@
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
+- **Message display** (`utils/messageDisplay.js`, Settings → Appearance → Message display,
+  `MessageDisplaySettings.jsx`, 2026-10-25): Cosy (the default: pictures, the name and time above
+  each group) or Compact, as Discord's: no pictures, each line the time (a run's first line only;
+  the others show it on hover, in the same column), the name and the text running on after it;
+  further paragraphs, attachments and reactions start under the name. Every line is spaced alike
+  (1px above and below), a new person or not, as Discord's: no extra gap between runs (cosy's
+  4px under a run's last line doesn't apply). Per device like the theme
+  (localStorage `messageDisplay`, never sent), put on `<html>` as `data-message-display`; the
+  layout is CSS (dms.css, COMPACT MESSAGES) but for MessageList giving follow-up lines their name
+  and a short time column in compact.
 - **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
-  Light, Ol' Familiar, Halloween or Match system (follows `prefers-color-scheme` live, light or dark),
+  Light, Ol' Familiar, Halloween, Slack or Match system (follows `prefers-color-scheme` live, light or dark),
   **per device only**
   (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
   `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
@@ -387,6 +401,17 @@
     The rail's bird logo goes the same pumpkin: it's drawn as a CSS mask of
     `logo-no-border.svg` filled with `--vc-logo` (the bird yellow in every other theme), so a
     theme can recolour it. Colours only: no decorations.
+  - **Slack** (`data-theme="slack"`, added 2026-10-25): Slack's colours, colours only (no
+    layout or feature changes). Light underneath (`BASES`: Bootstrap light, light code
+    highlighting, which now follows `data-bs-theme="light"` rather than the theme's name): a white
+    chat in Slack's neutral greys, its green (`#007a5a`) for what you can do, blue links,
+    red counts, unread markers and errors, its yellow for mentions and the bird. The left side
+    (rail, the column beside it, the user card) is its aubergine: a second block sets the same
+    tokens again on `.sidebar-wrapper` (and the picture's rail and sidebar), white text, a
+    lighter aubergine for the open row, white unread markers, a light red for Log Out, and
+    `color` itself, since text that only inherits would keep body's dark colour. So it's the one
+    theme with tokens set below `:root`; menus opened from the side (the guild menu) are
+    aubergine, menus placed on `body` (right-click menus) white, as in Slack.
   - **Appearance's pictures** (`ThemeSettings.jsx` ThemeScene, 2026-10-22) are drawn from each
     theme's real tokens: every theme block's selector also matches
     `[data-theme-preview="<name>"]`, so a picture gets its theme's colours whatever the current

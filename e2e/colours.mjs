@@ -1,4 +1,4 @@
-// Colour scheme screenshots: the same screens in every theme (THEMES=dark,light,familiar,halloween, the
+// Colour scheme screenshots: the same screens in every theme (THEMES=dark,light,familiar,halloween,slack, the
 // default), on a computer and a phone, for comparing colour changes before and after. Nothing is
 // checked; each screen is tried on its own and the run ends with which ones worked.
 //   login (logged out), dm (a mention of the viewer, a link, the viewer's reaction, an unread
@@ -174,7 +174,7 @@ try {
   await carol.page.context().close();
 
   // --- Each theme × device: a fresh context, logged in as alice. ---
-  for (const theme of (process.env.THEMES || 'dark,light,familiar,halloween').split(',')) {
+  for (const theme of (process.env.THEMES || 'dark,light,familiar,halloween,slack').split(',')) {
     for (const device of ['desktop', 'phone']) {
       const phone = device === 'phone';
       const prefix = `${theme}-${device}`;

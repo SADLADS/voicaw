@@ -28,7 +28,7 @@ const layout = (id, permissions, extra = {}) => ({
   ...guilds.find((g) => g.id === id), my_permissions: permissions, my_notify_level: 'mentions', roles: [], categories: [], channels: [], ...extra,
 });
 
-function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildMutes = {}, guildVoice, guildMentions, newestUnread, path = '/dm' } = {}) {
+function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildMutes = {}, guildVoice, guildMentions, unreadChats, path = '/dm' } = {}) {
   const guildList = {
     guilds,
     layouts,
@@ -45,7 +45,7 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
         <LayoutContext.Provider value={{ guildList }}>
           <MemoryRouter initialEntries={[path]}>
             <ShowPath />
-            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} newestUnread={newestUnread} />
+            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} unreadChats={unreadChats} />
           </MemoryRouter>
         </LayoutContext.Provider>
       </InteractionContext.Provider>
@@ -76,14 +76,22 @@ describe('the rail\'s DM button', () => {
     expect(icon('Direct Messages').querySelector('img')).toBeNull();
   });
 
-  it('shows the picture of whoever sent the newest unread message instead, and opens that chat', () => {
-    mergeProfiles([{ id: 9, username: 'zed', display_name: 'Zed' }]);
-    renderRail({ newestUnread: { userId: 9, path: '/dm/g/4' }, path: '/dm/7' });
-    const button = icon('Direct Messages: new message from Zed');
-    expect(button).toHaveAttribute('href', '/dm/g/4');
-    expect(button.querySelector('img')).not.toBeNull();
-    expect(button.querySelector('.rail-logo')).toBeNull();
-    fireEvent.click(button);
+  it('keeps the bird, with each chat with unread messages under it (its sender, its count), opening that chat', () => {
+    mergeProfiles([{ id: 9, username: 'zed', display_name: 'Zed' }, { id: 4, username: 'amy', display_name: 'Amy' }]);
+    renderRail({
+      unreadChats: [{ key: '/dm/g/4', userId: 9, path: '/dm/g/4', count: 3 }, { key: '/dm/4', userId: 4, path: '/dm/4', count: 150 }],
+      path: '/dm/7',
+    });
+    expect(bird()).not.toBeNull();
+    const zed = icon('Direct Messages: new message from Zed');
+    expect(zed).toHaveAttribute('href', '/dm/g/4');
+    expect(zed.querySelector('img')).not.toBeNull();
+    expect(zed.parentElement.querySelector('.rail-mention-badge')).toHaveTextContent('3');
+    expect(icon('Direct Messages: new message from Amy').parentElement.querySelector('.rail-mention-badge')).toHaveTextContent('9+');
+    // Newest first, between the bird and the guilds.
+    const links = screen.getAllByRole('link').map((a) => a.getAttribute('aria-label'));
+    expect(links.slice(0, 3)).toEqual(['Direct Messages', 'Direct Messages: new message from Zed', 'Direct Messages: new message from Amy']);
+    fireEvent.click(zed);
     expect(screen.getByTestId('path').textContent).toBe('/dm/g/4');
   });
 

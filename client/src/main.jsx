@@ -9,6 +9,7 @@ import { desktop } from './utils/desktop';
 import { android, isAndroidApp, refreshAndroidNotificationState } from './utils/android';
 import { applySpellcheck } from './utils/spellcheck';
 import { applyTheme } from './utils/theme';
+import { applyMessageDisplay } from './utils/messageDisplay';
 import { blockNativeContextMenu } from './utils/nativeContextMenu';
 
 
@@ -44,6 +45,7 @@ if (desktop) {
 watchForStaleApp();
 applySpellcheck();
 applyTheme();
+applyMessageDisplay();
 blockNativeContextMenu();
 
 // The Android app first asks Android about notifications (one quick call), so the first

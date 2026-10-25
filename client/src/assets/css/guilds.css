@@ -26,9 +26,17 @@
   height: 100%;
 }
 
-/* The DM button while something's unread: the newest sender's picture. */
+/* A chat with unread messages, under the bird: its newest sender's picture, round (people, not
+   guilds), tightening on hover like the guild icons. */
 .nav-icon.rail-dm-unread {
   overflow: hidden;
+  border-radius: 50%;
+}
+
+@media (hover: hover) {
+  .nav-item:hover .nav-icon.rail-dm-unread {
+    border-radius: var(--vc-radius-lg);
+  }
 }
 
 .rail-dm-unread img {
@@ -2384,7 +2392,8 @@ img.emoji.custom-emoji {
   position: absolute;
   right: 6px;
   bottom: -3px;
-  border: 3px solid var(--vc-bg-base);
+  /* Cut out of the rail around it. */
+  border: 3px solid var(--vc-bg-rail);
   height: 24px;
   min-width: 24px;
   border-radius: 12px;
@@ -2402,7 +2411,7 @@ img.emoji.custom-emoji {
   justify-content: center;
   width: 24px;
   height: 24px;
-  border: 3px solid var(--vc-bg-base);
+  border: 3px solid var(--vc-bg-rail);
   border-radius: 50%;
   background-color: var(--vc-bg-elevated);
   color: var(--vc-fg-muted);

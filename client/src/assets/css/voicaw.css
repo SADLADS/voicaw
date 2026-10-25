@@ -358,6 +358,100 @@
   color-scheme: dark;
 }
 
+/* Slack (added 2026-10-25): Slack's colours, light underneath like Light: a white chat in
+   Slack's neutral greys (no purple tint), its green for what you can do, blue links, red counts
+   and errors, its yellow for mentions. The left side (rail, sidebar, user card) is its
+   aubergine, by the second block below, which sets the same tokens again inside it. */
+:root[data-theme="slack"],
+[data-theme-preview="slack"] {
+  --vc-accent: #007a5a;
+  --vc-accent-hover: #00664b;
+  --vc-accent-strong: #00553f;
+  --vc-accent-text: #007a5a;
+  --vc-accent-soft: rgba(0, 122, 90, 0.12);
+  --vc-on-accent: #ffffff;
+
+  --vc-action: #ecb22e;
+  --vc-action-hover: #d49e24;
+  --vc-action-text: #8a6100;
+  --vc-action-soft: rgba(236, 178, 46, 0.2);
+  --vc-on-action: #1d1c1d;
+  --vc-logo: #ecb22e;
+
+  --vc-bg-rail: #f8f8f8;
+  --vc-bg-base: #f8f8f8;
+  --vc-bg-subtle: #ffffff;
+  --vc-bg-elevated: #f6f6f6;
+  --vc-bg-elevated-hover: #e8e8e8;
+  --vc-bg-card: #f8f8f8;
+  --vc-bg-hover: #efefef;
+  --vc-border-dark: #e8e8e8;
+  --vc-border-light: #d6d6d6;
+
+  --vc-fg: #1d1c1d;
+  --vc-fg-muted: #616061;
+  --vc-placeholder: #696869;
+
+  --vc-popup: #ffffff;
+  --vc-spoiler: #d6d6d6;
+  --vc-spoiler-hover: #c4c4c4;
+  --vc-shadow: rgba(0, 0, 0, 0.08);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.14);
+
+  --vc-online: #2bac76;
+  --vc-success: #007a5a;
+  --vc-success-hover: #00664b;
+  --vc-idle: #ecb22e;
+  --vc-warning: #b85c18;
+  --vc-warning-hover: #9c4e14;
+  --vc-on-warning: #ffffff;
+  --vc-danger: #e01e5a;
+  --vc-danger-hover: #c41a4f;
+  --vc-danger-text: #c41a4f;
+
+  --vc-link: #1264a3;
+  --vc-unread: #e01e5a;
+  --vc-mention-badge: #e01e5a;
+  --vc-on-mention-badge: #ffffff;
+
+  color-scheme: light;
+}
+
+/* Slack's aubergine side: the rail, the column beside it and the user card (and the same parts
+   of its Appearance picture). Dark, white text; the open row a lighter aubergine; white unread
+   markers, as Slack's bold white names. Menus opened from here (the guild menu) take it too. */
+:root[data-theme="slack"] .sidebar-wrapper,
+[data-theme-preview="slack"] :is(.theme-preview-rail, .theme-preview-side) {
+  --vc-accent-text: #f2d4f2;
+  --vc-accent-soft: rgba(255, 255, 255, 0.18);
+
+  --vc-bg-rail: #3b0e3c;
+  --vc-bg-base: #4f1d50;
+  --vc-bg-subtle: #5a2a5b;
+  --vc-bg-elevated: #62305f;
+  --vc-bg-elevated-hover: #6e3d6f;
+  --vc-bg-hover: #5e2a5f;
+  --vc-border-dark: #61305f;
+  --vc-border-light: #7a4d7b;
+
+  --vc-fg: #ffffff;
+  --vc-fg-muted: #d6c3d7;
+  --vc-placeholder: #c4adc5;
+
+  --vc-popup: #350c36;
+  --vc-shadow: rgba(0, 0, 0, 0.25);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.45);
+
+  --vc-link: #f2d4f2;
+  --vc-unread: #ffffff;
+  /* Slack's red as text (Log Out) is too dark on aubergine: a light one, 6:1. */
+  --vc-danger-text: #ff8fb1;
+
+  /* Text that only inherits (Settings' title) would keep body's dark colour otherwise. */
+  color: var(--vc-fg);
+  color-scheme: dark;
+}
+
 /* SPELLCHECK: our checker's underlines in the editors (spellcheck/spellcheckPlugin.js), like a
    browser's own. */
 .spelling-error {
@@ -622,6 +716,19 @@ textarea,
 }
 .rail-logo.turned {
   transform: perspective(200px) rotateY(180deg);
+}
+/* The DM button's slot, first on the rail, is as tall as the headers beside it, the bird in its
+   middle, so it lines up with their tops. The chats with unread messages follow under it, each
+   a picture like a guild's with its count, then the short separator. */
+.sidebar > .nav-item:first-child {
+  height: var(--vc-header-height);
+  margin: 0;
+  align-items: center;
+}
+
+.sidebar > .nav-item:first-child .rail-bird {
+  width: 38px;
+  height: 38px;
 }
 @media (prefers-reduced-motion: reduce) {
   .rail-logo {
@@ -1070,6 +1177,30 @@ pre code {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+/* A choice among a few (Message display): the radio, then its name with its description under it. */
+.settings-toggle.message-display-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.message-display-choice > input {
+  margin-top: 5px;
+}
+
+.message-display-choice > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.message-display-choice .vc-hint {
+  margin: 2px 0 0;
+  font-weight: 400;
 }
 
 /* An on/off setting: its name on the left, a switch on the right, its description under it. */

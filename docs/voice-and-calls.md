@@ -291,7 +291,11 @@ LiveKit carries the audio.
   talking, when you're in there too). Clicking a voice channel joins it on desktop; on mobile a
   tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, outlined while talking, not their pictures; Join Voice,
   mute/deafen/share screen/disconnect). `voice/VoiceBar.jsx` sits above the user panel while
-  connected (status, channel link, share screen, disconnect, errors); `UserPanel` has mute and deafen
+  connected, in two rows as Discord's (2026-10-24): the state (a signal in a tile tinted green, or
+  orange while connecting), the channel link and Disconnect; then the chat, camera and share
+  screen as equal buttons across the width (tinted while on). On a computer it's the top of the
+  docked user card, one card with a line between; errors and notes follow under the buttons.
+  `UserPanel` has mute and deafen
   (`voice/VoiceControls.jsx`). A guild reopens on its last *text* (or list) channel.
 - **Watch Together** (YouTube watch parties, like Discord's activity): everyone in a voice
   channel plays the same YouTube video at the same point. A guild can connect its own Jellyfin

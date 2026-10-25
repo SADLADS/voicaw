@@ -85,10 +85,10 @@ describe('Settings pages', () => {
     expect(scroll).toHaveBeenCalled();
   });
 
-  it('shows no subsections for a page with only one', () => {
+  it("lists Appearance's subsections: the theme and how messages are shown", () => {
     renderSettings({ at: '/settings/appearance' });
     expect(pageTitle()).toBe('Appearance');
-    expect(navSubs()).toEqual([]);
+    expect(navSubs()).toEqual(['Theme', 'Message display']);
   });
 
   it('takes the old one-page Settings\' links to the page holding that section', async () => {
