@@ -22,6 +22,7 @@ import AdminReports from './AdminReports';
 import ProfileVisibilitySettings from './ProfileVisibilitySettings';
 import ContentSettings from "./ContentSettings";
 import ThemeSettings from "./ThemeSettings";
+import MessageDisplaySettings from "./MessageDisplaySettings";
 import LanguageSettings from "./LanguageSettings";
 import SoundSettings from "./SoundSettings";
 import VoiceSettings from "./VoiceSettings";
@@ -115,7 +116,10 @@ export default function Settings({ onLogout }) {
     },
     {
       id: 'appearance', group: 'app', title: t('settings.pages.appearance'),
-      subs: [sub('theme', 'theme', { content: <ThemeSettings /> })],
+      subs: [
+        sub('theme', 'theme', { content: <ThemeSettings /> }),
+        sub('message-display', 'messageDisplay', { content: <MessageDisplaySettings /> }),
+      ],
     },
     {
       id: 'language', group: 'app', title: t('settings.pages.language'),

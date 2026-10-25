@@ -1149,6 +1149,30 @@ pre code {
   letter-spacing: -0.01em;
 }
 
+/* A choice among a few (Message display): the radio, then its name with its description under it. */
+.settings-toggle.message-display-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.message-display-choice > input {
+  margin-top: 5px;
+}
+
+.message-display-choice > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.message-display-choice .vc-hint {
+  margin: 2px 0 0;
+  font-weight: 400;
+}
+
 /* An on/off setting: its name on the left, a switch on the right, its description under it. */
 .settings-card > .settings-toggle:has(> input[type="checkbox"]) {
   display: flex;

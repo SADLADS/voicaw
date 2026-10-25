@@ -297,6 +297,16 @@
   editors everywhere, and on desktop the chat's messages, names, times, reply previews and the
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
+- **Message display** (`utils/messageDisplay.js`, Settings → Appearance → Message display,
+  `MessageDisplaySettings.jsx`, 2026-10-25): Cosy (the default: pictures, the name and time above
+  each group) or Compact, as Discord's: no pictures, each line the time (a run's first line only;
+  the others show it on hover, in the same column), the name and the text running on after it;
+  further paragraphs, attachments and reactions start under the name. Every line is spaced alike
+  (1px above and below), a new person or not, as Discord's: no extra gap between runs (cosy's
+  4px under a run's last line doesn't apply). Per device like the theme
+  (localStorage `messageDisplay`, never sent), put on `<html>` as `data-message-display`; the
+  layout is CSS (dms.css, COMPACT MESSAGES) but for MessageList giving follow-up lines their name
+  and a short time column in compact.
 - **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
   Light, Ol' Familiar, Halloween, Slack or Match system (follows `prefers-color-scheme` live, light or dark),
   **per device only**

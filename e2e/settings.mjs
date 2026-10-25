@@ -147,7 +147,7 @@ try {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto(`${BASE}/settings/appearance`);
   await page.waitForSelector('.settings-page-title');
-  check((await navSubs(page)).length === 0, 'a page with one subsection lists none');
+  check(JSON.stringify(await navSubs(page)) === JSON.stringify(['Theme', 'Message display']), "Appearance lists its subsections: Theme, Message display");
   await shot(page, '6-desktop-appearance-dark');
 
   // A phone.
