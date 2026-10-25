@@ -95,6 +95,7 @@
         "speak": "Speak",
         "listen": "Listen",
         "video": "Video",
+        "useSoundboard": "Use Soundboard",
         "queueVideos": "Queue Videos",
         "manageQueue": "Manage Queue",
         "controlPlayback": "Control Playback",
@@ -126,8 +127,8 @@
         "description": "Lets members change the guild's name and icon, and see and revoke all invites."
       },
       "MANAGE_EMOJIS": {
-        "label": "Manage Emoji",
-        "description": "Lets members add, rename and remove the guild's custom emoji."
+        "label": "Manage Emoji and Sounds",
+        "description": "Lets members add, rename and remove the guild's custom emoji and soundboard sounds."
       },
       "MANAGE_WEBHOOKS": {
         "label": "Manage Webhooks",
@@ -192,6 +193,10 @@
       "STREAM": {
         "label": "Video",
         "description": "Lets members turn on their camera and share their screen in voice channels."
+      },
+      "USE_SOUNDBOARD": {
+        "label": "Use Soundboard",
+        "description": "Lets members in a voice channel play the guild's soundboard sounds, and have their join sound played when they join."
       },
       "QUEUE_VIDEOS": {
         "label": "Queue Videos",

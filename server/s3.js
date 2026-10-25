@@ -122,7 +122,7 @@ async function abortMultipartUpload(bucket, key, uploadId) {
 // and guild icons are public on purpose). If the object store is unreachable, log it rather than crash the
 // server: messaging works without it, and the next start tries again.
 async function setUpBuckets() {
-    for (const bucket of ["uploads", "profile-pics", "guild-icons", "emojis"]) {
+    for (const bucket of ["uploads", "profile-pics", "guild-icons", "emojis", "sounds"]) {
         await ensureBucketExists(bucket);
         await makeBucketPublic(bucket);
     }

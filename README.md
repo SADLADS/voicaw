@@ -117,8 +117,9 @@ handles TLS for all of them.
 ### 1. Requirements
 
 - Node 24 LTS and npm 11.
-- An S3-compatible object store (e.g. MinIO) for uploads, profile pictures, guild icons and
-  emoji. The server creates its buckets (`uploads`, `profile-pics`, `guild-icons`, `emojis`) and
+- An S3-compatible object store (e.g. MinIO) for uploads, profile pictures, guild icons,
+  emoji and soundboard sounds. The server creates its buckets (`uploads`, `profile-pics`,
+  `guild-icons`, `emojis`, `sounds`) and
   makes them public on start. Settings → Admin → Storage reads MinIO's metrics with the same
   credentials (nothing to set up; other S3 stores just show it as unavailable).
 - nginx with TLS certificates (certbot), pm2, and rsync (`npm run build` publishes the web app
