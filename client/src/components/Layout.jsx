@@ -16,6 +16,7 @@ import IncomingCall from './call/IncomingCall';
 import UserProfileHost from './UserProfileHost';
 import BotModal from './BotModal';
 import { initCalls } from '../voice/callClient';
+import { initSoundboard } from '../voice/soundboard';
 import { connectWebSocket, onNewDm } from '../utils/ws-client';
 import { isOfflineMode } from '../utils/offlineMode';
 import api from '../utils/api';
@@ -335,6 +336,13 @@ export default function Layout({ user, onLogout }) {
   useEffect(() => {
     initCalls(user?.id ? user : null);
     return () => initCalls(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Soundboard sounds played in your voice channel, from any page.
+  useEffect(() => {
+    initSoundboard(user?.id ? user : null);
+    return () => initSoundboard(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 

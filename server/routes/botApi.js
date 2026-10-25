@@ -23,6 +23,7 @@ const guildEvents = require('../guildEvents');
 const oauth = require('../oauth');
 const botDms = require('../botDms');
 const levels = require('../guildLevels');
+const soundboard = require('../soundboard');
 
 // The bot API: Discord's REST API (https://discord.com/developers/docs/reference), for bots made
 // in the developer portal (bots.js, docs/bots.md), at /api/v10 (and /api/v9), so Discord's
@@ -784,6 +785,79 @@ router.get('/guilds/:guildId/emojis/:emojiId', auth, inGuild, route(async (req, 
   const emoji = await db.get('SELECT id, name, animated, available FROM guild_emojis WHERE guild_id = ? AND id = ? AND available = 1', [req.member.guild.id, D.ourId(req.params.emojiId)]);
   if (!emoji) return fail(res, 404, 10014, 'Unknown Emoji');
   res.json(D.emojiObject(emoji));
+}));
+
+// ---- Soundboard (soundboard.js) ----
+
+// Discord's emoji_id / emoji_name as our emoji: a custom one of any guild the bot is in, or Unicode.
+async function soundEmoji(body) {
+  if (body.emoji_id != null) {
+    const emoji = await db.get(
+      `SELECT e.id, e.name FROM guild_emojis e JOIN guild_members gm ON gm.guild_id = e.guild_id AND gm.user_id = ?
+       WHERE e.id = ? AND e.available = 1`,
+      [body.botId, D.ourId(body.emoji_id)]
+    );
+    if (!emoji) throw new webhooks.FormError(['emoji_id'], 'Unknown emoji', 'BASE_TYPE_INVALID');
+    return `<:${emoji.name}:${emoji.id}>`;
+  }
+  return body.emoji_name ?? null;
+}
+
+async function soundObjectOf(sound) {
+  return D.soundObject(sound, await userRow(sound.creator_id));
+}
+
+// No sounds of our own: only guilds'.
+router.get('/soundboard-default-sounds', auth, (req, res) => res.json([]));
+
+router.get('/guilds/:guildId/soundboard-sounds', auth, inGuild, route(async (req, res) => {
+  const { sounds } = await soundboard.listSounds(req.member.guild.id, req.bot.id);
+  res.json({ items: await Promise.all(sounds.map(soundObjectOf)) });
+}));
+
+// req.sound: :soundId, a sound of req.member's guild.
+async function inSound(req, res, next) {
+  const sound = await soundboard.findSound(req.member.guild.id, D.ourId(req.params.soundId));
+  if (!sound?.available) return fail(res, 404, 10097, 'Unknown Soundboard Sound');
+  req.sound = sound;
+  next();
+}
+
+router.get('/guilds/:guildId/soundboard-sounds/:soundId', auth, inGuild, inSound, route(async (req, res) => {
+  res.json(await soundObjectOf(req.sound));
+}));
+
+// { name, sound (a data URI of an MP3, Ogg or WAV), volume?, emoji_id?, emoji_name? }
+router.post('/guilds/:guildId/soundboard-sounds', auth, limit('sound-create', 5, 5000), inGuild, route(async (req, res) => {
+  const body = req.body ?? {};
+  const sound = await soundboard.createSoundFromData(req.member.guild.id, req.bot.id, {
+    name: body.name, volume: body.volume, emoji: await soundEmoji({ ...body, botId: req.bot.id }), data: body.sound,
+  });
+  res.status(201).json(await soundObjectOf(sound));
+}));
+
+router.patch('/guilds/:guildId/soundboard-sounds/:soundId', auth, limit('sound-update', 5, 5000), inGuild, inSound, route(async (req, res) => {
+  const body = req.body ?? {};
+  const emojiSent = body.emoji_id !== undefined || body.emoji_name !== undefined;
+  const sound = await soundboard.updateSound(req.member.guild.id, req.bot.id, req.sound.id, {
+    name: body.name, volume: body.volume, emoji: emojiSent ? await soundEmoji({ ...body, botId: req.bot.id }) : undefined,
+  });
+  res.json(await soundObjectOf(sound));
+}));
+
+router.delete('/guilds/:guildId/soundboard-sounds/:soundId', auth, limit('sound-delete', 5, 5000), inGuild, inSound, route(async (req, res) => {
+  await soundboard.deleteSound(req.member.guild.id, req.bot.id, req.sound.id);
+  res.status(204).end();
+}));
+
+// Plays a sound in the voice channel the bot is in: { sound_id, source_guild_id? } (only the
+// channel's own guild's sounds).
+router.post('/channels/:channelId/send-soundboard-sound', auth, inChannel, route(async (req, res) => {
+  if (req.category || req.access.channel.type !== 'voice') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
+  const source = req.body?.source_guild_id;
+  if (source != null && D.ourId(source) !== req.access.channel.guild_id) return fail(res, 404, 10097, 'Unknown Soundboard Sound');
+  await soundboard.playSound(req.bot.id, req.access.channel.id, D.ourId(req.body?.sound_id));
+  res.status(204).end();
 }));
 
 // ---- Members ----
@@ -1589,6 +1663,11 @@ cdn.get('/guild-events/:eventId/:file', async (req, res) => {
   const event = await guildEvents.getEvent(D.ourId(req.params.eventId));
   if (!event || !D.eventImageHash(event)) return res.status(404).end();
   res.redirect(302, event.image);
+});
+cdn.get('/soundboard-sounds/:soundId', (req, res) => {
+  const id = D.ourId(req.params.soundId);
+  if (id == null) return res.status(404).end();
+  res.redirect(302, soundboard.soundUrl(id));
 });
 cdn.get('/emojis/:file', (req, res) => {
   const id = D.ourId(String(req.params.file).split('.')[0]);

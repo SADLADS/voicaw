@@ -95,6 +95,7 @@
         "speak": "Speak",
         "listen": "Listen",
         "video": "Video",
+        "useSoundboard": "Use Soundboard",
         "queueVideos": "Queue Videos",
         "manageQueue": "Manage Queue",
         "controlPlayback": "Control Playback",
@@ -126,8 +127,8 @@
         "description": "Lets members change the guild's name and icon, and see and revoke all invites."
       },
       "MANAGE_EMOJIS": {
-        "label": "Manage Emoji",
-        "description": "Lets members add, rename and remove the guild's custom emoji."
+        "label": "Manage Emoji and Sounds",
+        "description": "Lets members add, rename and remove the guild's custom emoji and soundboard sounds."
       },
       "MANAGE_WEBHOOKS": {
         "label": "Manage Webhooks",
@@ -192,6 +193,10 @@
       "STREAM": {
         "label": "Video",
         "description": "Lets members turn on their camera and share their screen in voice channels."
+      },
+      "USE_SOUNDBOARD": {
+        "label": "Use Soundboard",
+        "description": "Lets members in a voice channel play the guild's soundboard sounds, and have their join sound played when they join."
       },
       "QUEUE_VIDEOS": {
         "label": "Queue Videos",
@@ -282,7 +287,8 @@
         "webhooks": "Webhooks",
         "events": "Events",
         "levels": "Levels",
-        "guild": "Guild settings"
+        "guild": "Guild settings",
+        "sounds": "Soundboard"
       },
       "deletedChannel": "deleted-channel",
       "aWebhookStart": "A webhook",
@@ -352,7 +358,10 @@
         "auditLogClearOlder_other": "{{actor}} cleared entries older than {{age}} ({{count}} entries)",
         "auditLogClearAll_one": "{{actor}} cleared the whole audit log ({{count}} entry)",
         "auditLogClearAll_other": "{{actor}} cleared the whole audit log ({{count}} entries)",
-        "unknown": "{{actor}} did something ({{action}})"
+        "unknown": "{{actor}} did something ({{action}})",
+        "soundCreate": "{{actor}} added the sound {{sound}}",
+        "soundUpdate": "{{actor}} changed the sound {{sound}}",
+        "soundDelete": "{{actor}} deleted the sound {{sound}}"
       },
       "fields": {
         "name": "Name",
@@ -372,7 +381,8 @@
         "all_day": "All day",
         "emoji": "Emoji",
         "join_log": "Join log",
-        "join_log_leaves": "Join log shows leaves"
+        "join_log_leaves": "Join log shows leaves",
+        "volume": "Volume"
       },
       "values": {
         "none": "none",
@@ -543,7 +553,8 @@
         "levels": "Levels",
         "watchTogether": "Watch Together",
         "invites": "Invites",
-        "bans": "Bans"
+        "bans": "Bans",
+        "soundboard": "Soundboard"
       },
       "noPermission": "You don't have permission to change anything here."
     },
@@ -641,6 +652,30 @@
     "upload": {
       "noUrl": "No upload URL",
       "failed": "Upload failed"
+    },
+    "soundboard": {
+      "intro": "Up to {{max}} short sounds anyone in the guild can play in its voice channels, for everyone there to hear. Sounds play for {{seconds}} seconds at most: a longer file is cut to the part you choose.",
+      "upload": "Upload sound",
+      "count": "{{used}} of {{max}} sounds",
+      "file": "Sound file",
+      "unreadable": "{{file}} isn't a sound this browser can read.",
+      "none": "No sounds yet.",
+      "list": "Sounds",
+      "newSound": "New sound",
+      "name": "Name",
+      "volume": "Volume",
+      "chooseEmoji": "Choose an emoji",
+      "trim": "This sound is {{length}} seconds long: choose which {{max}} seconds to keep.",
+      "trimStart": "Start",
+      "trimRange": "{{from}} s to {{to}} s",
+      "previewNew": "Preview",
+      "add": "Add sound",
+      "uploading": "Uploading…",
+      "nameOf": "Name of {{name}}",
+      "emojiOf": "Emoji of {{name}}",
+      "volumeOf": "Volume of {{name}}",
+      "removeEmoji": "Remove emoji",
+      "deleteOne": "Delete {{name}}"
     }
   }
 }

@@ -237,8 +237,32 @@ CREATE TABLE IF NOT EXISTS guild_emojis (
 `);
 sqlite.exec('CREATE INDEX IF NOT EXISTS guild_emojis_guild ON guild_emojis (guild_id)');
 
+// Soundboard sounds (soundboard.js): short clips played in a guild's voice channels, plain
+// files (not encrypted) at sounds/<id> in the object store, made like emoji (a row before the
+// upload, available once it's checked). `volume` (0–1) is the sound's own; `emoji` an optional
+// Unicode or `<:name:id>` one. Each member can pick one of the guild's sounds as the join
+// sound played when they join one of its voice channels (`guild_members.join_sound_id`).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_sounds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  emoji TEXT,
+  volume REAL NOT NULL DEFAULT 1,
+  content_type TEXT,
+  creator_id INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s','now')),
+  available INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (guild_id) REFERENCES guilds(id),
+  FOREIGN KEY (creator_id) REFERENCES users(id)
+);
+`);
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_sounds_guild ON guild_sounds (guild_id)');
+
 // Each member's own order of their guilds in the guild rail (lowest first).
 addColumn('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
+// The member's join sound (guild_sounds.id, see above), or null.
+addColumn('ALTER TABLE guild_members ADD COLUMN join_sound_id INTEGER');
 
 // MENTIONS. Each member chooses which of a guild's messages push to them: 'all', 'mentions'
 // (the default) or 'none'. A role can be `mentionable` by anyone (else only with Mention
@@ -1182,6 +1206,8 @@ const MIGRATIONS = [
   () => sqlite.exec(`INSERT INTO signup_requests (user_id, username, display_name, requested_at)
     SELECT id, username, display_name, COALESCE(account_created, strftime('%s','now')) FROM users
     WHERE pending = 1 AND deleted_at IS NULL`),
+  // 19. Soundboards: @everyone gets Use Soundboard, as in new guilds.
+  () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.USE_SOUNDBOARD} WHERE is_everyone = 1`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

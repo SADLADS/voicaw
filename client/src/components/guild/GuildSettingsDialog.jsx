@@ -4,6 +4,7 @@ import GuildIcon from './GuildIcon';
 import ImageCropper from '../ImageCropper';
 import RolesSettings from './RolesSettings';
 import EmojiSettings from './EmojiSettings';
+import SoundboardSettings from './SoundboardSettings';
 import LevelSettings from './LevelSettings';
 import MediaServerSettings from './MediaServerSettings';
 import { LayoutContext } from '../../contexts';
@@ -364,13 +365,14 @@ function Bans({ guild }) {
 }
 
 // Guild settings: the tabs you have permission for (Overview and Invites: Manage Guild;
-// Levels and Watch Together: Manage Guild; Roles: Manage Roles; Emoji: Manage Emoji; Bans: Ban Members). Deleting the guild is the owner's alone.
+// Levels and Watch Together: Manage Guild; Roles: Manage Roles; Emoji and Soundboard: Manage Emoji; Bans: Ban Members). Deleting the guild is the owner's alone.
 export default function GuildSettingsDialog({ guild, user, onClose }) {
   const can = (bit) => has(guild.my_permissions, bit);
   const tabs = [
     can(PERMISSIONS.MANAGE_GUILD) && ['overview', t('guildAdmin.channelDialog.tabs.overview')],
     can(PERMISSIONS.MANAGE_ROLES) && ['roles', t('guildAdmin.guildSettings.tabs.roles')],
     can(PERMISSIONS.MANAGE_EMOJIS) && ['emoji', t('guildAdmin.guildSettings.tabs.emoji')],
+    can(PERMISSIONS.MANAGE_EMOJIS) && ['soundboard', t('guildAdmin.guildSettings.tabs.soundboard')],
     can(PERMISSIONS.MANAGE_GUILD) && guild.levels && ['levels', t('guildAdmin.guildSettings.tabs.levels')],
     can(PERMISSIONS.MANAGE_GUILD) && ['watchTogether', t('guildAdmin.guildSettings.tabs.watchTogether')],
     can(PERMISSIONS.MANAGE_GUILD) && ['invites', t('guildAdmin.guildSettings.tabs.invites')],
@@ -398,6 +400,7 @@ export default function GuildSettingsDialog({ guild, user, onClose }) {
         {tab === 'overview' && <Overview guild={guild} isOwner={guild.owner === user.id} />}
         {tab === 'roles' && <RolesSettings guild={guild} user={user} />}
         {tab === 'emoji' && <EmojiSettings guild={guild} />}
+        {tab === 'soundboard' && <SoundboardSettings guild={guild} />}
         {tab === 'levels' && <LevelSettings guild={guild} />}
         {tab === 'watchTogether' && <MediaServerSettings guild={guild} />}
         {tab === 'invites' && <Invites guild={guild} isOwner={guild.owner === user.id} />}

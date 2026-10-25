@@ -67,6 +67,7 @@ app.use('/api', require('./routes/threads'));
 app.use('/api', require('./routes/guildSearch'));
 app.use('/api', require('./routes/guildRoles'));
 app.use('/api', require('./routes/guildEmojis'));
+app.use('/api', require('./routes/soundboard'));
 app.use('/api', require('./routes/guildTasks'));
 app.use('/api', require('./routes/guildDocuments'));
 app.use('/api', require('./routes/guildEvents'));

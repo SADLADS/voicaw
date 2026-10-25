@@ -453,6 +453,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the server checks every step against the schema and writes the markdown itself, which stays
   the stored format), sessions kept in memory. Editing others' documents needs the author's
   "Others can edit" (off by default), on top of Create Documents.
+- **Soundboards** (built 2026-10-25, see Soundboard in `docs/voice-and-calls.md`): Discord's,
+  per guild, unencrypted files like custom emoji, managed with Manage Emoji; playing needs Speak
+  and the new Use Soundboard (the last bit `1 << n` can hold: the next permission needs a wider
+  scheme). The server only relays a play to everyone in the channel; each app plays the file
+  itself, so listeners each choose, per device, whether they hear soundboard sounds and join
+  sounds (each member's one sound played when they join one of the guild's voice channels) and
+  how loud. 5.2 s at most, kept by the apps (they cut longer files when uploading).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

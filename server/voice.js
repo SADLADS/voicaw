@@ -342,6 +342,10 @@ async function participantJoined(channelId, participant, regionId) {
   pendingWatching.delete(userId);
   if (pending?.watching && Date.now() - pending.at < PENDING_WATCHING_MS) syncWatching(state, pending.watching);
   await announce(state.guildId, channelId, userId, state);
+  // Just arrived (not a new session in the same channel): their join sound plays.
+  if (previous?.channelId !== channelId) {
+    await require('./soundboard').playJoinSound(state).catch((err) => console.error('Join sound failed:', err.message));
+  }
 }
 
 async function participantLeft(channelId, participant) {

@@ -217,7 +217,7 @@ class Session {
           .map((state) => D.voiceStateObject({ guildId, channelId: c.id, userId: state.user_id, state }))),
       stage_instances: [],
       guild_scheduled_events: await this.scheduledEvents(guildId),
-      soundboard_sounds: [],
+      soundboard_sounds: (await require('./soundboard').guildSounds(guildId)).map((sound) => D.soundObject(sound)),
     });
   }
 
@@ -263,6 +263,27 @@ class Session {
       case 'guild_emojis_update':
         if (this.wants(INTENTS.GUILD_EXPRESSIONS)) this.dispatch('GUILD_EMOJIS_UPDATE', { guild_id: g, emojis: event.emojis.map(D.emojiObject) });
         return;
+      case 'guild_soundboard_update':
+        if (this.wants(INTENTS.GUILD_EXPRESSIONS)) {
+          this.dispatch('GUILD_SOUNDBOARD_SOUNDS_UPDATE', { guild_id: g, soundboard_sounds: event.sounds.map((sound) => D.soundObject(sound)) });
+        }
+        return;
+      // A sound played in the bot's voice channel (soundboard.js; also someone's join sound).
+      case 'guild_soundboard_play': {
+        if (!this.wants(INTENTS.GUILD_VOICE_STATES)) return;
+        const sound = D.soundObject(event.sound);
+        this.dispatch('VOICE_CHANNEL_EFFECT_SEND', {
+          channel_id: String(event.channelId),
+          guild_id: g,
+          user_id: String(event.userId),
+          emoji: sound.emoji_id || sound.emoji_name ? { id: sound.emoji_id, name: sound.emoji_name } : null,
+          animation_type: null,
+          animation_id: null,
+          sound_id: sound.sound_id,
+          sound_volume: sound.volume,
+        });
+        return;
+      }
       case 'guild_member_add': {
         if (event.member.id === this.bot.id || !this.wants(INTENTS.GUILD_MEMBERS)) return;
         const [member] = await D.guildMembers(guildId, { userIds: [event.member.id] });

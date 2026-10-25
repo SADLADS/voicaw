@@ -9,7 +9,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Permissions** (`server/permissions.js`, copied in `client/src/utils/permissions.js`; a
   test checks they match) are Discord's model with a bit field: View Channel, Send Messages,
   Add Reactions, Manage Messages, Manage Channels, Manage Roles, Manage Guild, Create Invite,
-  Kick, Ban, Administrator, Manage Emoji, Connect, Speak, Video (`STREAM`: camera and screen sharing;
+  Kick, Ban, Administrator, Manage Emoji (and soundboard sounds), Connect, Speak, Use Soundboard, Video (`STREAM`: camera and screen sharing;
   voice), Mention Everyone (@everyone,
   @here and any role; not a default, guild-wide only), Pin Messages (not a default; split out of
   Manage Messages like Discord did, migration 3), Manage Webhooks (guild-wide only), View Audit
@@ -176,6 +176,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   login, again when a guild new to the list is added, as on joining one, and after the websocket
   reconnects; `guild_emojis_update` in between), and `Layout` provides
   `CustomEmojiContext` (`emoji/customEmojiContext.js`: by guild in rail order, and by id).
+- **Soundboard sounds** are per guild too, managed with the same Manage Emoji in Guild Settings
+  → Soundboard, and played in voice channels: see Soundboard in `docs/voice-and-calls.md`.
 - **Channel and category menus** (like Discord's): right-click a channel or category in the
   channel list, or touch and hold on a phone (where there are no cog buttons: the menu is the
   only way in). `ContextMenu.jsx` draws every such menu (see `docs/client.md`): floating with submenus beside it on a

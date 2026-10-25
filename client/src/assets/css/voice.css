@@ -748,7 +748,7 @@ body.popout-window {
   width: 320px;
   aspect-ratio: 16 / 9;
   margin: 0;
-  box-shadow: var(--vc-popup-shadow);
+  box-shadow: 0 2px 8px var(--vc-popup-shadow);
 }
 
 .stream-view.corner .stream-bar {
@@ -1660,7 +1660,7 @@ body.popout-window {
 .watch-party-player.mini {
   position: relative;
   width: 320px;
-  box-shadow: var(--vc-popup-shadow);
+  box-shadow: 0 2px 8px var(--vc-popup-shadow);
   background-color: var(--vc-popup);
   color: var(--vc-fg);
 }
@@ -1957,4 +1957,237 @@ body.popout-window {
   top: -4px;
   left: -4px;
   z-index: 1;
+}
+
+/* SOUNDBOARD: the guild's sounds, from the voice controls (SoundboardPanel). */
+.soundboard-panel {
+  width: 340px;
+  max-height: min(440px, calc(var(--vc-app-height) - 32px));
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 12px;
+}
+
+.soundboard-head {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--vc-fg);
+}
+
+.soundboard-note {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.soundboard-empty {
+  margin: 8px 0;
+}
+
+.soundboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.soundboard-item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.soundboard-sound {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 34px 0 10px;
+  border: 0;
+  border-radius: var(--vc-radius-md);
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  font-size: 14px;
+  text-align: left;
+}
+
+.soundboard-sound:hover:not(:disabled) {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
+.soundboard-sound:active:not(:disabled) {
+  background-color: var(--vc-accent-soft);
+}
+
+.soundboard-sound:disabled {
+  color: var(--vc-fg-muted);
+  cursor: not-allowed;
+}
+
+.soundboard-emoji {
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.soundboard-emoji .emoji {
+  width: 20px;
+  height: 20px;
+}
+
+.soundboard-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.soundboard-join-mark {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vc-idle);
+}
+
+/* Preview (only you hear it): the speaker at the button's end. */
+.soundboard-preview {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: 12px;
+}
+
+.soundboard-preview:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.soundboard-error {
+  margin: 8px 0 0;
+}
+
+.soundboard-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--vc-border-dark);
+}
+
+.soundboard-join {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  color: var(--vc-fg-muted);
+}
+
+.soundboard-join select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 4px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
+}
+
+.soundboard-settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--vc-fg-muted);
+}
+
+.soundboard-settings-link:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.soundboard-sheet {
+  max-height: calc(var(--vc-app-height) * 0.8);
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px calc(16px + env(safe-area-inset-bottom));
+}
+
+.soundboard-sheet .soundboard-sound {
+  height: 48px;
+}
+
+.soundboard-sheet .soundboard-preview {
+  top: 8px;
+  width: 32px;
+  height: 32px;
+}
+
+.user-panel-button.voice-bar-action.soundboard-toggle.active,
+.voice-view-button.soundboard-toggle.active {
+  background-color: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
+}
+
+/* A sound someone played: its emoji pops up on their tile for a moment. */
+.voice-tile {
+  position: relative;
+}
+
+.voice-tile-effect {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--vc-popup);
+  box-shadow: 0 2px 8px var(--vc-popup-shadow);
+  color: var(--vc-accent-text);
+  font-size: 16px;
+  pointer-events: none;
+  animation: voice-tile-effect 3s ease-out forwards;
+}
+
+.voice-tile-effect .emoji {
+  width: 22px;
+  height: 22px;
+}
+
+@keyframes voice-tile-effect {
+  0% { opacity: 0; transform: translateY(8px) scale(0.6); }
+  10% { opacity: 1; transform: translateY(0) scale(1.15); }
+  20% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-tile-effect {
+    animation: none;
+  }
+}
+
+/* Settings → Voice & video: each kind of sound, its switch and volume. */
+.voice-settings-soundboard {
+  margin-bottom: 8px;
 }

@@ -134,6 +134,10 @@
         "title": "Voice processing",
         "keywords": "echo cancellation automatic gain control agc processing"
       },
+      "soundboard": {
+        "title": "Soundboard",
+        "keywords": "soundboard sounds sound effects join sound entrance sound volume mute"
+      },
       "camera": {
         "title": "Camera",
         "keywords": "video camera webcam device preview"
@@ -802,7 +806,21 @@
       "cameraFailed": "Could not use the camera.",
       "cameraNamesHidden": "Your browser hides camera names until Voicaw may use the camera. Test camera shows them.",
       "screenShare": "Screen share",
-      "screenShareHint": "How your screen goes out when you share it (you can change it each time you go live). Source is your screen's own size. Higher quality needs a faster upload, and the server sends every viewer the whole stream."
+      "screenShareHint": "How your screen goes out when you share it (you can change it each time you go live). Source is your screen's own size. Higher quality needs a faster upload, and the server sends every viewer the whole stream.",
+      "soundboard": {
+        "title": "Soundboard",
+        "hint": "Sounds from a guild's soundboard play for everyone in the voice channel. Choose whether you hear them here, and how loud. Deafened, you hear none.",
+        "sounds": {
+          "label": "Play soundboard sounds",
+          "hint": "Sounds people play from the soundboard while you're in the channel with them.",
+          "volume": "Soundboard volume"
+        },
+        "join": {
+          "label": "Play join sounds",
+          "hint": "The sound someone has chosen to play when they join a voice channel you're in.",
+          "volume": "Join sound volume"
+        }
+      }
     },
     "profile": {
       "onlyImages": "Only image files are allowed.",

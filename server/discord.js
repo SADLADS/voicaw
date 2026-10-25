@@ -53,6 +53,7 @@ const PERMISSION_BITS = [
   [P.MANAGE_EVENTS, [33]],
   [P.CREATE_EVENTS, [44]],
   [P.MANAGE_LEVELS, [62]], // ours only: change members' XP and levels
+  [P.USE_SOUNDBOARD, [42]],
 ];
 const DISCORD_PERMISSIONS = Object.fromEntries([
   ['CREATE_INSTANT_INVITE', 0], ['KICK_MEMBERS', 1], ['BAN_MEMBERS', 2], ['ADMINISTRATOR', 3], ['MANAGE_CHANNELS', 4],
@@ -64,7 +65,7 @@ const DISCORD_PERMISSIONS = Object.fromEntries([
   ['VOICAW_EDIT_TASKS', 56], ['VOICAW_CREATE_DOCUMENTS', 57],
   ['VOICAW_QUEUE_VIDEOS', 58], ['VOICAW_MANAGE_QUEUE', 59], ['VOICAW_CONTROL_PLAYBACK', 60],
   ['VOICAW_LISTEN', 61], ['MANAGE_EVENTS', 33], ['CREATE_EVENTS', 44],
-  ['VOICAW_MANAGE_LEVELS', 62],
+  ['VOICAW_MANAGE_LEVELS', 62], ['USE_SOUNDBOARD', 42],
 ].map(([name, bit]) => [name, 1n << BigInt(bit)]));
 
 function toDiscordPermissions(bits) {
@@ -215,6 +216,22 @@ function emojiObject(emoji) {
     managed: false,
     animated: Boolean(emoji.animated),
     available: emoji.available === undefined ? true : Boolean(emoji.available),
+  };
+}
+
+// A soundboard sound (soundboard.js) as Discord's: our `emoji` is a custom one's
+// `<:name:id>` (emoji_id) or a Unicode one (emoji_name). `user`: a users row, its creator.
+function soundObject(sound, user = null) {
+  const custom = /^<a?:\w+:(\d+)>$/.exec(sound.emoji ?? '');
+  return {
+    name: sound.name,
+    sound_id: id(sound.id),
+    volume: sound.volume,
+    emoji_id: custom ? custom[1] : null,
+    emoji_name: custom ? null : (sound.emoji ?? null),
+    guild_id: id(sound.guild_id),
+    available: true,
+    ...(user ? { user: userObject(user) } : {}),
   };
 }
 
@@ -580,6 +597,7 @@ module.exports = {
   roleObject,
   roleIdFromDiscord,
   emojiObject,
+  soundObject,
   overwriteObject,
   channelObject,
   categoryObject,

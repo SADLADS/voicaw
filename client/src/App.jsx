@@ -33,6 +33,7 @@ import PageMenus from './components/PageMenus';
 import SafetyDialogs from './components/SafetyDialogs';
 import { setCustomEmojiBase } from './emoji/customEmoji';
 import { setAvatarBase } from './utils/profiles';
+import { setSoundboardBase } from './voice/soundboard';
 import { t } from './i18n';
 import { watchKeyboardViewport } from './utils/keyboardViewport';
 import TermsGate from './components/TermsGate';
@@ -110,6 +111,7 @@ export default function App() {
         setConfig(res.data);
         setCustomEmojiBase(res.data.s3Endpoint);
         setAvatarBase(res.data.s3Endpoint);
+        setSoundboardBase(res.data.s3Endpoint);
         window.removeEventListener('online', fetchConfig);
       } catch (err) {
         if (stopped) return;

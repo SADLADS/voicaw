@@ -18,6 +18,12 @@ const PROCESSING = [
   ['autoGainControl', 'settings.voice.autoGainControl.label', 'settings.voice.autoGainControl.hint'],
 ];
 
+// Soundboards (voice/soundboard.js): [on, volume, translation key].
+const SOUNDBOARD = [
+  ['soundboardOn', 'soundboardVolume', 'sounds'],
+  ['joinSoundsOn', 'joinSoundVolume', 'join'],
+];
+
 const NOISE_MODES = [
   ['standard', 'settings.voice.noise.standard.label', 'settings.voice.noise.standard.hint'],
   ['strong', 'settings.voice.noise.strong.label', 'settings.voice.noise.strong.hint'],
@@ -273,6 +279,32 @@ export default function VoiceSettings() {
             <span className="vc-hint">{t(hint)}</span>
           </span>
         </label>
+      ))}
+      <h6 id="settings-soundboard" className="voice-settings-heading">{t('settings.voice.soundboard.title')}</h6>
+      <p className="vc-hint">{t('settings.voice.soundboard.hint')}</p>
+      {SOUNDBOARD.map(([on, volume, key]) => (
+        <div key={key} className="voice-settings-soundboard">
+          <label className="settings-toggle voice-settings-toggle">
+            <input type="checkbox" checked={settings[on]} onChange={(e) => setAudioSettings({ [on]: e.target.checked })} />
+            <span>
+              {t(`settings.voice.soundboard.${key}.label`)}
+              <span className="vc-hint">{t(`settings.voice.soundboard.${key}.hint`)}</span>
+            </span>
+          </label>
+          <label className="voice-settings-field">
+            <span>{t(`settings.voice.soundboard.${key}.volume`)}</span>
+            <span className="sound-volume">
+              <input
+                type="range" min="0" max="100" step="1"
+                aria-label={t(`settings.voice.soundboard.${key}.volume`)}
+                disabled={!settings[on]}
+                value={Math.round(settings[volume] * 100)}
+                onChange={(e) => setAudioSettings({ [volume]: Number(e.target.value) / 100 })}
+              />
+              <span className="sound-volume-value">{Math.round(settings[volume] * 100)}%</span>
+            </span>
+          </label>
+        </div>
       ))}
       <CameraSettings />
       {canShareScreen() && (

@@ -9,6 +9,7 @@ import { useVoice } from '../../hooks/useVoice';
 import { clearCameraError, clearStreamError, clearVoiceError, leaveVoice, resumeAudio } from '../../voice/voiceClient';
 import ScreenShareButton from './ScreenShareButton';
 import CameraButton from './CameraButton';
+import SoundboardButton from './SoundboardButton';
 import { hangUp } from '../../voice/callClient';
 import { useCall } from '../../hooks/useCall';
 import { useProfiles } from '../../utils/profiles';
@@ -23,7 +24,8 @@ const STATUS_TEXT = {
 
 // Above the user panel while you're in voice (like Discord): the connection state, which
 // channel or call (a link to it), the voice channel's chat (opens or closes it; marked while it
-// has unread messages), camera, share screen and the disconnect button. Also where voice errors
+// has unread messages), camera, share screen, the soundboard (voice channels) and the disconnect
+// button. Also where voice errors
 // show.
 export default function VoiceBar({ user }) {
   useProfiles();
@@ -99,6 +101,7 @@ export default function VoiceBar({ user }) {
         )}
         <CameraButton className="user-panel-button voice-bar-action" />
         <ScreenShareButton className="user-panel-button voice-bar-action" />
+        <SoundboardButton className="user-panel-button voice-bar-action" />
       </div>
       {voice.audioBlocked && (
         <button type="button" className="voice-bar-audio" onClick={resumeAudio}>

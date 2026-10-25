@@ -88,7 +88,7 @@ describe('roles', () => {
     const edited = await api.patch(owner, `/guilds/${guild.id}/roles/${second.id}`, { name: 'Helpers', color: null });
     expect(edited.body).toMatchObject({ name: 'Helpers', color: null });
     expect((await api.patch(owner, `/guilds/${guild.id}/roles/${second.id}`, { color: 0x1000000 })).status).toBe(400);
-    expect((await api.patch(owner, `/guilds/${guild.id}/roles/${second.id}`, { permissions: 1 << 30 })).status).toBe(400);
+    expect((await api.patch(owner, `/guilds/${guild.id}/roles/${second.id}`, { permissions: 2 ** 31 })).status).toBe(400);
     expect((await api.put(owner, `/guilds/${guild.id}/roles/order`, { roleIds: [first.id] })).status).toBe(400);
   });
 

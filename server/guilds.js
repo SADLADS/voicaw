@@ -351,7 +351,7 @@ async function removeMember(guildId, userId) {
   await require('./voice').enforceGuild(guildId);
 }
 
-// Deletes the guild and everything in it (its icon, emoji images and uploads too), and tells
+// Deletes the guild and everything in it (its icon, emoji images, sounds and uploads too), and tells
 // its members.
 async function deleteGuild(guildId) {
   const memberIds = await getMemberIds(guildId);
@@ -360,6 +360,7 @@ async function deleteGuild(guildId) {
   await require('./voice').disconnectGuild(guildId);
   const emojis = await db.all('SELECT id, available FROM guild_emojis WHERE guild_id = ?', [guildId]);
   for (const { id, available } of emojis) await deleteObject('emojis', available ? String(id) : `src/${id}`);
+  await require('./soundboard').deleteGuildSoundFiles(guildId);
   const guild = await db.get('SELECT icon_version FROM guilds WHERE id = ?', [guildId]);
   if (guild?.icon_version > 0) await deleteObject('guild-icons', String(guildId));
   await db.transaction(async () => {
@@ -367,7 +368,7 @@ async function deleteGuild(guildId) {
     await require('./guildEvents').deleteGuildEvents(guildId);
     await require('./guildLevels').deleteGuildLevels(guildId);
     for (const table of [
-      'guild_emojis', 'guild_audit_log', 'webhook_blocks', 'guild_media_servers',
+      'guild_emojis', 'guild_sounds', 'guild_audit_log', 'webhook_blocks', 'guild_media_servers',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',
       'guild_member_roles', 'guild_roles', 'guild_members', 'guild_mutes',
     ]) {
