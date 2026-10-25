@@ -12,9 +12,10 @@ import { t } from '../i18n';
 // The picture's displayable URL: the decrypted copy already in memory when there is one.
 const srcOf = async (item) => readyImageSrc(item) || loadImageSrc(item);
 
-// The link to share, or null for an encrypted attachment.
+// The link to share, or null for an encrypted attachment or a file on this device (a `blob:`
+// URL: an attachment being written or just sent).
 export function imageLink(item) {
-  return item.meta ? null : item.src;
+  return item.meta || item.src?.startsWith('blob:') ? null : item.src;
 }
 
 // A picture's bytes as PNG, the one image type every browser's clipboard takes (a GIF or WebP

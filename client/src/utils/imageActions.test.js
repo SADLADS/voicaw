@@ -24,6 +24,12 @@ describe('picture menus', () => {
     expect(labels(imageMenuItems(encrypted))).toEqual(['Copy Image', 'Save Image', 'Open Image']);
   });
 
+  it('offers no link for a picture on this device (an attachment being written)', () => {
+    const local = { src: 'blob:http://localhost/1', name: 'photo.png' };
+    expect(imageLink(local)).toBe(null);
+    expect(labels(imageMenuItems(local))).toEqual(['Copy Image', 'Save Image', 'Open Image']);
+  });
+
   it('saves and opens the decrypted copy of an encrypted picture, and copies and opens a plain one\'s link', async () => {
     const find = (items, label) => items.find((i) => i.label === label);
     await find(imageMenuItems(encrypted), 'Save Image').onSelect();
