@@ -199,7 +199,9 @@ tab (`utils/saveFile.js`). It steps through the other images in the same message
 ← → keys, swiping an unzoomed image, a thumbnail strip): each image registers itself on its
 element (`utils/imageGallery.js` `galleryItemRef`, including ones still decrypting), and
 `MessageList` marks the message content `data-image-gallery`; opening collects them in reading
-order. Its keys are caught at the window's capture phase, so Escape doesn't
+order. Pictures attached to a message still being written open in it too: clicking (tapping)
+a thumbnail in the composer's tray (`AttachmentTray`) shows the local copy, stepping through
+the tray's other pictures. Its keys are caught at the window's capture phase, so Escape doesn't
 also cancel a reply. Opening it pushes a history entry (keeping the router's state), so the
 back button closes it.
 
@@ -216,7 +218,8 @@ Copy Image (a PNG on the clipboard, the one type browsers take, so a GIF copies 
 frame; other sites' pictures are fetched without a referrer and can't be copied if the site
 doesn't allow it), Save Image, and Copy Link / Open Link for a plain picture. An encrypted
 attachment has no link worth sharing (the file is ciphertext and its key lives only in the
-message), so it offers Open Image instead (the decrypted copy in a new tab). Videos keep their
+message), nor has a picture on the device (a `blob:` copy: one being written or just sent), so
+it offers Open Image instead (the decrypted copy in a new tab). Videos keep their
 player's own download button.
 
 ## Voice messages

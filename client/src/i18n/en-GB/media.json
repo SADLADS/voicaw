@@ -35,7 +35,8 @@
       "markSpoiler": "Mark as spoiler",
       "removeSpoilerFrom": "Remove spoiler from {{name}}",
       "markNameSpoiler": "Mark {{name}} as spoiler",
-      "remove": "Remove {{name}}"
+      "remove": "Remove {{name}}",
+      "view": "View {{name}}"
     },
     "drafts": {
       "defaultName": "file",
