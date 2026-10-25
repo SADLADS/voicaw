@@ -417,8 +417,9 @@ icon cards: a big left-aligned headline, real pictures of the app (`screenshot-d
 with `screenshot-phone.png` over its corner; phones see only the phone's), then sections
 with their title on the left under a rule. Its type is Schibsted Grotesk (OFL), served from
 voicaw.com itself (`schibsted-grotesk.woff2`), so no font service sees visitors; the docs and
-policies share it through `style.css`. The pictures are taken by `e2e/sitescreenshot.mjs`
-(a made-up guild in the throwaway app): run it again when the app's look changes.
+policies share it through `style.css`. The pictures are taken by `e2e/portfolio.mjs`
+(a made-up guild in the throwaway app; its `01-guild-chat.png` and `09-phone-guild-chat.png`):
+run it again when the app's look changes.
 
 **Android: Google Play's closed test** (2026-10-06). The Android row, and the button phone
 visitors get first, lead to the page's `#android-test` section: how to join, links to the test's
