@@ -298,7 +298,7 @@
   channel topic. So dragging things (channels, guilds) doesn't highlight text. On mobile a long
   press on a message opens its actions instead.
 - **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
-  Light, Ol' Familiar, Halloween or Match system (follows `prefers-color-scheme` live, light or dark),
+  Light, Ol' Familiar, Halloween, Slack or Match system (follows `prefers-color-scheme` live, light or dark),
   **per device only**
   (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
   `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
@@ -391,6 +391,17 @@
     The rail's bird logo goes the same pumpkin: it's drawn as a CSS mask of
     `logo-no-border.svg` filled with `--vc-logo` (the bird yellow in every other theme), so a
     theme can recolour it. Colours only: no decorations.
+  - **Slack** (`data-theme="slack"`, added 2026-10-25): Slack's colours, colours only (no
+    layout or feature changes). Light underneath (`BASES`: Bootstrap light, light code
+    highlighting, which now follows `data-bs-theme="light"` rather than the theme's name): a white
+    chat in Slack's neutral greys, its green (`#007a5a`) for what you can do, blue links,
+    red counts, unread markers and errors, its yellow for mentions and the bird. The left side
+    (rail, the column beside it, the user card) is its aubergine: a second block sets the same
+    tokens again on `.sidebar-wrapper` (and the picture's rail and sidebar), white text, a
+    lighter aubergine for the open row, white unread markers, a light red for Log Out, and
+    `color` itself, since text that only inherits would keep body's dark colour. So it's the one
+    theme with tokens set below `:root`; menus opened from the side (the guild menu) are
+    aubergine, menus placed on `body` (right-click menus) white, as in Slack.
   - **Appearance's pictures** (`ThemeSettings.jsx` ThemeScene, 2026-10-22) are drawn from each
     theme's real tokens: every theme block's selector also matches
     `[data-theme-preview="<name>"]`, so a picture gets its theme's colours whatever the current

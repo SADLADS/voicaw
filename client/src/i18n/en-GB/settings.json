@@ -713,6 +713,7 @@
       "light": "Light",
       "familiar": "Ol’ Familiar",
       "halloween": "Halloween",
+      "slack": "Slack",
       "system": "Match system",
       "hint": "Saved on this device only.",
       "hintSystemDark": "Your system is using dark mode now. Saved on this device only.",

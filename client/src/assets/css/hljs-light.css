@@ -1,77 +1,78 @@
-/* Code highlighting in the light theme: highlight.js's Atom One Light, each rule under
-   [data-theme="light"] so it beats Atom One Dark (imported in Layout) only there. */
+/* Code highlighting in light themes (Light, Slack: BASES in utils/theme.js): highlight.js's Atom
+   One Light, each rule under [data-bs-theme="light"] so it beats Atom One Dark (imported in
+   Layout) only there. */
 
-:root[data-theme="light"] .hljs {
+:root[data-bs-theme="light"] .hljs {
   color: #383a42;
   background: #fafafa;
 }
 
-:root[data-theme="light"] .hljs-comment,
-:root[data-theme="light"] .hljs-quote {
+:root[data-bs-theme="light"] .hljs-comment,
+:root[data-bs-theme="light"] .hljs-quote {
   color: #a0a1a7;
   font-style: italic;
 }
 
-:root[data-theme="light"] .hljs-doctag,
-:root[data-theme="light"] .hljs-keyword,
-:root[data-theme="light"] .hljs-formula {
+:root[data-bs-theme="light"] .hljs-doctag,
+:root[data-bs-theme="light"] .hljs-keyword,
+:root[data-bs-theme="light"] .hljs-formula {
   color: #a626a4;
 }
 
-:root[data-theme="light"] .hljs-section,
-:root[data-theme="light"] .hljs-name,
-:root[data-theme="light"] .hljs-selector-tag,
-:root[data-theme="light"] .hljs-deletion,
-:root[data-theme="light"] .hljs-subst {
+:root[data-bs-theme="light"] .hljs-section,
+:root[data-bs-theme="light"] .hljs-name,
+:root[data-bs-theme="light"] .hljs-selector-tag,
+:root[data-bs-theme="light"] .hljs-deletion,
+:root[data-bs-theme="light"] .hljs-subst {
   color: #e45649;
 }
 
-:root[data-theme="light"] .hljs-literal {
+:root[data-bs-theme="light"] .hljs-literal {
   color: #0184bb;
 }
 
-:root[data-theme="light"] .hljs-string,
-:root[data-theme="light"] .hljs-regexp,
-:root[data-theme="light"] .hljs-addition,
-:root[data-theme="light"] .hljs-attribute,
-:root[data-theme="light"] .hljs-meta .hljs-string {
+:root[data-bs-theme="light"] .hljs-string,
+:root[data-bs-theme="light"] .hljs-regexp,
+:root[data-bs-theme="light"] .hljs-addition,
+:root[data-bs-theme="light"] .hljs-attribute,
+:root[data-bs-theme="light"] .hljs-meta .hljs-string {
   color: #50a14f;
 }
 
-:root[data-theme="light"] .hljs-attr,
-:root[data-theme="light"] .hljs-variable,
-:root[data-theme="light"] .hljs-template-variable,
-:root[data-theme="light"] .hljs-type,
-:root[data-theme="light"] .hljs-selector-class,
-:root[data-theme="light"] .hljs-selector-attr,
-:root[data-theme="light"] .hljs-selector-pseudo,
-:root[data-theme="light"] .hljs-number {
+:root[data-bs-theme="light"] .hljs-attr,
+:root[data-bs-theme="light"] .hljs-variable,
+:root[data-bs-theme="light"] .hljs-template-variable,
+:root[data-bs-theme="light"] .hljs-type,
+:root[data-bs-theme="light"] .hljs-selector-class,
+:root[data-bs-theme="light"] .hljs-selector-attr,
+:root[data-bs-theme="light"] .hljs-selector-pseudo,
+:root[data-bs-theme="light"] .hljs-number {
   color: #986801;
 }
 
-:root[data-theme="light"] .hljs-symbol,
-:root[data-theme="light"] .hljs-bullet,
-:root[data-theme="light"] .hljs-link,
-:root[data-theme="light"] .hljs-meta,
-:root[data-theme="light"] .hljs-selector-id,
-:root[data-theme="light"] .hljs-title {
+:root[data-bs-theme="light"] .hljs-symbol,
+:root[data-bs-theme="light"] .hljs-bullet,
+:root[data-bs-theme="light"] .hljs-link,
+:root[data-bs-theme="light"] .hljs-meta,
+:root[data-bs-theme="light"] .hljs-selector-id,
+:root[data-bs-theme="light"] .hljs-title {
   color: #4078f2;
 }
 
-:root[data-theme="light"] .hljs-built_in,
-:root[data-theme="light"] .hljs-title.class_,
-:root[data-theme="light"] .hljs-class .hljs-title {
+:root[data-bs-theme="light"] .hljs-built_in,
+:root[data-bs-theme="light"] .hljs-title.class_,
+:root[data-bs-theme="light"] .hljs-class .hljs-title {
   color: #c18401;
 }
 
-:root[data-theme="light"] .hljs-emphasis {
+:root[data-bs-theme="light"] .hljs-emphasis {
   font-style: italic;
 }
 
-:root[data-theme="light"] .hljs-strong {
+:root[data-bs-theme="light"] .hljs-strong {
   font-weight: bold;
 }
 
-:root[data-theme="light"] .hljs-link {
+:root[data-bs-theme="light"] .hljs-link {
   text-decoration: underline;
 }
