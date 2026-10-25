@@ -19,10 +19,18 @@ const showMembers = async (page) => {
   if (!(await page.$('.group-members'))) await page.click('.group-members-button');
   await page.waitForSelector('.group-member-open');
 };
-const visible = (page) => page.waitForFunction(() => {
-  const card = document.querySelector('.member-card');
-  return card && getComputedStyle(card).visibility === 'visible';
-});
+// Shown, and its entrance (a fade and a 4px rise, dms.css .profile-popover) finished, so it's
+// where it rests.
+const visible = async (page) => {
+  await page.waitForFunction(() => {
+    const card = document.querySelector('.member-card');
+    return card && getComputedStyle(card).visibility === 'visible';
+  });
+  await page.evaluate(() => {
+    const card = document.querySelector('.member-card');
+    return Promise.all(card.closest('.profile-popover, .member-card').getAnimations({ subtree: true }).map((x) => x.finished));
+  });
+};
 
 const browser = await launchChrome();
 try {

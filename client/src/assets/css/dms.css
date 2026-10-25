@@ -2966,6 +2966,12 @@ body.mobile-mode .dm-user-list-container .dm-user {
   min-width: 0;
 }
 
+/* The name, then the username under it (they're buttons, opening the full profile, which would
+   otherwise sit side by side). */
+.profile-card-names .profile-card-open {
+  display: block;
+}
+
 .profile-card-name {
   font-size: 18px;
   font-weight: 700;
