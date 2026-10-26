@@ -2053,13 +2053,8 @@ pre code {
   flex-direction: column;
   flex-shrink: 0;
   height: var(--vc-app-height);
-  background-color: var(--vc-bg-base);
-}
-
-/* On a computer the rail runs the full height of the window, down behind the docked user panel:
-   the wrapper's first 72px (the rail's width, Sidebar.jsx) are the rail's colour, two flat
-   fields with a hard edge. */
-body:not(.mobile-mode) .sidebar-wrapper {
+  /* The rail runs the full height of the window, down behind the docked user panel: the first
+     72px (the rail's width, Sidebar.jsx) are the rail's colour, two flat fields with a hard edge. */
   background: linear-gradient(to right, var(--vc-bg-rail) 72px, var(--vc-bg-base) 72px);
 }
 
@@ -2121,29 +2116,22 @@ body.sidebar-resizing * {
   min-height: 0;
 }
 
-/* You (UserPanel). */
+/* You (UserPanel): a card docked in the corner, like the composer on the other side: inset from
+   the edges, one step up from the columns it sits under. */
 .user-panel {
   display: flex;
   align-items: center;
   gap: 10px;
-  /* Above a phone's home indicator and clear of its rounded corners: the inset (34px on
-     iPhones) already has room to spare, so it replaces the 8px rather than adding to it. */
-  padding: 8px 8px max(8px, env(safe-area-inset-bottom, 0px)) 10px;
-  border-top: 1px solid var(--vc-border-dark);
-  background-color: var(--vc-bg-base);
-  color: var(--vc-fg);
-}
-
-/* On a computer it's a card docked in the corner, like the composer on the other side: inset
-   from the edges, one step up from the columns it sits under. */
-body:not(.mobile-mode) .user-panel {
   box-sizing: border-box;
   min-height: var(--vc-dock-height);
-  margin: 0 var(--vc-dock-inset) var(--vc-dock-inset);
+  /* On a phone, above the home indicator and clear of its rounded corners: the inset (34px on
+     iPhones) already has room to spare, so it replaces the margin rather than adding to it. */
+  margin: 0 var(--vc-dock-inset) max(var(--vc-dock-inset), env(safe-area-inset-bottom, 0px));
   padding: 6px 8px 6px 10px;
   border: 1px solid var(--vc-border-dark);
   border-radius: var(--vc-radius-lg);
   background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg);
 }
 
 .user-panel-avatar {
