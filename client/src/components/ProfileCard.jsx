@@ -44,7 +44,7 @@ export default function ProfileCard({ user, color, children }) {
         </button>
         <div className="profile-card-names">
           <button {...opens(NAME_CLASS)} style={color ? { color } : undefined}>{name}</button>
-          {profile.display_name && <button {...opens(USERNAME_CLASS)}>{profile.username}</button>}
+          <button {...opens(USERNAME_CLASS)}>{profile.username}</button>
           <div className={`profile-card-presence ${presence.status}`}>
             {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel('offline') : statusLabel(presence.status)}
           </div>

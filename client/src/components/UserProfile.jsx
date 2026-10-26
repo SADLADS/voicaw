@@ -129,7 +129,7 @@ export default function UserProfile({ userId, me, onClose, onOpenProfile }) {
         </div>
         <div className="user-profile-names">
           {own ? <OwnName userId={userId} /> : <h4 className="user-profile-name">{name}</h4>}
-          {profile.display_name && <div className="profile-card-username">{profile.username}</div>}
+          <div className="profile-card-username">{profile.username}</div>
           <div className={`profile-card-presence ${presence.status}`}>
             {presence.status === 'offline' ? lastSeenText(presence.lastOnline) ?? statusLabel('offline') : statusLabel(presence.status)}
           </div>
