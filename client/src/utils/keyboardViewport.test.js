@@ -125,6 +125,20 @@ describe('keyboardViewport', () => {
     vi.restoreAllMocks();
   });
 
+  it('leaves the viewport alone when focus moves between buttons and links', () => {
+    const frames = [];
+    vi.stubGlobal('requestAnimationFrame', (fn) => frames.push(fn));
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const stop = watchKeyboardViewport();
+    const button = document.body.appendChild(document.createElement('button'));
+    button.focus();
+    button.blur();
+    expect(frames).toHaveLength(0);
+    stop();
+    button.remove();
+    vi.unstubAllGlobals();
+  });
+
   it('iOS: without pageTop, follows the scroll plus the offset', () => {
     watchKeyboardViewport();
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 30 });

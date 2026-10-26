@@ -480,7 +480,10 @@
   browser runs on its compositor: stepped from `requestAnimationFrame` it dropped frames on phones
   once the finger was up (a flick looked slower than a drag, 2026-10-26), since the page's thread
   is busy then (going back in history re-renders the page). A finger landing mid-slide stops it
-  where the spring has it (computed from the animation's time). The list moves a
+  where the spring has it (computed from the animation's time). A slide no finger set going
+  (the back arrow, a tapped conversation, Back) starts already moving (`tapSpeed`, 60% of a plain
+  decelerating curve's speed): from standing the spring crept for its first frames, which felt
+  like lag next to a flick (2026-10-26; `e2e/panestap.mjs` measures how soon each starts). The list moves a
   little and dims behind it. A guild's member list (the header's button) covers the whole
   guild page on a phone, header included, with a back arrow; Back (`useBackCloses`) or a swipe
   to the right closes it (`hooks/useSwipeToClose.js`: it follows the finger and settles closed
@@ -544,7 +547,9 @@
   before the keyboard counts as open moves the app's top down with it, its bottom staying where
   it was (`calc(100svh - slide)`, the box where iOS is taking it), and for 700 ms after focus
   moves into or out of a text box the viewport is read every frame, not only on its (few)
-  events. Pinch zoom is left alone. Anything
+  events (only a text box's focus: a tapped button or link set it off too, restyling the page
+  every frame as the panes started sliding; the root's properties are written only when they
+  change, since each write restyles everything). Pinch zoom is left alone. Anything
   `position: fixed` is placed against the whole screen, not the visible part, so while the
   keyboard is up only what follows `visualViewport` itself (the emoji picker's search) lines up
   with it; the suggestions over the message box are in its flow and move with the app. Everything screen-high uses `var(--vc-app-height)` (100svh

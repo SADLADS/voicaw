@@ -43,6 +43,11 @@ const PARALLAX = 0.3; // how far the list moves behind the content, as a share o
 const SCRIM_OPACITY = 0.5;
 const STIFFNESS = 520; // spring, critically damped (no bounce)
 const OMEGA = Math.sqrt(STIFFNESS);
+// A slide no finger set going (a tap on the back arrow or a conversation, the back button)
+// starts at this share of the speed that would bring it in on a plain decelerating curve:
+// from standing (as a spring left alone starts) it crept for its first frames, which felt like
+// lag next to a flick, which carries the finger's speed. Under 1, so it never overshoots.
+const TAP_SPEED = 0.6;
 const FRAME_S = 1 / 120; // how finely the spring is laid out (the browser draws straight lines between)
 // Touches that start in these don't move the panes (their own gestures, or panels over the chat;
 // `[role="slider"]`: our own sliders, such as a video's seek bar or a voice message's waveform).
@@ -90,6 +95,11 @@ export function springFrames(from, v, target, w) {
   }
   xs.push(target);
   return { xs, duration: (xs.length - 1) * FRAME_S * 1000 };
+}
+
+// The speed (px/s) a slide from `from` to `target` starts at when no finger set it going.
+export function tapSpeed(from, target) {
+  return TAP_SPEED * OMEGA * (target - from);
 }
 
 // Can `el` (or anything between it and `stop`) scroll sideways in the direction a finger
@@ -200,9 +210,9 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
   }, [apply]);
 
   // Slides to `next` from wherever the panes are (mid-drag, mid-slide or at rest), carrying
-  // the finger's speed `v` (px/s). `fromHistory`: it's the back/forward button, which already
-  // moved history.
-  const slideTo = useCallback((next, { v = 0, fromHistory = false } = {}) => {
+  // the finger's speed `v` (px/s; none: a tap's, TAP_SPEED). `fromHistory`: it's the
+  // back/forward button, which already moved history.
+  const slideTo = useCallback((next, { v, fromHistory = false } = {}) => {
     const m = motion.current;
     const w = width();
     const current = paneRef.current;
@@ -241,11 +251,12 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
     }
     stop();
     paint(x0); // the moving state; the animations draw over these inline styles
+    const speed = v ?? tapSpeed(x0, target);
     m.x = x0;
     m.from = x0;
-    m.v = v;
+    m.v = speed;
     m.target = target;
-    const { xs, duration } = springFrames(x0, v, target, w);
+    const { xs, duration } = springFrames(x0, speed, target, w);
     const frames = xs.map((x) => styles(x, w));
     const timing = { duration, fill: 'forwards' };
     const anims = [content, listRef.current, scrimRef.current].map((el, i) => el?.animate(frames.map((f) => f[i]), timing)).filter(Boolean);
