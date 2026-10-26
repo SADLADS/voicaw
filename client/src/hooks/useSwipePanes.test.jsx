@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useRef, useState } from 'react';
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, within } from '@testing-library/react';
 import { BrowserRouter, unstable_HistoryRouter as HistoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { springAt, springFrames, useSwipePanes } from './useSwipePanes';
 import { useBackClosesWhile } from './useBackCloses';
@@ -35,7 +35,7 @@ function Panes() {
     <div ref={wrapperRef} data-testid="wrapper">
       <div ref={listRef} />
       <div ref={scrimRef} />
-      <div ref={contentRef}><Panel /></div>
+      <div ref={contentRef}><Panel /><span data-testid="chat" /><span role="slider" data-testid="seek" /></div>
     </div>
   );
 }
@@ -239,6 +239,33 @@ describe('useSwipePanes', () => {
     expect(pane()).toBe('list');
     expect(window.history.state?.voicawPane).toBeUndefined();
     expect(window.history.state?.testPanel).toBeUndefined();
+  });
+});
+
+describe('useSwipePanes swipe', () => {
+  beforeEach(() => {
+    window.matchMedia = () => ({ matches: true });
+  });
+
+  const at = (x) => ({ touches: [{ identifier: 0, clientX: x, clientY: 100 }] });
+  function swipeRight(el) {
+    fireEvent.touchStart(el, at(50));
+    for (const x of [60, 120, 300]) fireEvent.touchMove(el, at(x));
+    fireEvent.touchEnd(el, { touches: [] });
+  }
+
+  // Seeking a video (or a voice message) and moving the finger sideways mustn't close the chat.
+  it('leaves a touch on a slider alone, and slides back to the list from the chat', async () => {
+    const pane = start('/dm/1');
+    const { getByTestId } = within(document.body);
+    swipeRight(getByTestId('seek'));
+    expect(pane()).toBe('content');
+    await act(async () => {
+      const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+      swipeRight(getByTestId('chat'));
+      await popped;
+    });
+    expect(pane()).toBe('list');
   });
 });
 

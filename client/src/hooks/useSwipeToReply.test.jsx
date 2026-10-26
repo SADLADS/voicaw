@@ -15,6 +15,9 @@ function List({ onReply, canReply = () => true, enabled = true }) {
           <div className="inline-edit-wrapper">editing</div>
         </div>
       </div>
+      <div data-key="c">
+        <div className="each-dm-message-wrapper"><span role="slider">seek</span></div>
+      </div>
     </div>
   );
 }
@@ -60,10 +63,11 @@ describe('useSwipeToReply', () => {
     expect(onReply).not.toHaveBeenCalled();
   });
 
-  it('leaves the inline editor alone, and is off when disabled', () => {
+  it('leaves the inline editor and sliders (a video\'s seek bar) alone, and is off when disabled', () => {
     const onReply = vi.fn();
     const { unmount } = render(<List onReply={onReply} />);
     swipe(screen.getByText('editing'), [290, 100]);
+    swipe(screen.getByText('seek'), [290, 100]);
     unmount();
     render(<List onReply={onReply} enabled={false} />);
     swipe(screen.getByText('first'), [290, 100]);
