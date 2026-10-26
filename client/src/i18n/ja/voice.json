@@ -38,6 +38,8 @@
       "loading": "配信を読み込み中…",
       "live": "ライブ",
       "yourStream": "あなたの配信",
+      "watchers_other": "{{count}} 人が視聴中: {{names}}",
+      "watchersTitle": "視聴中",
       "bringBack": "元に戻す",
       "popOut": "ポップアウト",
       "openChannel": "ボイスチャンネルへ移動",
@@ -139,6 +141,23 @@
       "watchingNow": "一緒に視聴中: {{title}}。参加して視聴しましょう。",
       "sidebarPlaying": "{{title}} を視聴中",
       "sidebarPaused": "一時停止中: {{title}}",
+      "media": {
+        "youtube": "YouTube",
+        "searchWhere": "検索先",
+        "placeholder": "{{server}} を検索、またはリンクを貼り付け",
+        "emptyCanAdd": "{{server}} や YouTube を検索するか、リンクを貼り付けて、チャンネルの全員と一緒に観ましょう。",
+        "notAVideo": "YouTube の動画や {{server}} のコンテンツへのリンクではありません。",
+        "searching": "検索中…",
+        "none": "見つかりませんでした。",
+        "noEpisodes": "エピソードがありません。",
+        "show": "番組",
+        "episodes": "エピソード",
+        "episodesOf": "{{title}} のエピソード",
+        "episodeNumber": "S{{season}} E{{episode}}",
+        "back": "検索結果に戻る",
+        "cantPlay": "この動画を再生できませんでした。",
+        "tryAgain": "もう一度試す"
+      },
       "search": {
         "submit": "検索",
         "resultsFor": "「{{query}}」の検索結果",
@@ -169,6 +188,21 @@
       "stop": "カメラをオフ",
       "cameraOf": "{{name}} さんのカメラ",
       "yourCamera": "あなたのカメラ"
+    },
+    "soundboard": {
+      "title": "サウンドボード",
+      "open": "サウンドボード",
+      "sounds": "サウンド",
+      "play": "ここにいる全員に {{name}} を再生",
+      "preview": "{{name}} を試聴（自分にだけ聞こえます）",
+      "isJoinSound": "あなたの参加サウンド",
+      "joinSound": "参加サウンド",
+      "noJoinSound": "なし",
+      "settings": "サウンドボードの設定",
+      "empty": "このギルドにはまだサウンドがありません。",
+      "emptyManage": "このギルドにはまだサウンドがありません。「ギルド設定」→「サウンドボード」で追加できます。",
+      "noPermission": "このチャンネルではサウンドを再生できません。",
+      "deafened": "サウンドを再生するにはスピーカーミュートを解除してください。"
     }
   }
 }

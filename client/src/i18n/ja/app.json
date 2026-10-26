@@ -14,6 +14,7 @@
     "sidebar": {
       "directMessages": "ダイレクトメッセージ",
       "unreadFrom": "ダイレクトメッセージ: {{name}} さんから新しいメッセージ",
+      "unreadCount_other": "未読メッセージ {{count}} 件",
       "guilds": "ギルド",
       "mentions_other": "{{count}} 件のメンション",
       "addGuild": "ギルドを追加",

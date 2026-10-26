@@ -1,0 +1,24 @@
+{
+  "overlay": {
+    "voice": "ボイス",
+    "muted": "ミュート中",
+    "deafened": "スピーカーミュート中",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "deafen": "スピーカーミュート",
+    "undeafen": "スピーカーミュート解除",
+    "disconnect": "切断",
+    "unlockHint": "{{key}} を押すとオーバーレイを操作できます",
+    "settings": "オーバーレイ",
+    "position": "位置",
+    "positions": {
+      "top-left": "左上",
+      "top-right": "右上",
+      "bottom-left": "左下",
+      "bottom-right": "右下"
+    },
+    "openApp": "Voicaw を開く",
+    "lock": "閉じる",
+    "lockShortcutHint": "{{key}} または Esc でゲームに戻ります。"
+  }
+}

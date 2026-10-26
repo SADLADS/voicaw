@@ -94,6 +94,7 @@
         "speak": "発言",
         "listen": "聴く",
         "video": "ビデオ",
+        "useSoundboard": "サウンドボードを使用",
         "queueVideos": "動画をキューに追加",
         "manageQueue": "キューの管理",
         "controlPlayback": "再生の操作",
@@ -125,8 +126,8 @@
         "description": "メンバーがギルドの名前とアイコンを変更し、すべての招待を確認、取り消しできるようにします。"
       },
       "MANAGE_EMOJIS": {
-        "label": "絵文字の管理",
-        "description": "メンバーがギルドのカスタム絵文字を追加、名前変更、削除できるようにします。"
+        "label": "絵文字とサウンドの管理",
+        "description": "メンバーがギルドのカスタム絵文字とサウンドボードのサウンドを追加、名前変更、削除できるようにします。"
       },
       "MANAGE_WEBHOOKS": {
         "label": "ウェブフックの管理",
@@ -191,6 +192,10 @@
       "STREAM": {
         "label": "ビデオ",
         "description": "メンバーがボイスチャンネルでカメラをオンにしたり、画面を共有したりできるようにします。"
+      },
+      "USE_SOUNDBOARD": {
+        "label": "サウンドボードを使用",
+        "description": "ボイスチャンネルにいるメンバーがギルドのサウンドボードのサウンドを再生でき、参加時に自分の参加サウンドが再生されるようにします。"
       },
       "QUEUE_VIDEOS": {
         "label": "動画をキューに追加",
@@ -281,7 +286,8 @@
         "webhooks": "ウェブフック",
         "events": "イベント",
         "levels": "レベル",
-        "guild": "ギルド設定"
+        "guild": "ギルド設定",
+        "sounds": "サウンドボード"
       },
       "deletedChannel": "削除されたチャンネル",
       "aWebhookStart": "ウェブフック",
@@ -344,10 +350,15 @@
         "eventDelete": "{{actor}} さんがイベント {{event}} を中止しました",
         "guildUpdate": "{{actor}} さんがギルド設定を変更しました",
         "levelsUpdate": "{{actor}} さんがレベルの設定を変更しました",
+        "mediaServerConnect": "{{actor}} がメディアサーバー {{server}} を {{account}} として Watch Together に接続しました",
+        "mediaServerDisconnect": "{{actor}} がメディアサーバー {{server}} の接続を解除しました",
         "memberXpUpdate": "{{actor}} さんが {{target}} さんの XP を変更しました",
         "auditLogClearOlder_other": "{{actor}} さんが {{age}}より前の記録を消去しました（{{count}} 件）",
         "auditLogClearAll_other": "{{actor}} さんが監査ログ全体を消去しました（{{count}} 件）",
-        "unknown": "{{actor}} さんが操作を行いました（{{action}}）"
+        "unknown": "{{actor}} さんが操作を行いました（{{action}}）",
+        "soundCreate": "{{actor}} がサウンド {{sound}} を追加しました",
+        "soundUpdate": "{{actor}} がサウンド {{sound}} を変更しました",
+        "soundDelete": "{{actor}} がサウンド {{sound}} を削除しました"
       },
       "fields": {
         "name": "名前",
@@ -367,7 +378,8 @@
         "all_day": "終日",
         "emoji": "絵文字",
         "join_log": "参加ログ",
-        "join_log_leaves": "参加ログに退出も表示"
+        "join_log_leaves": "参加ログに退出も表示",
+        "volume": "音量"
       },
       "values": {
         "none": "なし",
@@ -402,7 +414,9 @@
         },
         "repeat": {
           "changed": "繰り返し方を変更",
-          "removed": "繰り返しを解除"
+          "removed": "繰り返しを解除",
+          "split": "以降の日程を変更: 別のイベントになりました",
+          "shortened": "以降の日程を中止"
         }
       },
       "age": {
@@ -527,10 +541,30 @@
         "roles": "ロール",
         "emoji": "絵文字",
         "levels": "レベル",
+        "watchTogether": "Watch Together",
         "invites": "招待",
-        "bans": "BAN"
+        "bans": "BAN",
+        "soundboard": "サウンドボード"
       },
       "noPermission": "ここで何かを変更する権限がありません。"
+    },
+    "mediaServer": {
+      "title": "メディアサーバー",
+      "hint": "ギルド自身の Jellyfin または Emby サーバーを接続すると、ボイスチャンネルにいる人が YouTube に加えて、その映画や番組を一緒に観られるようになります。",
+      "kind": "サーバー",
+      "url": "アドレス",
+      "urlHint": "インターネット上の https:// アドレス（ブラウザーで開くときのもの）。",
+      "username": "ユーザー名",
+      "password": "パスワード",
+      "accountHint": "ギルド用に作った、見せてよいライブラリだけにアクセスできるアカウントを使ってください（管理者アカウントは使えません）。観ている人全員がこのアカウントの権限を持ち、サーバーには各自の IP アドレスが見えます。パスワードは保存されません。",
+      "connect": "接続",
+      "connecting": "接続中…",
+      "connected": "接続しました。",
+      "disconnected": "接続を解除しました。",
+      "change": "変更",
+      "disconnect": "接続を解除",
+      "account": "{{username}} として、{{date}} に {{name}} が接続",
+      "someone": "誰か"
     },
     "invite": {
       "never": "なし",
@@ -605,6 +639,30 @@
     "upload": {
       "noUrl": "アップロード URL がありません",
       "failed": "アップロードに失敗しました"
+    },
+    "soundboard": {
+      "intro": "ギルドのメンバーなら誰でもボイスチャンネルで再生でき、そこにいる全員に聞こえる短いサウンドを {{max}} 個まで登録できます。サウンドの長さは最大 {{seconds}} 秒で、それより長いファイルは選んだ部分だけが残ります。",
+      "upload": "サウンドをアップロード",
+      "count": "{{used}} / {{max}} 個のサウンド",
+      "file": "サウンドファイル",
+      "unreadable": "{{file}} はこのブラウザーで読み込めるサウンドではありません。",
+      "none": "サウンドはまだありません。",
+      "list": "サウンド",
+      "newSound": "新しいサウンド",
+      "name": "名前",
+      "volume": "音量",
+      "chooseEmoji": "絵文字を選択",
+      "trim": "このサウンドは {{length}} 秒あります。残す {{max}} 秒を選んでください。",
+      "trimStart": "開始位置",
+      "trimRange": "{{from}} 秒から {{to}} 秒",
+      "previewNew": "試聴",
+      "add": "サウンドを追加",
+      "uploading": "アップロード中…",
+      "nameOf": "{{name}} の名前",
+      "emojiOf": "{{name}} の絵文字",
+      "volumeOf": "{{name}} の音量",
+      "removeEmoji": "絵文字を削除",
+      "deleteOne": "{{name}} を削除"
     }
   }
 }

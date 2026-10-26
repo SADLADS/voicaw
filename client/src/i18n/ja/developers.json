@@ -119,6 +119,7 @@
       "SPEAK": "発言",
       "VOICAW_LISTEN": "聴く（ボイスチャンネルを聞く）",
       "STREAM": "ビデオ",
+      "USE_SOUNDBOARD": "サウンドボードを使用",
       "VOICAW_EDIT_TASKS": "タスクを編集",
       "VOICAW_CREATE_DOCUMENTS": "ドキュメントを作成",
       "VOICAW_QUEUE_VIDEOS": "動画をキューに追加",

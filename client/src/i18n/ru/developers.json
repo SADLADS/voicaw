@@ -119,6 +119,7 @@
       "SPEAK": "Разговор",
       "VOICAW_LISTEN": "Прослушивание (слышать голосовые каналы)",
       "STREAM": "Видео",
+      "USE_SOUNDBOARD": "Использовать звуковую панель",
       "VOICAW_EDIT_TASKS": "Изменение задач",
       "VOICAW_CREATE_DOCUMENTS": "Создание документов",
       "VOICAW_QUEUE_VIDEOS": "Добавление видео в очередь",

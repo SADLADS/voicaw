@@ -14,7 +14,7 @@
   a quick machine-made first pass from 2026-10-03, translated in batches from then on: new
   text is written in English only and shows in English until the next batch) and Japanese
   (`ja/`, a full machine-made translation from 2026-10-06, likewise translated in batches,
-  the latest on 2026-10-14 for both;
+  the latest on 2026-10-26 for both;
   Japanese has a single plural form, so its files only have `_other` keys). The text is in
   `i18n/<language>/<area>.json`, one file per area of the app (`settings`, `chat`, `guilds`,
   `guildAdmin`, `voice`...), each holding one top-level key named after the file; `common.json`

@@ -1,0 +1,24 @@
+{
+  "overlay": {
+    "voice": "Голос",
+    "muted": "Микрофон выключен",
+    "deafened": "Звук выключен",
+    "mute": "Выключить микрофон",
+    "unmute": "Включить микрофон",
+    "deafen": "Выключить звук",
+    "undeafen": "Включить звук",
+    "disconnect": "Отключиться",
+    "unlockHint": "Нажмите {{key}}, чтобы пользоваться оверлеем",
+    "settings": "Оверлей",
+    "position": "Положение",
+    "positions": {
+      "top-left": "Слева вверху",
+      "top-right": "Справа вверху",
+      "bottom-left": "Слева внизу",
+      "bottom-right": "Справа внизу"
+    },
+    "openApp": "Открыть Voicaw",
+    "lock": "Закрыть",
+    "lockShortcutHint": "{{key}} или Esc — вернуться в игру."
+  }
+}

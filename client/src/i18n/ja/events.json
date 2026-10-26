@@ -8,7 +8,8 @@
       "inMinutes_other": "{{count}} 分後に開始",
       "inHours_other": "{{count}} 時間後に開始",
       "inDays_other": "{{count}} 日後に開始",
-      "allDayOn": "{{date}} · 終日"
+      "allDayOn": "{{date}} · 終日",
+      "ended": "終了"
     },
     "place": {
       "unknownChannel": "ボイスチャンネル",
@@ -37,9 +38,17 @@
       "end": "イベントを終了",
       "more": "その他"
     },
+    "interest": {
+      "thisAdd": "このイベントに興味あり",
+      "allAdd": "すべてのイベントに興味あり",
+      "thisRemove": "このイベントの興味ありを取り消す",
+      "allRemove": "すべての興味ありを取り消す"
+    },
     "menu": {
       "edit": "イベントを編集",
       "copyLink": "リンクをコピー",
+      "copyOccurrenceLink": "この日のリンクをコピー",
+      "copySeriesLink": "シリーズのリンクをコピー",
       "copied": "リンクをコピーしました。",
       "copyFailed": "リンクをコピーできませんでした。",
       "cancel": "イベントを中止"
@@ -49,6 +58,17 @@
         "title": "{{name}} を中止しますか？",
         "message": "イベントは全員に対して中止されます（繰り返しの場合はすべての回が中止されます）。この操作は取り消せません。",
         "confirm": "イベントを中止"
+      },
+      "scope": {
+        "editTitle": "繰り返しイベントを編集",
+        "cancelTitle": "繰り返しイベントを中止",
+        "question": "{{name}} は繰り返しイベントです。どの日程を対象にしますか？",
+        "this": "このイベント（{{date}}）",
+        "following": "これ以降のイベント",
+        "all": "すべてのイベント",
+        "cancelHint": "中止した日程は全員から消えます。元に戻すことはできません。",
+        "continue": "続ける",
+        "cancelConfirm": "イベントを中止"
       }
     },
     "detail": {
@@ -56,7 +76,12 @@
       "interestedTab_other": "{{count}} 人が興味あり",
       "createdBy": "作成者: {{name}}",
       "loading": "読み込み中…",
-      "nobodyInterested": "まだ誰も興味ありにしていません。"
+      "nobodyInterested": "まだ誰も興味ありにしていません。",
+      "pastCount_other": "{{count}} 人が興味ありでした",
+      "nextDates": "今後の日程",
+      "showNext": "次回: {{date}}",
+      "cancelledDate": "その日程は中止されました。次の日程を表示しています。",
+      "notADate": "その日はこのイベントの日程ではありません。次の日程を表示しています。"
     },
     "dialog": {
       "title_other": "{{count}} 件のイベント",
@@ -90,6 +115,11 @@
     "editor": {
       "createTitle": "イベントを作成",
       "editTitle": "イベントを編集",
+      "occurrenceTitle": "このイベントを編集",
+      "occurrenceHint": "{{date}} だけが変わります。他の日程はそのままです。",
+      "followingTitle": "これ以降のイベントを編集",
+      "followingHint": "{{date}} とそれ以降のすべての日程が変わります。それより前の日程はそのままです。",
+      "allHint": "時間や繰り返しを変更すると、個別の日程に加えた変更は元に戻ります。",
       "steps": "ステップ",
       "step": {
         "where": "場所",
@@ -151,7 +181,10 @@
     },
     "embed": {
       "view": "表示",
-      "gone": "このイベントは終了したか中止されたか、表示できないイベントです。"
+      "hidden": "ギルドのイベントです。「表示」をタップすると内容を確認できます",
+      "show": "表示",
+      "gone": "このイベントは終了したか中止されたか、表示できないイベントです。",
+      "cancelled": "{{name}} のこの日程は中止されました。"
     }
   }
 }

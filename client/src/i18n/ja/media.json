@@ -35,7 +35,8 @@
       "markSpoiler": "ネタバレとしてマーク",
       "removeSpoilerFrom": "{{name}} のネタバレを解除",
       "markNameSpoiler": "{{name}} をネタバレとしてマーク",
-      "remove": "{{name}} を削除"
+      "remove": "{{name}} を削除",
+      "view": "{{name}} を表示"
     },
     "drafts": {
       "defaultName": "ファイル",

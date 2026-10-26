@@ -38,6 +38,11 @@
       "loading": "Загрузка трансляции…",
       "live": "В эфире",
       "yourStream": "Ваша трансляция",
+      "watchers_one": "{{count}} смотрит: {{names}}",
+      "watchers_few": "{{count}} смотрят: {{names}}",
+      "watchers_many": "{{count}} смотрят: {{names}}",
+      "watchers_other": "{{count}} смотрят: {{names}}",
+      "watchersTitle": "Смотрят",
       "bringBack": "Вернуть",
       "popOut": "Открыть в окне",
       "openChannel": "Перейти в голосовой канал",
@@ -142,6 +147,23 @@
       "watchingNow": "Совместный просмотр: {{title}}. Заходите посмотреть.",
       "sidebarPlaying": "Смотрят {{title}}",
       "sidebarPaused": "На паузе: {{title}}",
+      "media": {
+        "youtube": "YouTube",
+        "searchWhere": "Где искать",
+        "placeholder": "Искать в {{server}} или вставить ссылку",
+        "emptyCanAdd": "Ищите в {{server}} или на YouTube либо вставьте ссылку, чтобы смотреть вместе со всеми в канале.",
+        "notAVideo": "Это не ссылка на видео YouTube или на что-то в {{server}}.",
+        "searching": "Поиск…",
+        "none": "Ничего не найдено.",
+        "noEpisodes": "Нет серий.",
+        "show": "Сериал",
+        "episodes": "Серии",
+        "episodesOf": "Серии «{{title}}»",
+        "episodeNumber": "С{{season}} Э{{episode}}",
+        "back": "Назад к результатам",
+        "cantPlay": "Не удалось воспроизвести это видео.",
+        "tryAgain": "Попробовать снова"
+      },
       "search": {
         "submit": "Найти",
         "resultsFor": "Результаты по запросу «{{query}}»",
@@ -175,6 +197,21 @@
       "stop": "Выключить камеру",
       "cameraOf": "Камера {{name}}",
       "yourCamera": "Ваша камера"
+    },
+    "soundboard": {
+      "title": "Звуковая панель",
+      "open": "Звуковая панель",
+      "sounds": "Звуки",
+      "play": "Проиграть {{name}} для всех здесь",
+      "preview": "Прослушать {{name}} (слышите только вы)",
+      "isJoinSound": "Ваш звук входа",
+      "joinSound": "Звук входа",
+      "noJoinSound": "Нет",
+      "settings": "Настройки звуковой панели",
+      "empty": "В этой гильдии пока нет звуков.",
+      "emptyManage": "В этой гильдии пока нет звуков. Добавьте их в «Настройки гильдии» → «Звуковая панель».",
+      "noPermission": "Вы не можете проигрывать звуки в этом канале.",
+      "deafened": "Включите звук, чтобы проигрывать звуки."
     }
   }
 }

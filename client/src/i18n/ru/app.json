@@ -14,6 +14,10 @@
     "sidebar": {
       "directMessages": "Личные сообщения",
       "unreadFrom": "Личные сообщения: новое сообщение от {{name}}",
+      "unreadCount_one": "{{count}} непрочитанное сообщение",
+      "unreadCount_few": "{{count}} непрочитанных сообщения",
+      "unreadCount_many": "{{count}} непрочитанных сообщений",
+      "unreadCount_other": "{{count}} непрочитанного сообщения",
       "guilds": "Гильдии",
       "mentions_one": "{{count}} упоминание",
       "mentions_few": "{{count}} упоминания",

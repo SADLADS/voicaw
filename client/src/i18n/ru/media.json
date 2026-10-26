@@ -35,7 +35,8 @@
       "markSpoiler": "Отметить как спойлер",
       "removeSpoilerFrom": "Убрать спойлер с {{name}}",
       "markNameSpoiler": "Отметить {{name}} как спойлер",
-      "remove": "Удалить {{name}}"
+      "remove": "Удалить {{name}}",
+      "view": "Открыть {{name}}"
     },
     "drafts": {
       "defaultName": "файл",
