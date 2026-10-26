@@ -49,9 +49,10 @@ try {
   check(xs.length >= 3, `the chat slid in (${xs.length} frames)`);
   check(turns === 0, `never turned back (${turns} times)`);
 
-  // After a flick the slide runs on the compositor: with the page's thread blocked from the
-  // moment the finger lifts, frames still reach the screen (counted from the screencast,
-  // which only sends a frame when something changed). Stepped from the page, there was one.
+  // After a flick the slide runs on the compositor: with the page's thread blocked once it has
+  // started (its first frame needs the page, which commits it), frames still reach the screen
+  // (counted from the screencast, which only sends a frame when something changed). Stepped
+  // from the page, there was one.
   await page.evaluate(() => { window.__stop = true; });
   const { width, height } = page.viewportSize();
   const cdp = await page.context().newCDPSession(page);
@@ -62,10 +63,16 @@ try {
   });
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 30 });
   await page.waitForTimeout(500);
-  await page.evaluate(() => document.addEventListener('touchend', () => setTimeout(() => {
-    const start = performance.now();
-    while (performance.now() - start < 800) { /* busy */ }
-  }), { once: true, capture: true }));
+  await page.evaluate(() => document.addEventListener('touchend', () => {
+    const block = () => {
+      const start = performance.now();
+      while (performance.now() - start < 800) { /* busy */ }
+    };
+    // A frame on, and once a Web Animation (if there is one) has started.
+    const waiting = () => document.getAnimations().some((a) => a.startTime == null);
+    const when = () => (waiting() ? requestAnimationFrame(when) : block());
+    requestAnimationFrame(when);
+  }, { once: true, capture: true }));
   const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: height / 2 }] });
   await touch('touchStart', 30);
   for (let i = 1; i <= 5; i++) await touch('touchMove', 30 + (width * 0.3 * i) / 5);

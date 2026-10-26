@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useRef, useState } from 'react';
 import { act, fireEvent, render, within } from '@testing-library/react';
 import { BrowserRouter, unstable_HistoryRouter as HistoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import { springAt, springFrames, useSwipePanes } from './useSwipePanes';
+import { springAt, springFrames, tapSpeed, useSwipePanes } from './useSwipePanes';
 import { useBackClosesWhile } from './useBackCloses';
 import { showContent, showList } from '../utils/mobilePanes';
 import { createPhoneHistory, isPanesPage } from '../utils/phoneHistory';
@@ -300,6 +300,20 @@ describe('springFrames', () => {
       expect(duration).toBeLessThan(1000);
       const dir = Math.sign(target - from);
       for (let i = 1; i < xs.length; i++) expect((xs[i] - xs[i - 1]) * dir).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  // From standing, a tap's slide crept for its first frames: it felt like lag.
+  it("starts a tap's slide moving at once, without overshooting", () => {
+    for (const [from, target] of [[0, 390], [390, 0]]) {
+      const still = springFrames(from, 0, target, 390).xs;
+      const { xs } = springFrames(from, tapSpeed(from, target), target, 390);
+      const frame = 2; // 1/60 s
+      expect(Math.abs(xs[frame] - from)).toBeGreaterThan(390 * 0.15);
+      expect(Math.abs(xs[frame] - from)).toBeGreaterThan(3 * Math.abs(still[frame] - from));
+      const dir = Math.sign(target - from);
+      for (let i = 1; i < xs.length; i++) expect((xs[i] - xs[i - 1]) * dir).toBeGreaterThanOrEqual(0);
+      expect(xs.at(-1)).toBe(target);
     }
   });
 

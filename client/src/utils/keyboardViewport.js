@@ -70,10 +70,14 @@ export function keyboardOpen() {
   return keyboardInset() > KEYBOARD_MIN_HEIGHT;
 }
 
-// A box the keyboard is for (or coming up for).
-function typing() {
-  const el = document.activeElement;
+// A box the keyboard is for.
+function textBox(el) {
   return !!el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+}
+
+// A box the keyboard is for (or coming up for) has the focus.
+function typing() {
+  return textBox(document.activeElement);
 }
 
 // For tests.
@@ -86,6 +90,13 @@ export function watchKeyboardViewport() {
   const vv = viewport();
   if (!vv) return () => {};
   const root = document.documentElement;
+  // Only when it changes: writing a property on the root (even the same value) restyles the
+  // whole page, and this runs every frame while focus is moving.
+  const set = (name, value) => {
+    if (root.style.getPropertyValue(name) === (value ?? '')) return;
+    if (value === null) root.style.removeProperty(name);
+    else root.style.setProperty(name, value);
+  };
 
   const update = () => {
     const open = keyboardOpen();
@@ -95,11 +106,10 @@ export function watchKeyboardViewport() {
     const top = vv.pageTop ?? (window.scrollY + vv.offsetTop);
     // The keyboard still coming up: the app's bottom stays where it was.
     const coming = !open && top > 0.5 && vv.scale <= 1.01 && typing();
-    if (open) root.style.setProperty('--vc-app-height', `${vv.height}px`);
-    else if (coming) root.style.setProperty('--vc-app-height', `calc(100svh - ${top}px)`);
-    else root.style.removeProperty('--vc-app-height');
-    if ((open || coming) && top > 0.5) root.style.setProperty('--vc-app-top', `${top}px`);
-    else root.style.removeProperty('--vc-app-top');
+    if (open) set('--vc-app-height', `${vv.height}px`);
+    else if (coming) set('--vc-app-height', `calc(100svh - ${top}px)`);
+    else set('--vc-app-height', null);
+    set('--vc-app-top', (open || coming) && top > 0.5 ? `${top}px` : null);
   };
 
   let until = 0;
@@ -108,7 +118,11 @@ export function watchKeyboardViewport() {
     update();
     frame = performance.now() < until ? requestAnimationFrame(follow) : 0;
   };
-  const focusMoved = () => {
+  // Only a text box gaining or losing focus moves the keyboard: a tapped button or link (the
+  // chat's back arrow, a conversation in the list) mustn't set off a moment of reading the
+  // viewport every frame, just as the panes start sliding.
+  const focusMoved = (e) => {
+    if (!textBox(e.target)) return;
     until = performance.now() + FOLLOW_MS;
     if (!frame) frame = requestAnimationFrame(follow);
   };
