@@ -3156,6 +3156,42 @@ body.mobile-mode .dm-user-list-container .dm-user {
   margin-top: 14px;
 }
 
+.user-profile-join-sound {
+  margin-top: 14px;
+}
+
+.user-profile-join-sound .vc-hint {
+  margin: 4px 0 0;
+}
+
+.user-profile-join-sound-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.user-profile-join-sound-row .form-select {
+  flex: 1;
+  min-width: 0;
+  max-width: 280px;
+}
+
+.user-profile-join-sound-preview {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vc-fg-muted);
+}
+
+.user-profile-join-sound-preview:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
 .user-profile-list,
 .user-profile-games {
   margin: 0;

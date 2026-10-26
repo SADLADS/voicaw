@@ -21,8 +21,9 @@ const { createLimiter } = require('./rateLimit');
 // Playing one isn't mixed into anyone's microphone: the server tells everyone in the channel
 // (`guild_soundboard_play`), and each app plays the file itself, at its own soundboard volume
 // (or not at all), as Discord's do. That takes being in the channel's voice with Speak and Use
-// Soundboard, not deafened. A member's join sound (one of the guild's sounds) is played the
-// same way when they join one of its voice channels (voice.js participantJoined).
+// Soundboard, not deafened. Someone's join sound (one sound of any guild they're in, the same
+// for every guild) is played the same way when they join any guild's voice channel (voice.js
+// participantJoined).
 
 const BUCKET = 'sounds';
 const MAX_SOUNDS_PER_GUILD = 48;
@@ -103,13 +104,11 @@ async function findSound(guildId, soundId) {
 
 const publicSound = ({ available, ...sound }) => sound;
 
-// Every member gets the guild's sounds again (and their join sound, which a delete may have cleared).
+// Every member gets the guild's sounds again.
 async function announceSounds(guildId) {
   const sounds = await guildSounds(guildId);
-  const joins = new Map((await db.all('SELECT user_id, join_sound_id FROM guild_members WHERE guild_id = ?', [guildId]))
-    .map((r) => [r.user_id, r.join_sound_id]));
   for (const userId of await getMemberIds(guildId)) {
-    sendToUserSockets(userId, { type: 'guild_soundboard_update', guildId, sounds, joinSoundId: joins.get(userId) ?? null });
+    sendToUserSockets(userId, { type: 'guild_soundboard_update', guildId, sounds });
   }
 }
 
@@ -117,11 +116,10 @@ const audit = (guildId, actorId, action, soundId, details) => logAudit({
   guildId, actorId, action, targetType: 'sound', targetId: soundId, details,
 });
 
-// A member's view: { sounds, join_sound_id }.
+// A member's view: { sounds }.
 async function listSounds(guildId, userId) {
   await memberOf(guildId, userId);
-  const row = await db.get('SELECT join_sound_id FROM guild_members WHERE guild_id = ? AND user_id = ?', [guildId, userId]);
-  return { sounds: await guildSounds(guildId), join_sound_id: row?.join_sound_id ?? null };
+  return { sounds: await guildSounds(guildId) };
 }
 
 // Starts adding a sound: { name, emoji, volume, type, size } -> { sound, uploadUrl }. Then PUT
@@ -252,30 +250,56 @@ async function updateSound(guildId, userId, soundId, changes) {
   return publicSound({ ...sound, ...next });
 }
 
-// Deletes the sound and its file; members who had it as their join sound have none.
+// Deletes the sound and its file; whoever had it as their join sound has none.
 async function deleteSound(guildId, userId, soundId) {
   requireManage(await memberOf(guildId, userId));
   const sound = await findSound(guildId, soundId);
   if (!sound) throw new ActionError(404, 'Sound not found');
+  const losing = await db.all('SELECT id FROM users WHERE join_sound_id = ?', [sound.id]);
   await db.transaction(async () => {
     await db.run('DELETE FROM guild_sounds WHERE id = ?', [sound.id]);
-    await db.run('UPDATE guild_members SET join_sound_id = NULL WHERE guild_id = ? AND join_sound_id = ?', [guildId, sound.id]);
+    await db.run('UPDATE users SET join_sound_id = NULL WHERE join_sound_id = ?', [sound.id]);
     if (sound.available) await audit(guildId, userId, 'sound_delete', sound.id, { name: sound.name });
   });
   await deleteObject(BUCKET, sound.available ? String(sound.id) : `src/${sound.id}`);
   await announceSounds(guildId);
+  for (const { id } of losing) sendToUserSockets(id, { type: 'guild_join_sound', soundId: null });
 }
 
-// The caller's join sound in this guild: one of its sounds, or null for none. Their other
-// devices follow (`guild_join_sound`).
-async function setJoinSound(guildId, userId, soundId) {
-  await memberOf(guildId, userId);
-  if (soundId != null) {
-    const sound = await findSound(guildId, soundId);
-    if (!sound?.available) throw new ActionError(404, 'Sound not found');
+// `userId`'s join sound, if it's still one they can use: a sound of a guild they're in.
+async function joinSoundOf(userId) {
+  const row = await db.get('SELECT join_sound_id FROM users WHERE id = ?', [userId]);
+  if (row?.join_sound_id == null) return null;
+  const sound = await db.get(`SELECT ${SOUND_COLUMNS} FROM guild_sounds s
+    JOIN guild_members gm ON gm.guild_id = s.guild_id AND gm.user_id = ?
+    WHERE s.id = ? AND s.available = 1`, [userId, row.join_sound_id]);
+  return sound ?? null;
+}
+
+// What the join sound picker (your profile) shows: { join_sound_id, guilds: [{ id, name,
+// sounds }] }, every guild you're in that has sounds, in your rail's order.
+async function joinSoundChoices(userId) {
+  const sounds = await db.all(`SELECT ${SOUND_COLUMNS}, g.name AS guild_name FROM guild_sounds s
+    JOIN guild_members gm ON gm.guild_id = s.guild_id AND gm.user_id = ?
+    JOIN guilds g ON g.id = s.guild_id
+    WHERE s.available = 1 ORDER BY gm.position, gm.guild_id, s.id`, [userId]);
+  const guilds = new Map();
+  for (const { guild_name: name, ...sound } of sounds) {
+    if (!guilds.has(sound.guild_id)) guilds.set(sound.guild_id, { id: sound.guild_id, name, sounds: [] });
+    guilds.get(sound.guild_id).sounds.push(sound);
   }
-  await db.run('UPDATE guild_members SET join_sound_id = ? WHERE guild_id = ? AND user_id = ?', [soundId ?? null, guildId, userId]);
-  sendToUserSockets(userId, { type: 'guild_join_sound', guildId, soundId: soundId ?? null });
+  return { join_sound_id: (await joinSoundOf(userId))?.id ?? null, guilds: [...guilds.values()] };
+}
+
+// The caller's join sound, played whenever they join any guild's voice channel: a sound of
+// any guild they're in, or null for none. Their other devices follow (`guild_join_sound`).
+async function setJoinSound(userId, soundId) {
+  if (soundId != null) {
+    const sound = await db.get('SELECT guild_id, available FROM guild_sounds WHERE id = ?', [soundId]);
+    if (!sound?.available || !(await getMember(sound.guild_id, userId))) throw new ActionError(404, 'Sound not found');
+  }
+  await db.run('UPDATE users SET join_sound_id = ? WHERE id = ?', [soundId ?? null, userId]);
+  sendToUserSockets(userId, { type: 'guild_join_sound', soundId: soundId ?? null });
   return soundId ?? null;
 }
 
@@ -314,16 +338,14 @@ async function playSound(userId, channelId, soundId) {
   return publicSound(sound);
 }
 
-// `state` (voice.js) just joined its channel: their join sound plays there, if they have one
-// and may use the soundboard there.
+// `state` (voice.js) just joined its channel: their join sound (from whichever guild) plays
+// there, if they have one and may use the soundboard there.
 async function playJoinSound(state) {
   const key = `${state.userId}:${state.channelId}`;
   const now = Date.now();
   if (now - (joinSoundsPlayed.get(key) ?? -Infinity) < JOIN_SOUND_GAP_MS) return;
-  const row = await db.get('SELECT join_sound_id FROM guild_members WHERE guild_id = ? AND user_id = ?', [state.guildId, state.userId]);
-  if (row?.join_sound_id == null) return;
-  const sound = await findSound(state.guildId, row.join_sound_id);
-  if (!sound?.available) return;
+  const sound = await joinSoundOf(state.userId);
+  if (!sound) return;
   const access = await getChannelAccess(state.channelId, state.userId);
   if (!access || !canPlay(access.permissions)) return;
   joinSoundsPlayed.set(key, now);
@@ -353,6 +375,7 @@ module.exports = {
   createSoundFromData,
   updateSound,
   deleteSound,
+  joinSoundChoices,
   setJoinSound,
   playSound,
   playJoinSound,

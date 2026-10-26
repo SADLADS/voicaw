@@ -275,7 +275,7 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
   as `emoji_id`, Unicode as `emoji_name`); the file is at `/api/cdn/soundboard-sounds/:id`.
   Gateway: GUILD_CREATE's `soundboard_sounds`, GUILD_SOUNDBOARD_SOUNDS_UPDATE (Guild
   Expressions) after any change, and VOICE_CHANNEL_EFFECT_SEND (Guild Voice States) for a sound
-  played, or someone's join sound, in the bot's voice channel. A bot plays nothing itself: the
+  played, or someone's join sound (which may be another guild's sound), in the bot's voice channel. A bot plays nothing itself: the
   apps in the channel play the file.
 - **Checked** (2026-10-05, e2e's throwaway API with its own LiveKit): a Node bot
   (`@livekit/rtc-node`) publishing a tone with Speak; a bot with Listen hears it (Node, and

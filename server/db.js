@@ -240,8 +240,8 @@ sqlite.exec('CREATE INDEX IF NOT EXISTS guild_emojis_guild ON guild_emojis (guil
 // Soundboard sounds (soundboard.js): short clips played in a guild's voice channels, plain
 // files (not encrypted) at sounds/<id> in the object store, made like emoji (a row before the
 // upload, available once it's checked). `volume` (0–1) is the sound's own; `emoji` an optional
-// Unicode or `<:name:id>` one. Each member can pick one of the guild's sounds as the join
-// sound played when they join one of its voice channels (`guild_members.join_sound_id`).
+// Unicode or `<:name:id>` one. Each person can pick one sound of any guild they're in as the
+// join sound played when they join any guild's voice channel (`users.join_sound_id`).
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_sounds (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -261,8 +261,10 @@ sqlite.exec('CREATE INDEX IF NOT EXISTS guild_sounds_guild ON guild_sounds (guil
 
 // Each member's own order of their guilds in the guild rail (lowest first).
 addColumn('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
-// The member's join sound (guild_sounds.id, see above), or null.
+// Unused since migration 20 (join sounds became one per person, users.join_sound_id).
 addColumn('ALTER TABLE guild_members ADD COLUMN join_sound_id INTEGER');
+// The person's join sound (guild_sounds.id, see above, in a guild they're in), or null.
+addColumn('ALTER TABLE users ADD COLUMN join_sound_id INTEGER');
 
 // MENTIONS. Each member chooses which of a guild's messages push to them: 'all', 'mentions'
 // (the default) or 'none'. A role can be `mentionable` by anyone (else only with Mention
@@ -1208,6 +1210,10 @@ const MIGRATIONS = [
     WHERE pending = 1 AND deleted_at IS NULL`),
   // 19. Soundboards: @everyone gets Use Soundboard, as in new guilds.
   () => sqlite.exec(`UPDATE guild_roles SET permissions = permissions | ${PERMISSIONS.USE_SOUNDBOARD} WHERE is_everyone = 1`),
+  // 20. Join sounds are one per person, for every guild: whoever picked some per guild keeps
+  // one of them (the newest sound).
+  () => sqlite.exec(`UPDATE users SET join_sound_id = (SELECT MAX(join_sound_id) FROM guild_members WHERE user_id = users.id)
+    WHERE EXISTS (SELECT 1 FROM guild_members WHERE user_id = users.id AND join_sound_id IS NOT NULL)`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

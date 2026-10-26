@@ -7,16 +7,17 @@ import { getVoiceSnapshot } from './voiceClient';
 import { t } from '../i18n';
 
 // Guild soundboards (server/soundboard.js; docs/voice-and-calls.md, Soundboard). Each guild's
-// sounds ({ id, guild_id, name, emoji, volume, creator_id, created_at }) and your join sound
-// there, from GET (`useSoundboard`, whenever the picker or settings want them) and the
-// `guild_soundboard_update` / `guild_join_sound` events.
+// sounds ({ id, guild_id, name, emoji, volume, creator_id, created_at }), from GET
+// (`useSoundboard`, whenever the picker or settings want them) and `guild_soundboard_update`;
+// and your join sound, one for every guild (`useJoinSound`, your profile), followed with
+// `guild_join_sound`.
 //
 // Playing: the server tells everyone in the channel (`guild_soundboard_play`), and this device
 // plays the file itself if it's the one in that channel, not deafened, and the kind (a sound
 // someone played, or someone's join sound) is on in Settings → Voice & video, at that kind's
 // volume × the sound's own × the output volume. Sounds are cut at MAX_SECONDS, whatever the
-// file. The emoji of each sound played shows on its player's tile for a moment
-// (`useSoundEffects`), heard or not.
+// file, and a person's sound stops when they play another (other people's play on). The emoji of
+// each sound played shows on its player's tile for a moment (`useSoundEffects`), heard or not.
 
 export const MAX_SECONDS = 5.2;
 const EFFECT_MS = 3000;
@@ -28,7 +29,10 @@ export function setSoundboardBase(s3Endpoint) {
 }
 export const soundUrl = (soundId) => `${base}${soundId}`;
 
-const boards = new Map(); // guildId -> { sounds, joinSoundId }
+const boards = new Map(); // guildId -> { sounds }
+let joinSound; // { joinSoundId, guilds: [{ id, name, sounds }] }, undefined until loaded
+let joinSoundWanted = 0; // how many are showing it (reloaded when sounds or guilds change)
+const playing = new Map(); // userId -> { stop } of the sound they last played
 const effects = new Map(); // `${channelId}:${userId}` -> { emoji, name, key }
 let effectCount = 0;
 const wanted = new Map(); // guildId -> how many are showing it (reloaded after a reconnect)
@@ -69,12 +73,23 @@ function showEffect(event) {
   }, EFFECT_MS);
 }
 
+// Plays a sound `userId` played, stopping theirs before it (still loading or playing).
+async function playFor(userId, url, options) {
+  playing.get(userId)?.stop?.();
+  const entry = { stop: null };
+  playing.set(userId, entry);
+  const stop = await playClip(url, options);
+  if (playing.get(userId) === entry) entry.stop = stop;
+  else stop?.(); // a newer one came while this loaded
+}
+
 function handlePlay(event) {
   const voice = getVoiceSnapshot();
   if (voice.callId != null || voice.status === 'idle' || voice.channelId !== Number(event.channelId)) return;
   showEffect(event);
   const volume = effectVolume(event, voice);
-  if (volume > 0) playClip(soundUrl(event.sound.id), { volume, maxSeconds: MAX_SECONDS });
+  if (volume > 0) playFor(Number(event.userId), soundUrl(event.sound.id), { volume, maxSeconds: MAX_SECONDS });
+  else playing.get(Number(event.userId))?.stop?.();
 }
 
 function handleEvent(event) {
@@ -84,17 +99,22 @@ function handleEvent(event) {
       handlePlay(event);
       return;
     case 'guild_soundboard_update':
-      boards.set(guildId, { sounds: event.sounds, joinSoundId: event.joinSoundId ?? null });
+      boards.set(guildId, { sounds: event.sounds });
       notify();
+      reloadJoinSound();
       return;
     case 'guild_join_sound':
-      if (boards.has(guildId)) {
-        boards.set(guildId, { ...boards.get(guildId), joinSoundId: event.soundId ?? null });
+      if (joinSound) {
+        joinSound = { ...joinSound, joinSoundId: event.soundId ?? null };
         notify();
       }
       return;
+    case 'guild_add':
+      reloadJoinSound();
+      return;
     case 'guild_remove':
       if (boards.delete(guildId)) notify();
+      reloadJoinSound();
       return;
     default:
   }
@@ -106,11 +126,15 @@ export function initSoundboard(user) {
   unsubscribe = null;
   boards.clear();
   effects.clear();
+  joinSound = undefined;
+  for (const { stop } of playing.values()) stop?.();
+  playing.clear();
   if (!user) return;
   const offEvents = onGuildEvent(handleEvent);
   const offConnection = onConnectionState((state) => {
     if (state !== 'online') return;
     for (const guildId of wanted.keys()) loadSoundboard(guildId).catch(() => {});
+    reloadJoinSound();
   });
   unsubscribe = () => {
     offEvents();
@@ -120,11 +144,11 @@ export function initSoundboard(user) {
 
 export async function loadSoundboard(guildId) {
   const { data } = await api.get(`/guilds/${guildId}/soundboard`);
-  boards.set(Number(guildId), { sounds: data.sounds, joinSoundId: data.join_sound_id ?? null });
+  boards.set(Number(guildId), { sounds: data.sounds });
   notify();
 }
 
-// The guild's { sounds, joinSoundId }, undefined until loaded (kept loaded while mounted).
+// The guild's { sounds }, undefined until loaded (kept loaded while mounted).
 export function useSoundboard(guildId) {
   const board = useSyncExternalStore(subscribe, () => (guildId == null ? undefined : boards.get(Number(guildId))));
   useEffect(() => {
@@ -168,11 +192,33 @@ export function previewSound(sound) {
   return playClip(soundUrl(sound.id), { volume: settings.soundboardVolume * (sound.volume ?? 1) * settings.outputVolume, maxSeconds: MAX_SECONDS });
 }
 
-export async function setJoinSound(guildId, soundId) {
-  const { data } = await api.put(`/guilds/${guildId}/soundboard/join-sound`, { soundId: soundId ?? null });
-  const board = boards.get(Number(guildId));
-  if (board) {
-    boards.set(Number(guildId), { ...board, joinSoundId: data.join_sound_id });
+async function loadJoinSound() {
+  const { data } = await api.get('/soundboard/join-sound');
+  joinSound = { joinSoundId: data.join_sound_id ?? null, guilds: data.guilds };
+  notify();
+}
+
+function reloadJoinSound() {
+  if (joinSoundWanted > 0) loadJoinSound().catch(() => {});
+}
+
+// Your join sound and what it can be: { joinSoundId, guilds: [{ id, name, sounds }] } (every
+// guild you're in that has sounds), undefined until loaded (kept loaded while mounted).
+export function useJoinSound() {
+  const value = useSyncExternalStore(subscribe, () => joinSound);
+  useEffect(() => {
+    joinSoundWanted += 1;
+    loadJoinSound().catch((err) => console.warn('Could not load the join sound', err));
+    return () => { joinSoundWanted -= 1; };
+  }, []);
+  return value;
+}
+
+// Your join sound, the same in every guild (null for none).
+export async function setJoinSound(soundId) {
+  const { data } = await api.put('/soundboard/join-sound', { soundId: soundId ?? null });
+  if (joinSound) {
+    joinSound = { ...joinSound, joinSoundId: data.join_sound_id };
     notify();
   }
 }

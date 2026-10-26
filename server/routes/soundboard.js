@@ -4,13 +4,13 @@ const { withActionErrors } = require('../actionError');
 const soundboard = require('../soundboard');
 
 // Guild soundboards (soundboard.js): listing (any member), adding, editing and deleting sounds
-// (Manage Emoji), choosing your join sound, and playing one in the voice channel you're in.
+// (Manage Emoji), choosing your join sound (one for every guild), and playing one in the voice channel you're in.
 const router = express.Router();
 
 const guildId = (req) => Number(req.params.guildId);
 const soundId = (req) => Number(req.params.soundId);
 
-// { sounds: [{ id, guild_id, name, emoji, volume, creator_id, created_at }], join_sound_id }
+// { sounds: [{ id, guild_id, name, emoji, volume, creator_id, created_at }] }
 router.get('/guilds/:guildId/soundboard', authenticateJWT, withActionErrors(async (req, res) => {
   res.json(await soundboard.listSounds(guildId(req), req.user.id));
 }));
@@ -36,11 +36,17 @@ router.delete('/guilds/:guildId/soundboard/:soundId', authenticateJWT, withActio
   res.json({ success: true });
 }));
 
+// Your join sound (the same in every guild) and the sounds you can pick from:
+// { join_sound_id, guilds: [{ id, name, sounds }] }.
+router.get('/soundboard/join-sound', authenticateJWT, withActionErrors(async (req, res) => {
+  res.json(await soundboard.joinSoundChoices(req.user.id));
+}));
+
 // { soundId: id | null }
-router.put('/guilds/:guildId/soundboard/join-sound', authenticateJWT, withActionErrors(async (req, res) => {
+router.put('/soundboard/join-sound', authenticateJWT, withActionErrors(async (req, res) => {
   const raw = req.body?.soundId;
   if (raw !== null && !Number.isInteger(raw)) return res.status(400).json({ error: 'soundId must be a sound id or null' });
-  res.json({ join_sound_id: await soundboard.setJoinSound(guildId(req), req.user.id, raw) });
+  res.json({ join_sound_id: await soundboard.setJoinSound(req.user.id, raw) });
 }));
 
 // Plays the sound to everyone in the voice channel (you must be in it).

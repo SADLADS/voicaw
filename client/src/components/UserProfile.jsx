@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
-import { faCamera, faImage, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCamera, faImage, faTrash, faVolumeHigh, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { ImageViewerContext, InteractionContext } from '../contexts';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
@@ -19,6 +19,7 @@ import { lastSeenText, statusLabel } from '../utils/presence';
 import { colorToHex } from '../utils/permissions';
 import { formatDate, formatRelative } from '../utils/dateFormat';
 import { galleryItemFromUrl } from '../utils/imageGallery';
+import { previewSound, setJoinSound, useJoinSound } from '../voice/soundboard';
 import {
   fetchUserProfile, pictureFileError, removeBanner, removeProfilePicture, updateProfile, uploadBanner, uploadProfilePicture,
 } from '../services/profileService';
@@ -151,6 +152,7 @@ export default function UserProfile({ userId, me, onClose, onOpenProfile }) {
                   ? <p className="profile-card-bio">{profile.bio}</p>
                   : <p className="vc-hint">{t('app.profile.noBio')}</p>
               )}
+              {own && <OwnJoinSound />}
               {data?.memberSince ? (
                 <div className="user-profile-since">
                   <div className="member-card-label">{t('app.profile.memberSince')}</div>
@@ -444,5 +446,51 @@ function OwnBio({ userId }) {
       value={getProfile(userId)?.bio ?? ''}
       onSave={async (text) => mergeProfiles([await updateProfile({ bio: text })])}
     />
+  );
+}
+
+// Your join sound, played for everyone in a guild's voice channel when you join it, the same in
+// every guild: any sound of any guild you're in (grouped by guild), or none.
+function OwnJoinSound() {
+  const choices = useJoinSound();
+  const [error, setError] = useState(null);
+  const guilds = choices?.guilds ?? [];
+  const chosen = guilds.flatMap((guild) => guild.sounds).find((sound) => sound.id === choices?.joinSoundId);
+  return (
+    <div className="user-profile-join-sound">
+      <label className="member-card-label" htmlFor="profile-join-sound">{t('app.profile.joinSound')}</label>
+      <div className="user-profile-join-sound-row">
+        <select
+          id="profile-join-sound"
+          className="form-select form-select-sm"
+          value={chosen?.id ?? ''}
+          disabled={choices == null || (guilds.length === 0 && !chosen)}
+          onChange={(e) => {
+            setError(null);
+            setJoinSound(e.target.value === '' ? null : Number(e.target.value)).catch((err) => setError(errorText(err)));
+          }}
+        >
+          <option value="">{t('app.profile.noJoinSound')}</option>
+          {guilds.map((guild) => (
+            <optgroup key={guild.id} label={guild.name}>
+              {guild.sounds.map((sound) => <option key={sound.id} value={sound.id}>{sound.name}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        {chosen && (
+          <button
+            type="button"
+            className="user-profile-join-sound-preview"
+            aria-label={t('app.profile.previewJoinSound', { name: chosen.name })}
+            title={t('app.profile.previewJoinSound', { name: chosen.name })}
+            onClick={() => previewSound(chosen)}
+          >
+            <Icon icon={faVolumeHigh} />
+          </button>
+        )}
+      </div>
+      <p className="vc-hint">{choices && guilds.length === 0 ? t('app.profile.joinSoundNone') : t('app.profile.joinSoundHint')}</p>
+      {error && <p className="error-msg" role="alert">{error}</p>}
+    </div>
   );
 }
