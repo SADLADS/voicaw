@@ -144,6 +144,8 @@ try {
         requestAnimationFrame(() => { state.offsetTop = pushed; listeners.forEach((fn) => fn()); });
       }
     };
+    // iOS sliding the page as the keyboard comes up: no event, the full height kept till the end.
+    window.__slide = (offsetTop) => { state.offsetTop = offsetTop; };
     // The keyboard opening (height) with the page slid up by `offsetTop`.
     window.__keyboard = (height, offsetTop = 0) => {
       state.height = height;
@@ -177,6 +179,39 @@ try {
   await page.evaluate(([h]) => window.__keyboard(h, 0), [viewport.height]);
   await settled(page);
   check((await layout(page)).appHeight === '', 'iOS: full height again once the keyboard closes');
+
+  // The keyboard coming up: the page slides with its animation before the visible height drops.
+  // The app follows it every frame, the box staying on the keyboard (it went up off the top,
+  // then jumped back down once the keyboard was up).
+  await page.evaluate(() => document.activeElement?.blur());
+  await settled(page);
+  const during = await page.evaluate(async ([k]) => {
+    const frame = () => new Promise((r) => requestAnimationFrame(r));
+    document.querySelector('#dm-input').focus();
+    let header = 0;
+    let box = Infinity;
+    for (let i = 1; i <= 12; i++) {
+      const off = Math.round((k * i) / 12);
+      window.__slide(off);
+      await frame();
+      await frame();
+      const top = document.querySelector('.slidey .main-content-wrapper').getBoundingClientRect().top;
+      header = Math.max(header, Math.abs(top - off));
+      box = Math.min(box, document.querySelector('.send-button, .voice-mic-button').getBoundingClientRect().bottom);
+    }
+    return { header: Math.round(header), box: Math.round(box) };
+  }, [KEYBOARD]);
+  check(during.header <= 1, `iOS: as the keyboard comes up, the app's top follows the slide (${during.header}px off at worst)`);
+  check(during.box >= viewport.height - 80, `iOS: and the box stays at the bottom (${during.box} of ${viewport.height})`);
+  await page.evaluate(([h, k]) => window.__keyboard(h, k), [visible, KEYBOARD]);
+  await settled(page);
+  l = await layout(page, viewport.height);
+  check(l.appHeight === `${visible}px` && await appTop() >= KEYBOARD - 1 && l.boxBottom >= viewport.height - 80,
+    `iOS: then sized to the part above the keyboard, no jump (${l.appHeight}, top ${await appTop()})`);
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.evaluate(([h]) => window.__keyboard(h, 0), [viewport.height]);
+  await settled(page);
+  check((await layout(page)).appHeight === '' && await appTop() === 0, 'iOS: back in place once it closes');
 
   // iOS 26, where scrolling back wouldn't work anyway: the same (no gap between the box and the
   // keyboard, nothing above it cut off).

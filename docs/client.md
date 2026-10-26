@@ -535,7 +535,14 @@
   back) and checks the app doesn't move while typing. iOS 26 Safari often wouldn't scroll back at
   all anyway (a keyboard-high gap under the message box, reported 2026-10-13, which is when the
   following began). Following can't loop: the caret stays where it is in what's visible, and the
-  page can't be dragged further, since the app ends where the visible part does. Anything
+  page can't be dragged further, since the app ends where the visible part does. The slide is
+  followed while the keyboard comes up too (2026-10-26): iOS slides the page with the keyboard's
+  animation but reports the shorter visible height only at its end, so the whole app went up
+  off the top for a moment, then jumped back down. Now, while a text box is focused, a slide
+  before the keyboard counts as open moves the app's top down with it, its bottom staying where
+  it was (`calc(100svh - slide)`, the box where iOS is taking it), and for 700 ms after focus
+  moves into or out of a text box the viewport is read every frame, not only on its (few)
+  events. Pinch zoom is left alone. Anything
   `position: fixed` is placed against the whole screen, not the visible part, so while the
   keyboard is up only what follows `visualViewport` itself (the emoji picker's search) lines up
   with it; the suggestions over the message box are in its flow and move with the app. Everything screen-high uses `var(--vc-app-height)` (100svh

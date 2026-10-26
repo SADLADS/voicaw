@@ -15,6 +15,13 @@
 // it is in what's visible, so iOS has no reason to slide again. Nor can the page then be
 // dragged further: the app ends where the visible part does, so the page is never taller than
 // the screen.
+// The slide starts with the keyboard, before the visible height has shrunk enough to count as
+// the keyboard (iOS reports that at the end of the keyboard's animation), so while a text box
+// is focused the slide is followed already, the app ending where it ended before (its box,
+// which iOS is sliding into view, staying put): else the whole app went up off the top with
+// the slide, then jumped back down once the keyboard was up. And since iOS sends few viewport
+// events during the animation, the viewport is also read every frame for a moment after
+// focus moves into or out of a text box.
 //
 // The keyboard's height is the visible height's shortfall from the keyboard-free height, the
 // tallest seen at this width (a rotation starts over). Not window.innerHeight: with
@@ -23,6 +30,10 @@
 // Anything shorter than the keyboard-free height by more than this is the keyboard (smaller
 // differences are browser toolbars).
 export const KEYBOARD_MIN_HEIGHT = 120;
+
+// How long the viewport is read every frame after focus moves (longer than the keyboard's
+// animation).
+const FOLLOW_MS = 700;
 
 let full = null; // { width, height }: the keyboard-free size at this width
 
@@ -59,6 +70,12 @@ export function keyboardOpen() {
   return keyboardInset() > KEYBOARD_MIN_HEIGHT;
 }
 
+// A box the keyboard is for (or coming up for).
+function typing() {
+  const el = document.activeElement;
+  return !!el && (el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+}
+
 // For tests.
 export function resetKeyboardViewport() {
   full = null;
@@ -72,24 +89,43 @@ export function watchKeyboardViewport() {
 
   const update = () => {
     const open = keyboardOpen();
-    if (open) root.style.setProperty('--vc-app-height', `${vv.height}px`);
-    else root.style.removeProperty('--vc-app-height');
     // The slide (the browser showing the focused box, or the user dragging the page): the app
     // moves down to meet the visible part (older browsers have no pageTop: offsetTop plus the
     // scroll).
     const top = vv.pageTop ?? (window.scrollY + vv.offsetTop);
-    if (open && top > 0.5) root.style.setProperty('--vc-app-top', `${top}px`);
+    // The keyboard still coming up: the app's bottom stays where it was.
+    const coming = !open && top > 0.5 && vv.scale <= 1.01 && typing();
+    if (open) root.style.setProperty('--vc-app-height', `${vv.height}px`);
+    else if (coming) root.style.setProperty('--vc-app-height', `calc(100svh - ${top}px)`);
+    else root.style.removeProperty('--vc-app-height');
+    if ((open || coming) && top > 0.5) root.style.setProperty('--vc-app-top', `${top}px`);
     else root.style.removeProperty('--vc-app-top');
+  };
+
+  let until = 0;
+  let frame = 0;
+  const follow = () => {
+    update();
+    frame = performance.now() < until ? requestAnimationFrame(follow) : 0;
+  };
+  const focusMoved = () => {
+    until = performance.now() + FOLLOW_MS;
+    if (!frame) frame = requestAnimationFrame(follow);
   };
 
   update();
   vv.addEventListener('resize', update);
   vv.addEventListener('scroll', update);
   window.addEventListener('scroll', update);
+  document.addEventListener('focusin', focusMoved);
+  document.addEventListener('focusout', focusMoved);
   return () => {
     vv.removeEventListener('resize', update);
     vv.removeEventListener('scroll', update);
     window.removeEventListener('scroll', update);
+    document.removeEventListener('focusin', focusMoved);
+    document.removeEventListener('focusout', focusMoved);
+    cancelAnimationFrame(frame);
     root.style.removeProperty('--vc-app-height');
     root.style.removeProperty('--vc-app-top');
   };

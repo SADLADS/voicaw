@@ -64,6 +64,67 @@ describe('keyboardViewport', () => {
     expect(window.scrollTo).not.toHaveBeenCalled();
   });
 
+  it('iOS: follows the slide as the keyboard comes up, the bottom staying put', () => {
+    watchKeyboardViewport();
+    const box = document.body.appendChild(document.createElement('textarea'));
+    box.focus();
+    // iOS slides the page with the keyboard's animation; the visible height only drops at its end.
+    window.visualViewport.offsetTop = 150;
+    window.visualViewport.pageTop = 150;
+    fire();
+    expect(appTop()).toBe('150px');
+    expect(appHeight()).toBe('calc(100svh - 150px)');
+    window.visualViewport.height = 470;
+    window.visualViewport.offsetTop = 330;
+    window.visualViewport.pageTop = 330;
+    fire();
+    expect(appTop()).toBe('330px');
+    expect(appHeight()).toBe('470px');
+    box.remove();
+  });
+
+  it('iOS: a slide with no text box focused, or zoomed in, is left alone', () => {
+    watchKeyboardViewport();
+    window.visualViewport.offsetTop = 150;
+    window.visualViewport.pageTop = 150;
+    fire();
+    expect(appTop()).toBe('');
+    const box = document.body.appendChild(document.createElement('input'));
+    box.focus();
+    window.visualViewport.scale = 2;
+    fire();
+    expect(appTop()).toBe('');
+    expect(appHeight()).toBe('');
+    box.remove();
+  });
+
+  it('reads the viewport every frame for a moment after focus moves (iOS sends few events then)', () => {
+    let frames = [];
+    vi.stubGlobal('requestAnimationFrame', (fn) => frames.push(fn));
+    vi.stubGlobal('cancelAnimationFrame', () => { frames = []; });
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const runFrame = () => { const due = frames; frames = []; due.forEach((fn) => fn()); };
+    const stop = watchKeyboardViewport();
+    const box = document.body.appendChild(document.createElement('textarea'));
+    box.focus();
+    expect(frames).toHaveLength(1);
+    window.visualViewport.pageTop = 80; // no event
+    now = 16;
+    runFrame();
+    expect(appTop()).toBe('80px');
+    now = 800;
+    runFrame();
+    expect(frames).toHaveLength(0); // stopped
+    box.blur();
+    expect(frames).toHaveLength(1);
+    stop();
+    expect(frames).toHaveLength(0);
+    box.remove();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it('iOS: without pageTop, follows the scroll plus the offset', () => {
     watchKeyboardViewport();
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 30 });
