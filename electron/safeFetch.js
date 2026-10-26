@@ -61,7 +61,7 @@ function publicLookup(hostname, options, callback) {
 }
 
 // One request (no redirects followed). Resolves to { status, headers, body, truncated }.
-function requestOnce(url, { maxBytes, timeoutMs, headers }) {
+function requestOnce(url, { maxBytes, timeoutMs, headers, method = 'GET', body = null }) {
   return new Promise((resolveRequest, rejectRequest) => {
     // The whole request (not only a quiet socket) must be done in time.
     const timer = setTimeout(() => req.destroy(new FetchError('Timed out')), timeoutMs);
@@ -74,8 +74,9 @@ function requestOnce(url, { maxBytes, timeoutMs, headers }) {
       rejectRequest(err);
     };
     const client = url.protocol === 'https:' ? https : http;
-    const req = client.get(url, {
-      headers: { 'Accept-Encoding': 'gzip, deflate, br', ...headers },
+    const req = client.request(url, {
+      method,
+      headers: { 'Accept-Encoding': 'gzip, deflate, br', ...headers, ...(body && { 'Content-Length': body.length }) },
       lookup: publicLookup,
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400) {
@@ -114,26 +115,31 @@ function requestOnce(url, { maxBytes, timeoutMs, headers }) {
       stream.on('error', (err) => (done ? null : reject(err)));
     });
     req.on('error', reject);
+    req.end(body ?? undefined);
   });
 }
 
 // GETs `href` (http or https, port 80 or 443), following up to 5 redirects, reading at most
 // `maxBytes` (decompressed; or a function of the content type giving it) within `timeoutMs`
 // altogether. Resolves to { url (the last one), status, contentType (lower case, no parameters), charset, body (a Buffer), truncated }.
-async function safeFetch(href, { maxBytes = 1024 * 1024, timeoutMs = 5000, headers = {} } = {}) {
+// `method` and `body` (a Buffer or string) send something else than a GET, whose redirects
+// aren't followed (the 3xx is the answer); `anyPort` allows every port (media servers,
+// mediaServers.js, are often on their own), still only on public addresses.
+async function safeFetch(href, { maxBytes = 1024 * 1024, timeoutMs = 5000, headers = {}, method = 'GET', body = null, anyPort = false } = {}) {
+  const payload = body == null ? null : Buffer.from(body);
   const deadline = Date.now() + timeoutMs;
   let url = new URL(href);
   for (let redirects = 0; ; redirects += 1) {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new FetchError('Not a web address');
-    if (url.port && !['80', '443'].includes(url.port) && !allowPrivate()) throw new FetchError('Only ports 80 and 443');
+    if (url.port && !anyPort && !['80', '443'].includes(url.port) && !allowPrivate()) throw new FetchError('Only ports 80 and 443');
     if (url.username || url.password) throw new FetchError('No credentials in URLs');
     const host = url.hostname.replace(/^\[|\]$/g, '');
     // An address written out isn't looked up, so it's checked here.
     if (net.isIP(host) && !isPublicAddress(host)) throw new FetchError(`${host} is not a public address`);
     const left = deadline - Date.now();
     if (left <= 0) throw new FetchError('Timed out');
-    const res = await requestOnce(url, { maxBytes, timeoutMs: left, headers });
-    if (res.status >= 300 && res.status < 400 && res.headers.location) {
+    const res = await requestOnce(url, { maxBytes, timeoutMs: left, headers, method, body: payload });
+    if (method === 'GET' && res.status >= 300 && res.status < 400 && res.headers.location) {
       if (redirects >= 5) throw new FetchError('Too many redirects');
       url = new URL(res.headers.location, url);
       continue;
