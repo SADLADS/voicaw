@@ -21,5 +21,10 @@
   "devDependencies": {
     "cross-env": "^10.0.0",
     "playwright-core": "^1.63.0"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "^11.1.1"
+    }
   }
 }
