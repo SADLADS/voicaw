@@ -7,7 +7,7 @@ describe('unreadChats', () => {
     const groups = [{ id: 'g', unread: 4, last_unread_sender_id: 7, last_unread_timestamp: 400 }, { id: 'x', unread: 2, last_unread_sender_id: null }];
     const botDms = [{ id: 5, unread: 120, last_unread_sender_id: 8, last_unread_timestamp: 300 }];
     expect(unreadChats({ unreadDms, groups, botDms })).toEqual([
-      { key: '/dm/g/g', userId: 7, path: '/dm/g/g', count: 4 },
+      { key: '/dm/g/g', userId: 7, path: '/dm/g/g', count: 4, group: groups[0] },
       { key: '/dm/b/5', userId: 8, path: '/dm/b/5', count: 120 },
       { key: '/dm/2', userId: 2, path: '/dm/2', count: 1 },
     ]);

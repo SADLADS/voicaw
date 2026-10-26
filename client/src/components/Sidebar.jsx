@@ -4,7 +4,9 @@ import { Icon } from './Icon';
 import { faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import GuildIcon from './guild/GuildIcon';
 import Avatar from './Avatar';
+import GroupPicture from './group/GroupPicture';
 import '../assets/css/guilds.css';
+import '../assets/css/groups.css';
 import AddGuildDialog from './guild/AddGuildDialog';
 import GuildMenu from './guild/GuildMenu';
 import InviteDialog from './guild/InviteDialog';
@@ -18,6 +20,7 @@ import { useDragReorder } from '../hooks/useDragReorder';
 import { useVoice } from '../hooks/useVoice';
 import { t } from '../i18n';
 import { displayName } from '../utils/profiles';
+import { groupTitle } from '../utils/groupDisplay';
 import { showContent } from '../utils/mobilePanes';
 import { lastDm } from '../utils/lastChat';
 
@@ -31,8 +34,8 @@ import { lastDm } from '../utils/lastChat';
 // a guild (touch, hold and lift on a phone) opens its menu (GuildMenu), whose dialogs live here.
 // `unreadChats` (utils/latestUnread.js unreadChats: [{ key, userId, path, count }], newest first)
 // are the DMs, groups and bot DMs with unread messages: each gets its newest sender's picture
-// under the bird, with how many are unread, opening that chat (as in Discord); the separator
-// moves down under them.
+// under the bird (a group its own picture, or its members' two as in the DM list), with how many
+// are unread, opening that chat (as in Discord); the separator moves down under them.
 export default function Sidebar({ user, hasUnreadDms, unreadChats = [], guilds = [], unreadGuildIds = new Set(), guildMentions = {}, guildVoice = {}, onReorderGuilds }) {
   const location = useLocation();
   const { guildList } = useContext(LayoutContext) ?? {};
@@ -90,22 +93,37 @@ export default function Sidebar({ user, hasUnreadDms, unreadChats = [], guilds =
         </NavLink>
       </div>
 
-      {unreadChats.map((chat) => (
-        <div key={chat.key} className="nav-item rail-unread-chat">
-          <NavLink
-            to={chat.path}
-            className="nav-icon rail-dm-unread"
-            onClick={showContent}
-            aria-label={t('app.sidebar.unreadFrom', { name: displayName(chat.userId) })}
-            title={t('app.sidebar.unreadFrom', { name: displayName(chat.userId) })}
-          >
-            <Avatar userId={chat.userId} />
-          </NavLink>
-          <span className="mention-badge rail-mention-badge" aria-label={t('app.sidebar.unreadCount', { count: chat.count })}>
-            {chat.count > 9 ? '9+' : chat.count}
-          </span>
-        </div>
-      ))}
+      {unreadChats.map((chat) => {
+        const { group } = chat;
+        const label = group
+          ? t('app.sidebar.unreadInGroup', { name: displayName(chat.userId), group: groupTitle(group, user) })
+          : t('app.sidebar.unreadFrom', { name: displayName(chat.userId) });
+        const others = group ? (group.members ?? []).filter((m) => m.id !== user?.id) : [];
+        return (
+          <div key={chat.key} className="nav-item rail-unread-chat">
+            <NavLink
+              to={chat.path}
+              className={`nav-icon rail-dm-unread${group ? ' rail-group' : ''}`}
+              onClick={showContent}
+              aria-label={label}
+              title={label}
+            >
+              {group ? (
+                <GroupPicture groupId={group.id} picture={group.picture} className="group-picture">
+                  <span className="group-avatar">
+                    {others.slice(0, 2).map((m) => <span key={m.id}><Avatar userId={m.id} alt="" className="group-avatar-img" /></span>)}
+                  </span>
+                </GroupPicture>
+              ) : (
+                <Avatar userId={chat.userId} />
+              )}
+            </NavLink>
+            <span className="mention-badge rail-mention-badge" aria-label={t('app.sidebar.unreadCount', { count: chat.count })}>
+              {chat.count > 9 ? '9+' : chat.count}
+            </span>
+          </div>
+        );
+      })}
 
       {guilds.length > 0 && <div className="rail-separator" />}
 

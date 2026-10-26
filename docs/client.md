@@ -72,7 +72,9 @@
   the Logo sound went with it). Under the bird (which always stays), each DM, group or bot DM
   with unread messages gets its own icon, as in Discord (2026-10-23; it used to be one picture
   in the bird's place): the picture of whoever sent its newest unread message, round, 48 px
-  like a guild's, with how many are unread in a badge (9+ past nine), newest first (`Sidebar`
+  like a guild's (a group DM shows the group's picture instead, or without one its members' two
+  overlapping pictures, as in the DM list; 2026-10-26), with how many are unread in a badge (9+
+  past nine), newest first (`Sidebar`
   `unreadChats`, from `utils/latestUnread.js` `unreadChats`: `/dm-get-unread`'s `count` and
   `last_timestamp`, a group's or bot DM's `unread`, `last_unread_sender_id` /
   `last_unread_timestamp`; muted ones and the open chat left out). Clicking one opens that chat

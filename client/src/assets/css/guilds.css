@@ -45,6 +45,24 @@
   object-fit: cover;
 }
 
+/* A group without a picture: its members' two overlapping pictures, as in the DM list, drawn
+   whole on the rail's background rather than cut to a circle. */
+.nav-icon.rail-dm-unread.rail-group:has(> .group-avatar) {
+  overflow: visible;
+  background-color: transparent;
+}
+
+.rail-dm-unread .group-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+.rail-dm-unread .group-avatar .group-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-color: var(--vc-bg-rail);
+}
+
 .nav-icon.rail-add {
   border: 0;
   color: var(--vc-online);
