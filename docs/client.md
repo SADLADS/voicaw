@@ -636,7 +636,8 @@ Everyone has an optional display name (32 characters), custom status (a line of 
 not an online status: those stay automatic) with an optional emoji before it, and bio (190), in
 `users` (`display_name`, `custom_status`, `custom_status_emoji`, `bio`; `server/profiles.js`),
 visible to everyone logged in. The username
-stays the unique handle (logins, @username on the card).
+stays the unique handle (logins, @username on the card and full profile, shown under the name
+even when there is no display name).
 - `PUT /api/profile { displayName, customStatus, customStatusEmoji, bio }` (null or "" clears
   one) saves and
   sends `user_profile { user }` to every logged-in socket. `GET /profile`, `/dms-list`, guild
