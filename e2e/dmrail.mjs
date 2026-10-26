@@ -1,10 +1,12 @@
 // The rail's unread chats: the bird stays the DM button, and under it each chat with unread
 // messages gets its newest sender's picture (newest first) with how many are unread (live, and
 // after a reload), opening that chat when clicked and going once it's read; the separator moves
-// down under them; on a phone too (opening the chat pane).
+// down under them; a group shows its own picture, or its members' two as in the DM list; on a
+// phone too (opening the chat pane).
 //   node e2e/serve.mjs &   then   node e2e/dmrail.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
-import { launchChrome, signUp, openChat, send, devices, BASE } from './helpers.mjs';
+import sharp from 'sharp';
+import { launchChrome, signUp, openChat, send, devices, BASE, makeFriends } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -96,6 +98,47 @@ try {
   await waitForChats(b, []);
   state = await rail(b);
   check(state.bird, 'all read: the bird alone again');
+
+  // A group: its members' two pictures (no sender's), then its own picture once it has one.
+  await makeFriends(alice, bob, carol);
+  const a = alice.page;
+  await a.goto(`${BASE}/dm`);
+  await a.click('button[aria-label="New group"]');
+  await a.fill('input[aria-label="Group name"]', 'Trip');
+  await a.check(`.user-picker-row:has-text("${bob.name}") input`);
+  await a.check(`.user-picker-row:has-text("${carol.name}") input`);
+  await a.click('button:has-text("Create Group")');
+  await a.waitForURL('**/dm/g/**');
+  const groupPath = new URL(a.url()).pathname;
+  await a.waitForSelector('#dm-input[contenteditable="true"]', { timeout: 20000 });
+  await b.goto(`${BASE}/guild/${ownId}`);
+  await b.waitForSelector('#dm-input');
+  await send(a, 'hi group');
+  await waitForChats(b, [`${alice.name} in Trip`]);
+  const group = picture(b, `${alice.name} in Trip`);
+  check(await group.getAttribute('href') === groupPath, 'a group: its icon opens the group');
+  await b.waitForFunction(() => document.querySelectorAll('.sidebar .rail-group .group-avatar img.group-avatar-img').length === 2, null, { timeout: 10000 });
+  check(true, "no group picture: the members' two pictures, as in the DM list");
+  if (dir) await b.locator('.sidebar').screenshot({ path: `${dir}/rail-group-members.png` });
+
+  if (!(await a.$('.group-members'))) await a.click('.group-members-button');
+  await a.click('.group-action:has-text("Change picture")');
+  const halves = await sharp({ create: { width: 200, height: 200, channels: 3, background: '#0000ff' } }).png().toBuffer();
+  await a.setInputFiles('input[aria-label="Choose a picture for the group"]', { name: 'blue.png', mimeType: 'image/png', buffer: halves });
+  await a.waitForSelector('.image-cropper .image-cropper-frame img[style*="left"]');
+  await a.click('.image-cropper button:has-text("Apply")');
+  await a.waitForSelector('img.group-picture-preview');
+  await a.click('.vc-dialog button:has-text("Save")');
+  await a.waitForSelector('.message-system:has-text("You changed the group\'s picture.")', { timeout: 20000 });
+  await send(a, 'look, a picture');
+  await b.waitForSelector('.sidebar .rail-group img.group-picture', { timeout: 20000 });
+  const groupBox = await group.boundingBox();
+  check(!(await b.$('.sidebar .rail-group .group-avatar')) && Math.round(groupBox.width) === 48, "with a picture: the group's own, 48px");
+  if (dir) await b.locator('.sidebar').screenshot({ path: `${dir}/rail-group-picture.png` });
+  await group.click();
+  await b.waitForURL(`${BASE}${groupPath}`);
+  await waitForChats(b, []);
+  check(true, 'clicking it opens the group, and it goes');
 
   // A phone: the rail beside a guild's channel list.
   const dave = await signUp(browser, 'dave', { ...devices['Pixel 7'] });

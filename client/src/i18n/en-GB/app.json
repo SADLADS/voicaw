@@ -14,6 +14,7 @@
     "sidebar": {
       "directMessages": "Direct Messages",
       "unreadFrom": "Direct Messages: new message from {{name}}",
+      "unreadInGroup": "Direct Messages: new message from {{name}} in {{group}}",
       "unreadCount_one": "{{count}} unread message",
       "unreadCount_other": "{{count}} unread messages",
       "guilds": "Guilds",

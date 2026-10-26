@@ -95,6 +95,15 @@ describe('the rail\'s DM button', () => {
     expect(screen.getByTestId('path').textContent).toBe('/dm/g/4');
   });
 
+  it("shows a group's members' pictures, not its sender's, when it has no picture of its own", () => {
+    mergeProfiles([{ id: 9, username: 'zed', display_name: 'Zed' }, { id: 4, username: 'amy', display_name: 'Amy' }]);
+    const group = { id: 'g1', name: 'Crew', picture: null, members: [{ id: 1 }, { id: 9 }, { id: 4 }] };
+    renderRail({ unreadChats: [{ key: '/dm/g/g1', userId: 9, path: '/dm/g/g1', count: 2, group }] });
+    const link = icon('Direct Messages: new message from Zed in Crew');
+    expect(link).toHaveAttribute('href', '/dm/g/g1');
+    expect(link.querySelectorAll('.group-avatar .group-avatar-img')).toHaveLength(2);
+  });
+
   it('faces left in encrypted chats and Friends, and turns round everywhere else', () => {
     for (const path of ['/dm', '/dm/7', '/dm/g/4', '/dm/notes', '/dm/friends']) {
       renderRail({ path });
