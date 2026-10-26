@@ -5,8 +5,9 @@ import { isTouchDragging } from './usePointerDrag';
 const DECIDE_PX = 8; // movement before a touch is judged sideways or not (as the panes)
 export const REPLY_PX = 64; // pulled at least this far left when let go: a reply
 const RESISTANCE = 0.3; // past REPLY_PX the message follows the finger this much
-// Touches that start in these keep their own gestures (the inline editor, sliders, videos).
-const NO_SWIPE = 'input, textarea, [contenteditable="true"], video, .inline-edit-wrapper, [data-no-pane-swipe]';
+// Touches that start in these keep their own gestures (the inline editor, sliders, videos; our
+// own sliders are `[role="slider"]`, such as a video's seek bar or a voice message's waveform).
+const NO_SWIPE = 'input, textarea, [contenteditable="true"], video, [role="slider"], .inline-edit-wrapper, [data-no-pane-swipe]';
 
 // How far the message moves for a finger `dx` px from where the swipe was decided (left only).
 export function swipeOffset(dx) {

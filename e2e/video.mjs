@@ -1,5 +1,6 @@
 // Videos: the poster (only) before Play, streamed in pieces through the service worker,
-// a seek to the middle downloads nothing before it, download, spoiler, phone.
+// a seek to the middle downloads nothing before it, download, spoiler, phone (a seek bar
+// dragged sideways seeks, not swiping the chat away or replying).
 //   node e2e/serve.mjs &   then   node e2e/video.mjs [screenshot dir]
 // Needs ffmpeg (makes the test video).
 import { spawnSync } from 'node:child_process';
@@ -113,6 +114,33 @@ try {
   await bob.page.tap(`${row('watch this')} .video-surface`);
   await bob.page.waitForTimeout(300);
   await shot(bob.page, '3-phone-playing-controls');
+
+  // Dragging the seek bar sideways seeks, without the swipes: right doesn't slide the chat
+  // away to the list, left doesn't reply to the message.
+  const touchDrag = async (page, x, y, dx) => {
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type, px) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: px, y }] });
+    await touch('touchStart', x);
+    for (let i = 1; i <= 10; i++) {
+      await touch('touchMove', x + (dx * i) / 10);
+      await new Promise((r) => setTimeout(r, 16));
+    }
+    await touch('touchEnd');
+    await cdp.detach();
+  };
+  for (const [from, to] of [[0.2, 0.7], [0.7, 0.2]]) {
+    await bob.page.tap(`${row('watch this')} .video-surface`); // controls up
+    await bob.page.waitForTimeout(200);
+    const seekBox = await bob.page.locator(`${row('watch this')} .video-seek`).boundingBox();
+    await touchDrag(bob.page, seekBox.x + seekBox.width * from, seekBox.y + seekBox.height / 2, seekBox.width * (to - from));
+    await bob.page.waitForTimeout(500);
+    const t = await bob.page.evaluate(() => window.videoIn('watch this').currentTime);
+    const pane = await bob.page.evaluate(() => document.querySelector('.main-wrapper').className);
+    if (!pane.includes('pane-content') || pane.includes('panes-moving')) throw new Error(`seek drag moved the panes: ${pane}`);
+    if (await bob.page.locator('.reply-bar').count()) throw new Error('seek drag set a reply');
+    if (Math.abs(t - 60 * to) > 5 && !process.env.VIDEO_SECONDS) throw new Error(`seek drag to ${to}: at ${t}`);
+    console.log(`seek drag ${from} → ${to}: at ${t.toFixed(1)} s, chat stays, no reply`);
+  }
 
   // Alice reloads (no local copy now) and seeks to 75%: nothing before ~that is read.
   await alice.page.reload();

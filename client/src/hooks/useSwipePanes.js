@@ -44,9 +44,10 @@ const SCRIM_OPACITY = 0.5;
 const STIFFNESS = 520; // spring, critically damped (no bounce)
 const OMEGA = Math.sqrt(STIFFNESS);
 const FRAME_S = 1 / 120; // how finely the spring is laid out (the browser draws straight lines between)
-// Touches that start in these don't move the panes (their own gestures, or panels over the chat).
+// Touches that start in these don't move the panes (their own gestures, or panels over the chat;
+// `[role="slider"]`: our own sliders, such as a video's seek bar or a voice message's waveform).
 const NO_SWIPE = '.emoji-picker, .action-sheet-backdrop, .action-sheet, .member-list, .group-members, '
-  + '[role="dialog"], input[type="range"], [data-no-pane-swipe]';
+  + '[role="dialog"], input[type="range"], [role="slider"], [data-no-pane-swipe]';
 
 const markOf = () => window.history.state?.[MARK];
 const overlaysOf = () => window.history.state?.[OVERLAYS] ?? 0;
