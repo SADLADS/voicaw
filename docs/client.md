@@ -96,8 +96,8 @@
   reactions, as Discord's, a line, then react, pin, edit, reply, delete; `HoverQuickReactions`
   in `MessageList.jsx`, clicking one you've already added takes it back; it sits just above its
   message, over the end of the one before, so it never covers the message's own text, even a
-  grouped one-line message's; where the list's top edge would cut it off it goes below the
-  message instead, `utils/messageMenuPlacement.js`) and a
+  grouped one-line message's; where the list's top edge would cut it off it goes over the
+  message's top right corner instead, never below it, `utils/messageMenuPlacement.js`) and a
   right-click menu (`MessageMenu.jsx`, on `ContextMenu`): a row of five quick reactions, then
   Add Reaction (the full picker, by the pointer), Reply, Edit Message (your own), Pin / Unpin
   Message (`canPin`), Copy Text and Delete Message (your own, or `canModerate`). Right-clicking a

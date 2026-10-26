@@ -385,7 +385,7 @@ small {
 
 
 /* Above its message, over the end of the one before, so it never covers the message's own
-   text; below it, or over its top right corner, where the list's top edge would cut it off
+   text; over its top right corner where the list's top edge would cut it off, never below it
    (messageMenuPlacement.js). */
 .message-menu {
   margin-right: 10px;
@@ -409,11 +409,6 @@ small {
   .message-menu {
     opacity: 0;
   }
-}
-
-.message-menu.below {
-  bottom: auto;
-  top: 100%;
 }
 
 .message-menu.inside {

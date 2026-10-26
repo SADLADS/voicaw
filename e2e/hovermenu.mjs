@@ -1,7 +1,8 @@
 // The desktop hover menu (quick reactions, edit, reply, delete) never covers its own message's
 // text: it sits above the message (over the end of the one before), also on a grouped message
 // (no picture, one line tall) with a long line under it; the first message, where the list's
-// top edge would cut it off, gets it below instead. The menu stays usable (Reply from it).
+// top edge would cut it off, gets it over its top right corner instead, never below it. The menu
+// stays usable (Reply from it).
 //   node e2e/serve.mjs &   then   node e2e/hovermenu.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send } from './helpers.mjs';
@@ -43,6 +44,7 @@ async function hoverMeasure(page, text) {
       lines: rects.length,
       cls: el.querySelector('.message-menu').className,
       inView: menu.top >= view.top && menu.bottom <= view.bottom,
+      atTop: menu.top <= el.getBoundingClientRect().top,
     };
   });
 }
@@ -68,13 +70,14 @@ try {
   }
   await shot(a, 'grouped-long');
 
-  // The first message: the list's top edge is just above it, so the menu goes below.
+  // The first message: the list's top edge is just above it, so the menu goes over its top corner.
   await a.evaluate(() => { document.querySelector('.message-scroller').scrollTop = 0; });
   const first = await hoverMeasure(a, 'first message');
-  check(first.hits === 0 && first.inView, `first message's menu is in view and off its text (${first.cls})`);
+  check(first.hits === 0 && first.inView && first.atTop, `first message's menu is in view, at its top and off its text (${first.cls})`);
   await shot(a, 'first');
 
-  // A message scrolled flush to the list's top edge: no room above, so the menu goes below.
+  // A message scrolled flush to the list's top edge: no room above, so the menu goes over its top
+  // corner, not below it.
   for (let i = 0; i < 25; i++) await send(a, `filler ${i}`);
   await content(a, 'filler 24').waitFor({ timeout: 10000 });
   await a.setViewportSize({ width: 1100, height: 450 });
@@ -85,7 +88,8 @@ try {
   });
   await a.waitForTimeout(300);
   const edge = await hoverMeasure(a, 'filler 5');
-  check(edge.cls.includes('below') && edge.hits === 0 && edge.inView, `message at the top edge: menu below it, in view, off its text (${edge.cls})`);
+  // (It may be cut off a little by the list's edge: still better than below the message.)
+  check(edge.cls.includes('inside') && edge.atTop && edge.hits === 0, `message at the top edge: menu over its top corner (not below), off its text (${edge.cls})`);
   await shot(a, 'top-edge');
 
   // Still usable: move onto it and Reply.
