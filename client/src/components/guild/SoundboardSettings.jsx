@@ -5,9 +5,7 @@ import { faFaceSmile, faPlay, faXmark } from '@fortawesome/free-solid-svg-icons'
 import EmojiPicker from '../EmojiPicker';
 import { ReactionEmoji } from '../MessageReactions';
 import { addSound, deleteSound, MAX_SECONDS, previewSound, updateSound, useSoundboard } from '../../voice/soundboard';
-import { ACCEPT, clipFile, decodeSoundFile, fitsAsIs, soundNameFromFile, uploadType } from '../../voice/soundClip';
-import { playClip } from '../../sounds/sounds';
-import { getAudioSettings } from '../../voice/audioSettings';
+import { ACCEPT, soundNameFromFile, soundUpload } from '../../voice/soundClip';
 import { reactionPickerPosition } from '../../utils/reactionPickerPosition';
 import { errorMessage } from '../../utils/guildDisplay';
 import { displayName } from '../../utils/profiles';
@@ -15,7 +13,6 @@ import { t } from '../../i18n';
 
 const MAX_SOUNDS = 48;
 const percent = (volume) => Math.round(volume * 100);
-const seconds = (s) => (Math.round(s * 10) / 10).toFixed(1);
 
 // The emoji picker by a button, while `picking` (its rect) is set.
 function useEmojiPicker() {
@@ -155,145 +152,78 @@ function SoundRow({ guildId, sound, onError }) {
   );
 }
 
-// A file picked to become a sound: its name, emoji and volume, and, when it's longer than a
-// sound can be, which part (a start point; MAX_SECONDS from there).
-function NewSound({ guildId, file, buffer, onDone, onCancel }) {
-  const [name, setName] = useState(soundNameFromFile(file.name));
-  const [emoji, setEmoji] = useState(null);
-  const [volume, setVolume] = useState(1);
-  const [start, setStart] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const asIs = fitsAsIs(file, buffer.duration);
-  const latestStart = Math.max(0, buffer.duration - MAX_SECONDS);
-  const end = Math.min(buffer.duration, start + MAX_SECONDS);
-
-  const upload = () => (asIs ? new Blob([file], { type: uploadType(file) }) : clipFile(buffer, start));
-
-  async function preview() {
-    const url = URL.createObjectURL(upload());
-    const settings = getAudioSettings();
-    await playClip(url, { volume: volume * settings.soundboardVolume * settings.outputVolume, maxSeconds: MAX_SECONDS });
-    setTimeout(() => URL.revokeObjectURL(url), (MAX_SECONDS + 1) * 1000);
-  }
-
-  async function save() {
-    setBusy(true);
-    setError(null);
-    try {
-      await addSound(guildId, { name: name.trim(), emoji, volume }, upload());
-      onDone();
-    } catch (err) {
-      setError(errorMessage(err));
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="soundboard-settings-new" role="group" aria-label={t('guildAdmin.soundboard.newSound')}>
-      <div className="soundboard-settings-new-row">
-        <EmojiButton emoji={emoji} label={t('guildAdmin.soundboard.chooseEmoji')} onChange={setEmoji} />
-        <input
-          className="form-control form-control-sm soundboard-settings-name"
-          aria-label={t('guildAdmin.soundboard.name')}
-          placeholder={t('guildAdmin.soundboard.name')}
-          maxLength={32}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <VolumeSlider value={volume} label={t('guildAdmin.soundboard.volume')} onChange={setVolume} onCommit={() => {}} />
-      </div>
-      {!asIs && latestStart > 0 && (
-        <label className="soundboard-settings-trim">
-          <span>{t('guildAdmin.soundboard.trim', { max: MAX_SECONDS, length: seconds(buffer.duration) })}</span>
-          <input
-            type="range" min="0" max={latestStart} step="0.1"
-            aria-label={t('guildAdmin.soundboard.trimStart')}
-            aria-valuetext={t('guildAdmin.soundboard.trimRange', { from: seconds(start), to: seconds(end) })}
-            value={start}
-            onChange={(e) => setStart(Number(e.target.value))}
-          />
-          <span className="vc-hint">{t('guildAdmin.soundboard.trimRange', { from: seconds(start), to: seconds(end) })}</span>
-        </label>
-      )}
-      {error && <p className="error-msg" role="alert">{error}</p>}
-      <div className="soundboard-settings-new-actions">
-        <button type="button" className="btn btn-secondary btn-sm" onClick={preview}>
-          <Icon icon={faPlay} /> {t('guildAdmin.soundboard.previewNew')}
-        </button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel} disabled={busy}>{t('common.cancel')}</button>
-        <button type="button" className="btn btn-primary btn-sm vc-button" onClick={save} disabled={busy || name.trim().length < 2}>
-          {busy ? t('guildAdmin.soundboard.uploading') : t('guildAdmin.soundboard.add')}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Guild Settings → Soundboard (Manage Emoji): the guild's sounds, added from a file (cut to
-// 5.2 seconds when longer; see voice/soundClip.js), each with an emoji, a name and a volume,
-// changed in place, or deleted. Everyone in the guild can play them in its voice channels.
+// Guild Settings → Soundboard (Manage Emoji): the guild's sounds, added from files (several at
+// once, each uploaded as soon as it's picked, named after its file, and cut to 5.2 seconds from
+// where its sound starts when longer; see voice/soundClip.js), each with an emoji, a name and a
+// volume, changed in place, or deleted. Everyone in the guild can play them in its voice channels.
 export default function SoundboardSettings({ guild }) {
   const board = useSoundboard(guild.id);
-  const [picked, setPicked] = useState(null); // { file, buffer }
-  const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(null); // { done, total } while uploading
+  const [errors, setErrors] = useState([]);
   const fileInput = useRef(null);
+  const sounds = board?.sounds ?? [];
 
-  async function pick(file) {
-    setError(null);
-    try {
-      setPicked({ file, buffer: await decodeSoundFile(file) });
-    } catch {
-      setError(t('guildAdmin.soundboard.unreadable', { file: file.name }));
+  async function addFiles(files) {
+    const room = Math.max(0, MAX_SOUNDS - sounds.length);
+    const adding = files.slice(0, room);
+    const failed = files.length > room ? [t('guildAdmin.soundboard.full', { count: files.length - room, max: MAX_SOUNDS })] : [];
+    setErrors([]);
+    for (const [i, file] of adding.entries()) {
+      setProgress({ done: i, total: adding.length });
+      let upload;
+      try {
+        upload = await soundUpload(file);
+      } catch {
+        failed.push(t('guildAdmin.soundboard.unreadable', { file: file.name }));
+        continue;
+      }
+      try {
+        await addSound(guild.id, { name: soundNameFromFile(file.name) }, upload);
+      } catch (err) {
+        failed.push(t('guildAdmin.soundboard.failed', { file: file.name, error: errorMessage(err) }));
+      }
     }
+    setProgress(null);
+    setErrors(failed);
   }
 
-  const sounds = board?.sounds ?? [];
+  const showError = useCallback((message) => setErrors([message]), []);
   return (
     <div className="soundboard-settings">
       <p className="vc-hint">{t('guildAdmin.soundboard.intro', { max: MAX_SOUNDS, seconds: MAX_SECONDS })}</p>
-      {!picked && (
-        <div className="vc-form-row">
-          <button
-            type="button"
-            className="btn btn-primary btn-sm vc-button"
-            disabled={sounds.length >= MAX_SOUNDS}
-            onClick={() => fileInput.current?.click()}
-          >
-            {t('guildAdmin.soundboard.upload')}
-          </button>
-          <span className="vc-hint">{t('guildAdmin.soundboard.count', { used: sounds.length, max: MAX_SOUNDS })}</span>
-        </div>
-      )}
+      <div className="vc-form-row">
+        <button
+          type="button"
+          className="btn btn-primary btn-sm vc-button"
+          disabled={progress != null || sounds.length >= MAX_SOUNDS}
+          onClick={() => fileInput.current?.click()}
+        >
+          {progress
+            ? t('guildAdmin.soundboard.uploading', { current: progress.done + 1, total: progress.total })
+            : t('guildAdmin.soundboard.upload')}
+        </button>
+        <span className="vc-hint">{t('guildAdmin.soundboard.count', { used: sounds.length, max: MAX_SOUNDS })}</span>
+      </div>
       <input
         ref={fileInput}
         type="file"
         accept={ACCEPT}
+        multiple
         hidden
         aria-label={t('guildAdmin.soundboard.file')}
         onChange={(e) => {
-          const [file] = e.target.files;
+          const files = [...e.target.files];
           e.target.value = '';
-          if (file) pick(file);
+          if (files.length) addFiles(files);
         }}
       />
-      {picked && (
-        <NewSound
-          key={picked.file.name + picked.file.size}
-          guildId={guild.id}
-          file={picked.file}
-          buffer={picked.buffer}
-          onDone={() => setPicked(null)}
-          onCancel={() => setPicked(null)}
-        />
-      )}
-      {error && <p className="error-msg" role="alert">{error}</p>}
+      {errors.map((message, i) => <p key={i} className="error-msg" role="alert">{message}</p>)}
 
       {board == null ? <p className="vc-hint">{t('common.loading')}</p> : sounds.length === 0 ? (
         <p className="vc-hint">{t('guildAdmin.soundboard.none')}</p>
       ) : (
         <ul className="soundboard-settings-list" aria-label={t('guildAdmin.soundboard.list')}>
-          {sounds.map((sound) => <SoundRow key={sound.id} guildId={guild.id} sound={sound} onError={setError} />)}
+          {sounds.map((sound) => <SoundRow key={sound.id} guildId={guild.id} sound={sound} onError={showError} />)}
         </ul>
       )}
     </div>

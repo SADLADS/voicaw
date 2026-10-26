@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('../utils/api', () => ({ default: {} }));
 vi.mock('../utils/ws-client', () => ({ onConnectionState: () => () => {}, onGuildEvent: () => () => {} }));
 
-const { encodeWav, fitsAsIs, monoClip, soundNameFromFile, uploadType, MAX_BYTES } = await import('./soundClip');
+const { encodeWav, fitsAsIs, monoClip, soundNameFromFile, soundStart, uploadType, MAX_BYTES } = await import('./soundClip');
 
 // An AudioBuffer's face: `channels` arrays of samples.
 const bufferOf = (channels, sampleRate = 48000) => ({
@@ -23,6 +23,18 @@ describe('soundClip', () => {
     expect(fitsAsIs({ type: 'audio/ogg', size: 1000 }, 1)).toBe(false);
     expect(uploadType({ type: 'audio/mp3' })).toBe('audio/mpeg');
     expect(uploadType({ type: 'audio/x-wav' })).toBe('audio/wav');
+  });
+
+  it('cuts from just before the sound starts, keeping 5.2 s when there are', () => {
+    const rate = 1000;
+    const quietThenLoud = (silence, total) => Array.from({ length: total * rate }, (_, i) => (i < silence * rate ? 0.001 : 0.5));
+    expect(soundStart(bufferOf([quietThenLoud(1, 10)], rate))).toBeCloseTo(0.95);
+    // Loud only in the second channel.
+    expect(soundStart(bufferOf([new Array(10 * rate).fill(0), quietThenLoud(2, 10)], rate))).toBeCloseTo(1.95);
+    // Too late to keep 5.2 s: starts 5.2 s before the end.
+    expect(soundStart(bufferOf([quietThenLoud(8, 10)], rate))).toBeCloseTo(4.8);
+    expect(soundStart(bufferOf([new Array(10 * rate).fill(0)], rate))).toBe(0);
+    expect(soundStart(bufferOf([quietThenLoud(0, 10)], rate))).toBe(0);
   });
 
   it('mixes to mono from the start chosen, at most 5.2 s, fading the edges', () => {

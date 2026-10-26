@@ -1,5 +1,6 @@
 // Soundboards in real browsers, through the e2e LiveKit: Alice adds sounds in Guild Settings →
-// Soundboard (a 1 s WAV as it is, and an 8 s one cut to the 5.2 s chosen), gives one an emoji;
+// Soundboard (three files picked at once, uploaded with nothing to confirm: a 1 s WAV as it is,
+// an 8 s one after 2 s of silence cut to 5.2 s from where it starts, a text file refused), gives one an emoji;
 // Alice and Bob join a voice channel and Bob plays a sound from the voice bar: both their pages
 // play it (each locally, cut at 5.2 s), and its emoji pops up on Bob's tile. With "Play
 // soundboard sounds" off in Settings, Alice hears none while Bob still does. Carol, on a phone,
@@ -18,9 +19,10 @@ const shot = async (page, name) => {
 };
 
 // A mono 16-bit WAV of a `seconds` long tone.
-function toneWav(file, seconds, frequency = 440) {
+function toneWav(file, seconds, frequency = 440, silence = 0) {
   const rate = 22050;
-  const count = Math.round(seconds * rate);
+  const quiet = Math.round(silence * rate);
+  const count = quiet + Math.round(seconds * rate);
   const bytes = Buffer.alloc(44 + count * 2);
   bytes.write('RIFF', 0);
   bytes.writeUInt32LE(36 + count * 2, 4);
@@ -35,7 +37,7 @@ function toneWav(file, seconds, frequency = 440) {
   bytes.writeUInt16LE(16, 34);
   bytes.write('data', 36);
   bytes.writeUInt32LE(count * 2, 40);
-  for (let i = 0; i < count; i++) bytes.writeInt16LE(Math.round(Math.sin((2 * Math.PI * frequency * i) / rate) * 8000), 44 + i * 2);
+  for (let i = quiet; i < count; i++) bytes.writeInt16LE(Math.round(Math.sin((2 * Math.PI * frequency * i) / rate) * 8000), 44 + i * 2);
   fs.writeFileSync(file, bytes);
   return file;
 }
@@ -113,32 +115,27 @@ try {
     await page.waitForSelector('#dm-input, .guild-channel-link', { timeout: 15000 });
   }
 
-  // Guild Settings → Soundboard: a short WAV goes up as it is.
+  // Guild Settings → Soundboard: three files picked at once go up with nothing to confirm (the
+  // short WAV as it is, the long one cut, the text file refused with its name).
   await a.click('.guild-header-button');
   await a.click('text=Guild Settings');
   await a.click('.settings-tab:has-text("Soundboard")');
-  await a.setInputFiles('input[aria-label="Sound file"]', toneWav(path.join(dir, 'ding_dong.wav'), 1));
-  await a.waitForSelector('.soundboard-settings-new');
-  if (await a.$('.soundboard-settings-trim')) throw new Error('a 1 s sound offered trimming');
-  if (await a.inputValue('.soundboard-settings-new input[aria-label="Name"]') !== 'ding dong') throw new Error('not named after the file');
-  await a.click('button:has-text("Add sound")');
+  const notes = path.join(dir, 'notes.txt');
+  fs.writeFileSync(notes, 'not a sound');
+  await a.setInputFiles('input[aria-label="Sound file"]', [
+    toneWav(path.join(dir, 'ding_dong.wav'), 1),
+    toneWav(path.join(dir, 'long one.wav'), 8, 660, 2),
+    notes,
+  ]);
   await a.waitForSelector('.soundboard-settings-row input[value="ding dong"]');
-  console.log('a 1 s WAV added as it is');
-
-  // An 8 s one: cut to the 5.2 s chosen (a slider for where it starts).
-  await a.setInputFiles('input[aria-label="Sound file"]', toneWav(path.join(dir, 'long one.wav'), 8, 660));
-  await a.waitForSelector('.soundboard-settings-trim');
-  await a.$eval('.soundboard-settings-trim input', (el) => {
-    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    set.call(el, '2');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  const range = await a.textContent('.soundboard-settings-trim .vc-hint');
-  if (!range.includes('2.0 s to 7.2 s')) throw new Error(`trim range reads ${range}`);
-  await shot(a, '01-settings-new-sound-trim');
-  await a.click('button:has-text("Add sound")');
   await a.waitForSelector('.soundboard-settings-row input[value="long one"]');
-  console.log('an 8 s WAV cut to 2.0–7.2 s');
+  await a.waitForSelector('.soundboard-settings .error-msg:has-text("notes.txt")');
+  await a.waitForSelector('.soundboard-settings button:has-text("Upload sounds"):not([disabled])');
+  if (await a.$('.soundboard-settings-new, button:has-text("Add sound")')) throw new Error('asked to confirm');
+  const rows = await a.$$eval('.soundboard-settings-row', (els) => els.length);
+  if (rows !== 2) throw new Error(`${rows} sounds added, not 2`);
+  await shot(a, '01-settings-added');
+  console.log('three files picked: two sounds added, the text file refused');
 
   // An emoji for the first one, from the picker.
   await a.click('.soundboard-settings-row:has(input[value="ding dong"]) .soundboard-settings-emoji');

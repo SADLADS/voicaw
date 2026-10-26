@@ -3,14 +3,16 @@ import { MAX_SECONDS } from './soundboard';
 // Getting a file ready to be a soundboard sound (Guild Settings → Soundboard). The server takes
 // MP3, Ogg and WAV files up to 512 KB and the apps play 5.2 seconds at most (Discord's limits).
 // An MP3 or WAV that fits is uploaded as it is; anything else the browser can decode (longer,
-// bigger, Ogg, which Safari can't always play, M4A, FLAC, a video's sound...) is cut to the part
-// chosen and made a mono 16-bit WAV at 48 kHz, which always fits (5.2 s is 499 KB).
+// bigger, Ogg, which Safari can't always play, M4A, FLAC, a video's sound...) is cut to 5.2 s from
+// where its sound starts and made a mono 16-bit WAV at 48 kHz, which always fits (5.2 s is 499 KB).
 
 export const MAX_BYTES = 512 * 1024;
 export const ACCEPT = 'audio/*,video/mp4,video/webm';
 const AS_IS = new Set(['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/wave']);
 const RATE = 48000;
 const FADE_SECONDS = 0.01;
+const SILENCE = 0.01; // -40 dBFS: quieter than this before the sound starts is skipped
+const LEAD_IN_SECONDS = 0.05;
 
 // The file's sound, decoded at 48 kHz (whatever it was). Throws if the browser can't read it.
 export async function decodeSoundFile(file) {
@@ -74,6 +76,33 @@ export function encodeWav(samples, sampleRate = RATE) {
 
 // The part of `buffer` from `start` as a WAV Blob, ready to upload.
 export const clipFile = (buffer, start) => new Blob([encodeWav(monoClip(buffer, start), buffer.sampleRate)], { type: 'audio/wav' });
+
+// Where a cut should start: just before `buffer`'s first sample louder than silence, but early
+// enough to keep MAX_SECONDS when the file has them.
+export function soundStart(buffer) {
+  const rate = buffer.sampleRate;
+  let first = buffer.length;
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const channel = buffer.getChannelData(c);
+    for (let i = 0; i < Math.min(first, channel.length); i++) {
+      if (Math.abs(channel[i]) > SILENCE) {
+        first = i;
+        break;
+      }
+    }
+  }
+  if (first === buffer.length) return 0;
+  const latest = Math.max(0, buffer.length / rate - MAX_SECONDS);
+  return Math.min(Math.max(0, first / rate - LEAD_IN_SECONDS), latest);
+}
+
+// A picked file as the Blob to upload: as it is when it fits, otherwise MAX_SECONDS of it from
+// where its sound starts. Throws if the browser can't read it.
+export async function soundUpload(file) {
+  const buffer = await decodeSoundFile(file);
+  if (fitsAsIs(file, buffer.duration)) return new Blob([file], { type: uploadType(file) });
+  return clipFile(buffer, soundStart(buffer));
+}
 
 // A sound's name from its file's: no extension, separators as spaces, 2–32 characters.
 export function soundNameFromFile(fileName) {

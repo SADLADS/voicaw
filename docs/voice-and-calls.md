@@ -533,11 +533,15 @@ everyone there to hear.
   answers `{ sounds, join_sound_id }`.
 - **Length:** Discord's 5.2 seconds. The server can't check it without decoding, so the apps
   do: Guild Settings → Soundboard (`guild/SoundboardSettings.jsx`, `voice/soundClip.js`)
-  decodes the file picked (anything the browser reads: MP3, WAV, Ogg, M4A, FLAC, a video's
-  sound…); an MP3 or WAV that's short and small enough goes up as it is, anything else is cut
-  to the 5.2 s chosen with a slider (10 ms fades at the cuts), mixed to mono and made a 16-bit
-  48 kHz WAV (always under 512 KB; also what makes Ogg playable on Safari). And every app stops
-  any sound at 5.2 s when playing it.
+  takes several files at once and adds each as soon as it's picked, with nothing to confirm
+  (2026-10-26): named after its file, no emoji, 100%, all changed afterwards in its row. Each
+  file is decoded (anything the browser reads: MP3, WAV, Ogg, M4A, FLAC, a video's sound…); an
+  MP3 or WAV that's short and small enough goes up as it is, anything else is cut to 5.2 s from
+  just before its sound starts (`soundStart`: leading silence under -40 dBFS skipped, and early
+  enough to keep 5.2 s), with 10 ms fades at the cuts, mixed to mono and made a 16-bit 48 kHz
+  WAV (always under 512 KB; also what makes Ogg playable on Safari). Files it can't read, or
+  past the 48, are named in an error and the rest still go up. And every app stops any sound
+  at 5.2 s when playing it.
 - **Playing** (`POST /guilds/:g/channels/:c/soundboard/:soundId`): you must be in that channel's
   voice (any device), not deafened, with **Speak** and **Use Soundboard** there (`USE_SOUNDBOARD`,
   a new permission and channel override, Discord's bit 42, an @everyone default; migration 19
@@ -569,9 +573,11 @@ everyone there to hear.
   (at your soundboard volume), your join sound (a star on it, and a list to change it), and a
   link to the settings.
 - **Bots** see it as Discord's API (see Soundboard in `docs/bots.md`).
-- `e2e/soundboard.mjs` checks adding (as it is, and cut), playing for both (cut at 5.2 s), the
+- `e2e/soundboard.mjs` checks adding three files at once (as it is, cut after leading silence,
+  an unreadable one refused), playing for both (cut at 5.2 s), the
   tile's emoji, preview, the setting, deafened, a phone's sheet and a join sound.
-- **Not done yet:** Discord's default sounds, sounds from other guilds, favourites, a
+- **Not done yet:** choosing which 5.2 s of a long file to keep (the trim slider went with
+  adding on pick; re-upload a cut file instead), Discord's default sounds, sounds from other guilds, favourites, a
   per-sound cooldown shown in the panel, playing a sound from a keyboard shortcut.
 
 ## TURN (networks that only allow the web)
