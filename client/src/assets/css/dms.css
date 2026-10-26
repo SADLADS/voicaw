@@ -3884,15 +3884,20 @@ body.mobile-mode .dm-user-list-container .dm-user {
   font-weight: 600;
 }
 
-.embed-author-icon,
-.embed-footer-icon {
+/* `.embed` first, to beat `.dm-message img` (voicaw.css), which would otherwise show these
+   at their full size (and the footer's on a line of its own). */
+.embed .embed-author-icon,
+.embed .embed-footer-icon {
+  flex: none;
   width: 24px;
   height: 24px;
+  max-width: none;
   border-radius: 50%;
   object-fit: cover;
 }
 
-.embed-footer-icon {
+.embed .embed-footer-icon {
+  display: inline-block;
   width: 20px;
   height: 20px;
   margin-right: 8px;
@@ -3937,7 +3942,7 @@ body.mobile-mode .dm-user-list-container .dm-user {
   object-position: left;
 }
 
-.embed-thumbnail {
+.embed .embed-thumbnail {
   flex-shrink: 0;
   max-width: 80px;
   max-height: 80px;

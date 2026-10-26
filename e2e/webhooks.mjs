@@ -50,13 +50,15 @@ try {
       embeds: [{
         title: 'voicaw #1234', url: 'https://example.com/builds/1234', color: 0x57F287,
         description: 'All checks passed in `3m 12s`.\n- server ✅\n- client ✅',
-        author: { name: 'CI' },
+        // A big picture (1280 px) as the small icons and the thumbnail, as sites send them.
+        author: { name: 'CI', icon_url: `${BASE}/default.png` },
+        thumbnail: { url: `${BASE}/default.png` },
         fields: [
           { name: 'Branch', value: 'dev', inline: true },
           { name: 'Commit', value: '`b50f16b`', inline: true },
           { name: 'Changes', value: 'Spellcheck, webhooks' },
         ],
-        footer: { text: 'Deploys' }, timestamp: new Date().toISOString(),
+        footer: { text: 'Deploys', icon_url: `${BASE}/default.png` }, timestamp: new Date().toISOString(),
       }],
     }),
   });
@@ -65,6 +67,22 @@ try {
   await a.waitForSelector('.embed .embed-title:has-text("voicaw #1234")', { timeout: 10000 });
   await a.waitForSelector('.message-author:has-text("Deploy Bot") + .app-tag');
   console.log('embed message arrived live, as', first.author.username);
+
+  // The icons stay icon-sized, the footer's beside its text, the thumbnail within 80 px.
+  await a.waitForFunction(() => [...document.querySelectorAll('.embed-author-icon, .embed-footer-icon, .embed-thumbnail')].every((img) => img.complete && img.naturalWidth));
+  const sizes = await a.evaluate(() => {
+    const box = (sel) => document.querySelector(sel).getBoundingClientRect();
+    const footer = box('.embed-footer'), footerIcon = box('.embed-footer-icon');
+    return {
+      author: [box('.embed-author-icon').width, box('.embed-author-icon').height],
+      footer: [footerIcon.width, footerIcon.height],
+      footerOneLine: footer.height < 30,
+      thumbnail: [box('.embed-thumbnail').width, box('.embed-thumbnail').height],
+    };
+  });
+  if (sizes.author.join() !== '24,24' || sizes.footer.join() !== '20,20' || !sizes.footerOneLine
+    || sizes.thumbnail.some((n) => n > 80)) throw new Error(`embed icon sizes ${JSON.stringify(sizes)}`);
+  console.log('icons 24 and 20 px, footer on one line, thumbnail', sizes.thumbnail.join('x'));
 
   // Multipart: payload_json, a picture (also the embed's image) and a text file.
   const form = new FormData();
