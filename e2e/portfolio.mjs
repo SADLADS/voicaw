@@ -38,7 +38,7 @@ try {
   const cast = [
     ['cia', 'CIA', '#2f63b5', 'C'],
     ['pavel', 'Dr. Pavel', '#b03a5b', 'P'],
-    ['driver', 'Driver', '#d9822b', 'D'],
+    ['driver', 'Masketta Man', '#d9822b', 'M'],
     ['bane', 'Bane', '#4a4a4a', 'B'],
     ['wreckage', 'Wreckage brother', '#2f7d4f', 'W'],
   ];
@@ -86,14 +86,14 @@ try {
 
   const say = async (p, content) => (await call(p, 'POST', `/channels/${general.id}/messages`, { content })).id;
   const react = (p, id, emoji) => call(p, 'POST', `/guild-messages/${id}/reactions`, { emoji });
-  await react(pavel, await say(cia, "Dr. Pavel, I'm CIA."), '👋');
+  await react(pavel, await say(cia, `<@${pavel.id}>, I'm CIA.`), '👋');
   await react(cia, await say(driver, "He wasn't alone."), '❓');
   await say(cia, "You don't get to bring *friends*.");
   await say(pavel, 'They are *not* my friends');
   await say(driver, "Don't worry, no charge for them.");
   await say(cia, 'Why would I want them?');
   await say(driver, 'They were trying to grab your prize. 😏 They work for the mercenary. The masked man.');
-  await react(driver, await say(cia, 'Bane?'), '✅');
+  await react(driver, await say(cia, `<@${bane.id}>?`), '✅');
   const LAST = "Get 'em on board - I'll call it in.";
   await say(cia, LAST);
 
@@ -149,7 +149,7 @@ try {
   await cia.page.click('.emoji-picker-item[aria-label="Flushed Face"]');
   await cia.page.locator('.each-dm-message-wrapper', { has: content(cia.page, 'For you.') }).locator('.reaction-chip.mine').waitFor();
 
-  // Voice: Dr. Pavel, Driver and Bane on the plane, the Wreckage brother in wreckage.
+  // Voice: Dr. Pavel, Masketta Man and Bane on the plane, the Wreckage brother in wreckage.
   for (const [p, channel] of [[pavel, 'plane'], [driver, 'plane'], [bane, 'plane'], [wreckage, 'wreckage']]) {
     await p.page.goto(`${BASE}/guild/${guild.id}/${general.id}`);
     await p.page.click(`.guild-channel-link:has-text("${channel}")`);
