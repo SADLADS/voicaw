@@ -473,7 +473,12 @@
   anything that scrolls sideways itself) drags the chat with the finger, and letting go
   finishes or undoes it by position and speed (a critically damped spring, computed exactly
   from the time since letting go, not stepped per frame: stepping made it shake back and forth
-  under ~45 fps, as on an iPhone opening a channel, 2026-10-21; `e2e/paneshake.mjs`); the list moves a
+  under ~45 fps, as on an iPhone opening a channel, 2026-10-21; `e2e/paneshake.mjs`). That
+  slide is laid out in advance as a Web Animation (`springFrames`, `element.animate`), which the
+  browser runs on its compositor: stepped from `requestAnimationFrame` it dropped frames on phones
+  once the finger was up (a flick looked slower than a drag, 2026-10-26), since the page's thread
+  is busy then (going back in history re-renders the page). A finger landing mid-slide stops it
+  where the spring has it (computed from the animation's time). The list moves a
   little and dims behind it. A guild's member list (the header's button) covers the whole
   guild page on a phone, header included, with a back arrow; Back (`useBackCloses`) or a swipe
   to the right closes it (`hooks/useSwipeToClose.js`: it follows the finger and settles closed

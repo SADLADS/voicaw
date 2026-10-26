@@ -31,6 +31,11 @@ import { OVERLAYS } from './useBackCloses';
 // drag's first frame has nothing new to paint; taps can't reach it there. It's `aria-hidden`
 // for screen readers, not `inert` or `visibility: hidden`, which restyle the whole chat (tens
 // of ms on a phone) each time they change.
+//
+// After letting go, the slide is a Web Animation laid out in advance (`springFrames`), which the
+// browser runs on its compositor: stepping it from requestAnimationFrame on the page's thread
+// dropped frames on phones once the finger was up (no more input to keep frames coming, and the
+// history change re-rendering the page mid-slide), so a flick looked slower than a drag.
 const MARK = 'voicawPane';
 const DECIDE_PX = 8; // movement before a touch is judged sideways or not
 const FLING_PX_PER_MS = 0.35; // a flick at least this fast goes its way, wherever it's let go
@@ -38,6 +43,7 @@ const PARALLAX = 0.3; // how far the list moves behind the content, as a share o
 const SCRIM_OPACITY = 0.5;
 const STIFFNESS = 520; // spring, critically damped (no bounce)
 const OMEGA = Math.sqrt(STIFFNESS);
+const FRAME_S = 1 / 120; // how finely the spring is laid out (the browser draws straight lines between)
 // Touches that start in these don't move the panes (their own gestures, or panels over the chat).
 const NO_SWIPE = '.emoji-picker, .action-sheet-backdrop, .action-sheet, .member-list, .group-members, '
   + '[role="dialog"], input[type="range"], [data-no-pane-swipe]';
@@ -72,6 +78,19 @@ export function springAt(from, v, target, t) {
   return { x: target + (a + b * t) * decay, v: (b - OMEGA * (a + b * t)) * decay };
 }
 
+// The spring from `from` (at `v` px/s) to `target`, laid out as positions every FRAME_S until it
+// comes to rest there (the last one), held between 0 and `w`.
+export function springFrames(from, v, target, w) {
+  const xs = [];
+  for (let t = 0; t < 3; t += FRAME_S) {
+    const at = springAt(from, v, target, t);
+    if (t > 0 && Math.abs(at.x - target) < 0.5 && Math.abs(at.v) < 30) break;
+    xs.push(Math.min(Math.max(at.x, 0), w));
+  }
+  xs.push(target);
+  return { xs, duration: (xs.length - 1) * FRAME_S * 1000 };
+}
+
 // Can `el` (or anything between it and `stop`) scroll sideways in the direction a finger
 // moving by `dx` would scroll it? Then the swipe is its (here and in useSwipeToReply).
 export function scrollsSideways(el, stop, dx) {
@@ -89,8 +108,9 @@ export function scrollsSideways(el, stop, dx) {
 export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRef, contentRef, scrimRef }) {
   // A fresh start opens on the chat (with the list behind it in history, see below).
   const paneRef = useRef('content');
-  // x: the content's offset in px (0: showing, the width: off to the right); null at rest.
-  const motion = useRef({ x: null, v: 0, target: null, raf: 0 });
+  // x: the content's offset in px (0: showing, the width: off to the right), or where a slide
+  // started; null at rest. A slide: its animations, and its spring's start, speed and target.
+  const motion = useRef({ x: null, anims: null, from: 0, v: 0, target: null });
   const location = useLocation();
   const navigationType = useNavigationType();
   // In a ref: react-router makes a new one each navigation, and the popstate listener mustn't
@@ -105,14 +125,43 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
 
   const width = useCallback(() => wrapperRef.current?.clientWidth || window.innerWidth, [wrapperRef]);
 
-  const paint = useCallback((x) => {
-    const w = width();
+  // The three moving parts' styles with the content at `x`.
+  const styles = useCallback((x, w) => {
     const progress = 1 - x / w; // 1: content showing
+    return [
+      { transform: `translate3d(${x}px, 0, 0)` },
+      { transform: `translate3d(${-progress * PARALLAX * w}px, 0, 0)` },
+      { opacity: String(progress * SCRIM_OPACITY) },
+    ];
+  }, []);
+
+  const paint = useCallback((x) => {
     wrapperRef.current?.classList.add('panes-moving');
-    if (contentRef.current) contentRef.current.style.transform = `translate3d(${x}px, 0, 0)`;
-    if (listRef.current) listRef.current.style.transform = `translate3d(${-progress * PARALLAX * w}px, 0, 0)`;
-    if (scrimRef.current) scrimRef.current.style.opacity = String(progress * SCRIM_OPACITY);
-  }, [width, wrapperRef, contentRef, listRef, scrimRef]);
+    const [content, list, scrim] = styles(x, width());
+    if (contentRef.current) contentRef.current.style.transform = content.transform;
+    if (listRef.current) listRef.current.style.transform = list.transform;
+    if (scrimRef.current) scrimRef.current.style.opacity = scrim.opacity;
+  }, [width, styles, wrapperRef, contentRef, listRef, scrimRef]);
+
+  // Where a slide has the content now.
+  const sliding = useCallback(() => {
+    const m = motion.current;
+    const t = (m.anims[0].currentTime ?? 0) / 1000;
+    return Math.min(Math.max(springAt(m.from, m.v, m.target, t).x, 0), width());
+  }, [width]);
+
+  // Stops a slide where it is, the panes held there by inline styles; the content's offset.
+  const stop = useCallback(() => {
+    const m = motion.current;
+    if (m.anims) {
+      m.x = sliding();
+      paint(m.x);
+      for (const anim of m.anims) anim.cancel();
+      m.anims = null;
+      m.target = null;
+    }
+    return m.x;
+  }, [sliding, paint]);
 
   // Shows the chosen pane at rest (the classes the CSS hides the other one by). `on` false:
   // the phone layout is off, nothing hidden.
@@ -126,10 +175,9 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
 
   const rest = useCallback(() => {
     const m = motion.current;
-    cancelAnimationFrame(m.raf);
-    m.raf = 0;
+    for (const anim of m.anims ?? []) anim.cancel();
+    m.anims = null;
     m.x = null;
-    m.v = 0;
     m.target = null;
     apply();
     wrapperRef.current?.classList.remove('panes-moving');
@@ -147,7 +195,7 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
     // The chat shows this page now, even if the URL didn't change (swiped to from the list of a
     // guild opened on the rail): going back must keep it, not restore the chat shown before.
     if (next === 'content') contentPath.current = window.location.pathname;
-    if (!motion.current.raf && motion.current.x === null) apply();
+    if (motion.current.x === null) apply();
   }, [apply]);
 
   // Slides to `next` from wherever the panes are (mid-drag, mid-slide or at rest), carrying
@@ -157,7 +205,7 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
     const m = motion.current;
     const w = width();
     const current = paneRef.current;
-    const x0 = m.x ?? (current === 'content' ? 0 : w);
+    const x0 = (m.anims ? sliding() : m.x) ?? (current === 'content' ? 0 : w);
     const target = next === 'content' ? 0 : w;
 
     if (!fromHistory && next !== current) {
@@ -184,30 +232,27 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
     if (next === 'list' && current === 'content') document.activeElement?.blur?.(); // keyboard down
     choose(next);
 
-    if (m.target === target && m.raf) return;
-    if (x0 === target || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    if (m.target === target && m.anims) return;
+    const content = contentRef.current;
+    if (x0 === target || !content?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       rest();
       return;
     }
-    cancelAnimationFrame(m.raf);
+    stop();
+    paint(x0); // the moving state; the animations draw over these inline styles
     m.x = x0;
+    m.from = x0;
     m.v = v;
     m.target = target;
-    const start = performance.now();
-    const step = (now) => {
-      const at = springAt(x0, v, target, Math.max(0, now - start) / 1000);
-      m.x = Math.min(Math.max(at.x, 0), w);
-      m.v = at.v;
-      if (Math.abs(m.x - target) < 0.5 && Math.abs(m.v) < 30) {
-        rest();
-        return;
-      }
-      paint(m.x);
-      m.raf = requestAnimationFrame(step);
+    const { xs, duration } = springFrames(x0, v, target, w);
+    const frames = xs.map((x) => styles(x, w));
+    const timing = { duration, fill: 'forwards' };
+    const anims = [content, listRef.current, scrimRef.current].map((el, i) => el?.animate(frames.map((f) => f[i]), timing)).filter(Boolean);
+    m.anims = anims;
+    anims[0].onfinish = () => {
+      if (m.anims === anims) rest();
     };
-    paint(x0);
-    m.raf = requestAnimationFrame(step);
-  }, [width, choose, rest, paint]);
+  }, [width, choose, rest, paint, stop, styles, sliding, contentRef, listRef, scrimRef]);
 
   // Requests from elsewhere (showContent / showList).
   useEffect(() => {
@@ -316,23 +361,18 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
         return;
       }
       const t = e.touches[0];
-      const m = motion.current;
+      // Where the content is when the finger lands (caught mid-slide, it stops there).
+      const x = stop();
       touch = {
         id: t.identifier,
         x0: t.clientX,
         y0: t.clientY,
-        // Where the content is when the finger lands (caught mid-slide, it stops there).
-        from: m.x ?? (paneRef.current === 'content' ? 0 : width()),
+        from: x ?? (paneRef.current === 'content' ? 0 : width()),
         // Panes that aren't at rest (sliding, or somehow left part way) are grabbed at once,
         // so even a tap settles them.
-        decided: m.x !== null,
+        decided: x !== null,
         samples: [],
       };
-      if (m.raf) {
-        cancelAnimationFrame(m.raf);
-        m.raf = 0;
-        m.target = null;
-      }
     };
 
     const onMove = (e) => {
@@ -386,5 +426,5 @@ export function useSwipePanes({ enabled, opensOnList = false, wrapperRef, listRe
       wrapper.removeEventListener('touchend', onEnd);
       wrapper.removeEventListener('touchcancel', onEnd);
     };
-  }, [enabled, wrapperRef, width, paint, slideTo]);
+  }, [enabled, wrapperRef, width, paint, slideTo, stop]);
 }

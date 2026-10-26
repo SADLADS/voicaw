@@ -3,6 +3,8 @@
 // records every frame and long task. Prints, per gesture, the longest gap between frames and
 // how many frames missed (over 1.5 frames at 60 Hz), split into the drag (finger down) and the
 // slide after letting go, plus the main thread's script / style / layout time (CDP metrics).
+// The slide after letting go runs on the compositor (paneshake.mjs checks it), so its numbers
+// here are what else the page's thread does meanwhile.
 //   node e2e/serve.mjs &   then   node e2e/panesperf.mjs [runs] [cpu slowdown]
 // Numbers from the dev server include React's development overhead; measure a production
 // build as embedperf.mjs says (E2E_WEB_PORT=<vite preview's port>).

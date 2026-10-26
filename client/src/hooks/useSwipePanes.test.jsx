@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useRef, useState } from 'react';
 import { act, render } from '@testing-library/react';
 import { BrowserRouter, unstable_HistoryRouter as HistoryRouter, useLocation, useNavigate } from 'react-router-dom';
-import { springAt, useSwipePanes } from './useSwipePanes';
+import { springAt, springFrames, useSwipePanes } from './useSwipePanes';
 import { useBackClosesWhile } from './useBackCloses';
 import { showContent, showList } from '../utils/mobilePanes';
 import { createPhoneHistory, isPanesPage } from '../utils/phoneHistory';
@@ -260,5 +260,24 @@ describe('springAt', () => {
         last = x;
       }
     }
+  });
+});
+
+describe('springFrames', () => {
+  it('lays the slide out from where it was let go to the target, never turning back', () => {
+    for (const [from, v, target] of [[390, 0, 0], [120, 1500, 390], [300, -2000, 0], [0, 0, 390]]) {
+      const { xs, duration } = springFrames(from, v, target, 390);
+      expect(xs[0]).toBe(from);
+      expect(xs.at(-1)).toBe(target);
+      expect(duration).toBeGreaterThan(0);
+      expect(duration).toBeLessThan(1000);
+      const dir = Math.sign(target - from);
+      for (let i = 1; i < xs.length; i++) expect((xs[i] - xs[i - 1]) * dir).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('keeps a flick past the edge on screen', () => {
+    const { xs } = springFrames(380, 4000, 390, 390);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(390);
   });
 });
