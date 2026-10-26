@@ -4,7 +4,7 @@
 // Alice and Bob join a voice channel and Bob plays a sound from the voice bar: both their pages
 // play it (each locally, cut at 5.2 s), and its emoji pops up on Bob's tile. With "Play
 // soundboard sounds" off in Settings, Alice hears none while Bob still does. Carol, on a phone,
-// opens the soundboard as a sheet, picks a join sound, and joining the channel plays it for the
+// opens the soundboard as a sheet, picks a join sound in her profile, and joining the channel plays it for the
 // others, Alice included (her soundboard sounds are off, join sounds on). Deafened, the
 // soundboard says so and its sounds can't be played.
 //   node e2e/serve.mjs &   then   node e2e/soundboard.mjs [screenshot dir]
@@ -43,15 +43,22 @@ function toneWav(file, seconds, frequency = 440, silence = 0) {
 }
 
 // Every buffer source the page starts (soundboard sounds are the ones longer than 0.9 s):
-// { duration (the buffer's), length (how long it's told to play) }.
+// { duration (the buffer's), length (how long it's told to play), stopped (cut off) }.
 const RECORD = () => {
   window.__clips = [];
   const start = AudioBufferSourceNode.prototype.start;
   AudioBufferSourceNode.prototype.start = function (when, offset, duration) {
-    window.__clips.push({ duration: this.buffer?.duration ?? 0, length: duration ?? null });
+    this.__clip = { duration: this.buffer?.duration ?? 0, length: duration ?? null, stopped: false };
+    window.__clips.push(this.__clip);
     return start.apply(this, arguments);
   };
+  const stop = AudioBufferSourceNode.prototype.stop;
+  AudioBufferSourceNode.prototype.stop = function () {
+    if (this.__clip) this.__clip.stopped = true;
+    return stop.apply(this, arguments);
+  };
 };
+const forgetClips = (...pages) => Promise.all(pages.map((page) => page.evaluate(() => { window.__clips = []; })));
 const clips = (page) => page.evaluate(() => window.__clips.filter((c) => c.duration > 0.9));
 async function waitForClips(page, count, what) {
   try {
@@ -175,6 +182,30 @@ try {
   await noMoreClips(a, 2, 'a preview reaches only bob');
   console.log('a preview plays only for bob');
 
+  // Bob's second sound cuts off his first (5.2 s long) for everyone; Alice's own plays on when
+  // Bob plays one.
+  await forgetClips(a, b);
+  await b.click('.soundboard-panel .soundboard-sound:has-text("long one")');
+  await waitForClips(a, 1, 'alice hears bob\'s long one');
+  await b.click('.soundboard-panel .soundboard-sound:has-text("ding dong")');
+  await waitForClips(a, 2, 'alice hears bob\'s second');
+  let heardByAlice = await clips(a);
+  if (!heardByAlice[0].stopped || heardByAlice[1].stopped) throw new Error(`bob's first wasn't cut off by his second: ${JSON.stringify(heardByAlice)}`);
+  await waitForClips(b, 2, 'bob hears both');
+  if (!(await clips(b))[0].stopped) throw new Error('bob\'s own first sound wasn\'t cut off for him');
+  await a.click('.voice-bar .soundboard-toggle');
+  await a.click('.soundboard-panel .soundboard-sound:has-text("long one")');
+  await waitForClips(b, 3, 'bob hears alice\'s long one');
+  await b.click('.soundboard-panel .soundboard-sound:has-text("ding dong")');
+  await waitForClips(b, 4, 'bob hears his ding dong');
+  await b.waitForTimeout(300);
+  if ((await clips(b))[2].stopped) throw new Error('bob\'s sound cut off alice\'s');
+  heardByAlice = await clips(a);
+  if (heardByAlice[2].stopped) throw new Error('alice\'s sound was cut off by bob\'s on her page');
+  await a.keyboard.press('Escape');
+  console.log('a second sound cuts off the player\'s first, not someone else\'s');
+  await forgetClips(a, b);
+
   // Alice turns soundboard sounds off (Settings → Voice & video): Bob still hears his.
   const loungePath = new URL(a.url()).pathname;
   await navigate(a, '/settings/voice-video#soundboard');
@@ -185,8 +216,8 @@ try {
   await navigate(a, loungePath);
   await a.waitForSelector('.voice-view-controls');
   await b.click('.soundboard-panel .soundboard-sound:has-text("ding dong")');
-  await waitForClips(b, 4, 'bob hears it');
-  await noMoreClips(a, 2, 'alice has soundboard sounds off');
+  await waitForClips(b, 1, 'bob hears it');
+  await noMoreClips(a, 0, 'alice has soundboard sounds off');
   console.log('with soundboard sounds off alice hears none, bob does');
 
   // Deafened: the panel says so and its buttons are off. (Deafening is a click outside it,
@@ -201,18 +232,30 @@ try {
   await b.waitForSelector('.soundboard-panel', { state: 'detached' });
   console.log('deafened: the soundboard says to undeafen');
 
-  // Carol, on a phone, in Quiet: the soundboard is a sheet; she picks a join sound.
+  // Carol, on a phone, picks her join sound in her profile, grouped by guild, the same for
+  // every guild.
+  await c.goto(`${BASE}/settings/profile`);
+  await c.waitForSelector('#profile-join-sound:not([disabled])');
+  const groups = await c.$$eval('#profile-join-sound optgroup', (els) => els.map((g) => g.label));
+  if (JSON.stringify(groups) !== '["Sound Test"]') throw new Error(`join sounds grouped as ${groups}`);
+  const saved = c.waitForResponse((r) => r.url().endsWith('/soundboard/join-sound') && r.request().method() === 'PUT');
+  await c.selectOption('#profile-join-sound', { label: 'ding dong' });
+  if ((await saved).status() !== 200) throw new Error('join sound not saved');
+  await c.waitForSelector('.user-profile-join-sound-preview');
+  await c.locator('.user-profile-join-sound').scrollIntoViewIfNeeded();
+  await shot(c, '07-phone-profile-join-sound');
+  console.log('carol picked a join sound in her profile on her phone');
+
+  // In Quiet: the soundboard is a sheet (no join sound in it any more).
   await c.goto(`${BASE}${await a.getAttribute('.guild-channel-link:has-text("quiet")', 'href')}`);
   await c.evaluate(RECORD);
   await c.click('.voice-view-join');
   await c.waitForSelector('.voice-view-controls .soundboard-toggle', { timeout: 20000 });
   await c.click('.voice-view-controls .soundboard-toggle');
   await c.waitForSelector('.soundboard-sheet .soundboard-sound:has-text("ding dong")');
-  await c.selectOption('.soundboard-sheet select', { label: 'ding dong' });
-  await c.waitForSelector('.soundboard-sheet .soundboard-item:has-text("ding dong") .soundboard-join-mark');
+  if (await c.$('.soundboard-sheet select')) throw new Error('the soundboard still picks join sounds');
   await shot(c, '06-phone-sheet');
   await c.click('.action-sheet-backdrop', { position: { x: 10, y: 10 } });
-  console.log('carol picked a join sound on her phone');
 
   // She moves to Lounge: Bob hears her join sound; Alice (soundboard off, join sounds on) does too.
   const before = { a: (await clips(a)).length, b: (await clips(b)).length };

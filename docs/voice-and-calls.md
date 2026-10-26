@@ -524,13 +524,13 @@ everyone there to hear.
   emoji, volume, type, size }` makes an unavailable row and signs an upload to
   `sounds/src/<id>`; `POST …/:id/ready` checks the bytes (an MP3, Ogg or WAV by its first
   bytes, `sniffAudio`, at most 512 KB), stores it as `sounds/<id>` and sends
-  `guild_soundboard_update { guildId, sounds, joinSoundId }` to every member. `PATCH …/:id`
-  (name, emoji, volume), `DELETE …/:id` (the file goes too; members' join sounds that were it
-  are cleared). Adding, editing and deleting take **Manage Emoji** (Discord's Manage
+  `guild_soundboard_update { guildId, sounds }` to every member. `PATCH …/:id`
+  (name, emoji, volume), `DELETE …/:id` (the file goes too; join sounds that were it are
+  cleared, with `guild_join_sound` to their owners). Adding, editing and deleting take **Manage Emoji** (Discord's Manage
   Expressions; its label is now Manage Emoji and Sounds) and are in the audit log
   (`sound_create` / `sound_update` / `sound_delete`). At most 48 per guild; unfinished uploads
   are forgotten after an hour; deleted with the guild. `GET /guilds/:g/soundboard` (any member)
-  answers `{ sounds, join_sound_id }`.
+  answers `{ sounds }`.
 - **Length:** Discord's 5.2 seconds. The server can't check it without decoding, so the apps
   do: Guild Settings → Soundboard (`guild/SoundboardSettings.jsx`, `voice/soundClip.js`)
   takes several files at once and adds each as soon as it's picked, with nothing to confirm
@@ -546,36 +546,46 @@ everyone there to hear.
   voice (any device), not deafened, with **Speak** and **Use Soundboard** there (`USE_SOUNDBOARD`,
   a new permission and channel override, Discord's bit 42, an @everyone default; migration 19
   gave it to existing guilds), and only the channel's guild's sounds (no sounds from other
-  guilds, which Discord sells). Three sounds in five seconds each (`plays`, off in tests). The
+  guilds, which Discord sells; join sounds are the exception, below). Three sounds in five
+  seconds each (`plays`, off in tests); past that the server answers 429 and the panel just
+  doesn't play it, saying nothing (2026-10-26). The
   sound isn't mixed into anyone's microphone: the server sends `guild_soundboard_play {
   guildId, channelId, userId, join, sound }` to everyone in the channel who can hear it
   (Listen), and each app plays the file itself (`voice/soundboard.js`), so each listener
   chooses whether and how loud. Nothing about who played what is stored.
-- **Join sounds** (Discord's entrance sounds): each member may pick one of the guild's sounds
-  (`guild_members.join_sound_id`; `PUT /guilds/:g/soundboard/join-sound { soundId | null }`,
-  their other devices follow with `guild_join_sound`). When LiveKit says they joined one of the
-  guild's voice channels (`voice.js` `participantJoined`, not a new session in the same
-  channel), it's sent the same way with `join: true`, if they have Speak and Use Soundboard
-  there; coming back to the same channel within 30 s (a dropped connection) doesn't play it
-  again. They hear it too.
+- **Join sounds** (Discord's entrance sounds): since 2026-10-26 one per person, the same in
+  every guild (was one per guild; migration 20 kept each person's newest), picked from the
+  sounds of any guild they're in (`users.join_sound_id`; `GET /soundboard/join-sound` answers
+  `{ join_sound_id, guilds: [{ id, name, sounds }] }`, `PUT /soundboard/join-sound { soundId |
+  null }`, their other devices follow with `guild_join_sound { soundId }`), in their own full
+  profile's About tab (`UserProfile.jsx` `OwnJoinSound`, grouped by guild, with a preview), no
+  longer in the soundboard panel. Leaving the sound's guild makes it none (`joinSoundOf` checks
+  membership; the choice is kept, unused). When LiveKit says they joined any guild's voice
+  channel (`voice.js` `participantJoined`, not a new session in the same channel), it's sent
+  the same way with `join: true` (its `sound.guild_id` may be another guild), if they have
+  Speak and Use Soundboard there; coming back to the same channel within 30 s (a dropped
+  connection) doesn't play it again. They hear it too. (`guild_members.join_sound_id` is left
+  unused.)
 - **Listening** (`voice/soundboard.js`, started from Layout): the device that's in that channel
   plays it through the app's sounds' AudioContext (`sounds.js` `playClip`: the chosen speakers,
   the decoded file kept, the last 100), unless deafened, at Settings → Voice & video →
   Soundboard's volume for its kind × the sound's own × the output volume. Two kinds, each with
   its own switch and volume (`audioSettings` `soundboardOn`/`soundboardVolume`,
   `joinSoundsOn`/`joinSoundVolume`, per device, on and 100% by default): sounds people play,
-  and join sounds. The emoji of each sound played pops up on its player's tile for 3 s
+  and join sounds. Each person's sound stops when they play another (`playFor`, a sound per
+  player; others' play on), even one this device doesn't play (that kind off). The emoji of
+  each sound played pops up on its player's tile for 3 s
   (`useSoundEffects`; a note where it has none), heard or not.
 - **UI:** the note button (`voice/SoundboardButton.jsx`) in the voice bar and the channel page
   while connected to a guild voice channel opens `voice/SoundboardPanel.jsx` (floating on a
   computer, a sheet on a phone): the sounds as buttons (a click plays it for everyone; off,
   with a note, without the permissions or deafened), a speaker on each playing it only to you
-  (at your soundboard volume), your join sound (a star on it, and a list to change it), and a
-  link to the settings.
+  (at your soundboard volume), and a link to the settings.
 - **Bots** see it as Discord's API (see Soundboard in `docs/bots.md`).
 - `e2e/soundboard.mjs` checks adding three files at once (as it is, cut after leading silence,
   an unreadable one refused), playing for both (cut at 5.2 s), the
-  tile's emoji, preview, the setting, deafened, a phone's sheet and a join sound.
+  tile's emoji, preview, the setting, deafened, a phone's sheet, a second sound cutting off the
+  player's first, and a join sound picked in the profile playing in another guild.
 - **Not done yet:** choosing which 5.2 s of a long file to keep (the trim slider went with
   adding on pick; re-upload a cut file instead), Discord's default sounds, sounds from other guilds, favourites, a
   per-sound cooldown shown in the panel, playing a sound from a keyboard shortcut.

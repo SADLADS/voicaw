@@ -2047,12 +2047,6 @@ body.popout-window {
   white-space: nowrap;
 }
 
-.soundboard-join-mark {
-  flex-shrink: 0;
-  font-size: 11px;
-  color: var(--vc-idle);
-}
-
 /* Preview (only you hear it): the speaker at the button's end. */
 .soundboard-preview {
   position: absolute;
@@ -2079,31 +2073,11 @@ body.popout-window {
 .soundboard-footer {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--vc-border-dark);
-}
-
-.soundboard-join {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 13px;
-  color: var(--vc-fg-muted);
-}
-
-.soundboard-join select {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 6px;
-  border: 1px solid var(--vc-border-dark);
-  border-radius: 4px;
-  background-color: var(--vc-bg-subtle);
-  color: var(--vc-fg);
 }
 
 .soundboard-settings-link {

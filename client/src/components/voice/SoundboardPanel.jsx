@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import '../../assets/css/voice.css';
 import { Icon } from '../Icon';
-import { faGear, faStar, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
+import { faGear, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { ReactionEmoji } from '../MessageReactions';
 import { LayoutContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
-import { playSoundboardSound, previewSound, setJoinSound, useSoundboard } from '../../voice/soundboard';
+import { playSoundboardSound, previewSound, useSoundboard } from '../../voice/soundboard';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { placeMenu } from '../../utils/menuPlacement';
 import { errorMessage } from '../../utils/guildDisplay';
@@ -16,7 +16,7 @@ import { t } from '../../i18n';
 // The soundboard (like Discord's), opened from the voice controls while you're in one of a
 // guild's voice channels: its sounds as buttons, a click playing one for everyone in the
 // channel (Speak and Use Soundboard, not deafened), the speaker beside each playing it to you
-// alone; and your join sound in this guild. Floating by `anchor` (a rect) on a computer, a
+// alone (your join sound is chosen in your profile). Floating by `anchor` (a rect) on a computer, a
 // sheet from the bottom on a phone (`sheet`). Escape, or a click outside (but on `trigger`, the
 // button that opened it), closes it.
 export default function SoundboardPanel({ guildId, channelId, anchor, trigger = null, sheet = false, onClose }) {
@@ -65,16 +65,8 @@ export default function SoundboardPanel({ guildId, channelId, anchor, trigger = 
     try {
       await playSoundboardSound(guildId, channelId, sound.id);
     } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
-
-  async function chooseJoinSound(value) {
-    setError(null);
-    try {
-      await setJoinSound(guildId, value === '' ? null : Number(value));
-    } catch (err) {
-      setError(errorMessage(err));
+      // Played too often: that one just doesn't play.
+      if (err?.response?.status !== 429) setError(errorMessage(err));
     }
   }
 
@@ -100,9 +92,6 @@ export default function SoundboardPanel({ guildId, channelId, anchor, trigger = 
               >
                 {sound.emoji && <span className="soundboard-emoji" aria-hidden="true"><ReactionEmoji native={sound.emoji} /></span>}
                 <span className="soundboard-name">{sound.name}</span>
-                {board.joinSoundId === sound.id && (
-                  <Icon icon={faStar} className="soundboard-join-mark" title={t('voice.soundboard.isJoinSound')} />
-                )}
               </button>
               <button
                 type="button"
@@ -119,17 +108,6 @@ export default function SoundboardPanel({ guildId, channelId, anchor, trigger = 
       )}
       {error && <p className="error-msg soundboard-error" role="alert">{error}</p>}
       <div className="soundboard-footer">
-        <label className="soundboard-join">
-          <span>{t('voice.soundboard.joinSound')}</span>
-          <select
-            value={board?.joinSoundId ?? ''}
-            disabled={board == null || (sounds.length === 0 && board.joinSoundId == null)}
-            onChange={(e) => chooseJoinSound(e.target.value)}
-          >
-            <option value="">{t('voice.soundboard.noJoinSound')}</option>
-            {sounds.map((sound) => <option key={sound.id} value={sound.id}>{sound.name}</option>)}
-          </select>
-        </label>
         <Link
           to="/settings/voice-video#soundboard"
           className="soundboard-settings-link"

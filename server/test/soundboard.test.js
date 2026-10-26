@@ -127,9 +127,9 @@ describe('soundboard', () => {
 
     const list = await api.get(alice, `/guilds/${guild.id}/soundboard`);
     expect(list.status).toBe(200);
-    expect(list.body).toMatchObject({ sounds: [{ id: ready.body.id, name: 'Airhorn' }], join_sound_id: null });
+    expect(list.body).toEqual({ sounds: [expect.objectContaining({ id: ready.body.id, name: 'Airhorn' })] });
     const update = events.find((e) => e.type === 'guild_soundboard_update');
-    expect(update).toMatchObject({ guildId: guild.id, sounds: [{ id: ready.body.id }], joinSoundId: null });
+    expect(update).toMatchObject({ guildId: guild.id, sounds: [{ id: ready.body.id }] });
 
     const log = await api.get(owner, `/guilds/${guild.id}/audit-log`);
     expect(log.body.entries.find((e) => e.action === 'sound_create')).toMatchObject({ details: { name: 'Airhorn' } });
@@ -154,7 +154,7 @@ describe('soundboard', () => {
   it('edits and deletes sounds; a deleted join sound is nobody\'s any more', async () => {
     const { owner, members: [alice], guild } = await setUp(1);
     const sound = (await addSound(owner, guild.id)).body;
-    expect((await api.put(alice, `/guilds/${guild.id}/soundboard/join-sound`, { soundId: sound.id })).body).toEqual({ join_sound_id: sound.id });
+    expect((await api.put(alice, '/soundboard/join-sound', { soundId: sound.id })).body).toEqual({ join_sound_id: sound.id });
 
     expect((await api.patch(alice, `/guilds/${guild.id}/soundboard/${sound.id}`, { name: 'Mine' })).status).toBe(403);
     const edited = await api.patch(owner, `/guilds/${guild.id}/soundboard/${sound.id}`, { name: 'Horn', emoji: null, volume: 0.5 });
@@ -163,8 +163,10 @@ describe('soundboard', () => {
     const events = listen(alice);
     expect((await api.delete(owner, `/guilds/${guild.id}/soundboard/${sound.id}`)).status).toBe(200);
     expect(deletedObjects).toContainEqual({ bucket: 'sounds', key: String(sound.id) });
-    expect((await api.get(alice, `/guilds/${guild.id}/soundboard`)).body).toEqual({ sounds: [], join_sound_id: null });
-    expect(events.find((e) => e.type === 'guild_soundboard_update')).toMatchObject({ sounds: [], joinSoundId: null });
+    expect((await api.get(alice, `/guilds/${guild.id}/soundboard`)).body).toEqual({ sounds: [] });
+    expect(events.find((e) => e.type === 'guild_soundboard_update')).toMatchObject({ sounds: [] });
+    expect(events.find((e) => e.type === 'guild_join_sound')).toEqual({ type: 'guild_join_sound', soundId: null });
+    expect((await api.get(alice, '/soundboard/join-sound')).body).toEqual({ join_sound_id: null, guilds: [] });
 
     const actions = (await api.get(owner, `/guilds/${guild.id}/audit-log`)).body.entries.map((e) => e.action);
     expect(actions).toEqual(expect.arrayContaining(['sound_update', 'sound_delete']));
@@ -220,12 +222,13 @@ describe('soundboard', () => {
     const sound = (await addSound(owner, guild.id, { name: 'Hello' })).body;
     const elsewhere = await setUp(0);
     const foreign = (await addSound(elsewhere.owner, elsewhere.guild.id)).body;
-    expect((await api.put(alice, `/guilds/${guild.id}/soundboard/join-sound`, { soundId: foreign.id })).status).toBe(404);
-    expect((await api.put(alice, `/guilds/${guild.id}/soundboard/join-sound`, { soundId: 'x' })).status).toBe(400);
+    // Only sounds of guilds you're in.
+    expect((await api.put(alice, '/soundboard/join-sound', { soundId: foreign.id })).status).toBe(404);
+    expect((await api.put(alice, '/soundboard/join-sound', { soundId: 'x' })).status).toBe(400);
 
     const aliceEvents = listen(alice);
-    expect((await api.put(alice, `/guilds/${guild.id}/soundboard/join-sound`, { soundId: sound.id })).status).toBe(200);
-    expect(aliceEvents.find((e) => e.type === 'guild_join_sound')).toEqual({ type: 'guild_join_sound', guildId: guild.id, soundId: sound.id });
+    expect((await api.put(alice, '/soundboard/join-sound', { soundId: sound.id })).status).toBe(200);
+    expect(aliceEvents.find((e) => e.type === 'guild_join_sound')).toEqual({ type: 'guild_join_sound', soundId: sound.id });
 
     await enter(owner, lounge);
     const ownerEvents = listen(owner);
@@ -244,6 +247,47 @@ describe('soundboard', () => {
     expect(effects(aliceEvents)).toHaveLength(1);
     await leave(alice, other);
     await leave(owner, lounge);
+  });
+
+  it('has one join sound for every guild, from any guild you\'re in', async () => {
+    const first = await setUp(1);
+    const [alice] = first.members;
+    const hello = (await addSound(first.owner, first.guild.id, { name: 'Hello' })).body;
+    const second = await setUp(0);
+    const invite = await api.post(second.owner, `/guilds/${second.guild.id}/invites`);
+    await api.post(alice, `/invites/${invite.body.code}`);
+    const quiet = await setUp(1); // a guild with no sounds isn't offered
+    await api.post(alice, `/invites/${(await api.post(quiet.owner, `/guilds/${quiet.guild.id}/invites`)).body.code}`);
+    const wave = (await addSound(second.owner, second.guild.id, { name: 'Wave' })).body;
+
+    const choices = await api.get(alice, '/soundboard/join-sound');
+    expect(choices.body).toEqual({
+      join_sound_id: null,
+      guilds: [
+        { id: first.guild.id, name: 'Sound Guild', sounds: [expect.objectContaining({ id: hello.id, name: 'Hello' })] },
+        { id: second.guild.id, name: 'Sound Guild', sounds: [expect.objectContaining({ id: wave.id, name: 'Wave' })] },
+      ],
+    });
+
+    // The first guild's sound plays in the second guild's channel.
+    await api.put(alice, '/soundboard/join-sound', { soundId: hello.id });
+    expect((await api.get(alice, '/soundboard/join-sound')).body.join_sound_id).toBe(hello.id);
+    await enter(second.owner, second.lounge);
+    const ownerEvents = listen(second.owner);
+    await enter(alice, second.lounge);
+    expect(effects(ownerEvents)).toEqual([expect.objectContaining({
+      guildId: second.guild.id, channelId: second.lounge.id, userId: alice.id, join: true, sound: expect.objectContaining({ id: hello.id, guild_id: first.guild.id }),
+    })]);
+    await leave(alice, second.lounge);
+
+    // Having left the sound's guild, it isn't theirs to play any more.
+    expect((await api.delete(alice, `/guilds/${first.guild.id}/members/me`)).status).toBe(200);
+    expect((await api.get(alice, '/soundboard/join-sound')).body.join_sound_id).toBe(null);
+    await enter(alice, second.other);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(effects(ownerEvents)).toHaveLength(1);
+    await leave(alice, second.other);
+    await leave(second.owner, second.lounge);
   });
 
   it('deletes a guild\'s sounds with it', async () => {

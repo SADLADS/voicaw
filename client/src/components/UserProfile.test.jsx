@@ -13,7 +13,10 @@ vi.mock('../services/profileService', () => ({
   uploadProfilePicture: vi.fn(),
 }));
 
+vi.mock('../voice/soundboard', () => ({ previewSound: vi.fn(), setJoinSound: vi.fn(async () => {}), useJoinSound: vi.fn() }));
+
 import UserProfile from './UserProfile';
+import { previewSound, setJoinSound, useJoinSound } from '../voice/soundboard';
 import { ImageViewerContext } from '../contexts';
 import { fetchUserProfile, updateProfile } from '../services/profileService';
 import { getProfile, mergeProfiles, setAvatarBase } from '../utils/profiles';
@@ -116,5 +119,28 @@ describe('UserProfile', () => {
     await waitFor(() => expect(tabs()).toEqual(['About me', 'Activity']));
     fireEvent.click(screen.getByRole('tab', { name: 'Activity' }));
     expect(screen.getByText(/Your activity history is off/)).toBeInTheDocument();
+  });
+
+  it('picks your join sound from any of your guilds\' sounds, only on your own', async () => {
+    const horn = { id: 3, guild_id: 10, name: 'Horn', volume: 1 };
+    useJoinSound.mockReturnValue({
+      joinSoundId: 3,
+      guilds: [{ id: 10, name: 'Band', sounds: [horn] }, { id: 11, name: 'Pals', sounds: [{ id: 5, guild_id: 11, name: 'Wave', volume: 1 }] }],
+    });
+    show(1, { memberSince: null, activity: null, mutualFriends: null, mutualGuilds: null });
+    const select = screen.getByLabelText('Join sound');
+    expect(select.value).toBe('3');
+    expect([...select.querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Band', 'Pals']);
+    fireEvent.click(screen.getByRole('button', { name: 'Preview Horn' }));
+    expect(previewSound).toHaveBeenCalledWith(horn);
+    fireEvent.change(select, { target: { value: '5' } });
+    expect(setJoinSound).toHaveBeenCalledWith(5);
+    fireEvent.change(select, { target: { value: '' } });
+    expect(setJoinSound).toHaveBeenCalledWith(null);
+  });
+
+  it("doesn't show someone else's join sound", () => {
+    show(4, { memberSince: null, activity: null, mutualFriends: null, mutualGuilds: null });
+    expect(screen.queryByLabelText('Join sound')).toBeNull();
   });
 });
