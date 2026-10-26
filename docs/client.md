@@ -81,7 +81,9 @@
   open guild's icon, goes nowhere (as in Discord): following the link went to bare `/dm` or
   `/guild/:id`, which showed an empty page for a moment before redirecting (`e2e/samepage.mjs`).
   `SidebarWrapper` puts the sidebars in a
-  row with `UserPanel` across the bottom: your picture, name, under it your custom status
+  row with `UserPanel` across the bottom (a card docked in the corner, inset like the composer,
+  the rail running down behind it; the same on phones since 2026-10-26, kept above the home
+  indicator): your picture, name, under it your custom status
   (`CustomStatus`, emoji and text) while connected, otherwise this device's connection state
   (`ws-client` `getConnectionState`/`onConnectionState`: online / connecting / offline; the dot
   on the picture always shows it), and the settings button. Clicking the picture and name opens `UserMenu` above it: your picture, name
