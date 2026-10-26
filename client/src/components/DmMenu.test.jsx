@@ -23,6 +23,8 @@ import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { markMessagesRead, setConversationSetting } from '../services/dmService';
 import { markGroupReadToLatest } from '../services/groupService';
 import { startCall, startGroupCall } from '../voice/callClient';
+import { applyAdminUsers } from '../utils/adminUsers';
+import { AuthContext } from '../hooks/useAuth';
 
 const me = { id: 9, username: 'me' };
 const users = [
@@ -36,7 +38,7 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderList({ settings = {}, unreadDms = [], isMobile = false } = {}) {
+function renderList({ settings = {}, unreadDms = [], isMobile = false, auth = null } = {}) {
   const conversationSettings = {
     get: (kind, target) => settings[`${kind}:${target}`] ?? { kind, target: String(target), pinned_at: null, muted: false, mute_until: null },
     isMuted: (kind, target) => Boolean(settings[`${kind}:${target}`]?.muted),
@@ -44,17 +46,19 @@ function renderList({ settings = {}, unreadDms = [], isMobile = false } = {}) {
   };
   const layout = { conversationSettings, fetchUnreadMessages: vi.fn(async () => {}), groupList: { clearUnread: vi.fn() } };
   render(
-    <ConfigContext.Provider value={{ s3Endpoint: '', voiceEnabled: true }}>
-      <InteractionContext.Provider value={{ isMobile }}>
-        <LayoutContext.Provider value={layout}>
-          <MemoryRouter initialEntries={['/dm/3']}>
-            <Routes>
-              <Route path="/dm/*" element={<><DmSidebar user={me} users={users} groups={[group]} unreadDms={unreadDms} /><Where /></>} />
-            </Routes>
-          </MemoryRouter>
-        </LayoutContext.Provider>
-      </InteractionContext.Provider>
-    </ConfigContext.Provider>
+    <AuthContext.Provider value={auth}>
+      <ConfigContext.Provider value={{ s3Endpoint: '', voiceEnabled: true }}>
+        <InteractionContext.Provider value={{ isMobile }}>
+          <LayoutContext.Provider value={layout}>
+            <MemoryRouter initialEntries={['/dm/3']}>
+              <Routes>
+                <Route path="/dm/*" element={<><DmSidebar user={me} users={users} groups={[group]} unreadDms={unreadDms} /><Where /></>} />
+              </Routes>
+            </MemoryRouter>
+          </LayoutContext.Provider>
+        </InteractionContext.Provider>
+      </ConfigContext.Provider>
+    </AuthContext.Provider>
   );
   return layout;
 }
@@ -67,6 +71,7 @@ const items = (menu) => [...menu.querySelectorAll('[role^="menuitem"]')].map((b)
 beforeEach(() => {
   vi.clearAllMocks();
   callState.snapshot = { call: null, groupCalls: {} };
+  applyAdminUsers(null);
 });
 
 describe('the DM list menu', () => {
@@ -102,6 +107,15 @@ describe('the DM list menu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Mute Conversation' }));
     fireEvent.click(within(screen.getByRole('menu', { name: 'Mute Conversation' })).getByRole('menuitem', { name: 'For 8 hours' }));
     await waitFor(() => expect(setConversationSetting).toHaveBeenCalledWith('dm', 1, { mute: { duration: 8 * 3600 } }));
+  });
+
+  it("a global admin's menu has Suspend Account and Make Admin", () => {
+    applyAdminUsers({ admins: [9], suspended: [] });
+    renderList({ auth: { user: me } });
+    fireEvent.contextMenu(row('alice'));
+    expect(items(screen.getByRole('menu', { name: 'alice' }))).toEqual([
+      'Start Call', 'Pin Conversation', 'Mute Conversation', 'Make Admin', 'Suspend Account', 'Block', 'Report', 'Copy User ID',
+    ]);
   });
 
   it('starts a call from the menu, opening the chat', async () => {

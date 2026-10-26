@@ -7,6 +7,7 @@ import { applyFriends } from './friends';
 import { applyBlocked } from './blocks';
 import { clearProfiles, mergeProfiles } from './profiles';
 import { closeSafetyDialog, getSafetyDialog } from './safetyDialogs';
+import { applyAdminUsers } from './adminUsers';
 import api from './api';
 
 const roles = [
@@ -31,6 +32,7 @@ beforeEach(() => {
   mergeProfiles([{ id: 4, username: 'newbie' }, { id: 6, username: 'helper', bot: 1 }]);
   applyFriends({ friends: [], incoming: [], outgoing: [] });
   applyBlocked([]);
+  applyAdminUsers(null);
   setPersonMenuGuild(null);
   setPersonMessenger(vi.fn());
   closeSafetyDialog();
@@ -97,5 +99,39 @@ describe('personMenuItems', () => {
     expect(messenger).toHaveBeenCalledWith(4);
     setPersonMessenger(null);
     expect(labels(personMenuItems(4, 'newbie', 2))).not.toContain('Message');
+  });
+
+  it("global admins: Make Admin and Suspend Account, Remove Admin on an admin, Lift Suspension on someone suspended", async () => {
+    mergeProfiles([{ id: 7, username: 'old', deleted_at: 1 }]);
+    applyAdminUsers({ admins: [2, 8], suspended: [9] });
+    expect(labels(personMenuItems(4, 'newbie', 2))).toEqual([
+      'Message', 'Add Friend', '-', 'Make Admin', 'Suspend Account', '-', 'Block', 'Report', '-', 'Copy User ID',
+    ]);
+    expect(labels(personMenuItems(8, 'other-admin', 2))).toContain('Remove Admin');
+    expect(labels(personMenuItems(8, 'other-admin', 2))).not.toContain('Suspend Account');
+    expect(labels(personMenuItems(9, 'suspended', 2))).toContain('Lift Suspension');
+    expect(labels(personMenuItems(9, 'suspended', 2))).not.toContain('Make Admin');
+    // Not on yourself, a bot or a deleted account.
+    expect(labels(personMenuItems(2, 'me', 2))).toEqual(['Copy User ID']);
+    expect(labels(personMenuItems(6, 'helper', 2))).not.toContain('Suspend Account');
+    expect(labels(personMenuItems(7, 'old', 2))).not.toContain('Suspend Account');
+
+    find(personMenuItems(4, 'newbie', 2), 'Suspend Account').onSelect();
+    expect(getSafetyDialog()).toMatchObject({ kind: 'suspend', userId: 4, name: 'newbie' });
+    find(personMenuItems(4, 'newbie', 2), 'Make Admin').onSelect();
+    expect(getSafetyDialog()).toMatchObject({ kind: 'make-admin', userId: 4 });
+    find(personMenuItems(8, 'other-admin', 2), 'Remove Admin').onSelect();
+    expect(getSafetyDialog()).toMatchObject({ kind: 'remove-admin', userId: 8 });
+
+    // Lifting needs no asking, and the lists are loaded again after.
+    api.delete.mockResolvedValue({ data: { success: true } });
+    api.get.mockResolvedValue({ data: { admins: [2, 8], suspended: [] } });
+    await find(personMenuItems(9, 'suspended', 2), 'Lift Suspension').onSelect();
+    expect(api.delete).toHaveBeenCalledWith('/admin/users/9/suspension');
+    expect(labels(personMenuItems(9, 'suspended', 2))).toContain('Suspend Account');
+  });
+
+  it('none of that for anyone who isn\'t an admin', () => {
+    expect(labels(personMenuItems(4, 'newbie', 2))).not.toContain('Suspend Account');
   });
 });

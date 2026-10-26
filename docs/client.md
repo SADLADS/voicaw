@@ -853,7 +853,8 @@ the other person accepts.
   list live (Layout marks `last_timestamp` on `new_dm`). Landing on `/dm` opens your latest
   conversation, or `/dm/friends` if you have none. `Friends.jsx` (`/dm/friends`): tabs Online, All,
   Pending (opens there when someone's asked), Add friend (by username), and for admins Everyone
-  (every account, as the DM list used to be); a row opens the DM. A person's right-click menu
+  (every account, as the DM list used to be); a row opens the DM, and right-clicking it (holding,
+  on a phone) opens the person's menu. A person's right-click menu
   (held on a phone; `utils/personMenu.js`) has Add Friend / Cancel Friend Request / Accept
   Friend Request / Remove Friend (asks). e2e: `e2e/friends.mjs`; `makeFriends` in `e2e/helpers.mjs` for
   scripts that need people in each other's list.
@@ -902,3 +903,13 @@ use (voicaw.com/terms/) say rules are enforced.
   out, and the login page says why), every token refused (`verifyToken`), and logging in or
   recovering refused with 403 `code: 'suspended'` and the reason. Admins and yourself can't be
   suspended. Messages and memberships stay. Lifting it lets them log in again.
+- **Admin items in people's menus** (built 2026-10-26): a global admin's person menu (anywhere a
+  person is right-clicked or held: Friends rows, member lists, messages; `utils/personMenu.js`
+  `adminItems`) and the DM list's menu (`DmMenu`) have Make Admin (asks) and Suspend Account
+  (asks, with a reason, as Reports' Suspend), Remove Admin (asks) on an admin instead, or only
+  Lift Suspension (no asking) on someone suspended. Not on yourself, bots or deleted accounts. The
+  menu learns who's an admin and who's suspended from `GET /admin/users` (`{ admins, suspended }`:
+  ids, admins only), kept by `utils/adminUsers.js`: loaded by `useAdminAlertsSync` with the admin
+  alerts, again on every `admin_alerts` event and after the admin's own changes. `POST
+  /admin/admins` takes `{ userId }` as well as `{ username }`, and refuses a suspended account.
+  e2e: `e2e/adminmenu.mjs`.

@@ -12,14 +12,15 @@ import { useDateFormat } from '../utils/dateFormat';
 import { showContent } from '../utils/mobilePanes';
 import { copyIdItem } from '../utils/copyId';
 import { userSafetyItems } from '../utils/safetyDialogs';
+import { adminItems } from '../utils/personMenu';
 import { useAuth } from '../hooks/useAuth';
 import ContextMenu from './ContextMenu';
 import { t } from '../i18n';
 
 // A conversation's menu in the DM list (right-click, or touch and hold on a phone): Mark As
 // Read, Start Call (or Join Call, for a group whose call is on), Pin / Unpin (to the top of the
-// list), Mute Conversation (for how long) / Unmute and (not for a group) Block / Unblock, Report
-// and Copy User ID, like Discord's. Pins and mutes are your own, kept by the server so your other devices follow
+// list), Mute Conversation (for how long) / Unmute and (not for a group) global admins' items
+// (Suspend Account...: utils/personMenu.js), Block / Unblock, Report and Copy User ID, like Discord's. Pins and mutes are your own, kept by the server so your other devices follow
 // (useConversationSettings). A call opens the chat and rings from there (the click counts as
 // the gesture its sound needs).
 // `person` (a DM list row), `group` (a group list row) or `botDm` (a conversation with a bot: no
@@ -89,8 +90,11 @@ export default function DmMenu({ person, group, botDm, title, unread, anchor, sh
     });
   if (!group) {
     const userId = botDm ? botDm.bot_id : person.id;
+    const admin = person && !person.deleted_at && meId != null && Number(userId) !== Number(meId) ? adminItems(Number(userId), title) : [];
     const safety = person?.deleted_at ? [] : userSafetyItems(userId, title, meId);
-    items.push({ separator: true }, ...safety, ...(safety.length ? [{ separator: true }] : []), copyIdItem('user', userId));
+    items.push({ separator: true });
+    for (const group of [admin, safety]) if (group.length) items.push(...group, { separator: true });
+    items.push(copyIdItem('user', userId));
   }
 
   return <ContextMenu title={title} label={title} items={items} anchor={anchor} sheet={sheet} onClose={onClose} />;

@@ -60,7 +60,15 @@
       "addFriend": "Add Friend",
       "acceptRequest": "Accept Friend Request",
       "cancelRequest": "Cancel Friend Request",
-      "removeFriend": "Remove Friend"
+      "removeFriend": "Remove Friend",
+      "makeAdmin": "Make Admin",
+      "removeAdmin": "Remove Admin",
+      "suspend": "Suspend Account",
+      "liftSuspension": "Lift Suspension",
+      "makeAdminTitle": "Make {{name}} an admin?",
+      "makeAdminMessage": "Admins can change the app's settings, approve sign-ups, read reports, suspend accounts and make others admins.",
+      "removeAdminTitle": "Remove {{name}} as an admin?",
+      "removeAdminMessage": "They'll lose Settings → Admin and Reports."
     },
     "pageMenus": {
       "text": "Text",

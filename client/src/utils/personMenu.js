@@ -1,5 +1,5 @@
 import {
-  faCheck, faCrown, faGavel, faMessage, faUserMinus, faUserPlus, faUserSlash, faUserXmark,
+  faCheck, faCrown, faGavel, faMessage, faUnlock, faUserMinus, faUserPlus, faUserShield, faUserSlash, faUserXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { addFriend, getFriends, relationOf, removeFriend } from './friends';
 import { isBlocked } from './blocks';
@@ -7,14 +7,16 @@ import { getProfile, isBot, isDeleted } from './profiles';
 import { PERMISSIONS, has, memberRank } from './permissions';
 import { copyIdItem } from './copyId';
 import { openSafetyDialog, userSafetyItems } from './safetyDialogs';
+import { getAdminUsers, liftAccountSuspension } from './adminUsers';
 import { t } from '../i18n';
 
 // One menu for a person, wherever they're shown (a guild's member list, a message's picture or
 // name, a mention...): right-clicked on a computer (PageMenus), held on a phone (a sheet, opened
 // with openPersonMenu). Message, the friend item (Add / Accept / Cancel / Remove), in a guild
-// Make Owner / Kick / Ban as your permissions and rank allow, Block / Report, then Copy User ID;
-// only Copy User ID on yourself. What asks first opens through SafetyDialogs, since the menu
-// closes on a pick.
+// Make Owner / Kick / Ban as your permissions and rank allow, for global admins Make Admin /
+// Remove Admin and Suspend Account / Lift Suspension, Block / Report, then Copy User ID; only
+// Copy User ID on yourself. What asks first opens through SafetyDialogs, since the menu closes
+// on a pick.
 
 // The guild open now (GuildView): { guild, members }, or null outside guilds.
 let scope = null;
@@ -80,6 +82,24 @@ function guildItems(userId, name, meId) {
   return items;
 }
 
+// For global admins (utils/adminUsers.js), on a person (not a bot or a deleted account): Make
+// Admin and Suspend Account, Remove Admin on an admin (who can't be suspended), only Lift
+// Suspension on someone suspended (who can't be made an admin).
+export function adminItems(userId, name) {
+  const admin = getAdminUsers();
+  if (!admin || isBot(userId) || isDeleted(getProfile(userId))) return [];
+  if (admin.suspended.has(userId)) {
+    return [{ key: 'lift-suspension', label: t('app.personMenu.liftSuspension'), icon: faUnlock, onSelect: () => liftAccountSuspension(userId) }];
+  }
+  if (admin.admins.has(userId)) {
+    return [{ key: 'remove-admin', label: t('app.personMenu.removeAdmin'), icon: faUserShield, danger: true, onSelect: () => openSafetyDialog({ kind: 'remove-admin', userId, name }) }];
+  }
+  return [
+    { key: 'make-admin', label: t('app.personMenu.makeAdmin'), icon: faUserShield, onSelect: () => openSafetyDialog({ kind: 'make-admin', userId, name }) },
+    { key: 'suspend', label: t('app.personMenu.suspend'), icon: faGavel, danger: true, onSelect: () => openSafetyDialog({ kind: 'suspend', userId, name }) },
+  ];
+}
+
 // The menu's items for user `userId` (shown as `name`), as you (`meId`) see them.
 export function personMenuItems(userId, name, meId) {
   if (userId == null) return [];
@@ -90,7 +110,7 @@ export function personMenuItems(userId, name, meId) {
     if (messenger) first.push({ key: 'message', label: t('app.personMenu.message'), icon: faMessage, onSelect: () => messenger(id) });
     const friend = friendItem(id, name);
     if (friend) first.push(friend);
-    groups.push(first, guildItems(id, name, meId), userSafetyItems(id, name, meId));
+    groups.push(first, guildItems(id, name, meId), adminItems(id, name), userSafetyItems(id, name, meId));
   }
   groups.push([copyIdItem('user', id)]);
   return groups.filter((group) => group.length).flatMap((group, i) => (i ? [{ separator: true }, ...group] : group));

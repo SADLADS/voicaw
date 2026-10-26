@@ -101,12 +101,29 @@ router.get('/admin/alerts', admin, async (req, res) => {
   res.json(await adminAlerts.counts());
 });
 
+// Who's an admin and who's suspended, by id: what admins' apps need for a person's
+// right-click menu (Suspend or Lift Suspension, Make or Remove Admin).
+router.get('/admin/users', admin, async (req, res) => {
+  const ids = (rows) => rows.map((row) => row.id);
+  res.json({
+    admins: ids(await db.all('SELECT id FROM users WHERE is_admin = 1')),
+    suspended: ids(await db.all('SELECT id FROM users WHERE suspended_at IS NOT NULL')),
+  });
+});
+
+// { username } (Settings → Admin) or { userId } (a person's right-click menu).
 router.post('/admin/admins', admin, async (req, res) => {
-  const { username } = req.body ?? {};
-  if (typeof username !== 'string' || !username.trim()) return res.status(400).json({ error: 'Missing username' });
-  const user = await findUserByName(username.trim(), 'id, pending');
+  const { username, userId } = req.body ?? {};
+  let user;
+  if (Number.isInteger(userId)) {
+    user = await db.get('SELECT id, pending, suspended_at FROM users WHERE id = ? AND bot = 0 AND deleted_at IS NULL', [userId]);
+  } else {
+    if (typeof username !== 'string' || !username.trim()) return res.status(400).json({ error: 'Missing username' });
+    user = await findUserByName(username.trim(), 'id, pending, suspended_at');
+  }
   if (!user) return res.status(404).json({ error: 'No user with that name' });
   if (user.pending) return res.status(400).json({ error: 'Approve their account first' });
+  if (user.suspended_at) return res.status(400).json({ error: 'Lift their suspension first' });
   await db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [user.id]);
   await adminAlerts.announce();
   res.json({ admins: await listAdmins() });

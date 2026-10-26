@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 import { faCheck, faMessage, faUserGroup, faUserMinus, faUserPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { LayoutContext } from '../contexts';
+import { InteractionContext, LayoutContext } from '../contexts';
 import PaneBackButton from './PaneBackButton';
 import Avatar from './Avatar';
 import StatusIcon from './StatusIcon';
@@ -11,6 +11,8 @@ import ActivityLine from './ActivityLine';
 import { useActivities } from '../hooks/useActivities';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { usePresence } from '../hooks/usePresence';
+import { useLongPress } from '../hooks/useLongPress';
+import { openPersonMenu } from '../utils/personMenu';
 import { lastSeenText, statusLabel } from '../utils/presence';
 import { displayName, getProfile, isDeleted, nameOf, useProfiles } from '../utils/profiles';
 import { addFriend, addFriendByName, relationOf, removeFriend, useFriends } from '../utils/friends';
@@ -21,7 +23,9 @@ const TABS = ['online', 'all', 'pending'];
 // The Friends page (/dm/friends, utils/friends.js), as Discord's: your friends who are online,
 // all of them, requests waiting either way (Accept / Decline, or Cancel), and a box to send a
 // request by username. Admins also get Everyone: every account, as the DM list was before
-// friends. Clicking someone opens your DM with them.
+// friends. Clicking someone opens your DM with them; right-clicking (holding, on a phone) opens
+// their person menu (utils/personMenu.js: friend items, Block / Report, and for admins Suspend,
+// Make Admin...).
 export default function Friends() {
   useProfiles();
   const { users = [] } = useContext(LayoutContext) ?? {};
@@ -29,6 +33,7 @@ export default function Friends() {
   const presenceOf = usePresence();
   const activitiesOf = useActivities();
   const navigate = useNavigate();
+  const { isMobile } = useContext(InteractionContext);
   const [tab, setTab] = useState(() => (friends.incoming.length > 0 ? 'pending' : 'online'));
   const [query, setQuery] = useState('');
   const [removing, setRemoving] = useState(null); // the friend whose removal is being confirmed
@@ -65,6 +70,10 @@ export default function Friends() {
     action().catch(() => setError(t('friends.actionFailed')));
   };
   const open = (id) => navigate(`/dm/${id}`);
+  const longPress = useLongPress((target) => {
+    const row = target?.closest?.('[data-user-id]');
+    if (row) openPersonMenu(row.dataset.userId);
+  }, { enabled: isMobile });
 
   const actionButton = (label, icon, onClick, className = '') => (
     <button
@@ -160,7 +169,7 @@ export default function Friends() {
             {shownTab === 'everyone' && <p className="vc-hint">{t('friends.everyoneHint')}</p>}
             {error && <p className="error-text">{error}</p>}
             {rows.length === 0 && emptyText() && <p className="vc-hint friends-empty">{emptyText()}</p>}
-            <ul className="friends-list">
+            <ul className="friends-list" {...longPress}>
               {rows.map((row) => {
                 const { person } = row;
                 const { status, lastOnline } = presenceOf(person);
@@ -168,6 +177,7 @@ export default function Friends() {
                   <li key={`${row.kind}-${person.id}`}>
                     <div
                       className="friends-row"
+                      data-user-id={person.id}
                       role="button"
                       tabIndex={0}
                       onClick={() => open(person.id)}

@@ -7,7 +7,8 @@ import { t } from '../i18n';
 // closes on a pick, so what Block and Report open (asking first, the report form) is kept here
 // and drawn by SafetyDialogs (mounted once in App): { kind: 'block' | 'report' | 'unfriend', userId,
 // name }, { kind: 'transfer' | 'kick' | 'ban', guild, userId, name } (a person's menu,
-// utils/personMenu.js) or { kind: 'block-webhook', webhookId, name }. Unblocking needs no asking.
+// utils/personMenu.js), { kind: 'make-admin' | 'remove-admin' | 'suspend', userId, name } (the
+// same, for global admins) or { kind: 'block-webhook', webhookId, name }. Unblocking needs no asking.
 
 let dialog = null;
 const listeners = new Set();

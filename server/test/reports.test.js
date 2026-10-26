@@ -119,6 +119,25 @@ describe('reports', () => {
     expect((await loginUser(app, request, bob.username, PASSWORD)).response.status).toBe(200);
   });
 
+  it("tells admins' apps who's an admin and who's suspended, for a person's menu", async () => {
+    expect((await api.get(ann, '/admin/users')).status).toBe(403);
+    await api.post(mod, `/admin/users/${bob.id}/suspend`);
+    let users = (await api.get(mod, '/admin/users')).body;
+    expect(users.admins).toContain(mod.id);
+    expect(users.admins).not.toContain(ann.id);
+    expect(users.suspended).toContain(bob.id);
+    expect(users.suspended).not.toContain(ann.id);
+
+    // Made an admin by id (the menu) as by name (Settings → Admin), but not while suspended.
+    expect((await api.post(mod, '/admin/admins', { userId: bob.id })).body.error).toBe('Lift their suspension first');
+    expect((await api.post(mod, '/admin/admins', { userId: 999999 })).status).toBe(404);
+    expect((await api.post(ann, '/admin/admins', { userId: ann.id })).status).toBe(403);
+    expect((await api.post(mod, '/admin/admins', { userId: ann.id })).status).toBe(200);
+    users = (await api.get(mod, '/admin/users')).body;
+    expect(users.admins).toContain(ann.id);
+    expect((await api.post(mod, `/admin/users/${ann.id}/suspend`)).status).toBe(400);
+  });
+
   it('forgets resolved reports a year on', async () => {
     const { pruneReports } = require('../reports');
     const report = (await api.post(ann, '/reports', { kind: 'user', userId: bob.id, category: 'spam' })).body;

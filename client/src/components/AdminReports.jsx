@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmDialog from './guild/ConfirmDialog';
 import {
-  deleteReportedMessage, dismissReport, fetchReports, liftSuspension, suspendUser,
+  deleteReportedMessage, dismissReport, fetchReports, suspendUser,
 } from '../services/reportService';
+import { liftAccountSuspension } from '../utils/adminUsers';
 import { onReportsChanged } from '../utils/ws-client';
 import { errorMessage } from '../utils/guildDisplay';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
@@ -128,7 +129,7 @@ export default function AdminReports() {
                 <strong>{who(u.display_name, u.username)}</strong>
                 <span className="vc-hint"> · {formatDateTime(u.suspended_at * 1000)}{u.suspended_reason ? ` · ${u.suspended_reason}` : ''}</span>
               </span>
-              <button type="button" className="btn btn-sm btn-secondary" onClick={() => liftSuspension(u.id).then(load, (err) => setError(errorMessage(err)))}>
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => liftAccountSuspension(u.id).then(load, (err) => setError(errorMessage(err)))}>
                 {t('settings.reports.lift')}
               </button>
             </li>
