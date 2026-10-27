@@ -131,9 +131,13 @@
   background-color: var(--vc-bg-hover);
 }
 
+/* Round like every picture (also a group's own, and wherever voice.css's .user-avatar isn't loaded). */
 .user-picker-avatar {
   width: 30px;
   height: 30px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .user-picker-name {
