@@ -34,7 +34,17 @@ function findMember(name, members) {
   return byDisplay.length === 1 ? byDisplay[0] : null;
 }
 
-const DAY_KEYS = ['before', 'after'];
+export const DAY_KEYS = ['before', 'after'];
+
+// What picking `day` in before:'s or after:'s calendar writes: the date as dates are shown
+// (Settings → Date & time), or 2026-10-27 if that wouldn't read back as the same day.
+export function dateInsert(key, day) {
+  const shown = formatDate(day);
+  const value = parseDate(shown)?.getTime() === day.getTime()
+    ? shown
+    : `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  return `${key}:${quoteValue(value)} `;
+}
 
 // `query` → { params (for the API), problems ([text]), empty (nothing to search for) }.
 // `before:` gives `before_time` (sent before that day began) and `after:` `after_time` (sent
@@ -112,16 +122,8 @@ export function searchSuggestions(context, { members = [], channels = [], nameOf
     return hasValues.filter((v) => v.startsWith(value))
       .map((v) => ({ kind: 'has', key, label: v, insert: `has:${v} ` }));
   }
-  if (DAY_KEYS.includes(key)) {
-    // What's typed once it's a date (as typed, so Enter searches), then today and yesterday
-    // as dates are shown.
-    const now = new Date();
-    const days = [now, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)]
-      .map((d) => formatDate(d)).filter((v) => lower(v).startsWith(lower(context.value)));
-    const typed = parseDate(context.value) ? context.value.trim() : null;
-    return [...new Set([...(typed ? [typed] : []), ...days])]
-      .map((v) => ({ kind: 'date', key, label: v, insert: `${key}:${quoteValue(v)} ` }));
-  }
+  // Dates are picked from a calendar instead (SearchDatePicker, dateInsert).
+  if (DAY_KEYS.includes(key)) return [];
   if (key === 'in') {
     return channels.filter((c) => lower(c.name).includes(value)).slice(0, MAX_SUGGESTIONS)
       .map((c) => ({ kind: 'channel', key, id: c.id, label: c.name, insert: `in:${quoteValue(c.name)} ` }));

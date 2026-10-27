@@ -3183,3 +3183,82 @@ img.emoji.custom-emoji {
 .soundboard-settings-row .emoji-settings-delete {
   margin-left: auto;
 }
+
+/* before:/after:'s calendar (SearchDatePicker), in the search box's dropdown. */
+.guild-search-dates {
+  max-height: none;
+  padding: 8px;
+}
+
+.search-date-picker-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.search-date-picker-header .emoji-suggestions-title {
+  flex: 1;
+  padding: 0;
+}
+
+.search-date-picker-header button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  background: none;
+  color: var(--vc-fg-muted);
+}
+
+.search-date-picker-header button:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.search-date-picker-header strong {
+  min-width: 7.5em;
+  text-align: center;
+  font-size: 13px;
+}
+
+.search-date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.search-date-picker-weekday {
+  padding: 2px 0;
+  color: var(--vc-fg-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.search-date-picker-day {
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--vc-radius-md);
+  background: none;
+  color: var(--vc-fg);
+  font-size: 13px;
+}
+
+.search-date-picker-day:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.search-date-picker-day.other-month {
+  color: var(--vc-fg-muted);
+}
+
+.search-date-picker-day.today {
+  border-color: var(--vc-accent);
+}
+
+.search-date-picker-day.chosen {
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+}

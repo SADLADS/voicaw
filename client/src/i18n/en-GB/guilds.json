@@ -80,7 +80,10 @@
       "options": "Search options",
       "channels": "Channels",
       "messageContains": "Message contains",
-      "dates": "Dates",
+      "datePicker": {
+        "before": "Before this day",
+        "after": "After this day"
+      },
       "results": "Search results",
       "close": "Close search",
       "resultCount_one": "{{count}} result",
