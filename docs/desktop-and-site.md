@@ -130,8 +130,18 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `small_text`) that says playing or paused (`playing`/`play`, `paused`/`pause`: Feishin's keys)
   becomes `smallIcon` 'playing' | 'paused' (2026-10-09), drawn by the page as its own play or
   pause badge on the picture's corner with `smallText` as the hover text. Games' asset-key
-  pictures (only Discord can resolve them), other small pictures and buttons aren't shown; games that don't use Rich Presence aren't
-  detected. Turning it off closes the socket. Checked for real in `e2e/richpresence.mjs`.
+  pictures (only Discord can resolve them), other small pictures and buttons aren't shown.
+  **Steam games without Rich Presence** (2026-10-27: FTL showed nothing, as most games don't
+  use it): the running Steam games (`runningGames.js` `runningSteamGames`, as the overlay finds
+  them, below) are looked for every 15 s while it's on, and each is shared as a plain "Playing
+  X" with its Steam cover, timed from when it was first seen (`gameActivities.js`
+  `setSteamGames`), unless the same game already has a Rich Presence activity (same Steam app
+  id, or same name). Other games without Rich Presence (not from Steam) still aren't detected.
+  **Which comes first** (the one shown under names; the card shows up to three): games (Playing,
+  Competing) before music and videos (Listening, Watching), then the one started last; a
+  game's or player's later updates (the next song) don't move it, so music started after a game
+  doesn't take its place, and of two games the newer one shows.
+  Turning it off closes the socket and stops sharing Steam games. Checked for real in `e2e/richpresence.mjs`.
 - **In-game overlay** (`overlay.js`, `overlayPreload.js`, `runningGames.js`; client
   `overlay.html`, `src/overlay/`, `hooks/useGameOverlay.js`, `utils/overlay.js`; built
   2026-10-19, as Discord's): while you're in a voice channel or call **and** a game is running,
@@ -144,8 +154,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
     its environment (Proton games too) or a `steamapps/common` path among its arguments; on
     Windows WMI's paths under `steamapps\common` (one PowerShell call); on macOS `ps`. Steam's
     tools (Proton, the runtime) and app id 0 don't count; the installed apps are listed again
-    every 10 minutes. Looked for every 15 s, and at once on joining voice or turning it on, only
-    while it could show (in voice, overlay on); nothing about it leaves the computer. With
+    every 10 minutes. Looked for every 15 s, and at once on joining voice or turning it on, while it
+    could show (in voice, overlay on) or Rich Presence is on (which shares them, above); for
+    the overlay alone nothing about it leaves the computer. With
     "Share what I'm playing" off, Steam games are still found, but other games aren't (they
     can only say so through Rich Presence's socket, which is then closed).
   - **The window**: transparent, frameless, `focusable: false`, out of the taskbar, always on

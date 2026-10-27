@@ -76,7 +76,7 @@ describe('Rich Presence socket (richPresence.js)', () => {
         const activity = { details: 'In a match', state: 'Ranked', party: { size: [2, 4] } };
         game.send(OP.FRAME, { cmd: 'SET_ACTIVITY', args: { pid: 4242, activity }, nonce: 'n1' });
         expect((await game.next()).data).toMatchObject({ cmd: 'SET_ACTIVITY', data: activity, nonce: 'n1' });
-        expect(changes.at(-1)).toEqual([{ id: expect.any(String), clientId: '383226320970055681', pid: 4242, activity }]);
+        expect(changes.at(-1)).toEqual([{ id: expect.any(String), clientId: '383226320970055681', pid: 4242, activity, since: expect.any(Number) }]);
 
         game.send(OP.FRAME, { cmd: 'SUBSCRIBE', evt: 'ACTIVITY_JOIN', nonce: 'n2' });
         expect((await game.next()).data).toMatchObject({ cmd: 'SUBSCRIBE', data: { evt: 'ACTIVITY_JOIN' }, nonce: 'n2' });
@@ -249,5 +249,49 @@ describe('activities for the page (gameActivities.js)', () => {
             expect.objectContaining({ key: '2', name: null, details: 'Menu', image: null }),
         ]);
         expect(activities.current()).toBe(sent.at(-1));
+    });
+
+    it('shares Steam games without Rich Presence, unless the same game already says more', async () => {
+        const sent = [];
+        const pictures = [];
+        const activities = createGameActivities({
+            identify: async (pid) => (pid === 1 ? { name: 'Hades', steamAppId: '1145360' } : { name: 'Feishin' }),
+            loadPicture: (game) => { pictures.push(game.picture); return game.picture ? { id: game.picture, data: 'C' } : null; },
+            onChange: (list) => sent.push(list),
+        });
+        await activities.setSteamGames([{ appId: '212680', name: 'FTL: Faster Than Light', picture: '/ftl.jpg' }]);
+        expect(sent.at(-1)).toEqual([expect.objectContaining({
+            key: 'steam:212680', name: 'FTL: Faster Than Light', type: 0, details: null, start: expect.any(Number), image: { id: '/ftl.jpg', data: 'C' },
+        })]);
+        expect(sent.at(-1)[0]).not.toHaveProperty('since');
+        // Seen again: nothing new, its picture loaded once.
+        const count = sent.length;
+        await activities.setSteamGames([{ appId: '212680', name: 'FTL: Faster Than Light', picture: '/ftl.jpg' }]);
+        expect(sent.length).toBe(count);
+        // The same game through Rich Presence (by Steam app id, or by name) replaces it.
+        await activities.setSteamGames([{ appId: '1145360', name: 'Hades', picture: null }]);
+        await activities.update([{ id: '1', pid: 1, activity: { state: 'Tartarus' }, since: 1 }]);
+        expect(sent.at(-1).map((a) => a.key)).toEqual(['1']);
+        await activities.setSteamGames([]);
+        expect(sent.at(-1).map((a) => a.key)).toEqual(['1']);
+        expect(pictures).toEqual(['/ftl.jpg', null, undefined]);
+    });
+
+    it('puts games before music, then the one started last first', async () => {
+        const sent = [];
+        const activities = createGameActivities({
+            identify: async (pid) => ({ name: pid === 1 ? 'Feishin' : 'Hades' }),
+            loadPicture: () => null,
+            onChange: (list) => sent.push(list),
+        });
+        // Music started after the game: the game still comes first.
+        await activities.update([
+            { id: '1', pid: 1, activity: { type: 2, details: 'Song' }, since: 200 },
+            { id: '2', pid: 2, activity: { type: 0 }, since: 100 },
+        ]);
+        expect(sent.at(-1).map((a) => a.name)).toEqual(['Hades', 'Feishin']);
+        // A Steam game started later than Hades comes before it.
+        await activities.setSteamGames([{ appId: '212680', name: 'FTL', picture: null }]);
+        expect(sent.at(-1).map((a) => a.name)).toEqual(['FTL', 'Hades', 'Feishin']);
     });
 });

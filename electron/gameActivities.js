@@ -6,6 +6,11 @@
 // A game whose big picture is a web address (a music player's album cover on the person's own
 // server, as Feishin sends with Navidrome) gets that picture instead: fetched by this computer
 // (`fetchPicture`), never by the server or the people looking, and the address isn't shared.
+// Steam games that don't use Rich Presence (FTL...) are found among the running programs
+// (runningGames.js, `setSteamGames`) and shared as a plain "Playing X" from when they were
+// first seen, unless the same game already says more through Rich Presence.
+// The order (the first is the one shown under names): games (Playing, Competing) before music
+// and videos, then the one started last first.
 const crypto = require('crypto');
 
 const MAX_TEXT = 128;
@@ -88,17 +93,24 @@ function pictureFrom(image, { photo }) {
     return { id: crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 32), data: bytes.toString('base64') };
 }
 
-// `identify(pid)` → { name, picture, exe } or null (gameLookup.identifyGame); `loadPicture(game)`
-// → a nativeImage-made picture ({ id, data }) or null; `fetchPicture(url)` → the same for a web
-// address, or null; `onChange(activities)`. A game nothing
-// could be found about has no name (the page says "a game").
+// `identify(pid)` → { name, picture, steamAppId, exe } or null (gameLookup.identifyGame);
+// `loadPicture(game)` → a nativeImage-made picture ({ id, data }) or null for what identify
+// found or a Steam game ({ picture }); `fetchPicture(url)` → the same for a web address, or
+// null; `onChange(activities)`. A game nothing could be found about has no name (the page
+// says "a game").
 const MAX_URL_PICTURES = 50;
 
+// Playing and Competing before Listening and Watching, then the latest started first.
+const isGame = (activity) => activity.type === 0 || activity.type === 5;
+const byShown = (a, b) => (isGame(b) - isGame(a)) || (b.since - a.since);
+
 function createGameActivities({ identify, loadPicture, fetchPicture = async () => null, onChange }) {
-    const identities = new Map(); // connection id + pid -> Promise<{ name, picture }>
+    const identities = new Map(); // connection id + pid -> Promise<{ name, image, steamAppId }>
     const urlPictures = new Map(); // web address -> Promise<picture or null>, the latest used last
+    const steamGames = new Map(); // app id -> { appId, name, since, image: Promise<picture or null> }
     let latest = [];
     let current = [];
+    let version = 0;
     let running = Promise.resolve();
 
     function identityOf(game) {
@@ -107,7 +119,7 @@ function createGameActivities({ identify, loadPicture, fetchPicture = async () =
             identities.set(key, (async () => {
                 const found = game.pid ? await identify(game.pid).catch(() => null) : null;
                 const image = found ? await Promise.resolve(loadPicture(found)).catch(() => null) : null;
-                return { name: found?.name ?? null, image };
+                return { name: found?.name ?? null, image, steamAppId: found?.steamAppId ?? null };
             })());
         }
         return identities.get(key);
@@ -126,28 +138,68 @@ function createGameActivities({ identify, loadPicture, fetchPicture = async () =
     }
 
     async function rebuild() {
+        const asOf = version;
         const games = latest;
         const activities = [];
+        const steamIds = new Set();
+        const names = new Set();
         for (const game of games) {
-            const { name, image } = await identityOf(game);
+            const { name, image, steamAppId } = await identityOf(game);
             const url = pictureUrl(game.activity);
             const own = url ? await urlPicture(url) : null;
             const activity = cleanActivity(game.activity, text(name));
-            activities.push({ key: game.id, ...activity, image: own ?? image });
+            if (steamAppId) steamIds.add(steamAppId);
+            if (activity.name) names.add(activity.name.toLowerCase());
+            activities.push({ key: game.id, ...activity, image: own ?? image, since: game.since ?? 0 });
+        }
+        for (const game of steamGames.values()) {
+            const name = text(game.name);
+            if (steamIds.has(game.appId) || (name && names.has(name.toLowerCase()))) continue;
+            activities.push({
+                key: `steam:${game.appId}`,
+                ...cleanActivity({ type: 0, timestamps: { start: game.since } }, name),
+                image: await game.image,
+                since: game.since,
+            });
         }
         // Forget games that left.
         const live = new Set(games.map((g) => `${g.id}:${g.pid ?? ''}`));
         for (const key of identities.keys()) if (!live.has(key)) identities.delete(key);
-        if (games !== latest) return; // a newer change is on its way
-        current = activities;
+        if (asOf !== version) return; // a newer change is on its way
+        current = activities.sort(byShown).map(({ since, ...activity }) => activity);
         onChange(current);
     }
 
+    function changed() {
+        version++;
+        running = running.then(rebuild, rebuild);
+        return running;
+    }
+
     return {
+        // What Rich Presence games say (richPresence.js onChange).
         update(games) {
             latest = games;
-            running = running.then(rebuild, rebuild);
-            return running;
+            return changed();
+        },
+        // The Steam games running now ([{ appId, name, picture }], picture a file or null;
+        // runningGames.js), each kept from when it was first seen until it's gone.
+        setSteamGames(list) {
+            const ids = new Set(list.map((g) => g.appId));
+            let moved = false;
+            for (const appId of steamGames.keys()) {
+                if (!ids.has(appId)) {
+                    steamGames.delete(appId);
+                    moved = true;
+                }
+            }
+            for (const game of list) {
+                if (steamGames.has(game.appId)) continue;
+                const image = Promise.resolve().then(() => loadPicture({ picture: game.picture ?? null, exe: null })).catch(() => null);
+                steamGames.set(game.appId, { appId: game.appId, name: game.name, since: Date.now(), image });
+                moved = true;
+            }
+            return moved ? changed() : running;
         },
         current: () => current,
     };

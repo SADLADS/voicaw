@@ -141,7 +141,8 @@ guilds", a custom status; gateway Presence Update). Built 2026-10-09.
 - Client: `utils/activities.js` is the store (snapshot + changes) and the wording, `hooks/
   useActivities.js` subscribes. `ws-client.js` `setOwnActivities` (from `useDesktopApp`) sends this
   device's, at most one every 5 s (the latest), and again after each reconnect. Shown in
-  `ActivityLine` ("Playing **Hades**", the latest one, after its kind's icon: gamepad Playing,
+  `ActivityLine` ("Playing **Hades**", the first one: the desktop app puts games before music
+  and videos, then the latest started, after its kind's icon: gamepad Playing,
   note Listening, TV Watching, broadcast tower Streaming, trophy Competing, none for a custom
   status; under names in the guild member list, and
   in the DM list and Friends where there's no custom status, as Discord) and `Activities` (the
