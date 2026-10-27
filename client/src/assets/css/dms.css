@@ -4578,6 +4578,48 @@ body.mobile-mode .poll-voters-list {
   color: var(--vc-danger-text);
 }
 
+/* A "pinned a message" row (PinNotice): a pin, who pinned what, and the time; laid out like a
+   call (.call-log). "a message" and "See all pinned messages" are links. */
+.pin-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 4px 1.25rem;
+  color: var(--vc-fg-muted);
+  font-size: 14px;
+}
+
+.pin-notice-icon {
+  flex-shrink: 0;
+  width: 40px;
+  font-size: 16px;
+  transform: rotate(45deg);
+}
+
+.pin-notice-name {
+  color: var(--vc-fg);
+}
+
+.pin-notice-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-fg);
+  font: inherit;
+  font-weight: 600;
+}
+
+.pin-notice-link:hover,
+.pin-notice-link:focus-visible {
+  text-decoration: underline;
+}
+
+.pin-notice-time {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* A poll's "poll ended" row (PollEndNotice): an icon, whose poll closed, and its result. */
 .poll-end {
   display: flex;

@@ -373,6 +373,10 @@
       "lastSeparator": " and ",
       "view": "View poll"
     },
+    "pinNotice": {
+      "pinned": "<b>{{name}}</b> pinned <message>a message</message> to this chat.",
+      "seeAll": "See all pinned messages."
+    },
     "pollVoters": {
       "votedFor": "Voted for {{answer}}",
       "none": "Nobody has voted for this answer.",

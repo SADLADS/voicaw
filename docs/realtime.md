@@ -254,6 +254,22 @@ one user at a time).
     pinned key; the group's saved keys, the reaction only if signed by its reactor) and returns
     null, i.e. nothing shown, for a vote, an added answer or anything that won't open. Browsers
     therefore never hear about reactions in encrypted chats.
+- **"Pinned" and "poll ended" notifications** (`systemPushes.js`): those two system rows are
+  messages in the chat, so they're pushed as the chat's own type (`dm`, `group`, `guild`:
+  tagged, cleared and sounding like a message) with `system` = 'pin' / 'poll_end', `actorName`
+  (the pinner or the poll's author) and, for polls, `mine` (to the author). A pin goes to
+  everyone else in a DM or group (not in notes), and in a guild channel to the pinned message's
+  author (as if mentioned) and whoever gets every message there (`mentions.js`
+  `pushRecipients`). A closed poll goes to its author and its voters (in DMs and groups, anyone
+  who reacted to it: the server can't tell votes from emoji), in a guild also whoever gets every
+  message. Never about a chat being looked at or muted, nor from someone blocked. Both are true
+  as worded without the message, so they reach browsers too; `notificationFromPush` words them
+  ("Pinned a message: <text>", "Ann's poll “Q” has closed", "Your poll ... "). Guilds send the
+  text as `preview`; DMs and groups send the pinned message or poll encrypted as
+  `messageCiphertext` (not `ciphertext`, which apps from before would show as a new message)
+  with `messageId`, `messageSenderId` (and `messageRecipientId` / `epoch`, `replyTo`, `edited`),
+  opened with the keys the device keeps (a group's only if signed by its sender). Settings →
+  Privacy's message text setting leaves the text out.
 - **Friend request notifications** (`friendPushes.js`, called by `routes/friends.js`, built
   2026-10-27): `type: 'friend'` to every device, browsers included. `kind: 'request'` goes to the
   person asked (opens `/dm/friends`, the Pending tab), `kind: 'accepted'` to the asker when the

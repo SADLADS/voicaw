@@ -1,6 +1,8 @@
 // Pinned messages: pinning from the hover menu (DM), the pin showing live for the other person,
 // the pinned list (decrypted on the device) and jumping to a message not loaded yet; in a
-// guild only with Pin Messages; in a group DM; on a phone (long press, full-screen list).
+// guild only with Pin Messages; in a group DM; on a phone (long press, full-screen list). Each pin
+// also posts a "X pinned a message" row: "a message" jumps to it, "See all pinned messages" opens
+// the list.
 //   node e2e/serve.mjs &   then   node e2e/pins.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { launchChrome, signUp, openChat, send, BASE, devices, makeFriends } from './helpers.mjs';
@@ -105,7 +107,17 @@ try {
   await pinFromMenu(b, 'filler 130');
   await waitPinned(a, 'filler 130');
   check(true, "bob's pin shows for alice live");
-  await a.click('.pins-button');
+  const notice = a.locator('.pin-notice').last();
+  await notice.waitFor({ timeout: 10000 });
+  const noticeText = await notice.locator('span').first().textContent();
+  check(noticeText === `${bob.name} pinned a message to this chat. See all pinned messages.`, `and a "pinned a message" row (${noticeText})`);
+  await shot(a, '03a-pin-row');
+  await a.evaluate(() => { document.querySelector('.message-scroller').scrollTop = 0; });
+  await notice.locator('button:has-text("a message")').click();
+  await a.waitForFunction(() => [...document.querySelectorAll('.each-dm-message-wrapper.jump-highlight')]
+    .some((el) => el.querySelector('.dm-message-content')?.textContent === 'filler 130'), null, { timeout: 10000 });
+  check(true, '"a message" jumps to the pinned message and flashes it');
+  await notice.locator('button:has-text("See all pinned messages")').click();
   await a.locator('.pins-panel .pinned-message').nth(1).waitFor();
   const order = await a.locator('.pins-panel .pinned-message .dm-message-content').allTextContents();
   check(order[0] === 'filler 130' && order[1] === 'the plan is in here', `newest pin first (${order.join(' | ')})`);
@@ -133,6 +145,8 @@ try {
   await pinFromMenu(a, 'rules: be nice');
   await waitPinned(b, 'rules: be nice');
   check(true, "the owner pins; bob sees it");
+  await b.locator('.pin-notice').last().waitFor({ timeout: 10000 });
+  check((await b.locator('.pin-notice').last().textContent()).startsWith(`${alice.name} pinned a message`), 'with its "pinned" row in the channel');
   await b.click('.pins-button');
   await b.locator('.pins-panel .pinned-message:has-text("rules: be nice")').waitFor();
   check(await b.locator('.pins-panel button[aria-label="Unpin"]').count() === 0, 'bob can see the list but not unpin');
@@ -187,6 +201,13 @@ try {
   await c.click('.action-sheet-item:has-text("Pin message")');
   await waitPinned(a, 'group plan');
   check(true, 'long press → Pin message works');
+  const phoneNotice = c.locator('.pin-notice').last();
+  await phoneNotice.waitFor({ timeout: 10000 });
+  const noticeBox = await phoneNotice.boundingBox();
+  check(noticeBox.x >= 0 && noticeBox.x + noticeBox.width <= c.viewportSize().width, 'the "pinned" row fits the phone');
+  await shot(c, '06a-phone-pin-row');
+  await a.locator('.pin-notice').last().waitFor();
+  check(await a.locator('.pin-notice').count() >= 2, 'group pins post rows too');
   await c.click('.pins-button');
   await c.locator('.pins-panel.mobile .pinned-message:has-text("group plan")').waitFor();
   const full = await c.locator('.pins-panel').boundingBox();

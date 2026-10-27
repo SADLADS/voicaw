@@ -44,6 +44,7 @@ export default function VoiceChatPane({ channel, conversation, isMobile, chatPro
             canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
             pinsAnchor={pins.anchor}
             onClosePins={pins.onClose}
+            onShowPins={pins.onShow}
             jumpTo={jump.jumpTo}
             onJumped={jump.onJumped}
             emptyText={t('guilds.voiceChat.empty', { name: channel.name })}

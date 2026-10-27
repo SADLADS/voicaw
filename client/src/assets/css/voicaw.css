@@ -480,6 +480,7 @@ body:not(.mobile-mode) .day-divider,
 body:not(.mobile-mode) .new-divider-date,
 body:not(.mobile-mode) .poll-end,
 body:not(.mobile-mode) .call-log,
+body:not(.mobile-mode) .pin-notice,
 body:not(.mobile-mode) .join-log,
 body:not(.mobile-mode) .channel-header-topic {
   -webkit-user-select: text;

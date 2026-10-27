@@ -1,4 +1,5 @@
 import './helpers/mockS3.js';
+import { sentPushes, waitForPushes } from './helpers/mockWebPush.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
@@ -32,6 +33,11 @@ function listen(user) {
   clients.set(String(user.id), [...(clients.get(String(user.id)) || []), ws]);
   return events;
 }
+
+const subscribe = (user) => api.post(user, '/save-subscription', {
+  subscription: { endpoint: `https://push.test/${user.username}`, keys: { p256dh: 'p', auth: 'a' } },
+});
+const pushesTo = (user, pushes) => pushes.filter((p) => p.endpoint === `https://push.test/${user.username}`).map((p) => p.payload);
 
 async function sendDm(from, to, content = 'ciphertext') {
   return (await api.post(from, '/dm-send', { recipient_id: to.id, content })).body.id;
@@ -106,6 +112,54 @@ describe('DM pins', () => {
   });
 });
 
+describe('DM "pinned a message" rows', () => {
+  it('posts one on pinning (not unpinning), unread for the other, and pushes it', async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    const id = await sendDm(alice, bob, 'v1.pinned-text');
+    await api.post(bob, `/dm-mark-read/${alice.id}`);
+    await subscribe(alice);
+    const aliceEvents = listen(alice);
+    const since = sentPushes.length;
+
+    expect((await api.put(bob, `/dm-messages/${id}/pin`)).status).toBe(200);
+    const row = aliceEvents.find((e) => e.type === 'new_dm')?.message;
+    expect(row).toMatchObject({ system: 'pin', sender_id: bob.id, recipient_id: alice.id, parent_message_id: id, content: '' });
+    expect((await api.get(alice, `/dm-messages/${bob.id}`)).body.at(-1)).toMatchObject({ id: row.id, system: 'pin' });
+    expect((await api.get(alice, '/dm-get-unread')).body).toMatchObject([{ from_user_id: bob.id, count: 1 }]);
+    const [push] = pushesTo(alice, await waitForPushes(1, since));
+    expect(push).toMatchObject({
+      type: 'dm', system: 'pin', tag: `dm-${bob.id}`, url: `/dm/${bob.id}`, senderId: bob.id, recipientId: alice.id,
+      messageId: id, messageSenderId: alice.id, messageRecipientId: bob.id, messageCiphertext: 'v1.pinned-text',
+    });
+    expect(push.ciphertext).toBeUndefined();
+
+    // Unpinning posts nothing; the row itself can't be pinned or edited.
+    await api.delete(alice, `/dm-messages/${id}/pin`);
+    expect(aliceEvents.filter((e) => e.type === 'new_dm')).toHaveLength(1);
+    expect((await api.put(alice, `/dm-messages/${row.id}/pin`)).status).toBe(400);
+    expect((await api.put(bob, `/update-message/${row.id}`, { content: 'v1.x' })).status).toBe(403);
+
+    // Deleting the pinned message takes its rows.
+    await api.put(alice, `/dm-messages/${id}/pin`);
+    await api.delete(alice, `/messages/${id}`);
+    expect((await api.get(bob, `/dm-messages/${alice.id}`)).body).toEqual([]);
+  });
+
+  it("doesn't push in notes, or to someone looking at the chat", async () => {
+    const [alice, bob] = [await makeUser(), await makeUser()];
+    await subscribe(alice);
+    const note = await sendDm(alice, alice, 'v1.note');
+    const id = await sendDm(bob, alice);
+    const since = sentPushes.length;
+    await api.put(alice, `/dm-messages/${note}/pin`);
+    listen(alice);
+    clients.get(String(alice.id)).at(-1).presence = { at: Date.now(), visible: true, chatId: String(bob.id) };
+    await api.put(bob, `/dm-messages/${id}/pin`);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(pushesTo(alice, sentPushes.slice(since))).toEqual([]);
+  });
+});
+
 // A guild with an owner and two members, and its #general.
 async function setUpGuild() {
   const owner = await makeUser('pin-owner');
@@ -161,6 +215,30 @@ describe('guild channel pins', () => {
     expect((await api.put(alice, `/guild-messages/${id}/pin`)).status).toBe(200);
     await api.put(owner, `${base}/member/${alice.id}`, { deny: P.PIN_MESSAGES });
     expect((await api.delete(alice, `/guild-messages/${id}/pin`)).status).toBe(403);
+  });
+
+  it('posts a "pinned" row and pushes it to the author of the message', async () => {
+    const { owner, members: [alice, bob], general } = await setUpGuild();
+    const id = await post(alice, general, 'pin me <@' + bob.id + '>');
+    for (const user of [owner, alice, bob]) await subscribe(user);
+    const bobEvents = listen(bob);
+    const since = sentPushes.length;
+    await api.put(owner, `/guild-messages/${id}/pin`);
+    const row = bobEvents.find((e) => e.type === 'guild_message_new')?.message;
+    expect(row).toMatchObject({ system: 'pin', sender_id: owner.id, parent_message_id: id, content: '' });
+    await waitForPushes(1, since);
+    await new Promise((r) => setTimeout(r, 100));
+    const pushes = sentPushes.slice(since);
+    // Bob's level is Mentions, and the pin isn't about him.
+    expect(pushesTo(bob, pushes)).toEqual([]);
+    expect(pushesTo(owner, pushes)).toEqual([]);
+    expect(pushesTo(alice, pushes)).toEqual([expect.objectContaining({
+      type: 'guild', system: 'pin', tag: `channel-${general.id}`, preview: `pin me @${bob.username}`,
+    })]);
+    // Bots see Discord's CHANNEL_PINNED_MESSAGE.
+    const { messageObjects } = require('../discord.js');
+    const [object] = await messageObjects([row]);
+    expect(object).toMatchObject({ type: 6, message_reference: { message_id: String(id) } });
   });
 
   it("hides a private channel's pins from those who can't see it", async () => {
