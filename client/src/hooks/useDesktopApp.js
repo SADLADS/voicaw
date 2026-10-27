@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { desktop, unreadSummary } from '../utils/desktop';
 import { onNotification, setOwnActivities } from '../utils/ws-client';
 import { notificationFromPush } from '../services/pushNotifications';
@@ -13,6 +13,13 @@ import { hangUp } from '../voice/callClient';
 // - the global mute / deafen shortcuts, and the in-game overlay's mute, deafen and disconnect
 // - Rich Presence: what this computer's games say you're doing, shared (utils/ws-client.js)
 export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
+  // `navigate` changes with every page: kept in a ref, so this is set up once per login. (Set
+  // up again on every navigation, it shared no activities until the next send, 5 s later.)
+  const navigateRef = useRef(navigate);
+  useEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
+
   useEffect(() => {
     if (!desktop) return undefined;
     const stopNotifications = onNotification(async (payload) => {
@@ -31,7 +38,7 @@ export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
         console.warn('Could not show a notification', err);
       }
     });
-    const stopNavigate = desktop.onNavigate((url) => navigate(url));
+    const stopNavigate = desktop.onNavigate((url) => navigateRef.current(url));
     const stopShortcut = desktop.onShortcut((action) => {
       const { selfMute, selfDeaf } = getVoiceSnapshot();
       if (action === 'toggleMute') setSelfMute(!(selfMute || selfDeaf));
@@ -51,7 +58,7 @@ export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
       stopActivities();
       setOwnActivities([]);
     };
-  }, [navigate]);
+  }, []);
 
   const { count, dot } = unreadSummary({ unreadDms, groups, guildUnread });
   useEffect(() => {
