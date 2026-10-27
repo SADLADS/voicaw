@@ -634,7 +634,7 @@ guild search's (`MessageSearch.jsx`, see Guild search in docs/guilds.md) at the 
 header (`ChatSearch.jsx` in `Dm`, `GroupDm`, `Notes`; a button opening it full screen on a
 phone): words (prefixes; `"quoted"` an exact phrase; an emoji as written), `from:`, `mentions:`,
 `has:` (link, file, image, video, sound, poll; no `embed`, since an encrypted chat's link
-previews arrive after the message), no `in:`. Matching follows the server's
+previews arrive after the message), `before:` and `after:` (as guild search's), no `in:`. Matching follows the server's
 (`utils/messageSearch.js`: its `searchText`/`searchHas` copy `server/searchText.js`, and a test
 checks they agree; words without case or accents). Results are drawn with `MessageContent` (no
 reactions); Jump is `ChatPane`'s `jumpTo`.

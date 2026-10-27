@@ -302,6 +302,17 @@ describe('reaction notifications', () => {
     n = await admin({ kind: 'something-new', count: 1 });
     expect([n.title, n.options.body]).toEqual(['New report', '2 waiting']);
   });
+
+  it('words friend requests on the device, titled with the person', async () => {
+    const friend = (extra) => notificationFromPush({ type: 'friend', name: 'Ann', title: 'Ann', body: 'Sent you a friend request', tag: 'friend-5', image: '/a.png', ...extra });
+    let n = await friend({ kind: 'request', url: '/dm/friends' });
+    expect([n.title, n.options.body]).toEqual(['Ann', 'Sent you a friend request']);
+    expect(n.options).toMatchObject({ icon: '/a.png', tag: 'friend-5', data: { url: '/dm/friends' } });
+    n = await friend({ kind: 'accepted', url: '/dm/5' });
+    expect([n.title, n.options.body]).toEqual(['Ann', 'Accepted your friend request']);
+    n = await friend({ kind: 'something-new', body: 'Did something' });
+    expect([n.title, n.options.body]).toEqual(['Ann', 'Did something']);
+  });
 });
 
 describe('"pinned a message" and "poll ended" notifications', () => {

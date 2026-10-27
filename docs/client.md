@@ -771,7 +771,8 @@ repeats (a burst of messages dings once).
   Settings → Voice & video.
 - Where they play: `voiceClient` (join on connecting; LiveKit participant joined/left; disconnect
   on leaving, a call ending or the connection lost; mute/deafen from `setSelfMute`/`setSelfDeaf`,
-  not the automatic mute when the microphone fails), `callClient` (the rings). Message: the
+  not the automatic mute when the microphone fails; push to talk on/off as it starts and stops
+  sending), `callClient` (the rings). Message: the
   server decides (`sendPushToUser`, so it follows exactly what notifies: not the chat you're
   looking at, guild notification levels, no SUPPRESS_NOTIFICATIONS webhooks) and sends
   `message_sound`, whether you're in front or not. `playMessageSound` plays it, as Discord does,
@@ -784,8 +785,7 @@ repeats (a burst of messages dings once).
   a page dings, so it doesn't sound twice. Until a page has had a click (or with no page open),
   the system notification makes the sound. Turning Message off in Settings → Sounds therefore
   also quiets message notifications while the app is open on a computer.
-- **Not done yet** (Discord has them; the features don't exist yet): push-to-talk on/off,
-  stream started/ended and viewer join/leave, activities, stage, user moved.
+- **Not done yet** (Discord has them; the features don't exist yet): stream started/ended and viewer join/leave, activities, stage, user moved.
 
 ## Admin settings
 
@@ -850,7 +850,8 @@ the other person accepts.
   'blocked'`, not saying who) stops requests, and blocking someone ends the friendship and any
   request (`routes/blocks.js`). Deleting an account deletes its friends and requests. Migration
   14 made every account at the time friends with every other (not bots, pending, deleted or
-  blocked pairs), so nobody's list changed. No pushes for requests yet: the count in the app only.
+  blocked pairs), so nobody's list changed. A new request and an accepted one are pushed to
+  the other person (see Friend request notifications in `docs/realtime.md`).
 - **Not a privacy boundary**: `/dms-list` still returns everyone (it's the app's directory:
   names, pictures and contact keys for guilds, calls and mentions; "Everyone sees everyone" in
   CLAUDE.md), and being friends isn't needed to DM someone (people meet in guilds, as in

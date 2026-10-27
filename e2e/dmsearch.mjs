@@ -80,7 +80,7 @@ try {
   const box = a.locator('.guild-search-input');
   await box.click();
   const keys = await a.locator('.guild-search-suggestion strong').allTextContents();
-  check(keys.join(' ') === 'from: mentions: has:', `the filters are from:, mentions:, has: (${keys.join(' ')})`);
+  check(keys.join(' ') === 'from: mentions: has: before: after:', `the filters are from:, mentions:, has:, before:, after: (${keys.join(' ')})`);
   await box.type('has:');
   const hasValues = await a.locator('.guild-search-suggestion').allTextContents();
   check(!hasValues.includes('embed') && hasValues.includes('link'), `has: offers no embed (${hasValues.join(', ')})`);
@@ -104,6 +104,11 @@ try {
 
   await searchFor(a, 'has:link');
   check((await resultTexts(a)).join('|') === 'menu at https://example.com/menu', 'has:link');
+  const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('sv'); };
+  await searchFor(a, `treasure before:${isoDay(0)}`);
+  check(await a.locator('.pins-panel-empty').count() === 1, 'before:today finds nothing sent today');
+  await searchFor(a, `treasure after:${isoDay(-1)}`);
+  check((await resultTexts(a)).join('|') === 'the treasure map is under the old oak', 'after:yesterday finds it');
   await searchFor(a, `from:${alice.name} chatter`);
   check(await a.locator('.pins-panel-empty').count() === 1, 'from:alice finds none of bob\'s');
   await searchFor(a, `from:${bob.name} "chatter 13"`);
@@ -181,7 +186,7 @@ try {
   await shot(c, '03c-phone-header');
   await c.locator('.channel-header-button.search-button').click();
   await c.locator('.search-panel.mobile').waitFor();
-  check(/narrow it down with from:, mentions: and has:/.test(await c.locator('.search-panel').textContent()), 'the phone panel explains it');
+  check(/narrow it down with from:, mentions:, has:, before: and after:/.test(await c.locator('.search-panel').textContent()), 'the phone panel explains it');
   await shot(c, '04-phone-empty');
   await c.locator('.guild-search-input').type('sandw');
   await c.locator('.guild-search-input').press('Enter');

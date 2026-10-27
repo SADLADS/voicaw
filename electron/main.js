@@ -1,7 +1,7 @@
 // The desktop app: one window showing the client build that ships inside the app (see
 // protocol.js), plus what a browser tab can't do: notifications without web push, a tray
 // icon with the unread count, closing to the tray, starting at login, global mute/deafen
-// shortcuts, a screen picker for screen sharing, games' Rich Presence, the in-game overlay and updating itself. The page reaches these through preload.js.
+// shortcuts, push to talk in other apps, a screen picker for screen sharing, games' Rich Presence, the in-game overlay and updating itself. The page reaches these through preload.js.
 // It starts with a splash window (splash.js) that installs any update before the app opens.
 // The Steam Deck's Gaming Mode changes a few of these (gamingMode.js).
 // (Its other windows are a popped-out screen share, which the page draws itself, windowOpen.js,
@@ -18,6 +18,7 @@ const { createSettingsStore } = require('./desktopSettings');
 const { createTray } = require('./tray');
 const { createNotifier, cleanNotification } = require('./notifications');
 const { applyShortcuts } = require('./shortcuts');
+const { createPushToTalk } = require('./pushToTalk');
 const { createUpdater } = require('./updater');
 const { createSplash } = require('./splash');
 const { setStartAtLogin, startedHidden } = require('./autoStart');
@@ -58,6 +59,7 @@ let updater;
 let screenShare;
 let fileSaver;
 let richPresence;
+let pushToTalk;
 let gameActivities;
 let overlay;
 let lookForGames;
@@ -140,6 +142,11 @@ function createWindow(hidden, onShown = () => {}) {
         if (!hidden) win.show();
         onShown();
     });
+    // A page loading afresh (or gone) hasn't asked for push to talk (yet).
+    win.webContents.on('did-start-navigation', (details) => {
+        if (details.isMainFrame && !details.isSameDocument) pushToTalk.set(null);
+    });
+    win.webContents.on('render-process-gone', () => pushToTalk.set(null));
     // An update that finished downloading before the page was there to hear it (or before a reload).
     win.webContents.on('did-finish-load', () => {
         const version = updater.readyVersion();
@@ -374,6 +381,9 @@ function setUpIpc() {
         overlay.setVoice(state);
         if (!wasInVoice && overlay.lookingForGames()) lookForGames();
     });
+    // Push to talk in other apps (pushToTalk.js): the key to listen for while in voice, or null.
+    // Resolves whether it's listening.
+    ipcMain.handle('desktop:push-to-talk', (event, key) => (fromApp(event) ? pushToTalk.set(typeof key === 'string' ? key : null) : false));
     ipcMain.on('overlay:message', (event, message) => {
         if (overlay.isOverlay(event.sender)) overlay.handle(message);
     });
@@ -439,6 +449,7 @@ function start() {
         },
     });
     lookForGames = setUpOverlay();
+    pushToTalk = createPushToTalk({ onChange: (down) => win?.webContents.send('desktop:push-to-talk', down) });
     setUpIpc();
     setUpRichPresence();
     // Keeps the login item current (e.g. after the AppImage moved).
@@ -460,7 +471,10 @@ function start() {
         quitting = true;
         rememberBounds();
     });
-    app.on('will-quit', () => globalShortcut.unregisterAll());
+    app.on('will-quit', () => {
+        globalShortcut.unregisterAll();
+        pushToTalk.stop();
+    });
 }
 
 function openApp(hidden, onShown) {

@@ -137,6 +137,7 @@ export default function Settings({ onLogout }) {
         sub('voice', 'voice'),
         sub('mic-test', 'micTest'),
         sub('noise-suppression', 'noiseSuppression'),
+        sub('input-mode', 'inputMode'),
         sub('input-sensitivity', 'inputSensitivity'),
         sub('voice-processing', 'voiceProcessing'),
         sub('soundboard', 'soundboard'),

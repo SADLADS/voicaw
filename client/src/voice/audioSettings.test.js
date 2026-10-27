@@ -25,6 +25,22 @@ describe('voice settings (audioSettings.js)', () => {
     });
   });
 
+  it('keeps push to talk to its modes, known keys and up to 2 s of delay', () => {
+    expect(DEFAULT_AUDIO_SETTINGS).toMatchObject({ inputMode: 'voice', pushToTalkKey: null, pushToTalkDelay: 20 });
+    expect(cleanAudioSettings({ inputMode: 'pushToTalk', pushToTalkKey: 'Backquote', pushToTalkDelay: 250.4 }))
+      .toMatchObject({ inputMode: 'pushToTalk', pushToTalkKey: 'Backquote', pushToTalkDelay: 250 });
+    expect(cleanAudioSettings({ inputMode: 'shout', pushToTalkKey: 'Escape', pushToTalkDelay: 99999 }))
+      .toMatchObject({ inputMode: 'voice', pushToTalkKey: null, pushToTalkDelay: 2000 });
+    expect(cleanAudioSettings({ pushToTalkKey: 'Mouse4', pushToTalkDelay: -5 })).toMatchObject({ pushToTalkKey: 'Mouse4', pushToTalkDelay: 0 });
+  });
+
+  it('opens the gate wide with push to talk (the key decides)', () => {
+    setAudioSettings({ autoSensitivity: false, sensitivity: -30 });
+    expect(gateOptions()).toEqual({ auto: false, thresholdDb: -30 });
+    setAudioSettings({ inputMode: 'pushToTalk' });
+    expect(gateOptions()).toEqual({ auto: false, thresholdDb: -100 });
+  });
+
   it('turns noise suppression saved as on/off into Standard/Off', () => {
     expect(DEFAULT_AUDIO_SETTINGS.noiseSuppression).toBe('standard');
     expect(cleanAudioSettings({ noiseSuppression: true }).noiseSuppression).toBe('standard');

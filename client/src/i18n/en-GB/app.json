@@ -156,6 +156,8 @@
       "pollClosedQuestion": "{{name}}'s poll “{{question}}” has closed",
       "ownPollClosed": "Your poll has closed",
       "ownPollClosedQuestion": "Your poll “{{question}}” has closed",
+      "friendRequest": "Sent you a friend request",
+      "friendAccepted": "Accepted your friend request",
       "admin": {
         "report": "New report",
         "signup": "New sign-up request",

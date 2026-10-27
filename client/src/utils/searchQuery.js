@@ -1,13 +1,16 @@
 // The search box's language, Discord's: words, `"exact phrases"`, and filters
-// `from:user`, `mentions:user`, `in:channel`, `has:thing` (a value with spaces in quotes).
+// `from:user`, `mentions:user`, `in:channel`, `has:thing` (a value with spaces in quotes),
+// `before:date` and `after:date` (that day not included, as Discord's; dates as shown,
+// utils/dateFormat.js parseDate, on this device's clock).
 // parseSearch turns it into the server's parameters (routes/guildSearch.js; the device's own
 // search of encrypted chats takes the same, services/searchIndex.js), with people and
 // channels as ids; searchSuggestions says what to offer while typing. `keys` (the filters
 // there are; DMs have no `in:`) and `hasValues` default to a guild's.
 
 import { t } from '../i18n';
+import { formatDate, parseDate } from './dateFormat';
 
-export const SEARCH_KEYS = ['from', 'mentions', 'in', 'has'];
+export const SEARCH_KEYS = ['from', 'mentions', 'in', 'has', 'before', 'after'];
 
 export const HAS_VALUES = ['link', 'embed', 'file', 'image', 'video', 'sound', 'poll'];
 
@@ -31,7 +34,11 @@ function findMember(name, members) {
   return byDisplay.length === 1 ? byDisplay[0] : null;
 }
 
+const DAY_KEYS = ['before', 'after'];
+
 // `query` → { params (for the API), problems ([text]), empty (nothing to search for) }.
+// `before:` gives `before_time` (sent before that day began) and `after:` `after_time` (sent
+// once the next day began), unix seconds; the strictest of several wins.
 // `members` [{ id, username, display_name }], `channels` the text channels [{ id, name }].
 export function parseSearch(query, { members = [], channels = [], keys = SEARCH_KEYS, hasValues = HAS_VALUES } = {}) {
   const params = { content: '', author_id: [], mentions: [], channel_id: [], has: [] };
@@ -48,6 +55,17 @@ export function parseSearch(query, { members = [], channels = [], keys = SEARCH_
       const channel = channels.find((c) => lower(c.name) === lower(value.replace(/^#/, '')));
       if (channel) params.channel_id.push(channel.id);
       else problems.push(t('guilds.search.noChannel', { name: value.replace(/^#/, '') }));
+    } else if (DAY_KEYS.includes(key)) {
+      const day = parseDate(value);
+      if (!day) {
+        problems.push(t('guilds.search.badDate', { key, value, example: formatDate(new Date()) }));
+      } else if (key === 'before') {
+        const time = day.getTime() / 1000;
+        params.before_time = Math.min(params.before_time ?? Infinity, time);
+      } else {
+        const time = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime() / 1000;
+        params.after_time = Math.max(params.after_time ?? -Infinity, time);
+      }
     } else if (hasValues.includes(lower(value))) {
       params.has.push(lower(value));
     } else {
@@ -59,13 +77,14 @@ export function parseSearch(query, { members = [], channels = [], keys = SEARCH_
   for (const key of Object.keys(params)) {
     if (Array.isArray(params[key])) params[key] = [...new Set(params[key])];
   }
-  const empty = !params.content && SEARCH_KEYS.every((k) => !params[k === 'from' ? 'author_id' : k === 'in' ? 'channel_id' : k].length);
+  const empty = !params.content && params.before_time == null && params.after_time == null &&
+    ['author_id', 'mentions', 'channel_id', 'has'].every((k) => !params[k].length);
   return { params, problems, empty };
 }
 
 // What to suggest for the word the caret is at the end of: { kind: 'keys', prefix } (the
 // filters, for an empty box or a word that starts one), { kind: 'from' | 'mentions' | 'in' |
-// 'has', value } (values for that filter), or null. `start` is where that word begins.
+// 'has' | 'before' | 'after', value } (values for that filter), or null. `start` is where that word begins.
 export function searchContext(text, caret = text.length, keys = SEARCH_KEYS) {
   const before = text.slice(0, caret);
   const start = before.search(/\S*$/);
@@ -92,6 +111,16 @@ export function searchSuggestions(context, { members = [], channels = [], nameOf
   if (key === 'has') {
     return hasValues.filter((v) => v.startsWith(value))
       .map((v) => ({ kind: 'has', key, label: v, insert: `has:${v} ` }));
+  }
+  if (DAY_KEYS.includes(key)) {
+    // What's typed once it's a date (as typed, so Enter searches), then today and yesterday
+    // as dates are shown.
+    const now = new Date();
+    const days = [now, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)]
+      .map((d) => formatDate(d)).filter((v) => lower(v).startsWith(lower(context.value)));
+    const typed = parseDate(context.value) ? context.value.trim() : null;
+    return [...new Set([...(typed ? [typed] : []), ...days])]
+      .map((v) => ({ kind: 'date', key, label: v, insert: `${key}:${quoteValue(v)} ` }));
   }
   if (key === 'in') {
     return channels.filter((c) => lower(c.name).includes(value)).slice(0, MAX_SUGGESTIONS)

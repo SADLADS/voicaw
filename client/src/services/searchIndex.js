@@ -270,8 +270,8 @@ function collector(match, limit, keepLast = false) {
 const toMessage = ({ i, s, t, p, u }) => ({ id: i, sender_id: s, timestamp: t, plaintext: p, reactions: [], ...(u ? { unsigned: true } : {}) });
 
 // Searches `source` for `params` (utils/searchQuery.js parseSearch: content, author_id,
-// mentions, has). -> { total, messages: [{ id, sender_id, timestamp, plaintext, reactions,
-// unsigned? }] }, the first `limit` in `sort` order ('desc': newest first). `sync` false skips bringing the copy up to date (Load more).
+// mentions, has, before_time, after_time). -> { total, messages: [{ id, sender_id,
+// timestamp, plaintext, reactions, unsigned? }] }, the first `limit` in `sort` order ('desc': newest first). `sync` false skips bringing the copy up to date (Load more).
 // `onProgress(n)`: messages read from the server so far.
 export async function searchConversation(source, params, { sort = 'desc', limit = 25, sync: doSync = true, signal, onProgress } = {}) {
   const match = messageMatcher(params);

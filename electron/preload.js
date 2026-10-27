@@ -55,9 +55,14 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // The in-game overlay (electron/overlay.js): what it shows of the voice channel or call
     // you're in (client utils/overlay.js), or null when you're not.
     setOverlayVoice: (state) => ipcRenderer.send('desktop:overlay-voice', state),
+    // Push to talk while another app has focus (electron/pushToTalk.js): listens for `key`
+    // (client voice/pushToTalkKeys.js; null stops), resolving whether it can; then
+    // onPushToTalk(down) as it goes down and up.
+    setPushToTalk: (key) => ipcRenderer.invoke('desktop:push-to-talk', key),
     onActivities: listen('desktop:activities'),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
+    onPushToTalk: listen('desktop:push-to-talk'),
     onUpdateReady: listen('desktop:update-ready'),
     onUpdateProgress: listen('desktop:update-progress'), // 0 to 1, while downloading
 });

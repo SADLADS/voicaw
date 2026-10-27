@@ -35,6 +35,16 @@ describe('parseSearch', () => {
     expect(parseSearch('has:link', opts).empty).toBe(false);
   });
 
+  it('turns before: and after: into times, that day left out', () => {
+    const start = (y, m, d) => new Date(y, m - 1, d).getTime() / 1000;
+    const { params, problems } = parseSearch('before:2026-10-20 after:2026-10-01 after:2026-09-01', opts);
+    expect(problems).toEqual([]);
+    expect(params).toMatchObject({ before_time: start(2026, 10, 20), after_time: start(2026, 10, 2) });
+    expect(parseSearch('after:2026-12-31', opts).params.after_time).toBe(start(2027, 1, 1));
+    expect(parseSearch('before:2026-10-20', opts).empty).toBe(false);
+    expect(parseSearch('before:yesterday after:2026-02-30', opts).problems).toHaveLength(2);
+  });
+
   it("doesn't take a word that only contains a filter", () => {
     expect(parseSearch('xfrom:alice', opts).params).toMatchObject({ content: 'xfrom:alice', author_id: [] });
   });
@@ -42,7 +52,7 @@ describe('parseSearch', () => {
 
 describe('suggestions', () => {
   it('offers the filters in an empty box or for a word that starts one', () => {
-    expect(searchSuggestions(searchContext(''), opts).map((s) => s.insert)).toEqual(['from:', 'mentions:', 'in:', 'has:']);
+    expect(searchSuggestions(searchContext(''), opts).map((s) => s.insert)).toEqual(['from:', 'mentions:', 'in:', 'has:', 'before:', 'after:']);
     expect(searchSuggestions(searchContext('pizza m'), opts).map((s) => s.insert)).toEqual(['mentions:']);
     expect(searchSuggestions(searchContext('pizza '), opts)).toEqual([]);
     expect(searchSuggestions(searchContext('pizza'), opts)).toEqual([]);
@@ -54,6 +64,8 @@ describe('suggestions', () => {
     expect(searchSuggestions(searchContext('in:ran'), opts).map((s) => s.insert)).toEqual(['in:random ']);
     expect(searchSuggestions(searchContext('has:'), opts)).toHaveLength(7);
     expect(searchSuggestions(searchContext('has:vi'), opts).map((s) => s.insert)).toEqual(['has:video ']);
+    expect(searchSuggestions(searchContext('before:'), opts)).toHaveLength(2);
+    expect(searchSuggestions(searchContext('after:2026-1-5'), opts).map((s) => s.insert)).toEqual(['after:2026-1-5 ']);
     // The word the caret is in, not the last one.
     const text = 'from:al pizza';
     const context = searchContext(text, 7);
