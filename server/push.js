@@ -149,7 +149,8 @@ async function sendToAndroidApps(userId, payload, options = { TTL: 60 }) {
 // Notifications each user may still have up, so a clear is only sent when there's something
 // to take down (a busy guild channel being read would otherwise send one per message). In
 // memory: after a restart, notifications from before stay up.
-// Messages' tags, one per chat (`dm-5`, `group-3`, `channel-12`, `bot-dm-7`), by user.
+// Messages' tags, one per chat (`dm-5`, `group-3`, `channel-12`, `bot-dm-7`), and friend
+// requests' (`friend-5`, friendPushes.js), by user.
 const shownTags = new Map();
 // Reactions' tags, one per message (`reaction-dm-40`...), by user, then by the chat they're in
 // as presence names it (`5` for a DM with user 5, `group-3`, `channel-12`).
@@ -206,4 +207,4 @@ async function getUserImageUrl(userId) {
   return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
-module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, noteReactionShown, clearNotifications, clearChatReactions, getUserImageUrl };
+module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, noteShown, noteReactionShown, clearNotifications, clearChatReactions, getUserImageUrl };

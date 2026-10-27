@@ -2,12 +2,14 @@ const express = require('express');
 const { authenticateJWT } = require('../auth');
 const friends = require('../friends');
 const { sendToUserSockets } = require('../sockets');
+const { notifyFriendRequest, notifyFriendAccepted, clearFriendRequest } = require('../friendPushes');
 
 // Friends (friends.js). GET /friends: { friends, incoming, outgoing, admin } (`admin`: the app
 // shows the Everyone tab). PUT /friends/:userId asks them (or accepts their request), POST
 // /friends { username } the same by username, DELETE /friends/:userId removes a friend, declines
 // or cancels a request. Each answers with your new lists plus { id, result }, and both people's
-// devices get `friends` with their own.
+// devices get `friends` with their own. A new request and an accepted one are pushed to the
+// other person (friendPushes.js), and an answered one's notification goes.
 const router = express.Router();
 
 const { listFor } = friends;
@@ -18,6 +20,19 @@ async function announce(userId, otherId) {
   sendToUserSockets(userId, { type: 'friends', ...mine });
   sendToUserSockets(otherId, { type: 'friends', ...theirs });
   return mine;
+}
+
+// Pushes about what `userId` just did to `otherId` (request()'s or remove()'s `result`).
+function push(userId, otherId, result) {
+  if (result === 'requested') notifyFriendRequest(userId, otherId);
+  if (result === 'accepted') {
+    notifyFriendAccepted(userId, otherId);
+    clearFriendRequest(userId, otherId);
+  }
+  if (result === 'removed') {
+    clearFriendRequest(userId, otherId);
+    clearFriendRequest(otherId, userId);
+  }
 }
 
 function failed(res, err) {
@@ -33,6 +48,7 @@ router.post('/friends', authenticateJWT, async (req, res) => {
   try {
     const { id, result } = await friends.requestByName(req.user.id, req.body?.username);
     res.json({ ...(await announce(req.user.id, id)), id, result });
+    push(req.user.id, id, result);
   } catch (err) {
     failed(res, err);
   }
@@ -44,6 +60,7 @@ router.put('/friends/:userId', authenticateJWT, async (req, res) => {
   try {
     const result = await friends.request(req.user.id, id);
     res.json({ ...(await announce(req.user.id, id)), id, result });
+    push(req.user.id, id, result);
   } catch (err) {
     failed(res, err);
   }
@@ -55,6 +72,7 @@ router.delete('/friends/:userId', authenticateJWT, async (req, res) => {
   const removed = await friends.remove(req.user.id, id);
   const lists = removed ? await announce(req.user.id, id) : await listFor(req.user.id);
   res.json({ ...lists, id, result: removed ? 'removed' : 'none' });
+  if (removed) push(req.user.id, id, 'removed');
 });
 
 module.exports = router;

@@ -199,6 +199,12 @@ function adminNotification(data) {
   };
 }
 
+// A friend request, or one accepted (server/friendPushes.js), titled with the person's name.
+function friendNotification(data) {
+  const body = { request: 'app.push.friendRequest', accepted: 'app.push.friendAccepted' }[data.kind];
+  return { title: data.name || data.title, body: body ? t(body) : data.body };
+}
+
 // -> { title, options }, or null for a push to drop unshown (only reactions, see above).
 export async function notificationFromPush(data) {
   let title = data.title || 'Voicaw';
@@ -209,6 +215,7 @@ export async function notificationFromPush(data) {
     ({ title, body } = reaction);
   }
   if (data.type === 'admin') ({ title, body } = adminNotification(data));
+  if (data.type === 'friend') ({ title, body } = friendNotification(data));
   if (PLAIN_MESSAGE_PUSHES.has(data.type) && !(await getSetting('notificationPreviews'))) body = t('app.push.newMessage');
   if ((data.type === 'group' || data.type === 'call') && data.groupId) {
     try {

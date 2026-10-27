@@ -254,6 +254,17 @@ one user at a time).
     pinned key; the group's saved keys, the reaction only if signed by its reactor) and returns
     null, i.e. nothing shown, for a vote, an added answer or anything that won't open. Browsers
     therefore never hear about reactions in encrypted chats.
+- **Friend request notifications** (`friendPushes.js`, called by `routes/friends.js`, built
+  2026-10-27): `type: 'friend'` to every device, browsers included. `kind: 'request'` goes to the
+  person asked (opens `/dm/friends`, the Pending tab), `kind: 'accepted'` to the asker when the
+  other accepts (opens their DM). Payload: `name` (the sender's display name), `title`/`body`
+  for apps that don't word it, `image`, `tag` `friend-<sender id>` (one per person, each replacing
+  the last). `notificationFromPush` words the body on the device (`app.push.friendRequest` /
+  `friendAccepted`). At most one per pair and kind in 5 min (asking, cancelling and asking again
+  doesn't buzz each time); no sound; blocking either way already stops requests. When the request
+  is answered (accepted, declined, cancelled, or ended by a block, `routes/blocks.js`) its
+  notification is taken down on the asked person's devices: `clearNotifications` with its tag,
+  noted as shown like a message push's (`noteShown`).
 - **Admin alerts** (`adminAlerts.js`): a new report, sign-up request or Android tester request
   pushes `type: 'admin'` to every global admin (see Admin alerts in `docs/client.md`).
 - Message pushes (`dm`, `group`, `guild`) also send `message_sound` to every socket of the user

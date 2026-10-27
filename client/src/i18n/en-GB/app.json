@@ -148,6 +148,8 @@
       "reactedTo": "Reacted {{emoji}} to your message: {{text}}",
       "nameReacted": "{{name}} reacted {{emoji}} to your message",
       "nameReactedTo": "{{name}} reacted {{emoji}} to your message: {{text}}",
+      "friendRequest": "Sent you a friend request",
+      "friendAccepted": "Accepted your friend request",
       "admin": {
         "report": "New report",
         "signup": "New sign-up request",
