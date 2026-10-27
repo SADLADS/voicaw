@@ -308,8 +308,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the channel list, its first tab (Week the second, the list the third), made from the same events (repeats laid out by a client copy of the
   server's stepping); events can be made on a day of it. A Week tab (2026-10-09, as Guilded's) shows the chosen day's week as
   hours, events made by clicking one. All-day events, an emoji and a colour (2026-10-06) are the
-  app's own, not in the bot API. Guilded's calendar channels and RSVPs
-  are planned next, on the same tables.
+  app's own, not in the bot API. RSVPs (2026-10-27, Guilded's: Going / Maybe / Can't go, on
+  the interest tables) replaced Interested, which is now going or maybe (bots, pushes and older
+  apps still see that); an event may cap how many go, the rest a waitlist worked out in the
+  order they said so (nothing stored, nobody told yet when they move up). Guilded's calendar
+  channels are planned next, on the same tables.
 - **TURN on 443** (built 2026-10-14, see TURN in `docs/voice-and-calls.md`): for networks that
   allow only the web (no UDP 7882, no TCP 7881; Discord's voice fails there too), LiveKit's own
   TURN over TLS on 443, sharing the port with nginx's sites by TLS name (nginx `stream` +

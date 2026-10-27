@@ -45,16 +45,9 @@
       }
     },
     "actions": {
-      "interested": "Интересно",
       "start": "Начать",
       "end": "Завершить событие",
       "more": "Ещё"
-    },
-    "interest": {
-      "thisAdd": "Интересно это событие",
-      "allAdd": "Интересны все события",
-      "thisRemove": "Не интересно это событие",
-      "allRemove": "Не интересно ни одно из них"
     },
     "menu": {
       "edit": "Изменить событие",
@@ -91,7 +84,6 @@
       "interestedTab_other": "Интересуются: {{count}}",
       "createdBy": "Создал(а) {{name}}",
       "loading": "Загрузка…",
-      "nobodyInterested": "Пока никто не заинтересовался.",
       "pastCount_one": "Интересовался {{count}} человек",
       "pastCount_few": "Интересовались {{count}} человека",
       "pastCount_many": "Интересовались {{count}} человек",

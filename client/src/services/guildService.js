@@ -518,12 +518,13 @@ export async function setThreadJoined(threadId, joined) {
 
 // ---- Scheduled events (server/routes/guildEvents.js) ----
 
-// The guild's events you can see, soonest first, each with `interested` (yours).
+// The guild's events you can see, soonest first, each with your RSVP (`rsvp`, `rsvp_all`,
+// `my_rsvps`).
 export async function fetchEvents(guildId) {
   return (await api.get(`/guilds/${guildId}/events`)).data;
 }
 
-// One event, with your interest. A repeating one's `occurrence` (an original start) or `on` (a
+// One event, with your RSVP. A repeating one's `occurrence` (an original start) or `on` (a
 // link's date, 'YYYY-MM-DD') adds that `occurrence` (still to come, cancelled, taken place, or
 // null when it isn't one of its dates). An event "this and following" continued may come back
 // as the event that did (another id).
@@ -539,7 +540,8 @@ export async function fetchEventHistory(guildId, from, to) {
 }
 
 // { name, description, entityType: 'voice' | 'external', channelId | location, startTime,
-// endTime, image, recurrence, timezone } (times in unix seconds).
+// endTime, image, recurrence, timezone, allDay, emoji, color, rsvpLimit } (times in unix
+// seconds).
 export async function createEvent(guildId, fields) {
   return (await api.post(`/guilds/${guildId}/events`, fields)).data;
 }
@@ -575,16 +577,17 @@ export async function moveOccurrence(eventId, changes) {
   return (await api.put(`/guild-events/${eventId}/occurrence`, changes)).data;
 }
 
-// Interested or not in every occurrence of the event, or with `occurrence` (an original start)
-// only that one. Resolves to { interested (in that one), interested_all, my_occurrences }.
-export async function setEventInterest(eventId, interested, { occurrence = null } = {}) {
-  const url = `/guild-events/${eventId}/interest${occurrence != null ? `?occurrence=${occurrence}` : ''}`;
-  return (await (interested ? api.put(url) : api.delete(url))).data;
+// Your RSVP ('going', 'maybe', 'declined', or null for none) to every occurrence of the event,
+// or with `occurrence` (an original start) only that one. Resolves to your answers ({ rsvp (to
+// that one), rsvp_all, my_rsvps, ... }).
+export async function setEventRsvp(eventId, rsvp, { occurrence = null } = {}) {
+  return (await api.put(`/guild-events/${eventId}/rsvp`, { rsvp, ...(occurrence != null ? { occurrence } : {}) })).data;
 }
 
-// Who's interested in the current occurrence (or `occurrence`, an original start): user ids.
-export async function fetchEventUsers(eventId, { occurrence = null } = {}) {
-  return (await api.get(`/guild-events/${eventId}/users`, occurrence != null ? { params: { occurrence } } : undefined)).data;
+// Everyone's answer to the current occurrence (or `occurrence`, an original start): [{ user_id,
+// rsvp: 'going' | 'waitlisted' | 'maybe' | 'declined' }], in the order given.
+export async function fetchEventRsvps(eventId, { occurrence = null } = {}) {
+  return (await api.get(`/guild-events/${eventId}/rsvps`, occurrence != null ? { params: { occurrence } } : undefined)).data;
 }
 
 // ---- Levels (server/guildLevels.js) ----

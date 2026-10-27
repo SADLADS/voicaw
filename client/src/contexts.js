@@ -12,7 +12,7 @@ export const ConfigContext = createContext({
 // Desktop or mobile interaction (App), detected from the device.
 export const InteractionContext = createContext({ isMobile: false });
 
-// The logged-in layout's shared data (Layout): users list, unread counts.
+// The logged-in layout's shared data (Layout): you (`user`), users list, unread counts.
 export const LayoutContext = createContext();
 
 // Opens the full-screen image viewer (ImageViewerProvider): `openImage({ images, index })`,

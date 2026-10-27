@@ -23,6 +23,8 @@ import { t } from '../../i18n';
 const MAX_NAME = 100;
 const MAX_DESCRIPTION = 1000;
 const MAX_LOCATION = 100;
+// The most an event's going may be capped at (as the server's).
+const MAX_RSVP_LIMIT = 1000;
 const STEPS = ['where', 'info', 'review'];
 
 // An image file, uploaded like a message attachment; its URL is the cover (as a document's).
@@ -193,6 +195,9 @@ export default function EventEditor({ guild, event: series = null, scope = 'all'
   const [endTime, setEndTime] = useState(initialEnd.time);
   const [emoji, setEmoji] = useState(event?.emoji ?? null);
   const [color, setColor] = useState(event?.color ?? null);
+  // How many may go (the rest wait), as typed; '' for no limit.
+  const [limit, setLimit] = useState(event?.rsvp_limit != null ? String(event.rsvp_limit) : '');
+  const [limited, setLimited] = useState(event?.rsvp_limit != null);
   // The emoji picker's place (its button's rect), while it's open.
   const [picking, setPicking] = useState(null);
   const closePicker = useCallback(() => setPicking(null), []);
@@ -211,6 +216,8 @@ export default function EventEditor({ guild, event: series = null, scope = 'all'
   // A rule the editor can't make (a bot's) stays as it is unless another is picked.
   const rule = repeat === 'custom' ? event?.recurrence : startDay ? ruleFor(repeat, startDay) : null;
   const started = event?.status === 'active';
+  const typedLimit = Number(limit);
+  const rsvpLimit = limited && Number.isInteger(typedLimit) && typedLimit >= 1 && typedLimit <= MAX_RSVP_LIMIT ? typedLimit : null;
 
   if (scope === 'this' && event?.recurrence) return <OccurrenceEditor view={event} onSaved={onSaved} onClose={onClose} />;
   const following = scope === 'following' && Boolean(event?.recurrence) && occurrence != null;
@@ -231,6 +238,7 @@ export default function EventEditor({ guild, event: series = null, scope = 'all'
       if (entityType === 'external' && endAt == null) return t('events.editor.errors.endNeeded');
       if (endAt != null && endAt <= startAt) return t('events.editor.errors.endBefore');
       if (repeat !== 'none' && !rule) return t('events.editor.errors.repeat');
+      if (limited && rsvpLimit == null) return t('events.editor.errors.limit', { max: MAX_RSVP_LIMIT });
     }
     return null;
   }
@@ -297,6 +305,7 @@ export default function EventEditor({ guild, event: series = null, scope = 'all'
     allDay,
     emoji,
     color,
+    rsvpLimit,
   };
   const preview = {
     id: event?.id ?? 0,
@@ -314,7 +323,9 @@ export default function EventEditor({ guild, event: series = null, scope = 'all'
     all_day: allDay,
     emoji,
     color,
+    rsvp_limit: rsvpLimit,
     user_count: event?.user_count ?? 1,
+    rsvp_counts: event?.rsvp_counts ?? { going: 1, maybe: 0, declined: 0, waitlisted: 0 },
   };
 
   async function save() {
@@ -462,6 +473,26 @@ export default function EventEditor({ guild, event: series = null, scope = 'all'
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          <label className="event-editor-check">
+            <input type="checkbox" checked={limited} onChange={(e) => setLimited(e.target.checked)} />
+            {t('events.editor.limit')}
+          </label>
+          {limited && (
+            <>
+              <label htmlFor="event-limit">{t('events.editor.spots')}</label>
+              <input
+                id="event-limit"
+                type="number"
+                inputMode="numeric"
+                className="form-control event-editor-limit"
+                min={1}
+                max={MAX_RSVP_LIMIT}
+                value={limit}
+                onChange={(e) => setLimit(e.target.value)}
+              />
+              <p className="vc-hint">{t('events.editor.limitHint')}</p>
+            </>
+          )}
           <span className="event-editor-label">{t('events.editor.cover')}</span>
           <input ref={fileRef} type="file" accept="image/*" hidden aria-label={t('events.editor.coverFile')} onChange={(e) => { pickImage(e.target.files?.[0]); e.target.value = ''; }} />
           {image ? (
