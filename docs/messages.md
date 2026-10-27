@@ -75,7 +75,9 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   following the account, encrypted: `emojiUsage.js`, see Emoji usage in
   `docs/auth-and-encryption.md`; on a computer its search box is focused on opening and on
   switching between the Emoji and GIFs tabs), `:sm` autocomplete (`EmojiSuggestions`), and a completed
-  `:shortcode:` turns into the emoji as you type. `remark-emoji` still renders any leftover
+  `:shortcode:` turns into the emoji as you type (both shared in `emoji/emojiAutocomplete.js`;
+  editing a message in place, `InlineMessageEdit`, has them too through
+  `hooks/useEmojiSuggestions.js`, emoji only). `remark-emoji` still renders any leftover
   `:shortcode:` text.
 - Mobile: the picker is `docked` in the on-screen keyboard's place, at its height
   (`utils/keyboardHeight.js` measures it via `visualViewport`, see On-screen keyboard in `docs/client.md`, and remembers it per device). It and

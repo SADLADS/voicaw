@@ -17,7 +17,13 @@ import PollDialog from './PollDialog';
 import TimestampDialog from './TimestampDialog';
 import VoiceRecorderBar, { MicButton } from './VoiceRecorder';
 import { useEmojiIndex } from '../emoji/emojiContext';
-import { getSkinTone, recordEmojiUse, skinFor } from '../emoji/emojiUsage';
+import {
+  customEmojiNode,
+  emojiQueryOf,
+  insertSuggestedEmoji,
+  replaceTypedShortcode,
+  searchEmojiSuggestions,
+} from '../emoji/emojiAutocomplete';
 import { getKeyboardHeight } from '../utils/keyboardHeight';
 import { findPlaceholderIds, makePlaceholder, replacePlaceholders } from '../utils/attachmentMarkup';
 import { seedAttachmentCache } from '../services/attachmentCache';
@@ -26,13 +32,7 @@ import { useWindowFileDrop } from '../hooks/useFileDrop';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
 import { useBackClosesWhile } from '../hooks/useBackCloses';
 import MessageEditor from '../editor/MessageEditor';
-import {
-  customEmojiByName,
-  customEmojiUrl,
-  customUsageId,
-  parseCustomEmoji,
-  searchCustomEmoji,
-} from '../emoji/customEmoji';
+import { parseCustomEmoji } from '../emoji/customEmoji';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { searchChannels, searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
@@ -41,10 +41,6 @@ import { noteTyping, typingDone } from '../services/typingService';
 import { getDraft, saveDraft } from '../services/draftStore';
 import { t } from '../i18n';
 
-// ":smi" right after a space/bracket or at the start (so not "12:30" or "https://").
-const EMOJI_QUERY = /(?:^|[\s([{])(:[a-z0-9_+-]{2,})$/i;
-// A complete ":shortcode:" just typed.
-const EMOJI_SHORTCODE = /(?:^|[\s([{]):([a-z0-9_+-]+):$/i;
 // "@", "@na": a mention being typed (not "a@b").
 const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
 // "#", "#gen": a channel being typed (not "a#b").
@@ -123,8 +119,6 @@ export default function Composer({
   useProfiles();
   const mentionNames = Object.fromEntries((people ?? []).map((p) => [p.id, nameOf(p)]));
   const custom = useCustomEmoji();
-  // What the editor needs to show a custom emoji.
-  const customNode = (emoji) => ({ id: String(emoji.id), name: emoji.name, url: customEmojiUrl(emoji.id, s3Endpoint) });
   // The message as text (see editor/messageDoc), and its current line up to the cursor
   // (which drives ":smi" suggestions).
   const [inputValue, setInputValue] = useState('');
@@ -152,7 +146,7 @@ export default function Composer({
   // would open the keyboard).
   function insertEmoji(text) {
     const customEmoji = parseCustomEmoji(text);
-    if (customEmoji) inputRef.current?.insertCustomEmoji(customNode(customEmoji), { focus: !isMobile });
+    if (customEmoji) inputRef.current?.insertCustomEmoji(customEmojiNode(customEmoji, s3Endpoint), { focus: !isMobile });
     else inputRef.current?.insertText(text, { focus: !isMobile });
   }
 
@@ -218,10 +212,9 @@ export default function Composer({
     if (draft) removeDraft(draft.id);
   }
 
-  const emojiQuery = emojiIndex ? EMOJI_QUERY.exec(beforeCaret)?.[1] ?? null : null;
-  // Custom emoji first, then standard ones (8 in all).
+  const emojiQuery = emojiQueryOf(beforeCaret, emojiIndex);
   const emojiSuggestions = emojiQuery && emojiQuery !== dismissedQuery
-    ? [...searchCustomEmoji(custom, emojiQuery.slice(1), 8), ...emojiIndex.search(emojiQuery.slice(1), 8)].slice(0, 8)
+    ? searchEmojiSuggestions(emojiQuery, emojiIndex, custom)
     : [];
   const mentionQuery = people?.length ? MENTION_QUERY.exec(beforeCaret)?.[1] ?? null : null;
   const mentionSuggestions = mentionQuery != null && `@${mentionQuery}` !== dismissedQuery
@@ -276,13 +269,7 @@ export default function Composer({
   }
 
   function pickEmoji(emoji) {
-    if (emoji.guild) {
-      recordEmojiUse(customUsageId(emoji.id));
-      inputRef.current?.replaceBeforeCaretWithCustomEmoji(emojiQuery.length, customNode(emoji));
-    } else {
-      recordEmojiUse(emoji.id);
-      inputRef.current?.replaceBeforeCaret(emojiQuery.length, `${skinFor(emoji, getSkinTone()).native} `);
-    }
+    insertSuggestedEmoji(inputRef.current, emojiQuery, emoji, s3Endpoint);
     setSuggestionIndex(0);
   }
 
@@ -299,29 +286,8 @@ export default function Composer({
     else typingDone(chatId);
     setSuggestionIndex(0);
 
-    // Typing the closing colon of a known :shortcode: turns it into the emoji (like Discord):
-    // a standard one, else a custom emoji of that name.
-    const typed = emojiIndex && EMOJI_SHORTCODE.exec(line);
-    const emoji = typed && emojiIndex.byShortcode.get(typed[1].toLowerCase());
-    const customEmoji = typed && !emoji && customEmojiByName(custom, typed[1]);
-    if (customEmoji) {
-      recordEmojiUse(customUsageId(customEmoji.id));
-      queueMicrotask(() => {
-        const editor = inputRef.current;
-        if (editor && !editor.isComposing()) {
-          editor.replaceBeforeCaretWithCustomEmoji(typed[1].length + 2, customNode(customEmoji), { focus: false });
-        }
-      });
-    }
-    if (emoji) {
-      recordEmojiUse(emoji.id);
-      const native = skinFor(emoji, getSkinTone()).native;
-      // After this edit has finished (and not in the middle of a keyboard's composition).
-      queueMicrotask(() => {
-        const editor = inputRef.current;
-        if (editor && !editor.isComposing()) editor.replaceBeforeCaret(typed[1].length + 2, native, { focus: false });
-      });
-    }
+    // Typing the closing colon of a known :shortcode: turns it into the emoji.
+    replaceTypedShortcode(line, () => inputRef.current, { emojiIndex, custom, s3Endpoint });
   }
 
   function handleInputKeyDown(e) {
