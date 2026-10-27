@@ -90,6 +90,20 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     }
   }, []);
 
+  // A live message in a channel whose category isn't known yet (its guild not opened, no unread
+  // row from the server), in a guild with a muted category: the unread list is fetched again,
+  // since its rows say which category they're in (one fetch for a burst of messages).
+  const channelCategoriesRef = useRef({});
+  const categoryMutesRef = useRef({});
+  const categoryFetch = useRef(null);
+  const learnCategory = useCallback((guildId, channelId) => {
+    if (channelId in channelCategoriesRef.current) return;
+    if (!Object.values(categoryMutesRef.current).some((m) => m.guildId === guildId)) return;
+    clearTimeout(categoryFetch.current);
+    categoryFetch.current = setTimeout(refreshUnread, 300);
+  }, [refreshUnread]);
+  useEffect(() => () => clearTimeout(categoryFetch.current), []);
+
   // Every guild's custom emoji.
   const loadEmojis = useCallback(async () => {
     try {
@@ -252,7 +266,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
   // layouts opened so far and the unread rows (which carry it for guilds not opened yet).
   const channelCategories = useMemo(() => {
     const result = {};
-    for (const u of unread) if (u.category_id != null) result[u.channel_id] = u.category_id;
+    for (const u of unread) if ('category_id' in u) result[u.channel_id] = u.category_id;
     for (const guild of Object.values(layouts)) {
       for (const c of guild.channels ?? []) result[c.id] = c.category_id ?? null;
       for (const th of guild.threads ?? []) {
@@ -262,6 +276,8 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     }
     return result;
   }, [unread, layouts]);
+  channelCategoriesRef.current = channelCategories;
+  categoryMutesRef.current = categoryMutes;
 
   const isCategoryMuted = useCallback((categoryId) => Boolean(categoryMutes[categoryId]), [categoryMutes]);
   const isMuted = useCallback(
@@ -394,6 +410,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
           setUnread((prev) => (prev.some((u) => u.channel_id === message.channel_id)
             ? prev.map((u) => (u.channel_id === message.channel_id ? { ...u, count: u.count + 1 } : u))
             : [...prev, { channel_id: message.channel_id, guild_id: event.guildId, count: 1, mentions: 0 }]));
+          learnCategory(event.guildId, message.channel_id);
           break;
         }
         // Sent to you, right after the message itself, when it mentions you.
@@ -439,7 +456,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
         default:
       }
     });
-  }, [userId, upsertGuild, removeGuild, applyOrder, applyMute, applyGuildMute, applyCategoryMute, applyChannelLevel]);
+  }, [userId, upsertGuild, removeGuild, applyOrder, applyMute, applyGuildMute, applyCategoryMute, applyChannelLevel, learnCategory]);
 
   const guildVoice = useMemo(() => {
     const result = {};

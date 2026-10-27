@@ -129,7 +129,7 @@ try {
 
   // A category's menu; a right-click at the window's corner stays on screen.
   await a.click('.guild-category-toggle', { button: 'right' });
-  check(JSON.stringify(await items(a, '.context-menu')) === JSON.stringify(['Collapse Category', 'Copy Category ID', 'Edit Category', 'Create Channel', 'Delete Category']), 'the category menu');
+  check(JSON.stringify(await items(a, '.context-menu')) === JSON.stringify(['Mute Category', 'Collapse Category', 'Copy Category ID', 'Edit Category', 'Create Channel', 'Delete Category']), 'the category menu');
   await a.keyboard.press('Escape');
   // Shrink the window so #third is the last row above the user panel, and right-click its far
   // end: the menu has to go up.

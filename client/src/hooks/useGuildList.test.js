@@ -182,9 +182,24 @@ describe('useGuildList category mutes', () => {
       vi.useRealTimers();
     }
 
+    // A live message in a channel not known yet (guild 6 never opened) fetches the unread list
+    // again, which says its category; only for a guild with a muted category.
+    act(() => emit({ type: 'guild_category_mute', guildId: 6, categoryId: 12, muted: true, until: null }));
+    fetchGuildUnread.mockClear();
+    fetchGuildUnread.mockResolvedValueOnce([{ channel_id: 60, guild_id: 6, category_id: 12, count: 1, mentions: 0 }]);
+    act(() => emit({ type: 'guild_message_new', guildId: 6, message: { id: 1, channel_id: 60, sender_id: 2 } }));
+    expect(result.current.isMuted(60)).toBe(false);
+    await waitFor(() => expect(result.current.isMuted(60)).toBe(true));
+    expect(fetchGuildUnread).toHaveBeenCalledTimes(1);
+    act(() => emit({ type: 'guild_message_new', guildId: 6, message: { id: 2, channel_id: 60, sender_id: 2 } }));
+    act(() => emit({ type: 'guild_message_new', guildId: 5, message: { id: 3, channel_id: 59, sender_id: 2 } }));
+    await new Promise((r) => setTimeout(r, 400));
+    expect(fetchGuildUnread).toHaveBeenCalledTimes(1);
+    expect(result.current.activeUnread.map((u) => u.channel_id)).not.toContain(60);
+
     // Leaving the guild forgets its category mutes.
     act(() => emit({ type: 'guild_category_mute', guildId: 5, categoryId: 9, muted: true, until: null }));
     act(() => emit({ type: 'guild_remove', guildId: 5 }));
-    expect(result.current.categoryMutes).toEqual({});
+    expect(result.current.categoryMutes).toEqual({ 12: { guildId: 6, until: null } });
   });
 });
