@@ -195,6 +195,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
     if (row.system === 'group_name') return decryptRenameRow(row);
     // A call (utils/callLog.js): plaintext from the server, shown as a notice.
     if (row.system === 'call') return { ...row, plaintext: null, reactions: [] };
+    // A pin (server pins.js): only who pinned which message, no content of its own.
+    if (row.system === 'pin') return { ...row, plaintext: null, parent_plaintext: null, reactions: [] };
     const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row));
     const readable = text.plaintext !== UNREADABLE && !text.unverified;
     return {

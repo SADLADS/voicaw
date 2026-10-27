@@ -10,6 +10,7 @@ import { hangUp } from '../../voice/callClient';
 import { watchStream } from '../../voice/voiceClient';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
+import PushToTalkButton from '../voice/PushToTalkButton';
 import CameraButton from '../voice/CameraButton';
 import CameraVideo from '../voice/CameraVideo';
 import ScreenShareButton from '../voice/ScreenShareButton';
@@ -95,6 +96,7 @@ export default function CallPanel({ user, peer }) {
       {call.outgoing || call.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />
+          <PushToTalkButton className="voice-view-button" />
           <CameraButton className="voice-view-button" />
           <ScreenShareButton className="voice-view-button" />
           <button type="button" className="voice-view-button leave" aria-label={t('calls.panel.hangUp')} title={t('calls.panel.hangUp')} onClick={hangUp}>

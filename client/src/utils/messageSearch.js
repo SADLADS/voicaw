@@ -102,8 +102,9 @@ function parseContent(content) {
   return { phrases, likes };
 }
 
-// The search box's parameters ({ content, author_id, mentions, has }) -> a test of one kept
-// message ({ s: sender id, p: its text, n: indexedWords, h: searchHas }).
+// The search box's parameters ({ content, author_id, mentions, has, before_time, after_time })
+// -> a test of one kept message ({ s: sender id, t: time, p: its text, n: indexedWords, h:
+// searchHas }). Times are unix seconds: before `before_time`, at or after `after_time`.
 export function messageMatcher(params) {
   const { phrases, likes } = parseContent(params.content);
   const authors = new Set((params.author_id ?? []).map(String));
@@ -111,6 +112,8 @@ export function messageMatcher(params) {
   const bits = (params.has ?? []).reduce((all, v) => all | (HAS[v] ?? 0), 0);
   return (entry) => {
     if (authors.size && !authors.has(String(entry.s))) return false;
+    if (params.before_time != null && !(entry.t < params.before_time)) return false;
+    if (params.after_time != null && !(entry.t >= params.after_time)) return false;
     if (bits && (entry.h & bits) !== bits) return false;
     if (mentions.some((m) => !entry.p.includes(m))) return false;
     if (likes.some((text) => !entry.p.includes(text))) return false;

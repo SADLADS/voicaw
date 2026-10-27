@@ -126,6 +126,10 @@
         "title": "Noise suppression",
         "keywords": "noise suppression background rnnoise deepfilternet strong standard keyboard fan"
       },
+      "inputMode": {
+        "title": "Input mode",
+        "keywords": "input mode push to talk ptt voice activity key shortcut hold release delay"
+      },
       "inputSensitivity": {
         "title": "Input sensitivity",
         "keywords": "input sensitivity gate threshold voice activity automatic level"
@@ -672,6 +676,14 @@
       "undeafen": {
         "label": "Undeafen"
       },
+      "pushToTalkOn": {
+        "label": "Push to talk on",
+        "description": "You start talking with push to talk"
+      },
+      "pushToTalkOff": {
+        "label": "Push to talk off",
+        "description": "You stop talking with push to talk"
+      },
       "userJoin": {
         "label": "User join",
         "description": "You or someone else joins your voice channel or call"
@@ -785,6 +797,71 @@
       "micLevel": "Microphone level",
       "noiseSuppression": "Noise suppression",
       "inputSensitivity": "Input sensitivity",
+      "inputMode": {
+        "title": "Input mode",
+        "voice": {
+          "label": "Voice activity",
+          "hint": "Sends your voice whenever you talk."
+        },
+        "pushToTalk": {
+          "label": "Push to talk",
+          "hint": "Sends your voice only while you hold a key or mouse button."
+        }
+      },
+      "pushToTalk": {
+        "shortcut": "Push to talk key",
+        "pressKey": "Press a key…",
+        "notSet": "Not set",
+        "clear": "Clear",
+        "recordingHint": "Press a key or a mouse button (middle, back or forward). Escape cancels, Backspace clears it.",
+        "browserHint": "Works while Voicaw is open in front. In the desktop app it also works while you're in another app. You can also hold the Push to talk button in the voice bar.",
+        "desktopHint": "Works in other apps too, such as games, while you're in voice. You can also hold the Push to talk button in the voice bar.",
+        "outsideFailed": "This computer wouldn't let Voicaw hear the key in other apps, so it only works while Voicaw is in front. On Linux, apps running on Wayland can't be heard.",
+        "outsideFailedMac": "To use the key in other apps, allow Voicaw in System Settings → Privacy & Security → Accessibility, then rejoin voice.",
+        "releaseDelay": "Release delay",
+        "releaseDelayHint": "How long your voice keeps going after you let go, so your last word isn't cut off.",
+        "ms": "{{ms}} ms",
+        "noSensitivity": "Push to talk is on: your voice is sent while you hold the key, however loud it is.",
+        "keys": {
+          "numpad": "Numpad {{key}}",
+          "ControlLeft": "Left Ctrl",
+          "ControlRight": "Right Ctrl",
+          "AltLeft": "Left Alt",
+          "AltRight": "Right Alt",
+          "ShiftLeft": "Left Shift",
+          "ShiftRight": "Right Shift",
+          "MetaLeft": "Left Windows",
+          "MetaRight": "Right Windows",
+          "CapsLock": "Caps Lock",
+          "Space": "Space",
+          "Insert": "Insert",
+          "Delete": "Delete",
+          "Home": "Home",
+          "End": "End",
+          "PageUp": "Page Up",
+          "PageDown": "Page Down",
+          "ArrowUp": "Up",
+          "ArrowDown": "Down",
+          "ArrowLeft": "Left",
+          "ArrowRight": "Right",
+          "NumLock": "Num Lock",
+          "ScrollLock": "Scroll Lock",
+          "PrintScreen": "Print Screen",
+          "Mouse3": "Middle mouse button",
+          "Mouse4": "Mouse back button",
+          "Mouse5": "Mouse forward button",
+          "mac": {
+            "MetaLeft": "Left Command",
+            "MetaRight": "Right Command",
+            "AltLeft": "Left Option",
+            "AltRight": "Right Option"
+          },
+          "linux": {
+            "MetaLeft": "Left Super",
+            "MetaRight": "Right Super"
+          }
+        }
+      },
       "autoSensitivity": {
         "label": "Automatic",
         "hint": "Sends your voice only while you talk, so typing and clicks in between aren't heard."

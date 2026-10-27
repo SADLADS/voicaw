@@ -7,11 +7,11 @@ const { PERMISSIONS, has, channelPermissions } = require('../permissions');
 const { getChannelAccess, getMember, getOverrides, sendToChannel, getChannelViewers } = require('../guilds');
 const { saveMentions, notifyNewMessage, parseMentions } = require('../mentions');
 const threads = require('../threads');
-const { setPinned } = require('../pins');
+const { setPinned, announcePin } = require('../pins');
 const {
   POLL_VOTE, parsePoll, isClosedPoll, pollEditError, reactionIdsFor, pollReactionsFor, isPollReaction, parseAnswer, addedAnswers, answerError,
 } = require('../polls');
-const { removePollRows } = require('../pollTimers');
+const { removeLinkedRows } = require('../pollTimers');
 const { releaseUploads } = require('../uploads');
 const { logAudit } = require('../auditLog');
 const { parseDuration, listMutes, setMute, CHANNEL_NOTIFY_LEVELS, listChannelLevels, setChannelLevel } = require('../channelMutes');
@@ -397,13 +397,13 @@ async function deleteMessage(message, channel, actorId, permissions) {
   if (senderId !== actorId && !has(permissions, PERMISSIONS.MANAGE_MESSAGES)) {
     throw new ActionError(403, 'Not authorized to delete this message');
   }
-  // A poll takes its "poll ended" row with it.
+  // A poll takes its "poll ended" row with it, a pinned message its "pinned" rows.
   const removed = await db.transaction(async () => {
     if (!message.system) await logMessageDelete(message, channel, { actorId });
     await db.run('DELETE FROM guild_reactions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_mentions WHERE message_id = ?', [id]);
     await db.run('DELETE FROM guild_messages WHERE id = ?', [id]);
-    return removePollRows('guild', id);
+    return removeLinkedRows('guild', id);
   });
   releaseUploads();
   const { guild_id: guildId, id: channelId } = channel;
@@ -449,6 +449,7 @@ async function setMessagePinned(message, channel, actorId, permissions, pinned) 
   }
   const pin = { messageId: message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
   if (result.changed) await sendToChannel(channel, { type: 'guild_message_pin', guildId, channelId, ...pin });
+  await announcePin('guild_messages', result.rowId);
   return pin;
 }
 

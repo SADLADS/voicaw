@@ -85,6 +85,20 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `globalShortcut`; recorded from a key press with a modifier, `acceleratorFromEvent`; a key
   another app holds is reported), Activity's "Share what I'm playing" (Rich Presence, default
   on), and In-game overlay's "Show the overlay in games" (default on) and its corner.
+- **Push to talk in other apps** (`pushToTalk.js`, built 2026-10-27; see Push to talk in
+  `docs/voice-and-calls.md`): `globalShortcut` only reports presses, so holding a key goes
+  through a keyboard hook, `uiohook-napi` (libuiohook: a low-level hook on Windows, XRecord on
+  X11, an event tap on macOS; N-API prebuilds for Windows, Linux and macOS, so nothing is
+  compiled; loaded on first use). The page asks for it (`setPushToTalk(key)`, from
+  `useDesktopApp`) only while it's in voice with push to talk on and a key chosen, and gets
+  only that key's down and up (`onPushToTalk`); a reload or a crashed page stops it.
+  Where the system refuses (macOS without Accessibility, no X display) `setPushToTalk`
+  resolves false and Settings → Voice & video says so; the key then works only while Voicaw
+  has focus, as in a browser. On Linux, Wayland apps' keys aren't seen (only X11 and
+  XWayland ones). The keys (`PUSH_TO_TALK_KEYS`) match the client's list (a client test
+  checks); `test/pushToTalk.test.js` uses a stand-in hook (loading the real one with no
+  display makes the process fail as it exits). Checked under Xvfb with presses from another
+  X client (V, left Ctrl, the back button).
 - **Rich Presence** (`richPresence.js`, `gameLookup.js`, `gameActivities.js`; built 2026-10-09):
   games that show what you're doing in Discord tell the app instead, unchanged, and everyone
   sees it (see Activities in `docs/realtime.md`). Games talk to a local socket,
@@ -261,7 +275,7 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   replace their build with the published one): `VOICAW_AUTO_UPDATE=off` at build time
   (`builder.config.js` writes `voicawAutoUpdate` into the packaged `package.json`) makes it off
   from the first launch.
-- **Not done yet:** push-to-talk (held key), screen share sound on macOS and
+- **Not done yet:** screen share sound on macOS and
   Linux (Electron's loopback is Windows only), streaming videos (no
   service worker: they download whole on Play; `protocol.js` could serve them instead), code
   signing (Windows SmartScreen warns about unsigned installers). Notifications while the app
@@ -412,7 +426,9 @@ native bridge. Check real behaviour on a phone.
   notification (Settings → Notifications) always alerts, even with the app open.
 - **Not done yet**: Google Play for everyone (it's a closed test, 2026-10-06), Bluetooth headset
   buttons and phone calls interrupting ours (Android's Telecom API), replying from a
-  notification, the unread count on the icon, push-to-talk, screen sharing, iOS.
+  notification, the unread count on the icon, push to talk with the app in the background (the
+  hold button needs it open; a hardware keyboard's key works while it's in front), screen
+  sharing, iOS.
 
 ## Info site (voicaw.com)
 

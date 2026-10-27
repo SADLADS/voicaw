@@ -287,6 +287,30 @@ LiveKit carries the audio.
   the page may use the microphone ("Allow it"). Each remote voice's `<audio>` element is kept
   per track (`audioElementsByTrack`): LiveKit has often detached it already by the time it
   says the track is gone, so `detach()` alone left empty elements behind.
+- **Push to talk** (built 2026-10-27, as Discord's; `voice/pushToTalk.js`, keys in
+  `voice/pushToTalkKeys.js`): Settings → Voice & video → Input mode is Voice activity (the
+  default: the gate decides) or Push to talk, per device (`audioSettings` `inputMode`,
+  `pushToTalkKey`, `pushToTalkDelay`). The key is one key or mouse button, no combinations,
+  saved as `KeyboardEvent.code` (layout-independent; "Mouse3"-"Mouse5" for middle, back and
+  forward): any key but Escape, Backspace, Enter and Tab, recorded from the next press
+  (Escape cancels, Backspace clears; choosing Push to talk with none set starts recording).
+  The release delay (0–2000 ms, default 20, Discord's) keeps sending after it's let go.
+  What's sent is cut by a gain at the end of the microphone chain (`pushToTalkStage`, ramps
+  of a few ms, no clicks), not by muting: the microphone stays captured (its light stays on,
+  as Discord's), so the first word isn't lost to starting it, and the gate is held open
+  (`gateOptions`: the key decides, not loudness; Settings says so under Input sensitivity).
+  Our own green ring follows, since it's measured on what's sent. Mute and deafen still win.
+  Talking lasts while any **source** is held: `key` (the page's own listener, on `window`,
+  capture phase, while Voicaw has focus; a blur lets go, since the release won't be seen;
+  typing the key in a box still types it; the back and forward buttons don't navigate),
+  `button` (`PushToTalkButton`, hold to talk, in the voice bar under its buttons and in the
+  voice channel and call views, for phones and anyone without a key: pointer capture,
+  Space/Enter, greyed out while muted) and `desktop` (the desktop app's keyboard hook, in
+  other apps too: see Push to talk in other apps in `docs/desktop-and-site.md`). Sounds
+  Push to talk on/off (Settings → Sounds) mark it starting and stopping to send, only while
+  that's heard (connected, Speak, not muted). The mic test isn't held back by it.
+  `voice/pushToTalk.test.js`, `components/voice/PushToTalkButton.test.jsx`;
+  `e2e/pushtotalk.mjs` checks what LiveKit receives.
 - **UI:** in the channel list, people in a voice channel are listed under it (ringed while
   talking, when you're in there too). Clicking a voice channel joins it on desktop; on mobile a
   tap only opens it and you join from its page (`guild/VoiceChannelView.jsx`: tiles, outlined while talking, not their pictures; Join Voice,
@@ -501,9 +525,8 @@ LiveKit carries the audio.
     videos (no bot API for Watch Together yet).
   - `e2e/watchparty.mjs` checks it with real videos (needs the internet); `e2e/mediaservers.mjs`
     with real Jellyfin and Emby servers in Docker (`e2e/mediacontainers.mjs` starts them).
-- **Not done yet:** a per-user local mute (Discord has one), push-to-talk, output volume above 100%, server mute/move (Mute Members, Move Members), a global
-  push-to-talk key in the desktop app (it has global mute/deafen toggles; holding a key needs a
-  native keyboard hook), noise suppression and the gate on the other side (for people whose
+- **Not done yet:** a per-user local mute (Discord has one), output volume above 100%, server mute/move (Mute Members, Move Members), push to talk
+  with a key combination or several keys, Discord's push to talk (priority), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"), switching between a phone's front and back camera in a call,
   background blur, a camera spotlight (one camera big, like a watched stream), viewers picking
   a stream's quality (its simulcast copy; see Stream quality); Watch Together: a party surviving an API restart, other sites than YouTube and the guild's

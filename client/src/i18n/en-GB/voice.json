@@ -203,6 +203,12 @@
       "emptyManage": "This guild has no sounds yet. Add some in Guild Settings → Soundboard.",
       "noPermission": "You can't play sounds in this channel.",
       "deafened": "Undeafen to play sounds."
+    },
+    "pushToTalk": {
+      "hold": "Hold to talk",
+      "talking": "Talking",
+      "short": "Push to talk",
+      "muted": "You're muted"
     }
   }
 }

@@ -9,9 +9,9 @@ const { sendToUserSockets, getStatus, isViewingConversation } = require('../sock
 const { buildDmPushPayload, sendPushToUser, clearNotifications, getUserImageUrl } = require('../push');
 const { isConversationMuted } = require('../conversationSettings');
 const blocks = require('../blocks');
-const { setPinned } = require('../pins');
+const { setPinned, announcePin } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
-const { removePollRows } = require('../pollTimers');
+const { removeLinkedRows } = require('../pollTimers');
 const { CALL_LOG } = require('../callLog');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 const { parseRanges, countRanges } = require('../messageRanges');
@@ -231,11 +231,11 @@ router.delete('/messages/:id', authenticateJWT, async (req, res) => {
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized to delete this message' });
   if (row.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
 
-  // A poll takes its "poll ended" row with it.
+  // A poll takes its "poll ended" row with it, a pinned message its "pinned" rows.
   const removed = await db.transaction(async () => {
     await db.run('DELETE FROM dm_reactions WHERE message_id = ?', [messageId]);
     await db.run('DELETE FROM direct_messages WHERE id = ?', [messageId]);
-    return removePollRows('dm', messageId);
+    return removeLinkedRows('dm', messageId);
   });
   releaseUploads();
 
@@ -332,6 +332,7 @@ async function pinRoute(req, res, pinned) {
   if (result.changed) {
     sendToConversation(row, { type: 'dm_pin', sender_id: row.sender_id, recipient_id: row.recipient_id, ...pin });
   }
+  await announcePin('direct_messages', result.rowId);
   res.json(pin);
 }
 

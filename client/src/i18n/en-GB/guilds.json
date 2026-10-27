@@ -64,10 +64,12 @@
       "noMember": "No member called {{name}}",
       "noChannel": "No channel called #{{name}}",
       "hasValues": "has: can be {{values}}",
+      "badDate": "{{key}}: needs a date, such as {{example}} (not {{value}})",
       "hint": {
         "user": "user",
         "channel": "channel",
-        "has": "{{values}} or {{last}}"
+        "has": "{{values}} or {{last}}",
+        "date": "date, such as {{example}}"
       },
       "unknownChannel": "unknown",
       "failed": "Couldn't search right now.",
@@ -78,6 +80,10 @@
       "options": "Search options",
       "channels": "Channels",
       "messageContains": "Message contains",
+      "datePicker": {
+        "before": "Before this day",
+        "after": "After this day"
+      },
       "results": "Search results",
       "close": "Close search",
       "resultCount_one": "{{count}} result",
@@ -85,7 +91,7 @@
       "sort": "Sort",
       "newest": "Newest",
       "oldest": "Oldest",
-      "intro": "Search for words, or narrow it down with from:, mentions:, in: and has:.",
+      "intro": "Search for words, or narrow it down with from:, mentions:, in:, has:, before: and after:.",
       "noResults": "No results.",
       "noResultsHint": "Try other words or fewer filters.",
       "jump": "Jump",

@@ -3,7 +3,7 @@ import MessageSearch from './MessageSearch';
 import { ENCRYPTED_HAS_VALUES } from '../utils/messageSearch';
 import { t } from '../i18n';
 
-const KEYS = ['from', 'mentions', 'has'];
+const KEYS = ['from', 'mentions', 'has', 'before', 'after'];
 const PAGE = 25;
 
 // Searching a DM, group DM or your notes, which only this device can read: the chat hook's

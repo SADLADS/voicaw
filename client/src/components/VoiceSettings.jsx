@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  canChooseInput, canChooseOutput, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
+  canChooseInput, canChooseOutput, MAX_PUSH_TO_TALK_DELAY, listAudioDevices, onDeviceChange, resetAudioSettings, setAudioSettings, useAudioSettings,
 } from '../voice/audioSettings';
 import { startMicTest } from '../voice/micTest';
 import { canShareScreen, setMicTesting } from '../voice/voiceClient';
@@ -10,6 +10,9 @@ import { ALWAYS_OPEN_DB } from '../voice/noise/gate';
 import {
   canSuppressNoise, canSuppressStrongly, isDeepFilterSlow, onDeepFilterSlow,
 } from '../voice/noise/noiseStages';
+import { buttonOfEvent, describePushToTalkKey, keyOfEvent } from '../voice/pushToTalkKeys';
+import { setRecordingPushToTalkKey, usePushToTalk } from '../voice/pushToTalk';
+import { desktop, isDesktopApp } from '../utils/desktop';
 import { t } from '../i18n';
 
 // [setting, label key, hint key]
@@ -29,6 +32,11 @@ const NOISE_MODES = [
   ['strong', 'settings.voice.noise.strong.label', 'settings.voice.noise.strong.hint'],
   ['browser', 'settings.voice.noise.browser.label', 'settings.voice.noise.browser.hint'],
   ['off', 'settings.voice.noise.off.label', 'settings.voice.noise.off.hint'],
+];
+
+const INPUT_MODES = [
+  ['voice', 'settings.voice.inputMode.voice.label', 'settings.voice.inputMode.voice.hint'],
+  ['pushToTalk', 'settings.voice.inputMode.pushToTalk.label', 'settings.voice.inputMode.pushToTalk.hint'],
 ];
 
 // The sensitivity meter's scale, in dB (the slider's range).
@@ -51,6 +59,8 @@ export default function VoiceSettings() {
   const [level, setLevel] = useState(0);
   const [testError, setTestError] = useState(null);
   const [gate, setGate] = useState(null); // { db, open } while testing
+  const [recordingKey, setRecordingKey] = useState(false);
+  const { outside } = usePushToTalk();
   const stopTest = useRef(null);
   const strongSlow = useSyncExternalStore(onDeepFilterSlow, isDeepFilterSlow);
   const suppressionAvailable = canSuppressNoise();
@@ -109,6 +119,39 @@ export default function VoiceSettings() {
     };
   }, [testing, inputDeviceId, echoCancellation, noiseSuppression, autoGainControl, refreshDevices]);
 
+  // Choosing the push to talk key: the next key or mouse button (middle, back, forward) it
+  // can use; Escape cancels, Backspace clears it. The old key doesn't talk meanwhile.
+  useEffect(() => {
+    if (!recordingKey) return undefined;
+    setRecordingPushToTalkKey(true);
+    const choose = (key) => {
+      setRecordingKey(false);
+      setAudioSettings({ pushToTalkKey: key });
+    };
+    const onKeyDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === 'Escape') setRecordingKey(false);
+      else if (e.key === 'Backspace') choose(null);
+      else if (keyOfEvent(e)) choose(keyOfEvent(e));
+    };
+    const onMouseDown = (e) => {
+      const button = buttonOfEvent(e);
+      if (!button) return;
+      e.preventDefault();
+      e.stopPropagation();
+      choose(button);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('mousedown', onMouseDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('mousedown', onMouseDown, true);
+      setRecordingPushToTalkKey(false);
+    };
+  }, [recordingKey]);
+
+  const pushToTalk = settings.inputMode === 'pushToTalk';
   const chooseInput = canChooseInput();
   const chooseOutput = canChooseOutput();
   const defaultLabel = (name) => (name ? t('settings.voice.defaultDeviceNamed', { name }) : t('settings.voice.defaultDevice'));
@@ -229,45 +272,115 @@ export default function VoiceSettings() {
         <p className="error-text">{t('settings.voice.noise.strong.tooSlow')}</p>
       )}
 
-      <h6 id="settings-input-sensitivity" className="voice-settings-heading">{t('settings.voice.inputSensitivity')}</h6>
-      <label className="settings-toggle voice-settings-toggle">
-        <input
-          type="checkbox" checked={settings.autoSensitivity}
-          onChange={(e) => setAudioSettings({ autoSensitivity: e.target.checked })}
-        />
-        <span>
-          {t('settings.voice.autoSensitivity.label')}
-          <span className="vc-hint">
-            {t('settings.voice.autoSensitivity.hint')}
-          </span>
-        </span>
-      </label>
-      {!settings.autoSensitivity && (
-        <div className="voice-sensitivity">
-          <input
-            type="range" min={ALWAYS_OPEN_DB} max="0" step="1"
-            aria-label={t('settings.voice.inputSensitivity')}
-            value={settings.sensitivity}
-            onChange={(e) => setAudioSettings({ sensitivity: Number(e.target.value) })}
-          />
-          <div
-            className="voice-sensitivity-meter"
-            role="meter" aria-label={t('settings.voice.levelAgainstSensitivity')} aria-valuemin={ALWAYS_OPEN_DB} aria-valuemax={0}
-            aria-valuenow={gate ? Math.round(gate.db) : ALWAYS_OPEN_DB}
-          >
-            <div
-              className={`voice-sensitivity-level${gate?.open ? ' open' : ''}`}
-              style={{ transform: `scaleX(${gate ? meterShare(gate.db) : 0})` }}
+      <h6 id="settings-input-mode" className="voice-settings-heading">{t('settings.voice.inputMode.title')}</h6>
+      <div role="radiogroup" aria-label={t('settings.voice.inputMode.title')}>
+        {INPUT_MODES.map(([mode, label, hint]) => (
+          <label key={mode} className="settings-toggle voice-settings-toggle">
+            <input
+              type="radio" name="input-mode" value={mode}
+              checked={settings.inputMode === mode}
+              onChange={() => {
+                setAudioSettings({ inputMode: mode });
+                if (mode === 'pushToTalk' && !settings.pushToTalkKey) setRecordingKey(true);
+              }}
             />
-            <div className="voice-sensitivity-mark" style={{ left: `${meterShare(settings.sensitivity) * 100}%` }} />
+            <span>
+              {t(label)}
+              <span className="vc-hint">{t(hint)}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {pushToTalk && (
+        <div className="push-to-talk-settings">
+          <div className="push-to-talk-key">
+            <span className="push-to-talk-key-label">{t('settings.voice.pushToTalk.shortcut')}</span>
+            <button
+              type="button"
+              className={`btn btn-sm btn-secondary push-to-talk-key-button${recordingKey ? ' recording' : ''}`}
+              aria-label={t('settings.voice.pushToTalk.shortcut')}
+              onClick={() => setRecordingKey((on) => !on)}
+            >
+              {recordingKey
+                ? t('settings.voice.pushToTalk.pressKey')
+                : describePushToTalkKey(settings.pushToTalkKey) || t('settings.voice.pushToTalk.notSet')}
+            </button>
+            {settings.pushToTalkKey && !recordingKey && (
+              <button type="button" className="link-button" onClick={() => setAudioSettings({ pushToTalkKey: null })}>
+                {t('settings.voice.pushToTalk.clear')}
+              </button>
+            )}
           </div>
+          {outside === 'failed' && (
+            <p className="error-text">
+              {desktop?.platform === 'darwin' ? t('settings.voice.pushToTalk.outsideFailedMac') : t('settings.voice.pushToTalk.outsideFailed')}
+            </p>
+          )}
           <p className="vc-hint">
-            {settings.sensitivity <= ALWAYS_OPEN_DB
-              ? t('settings.voice.alwaysSending')
-              : t('settings.voice.sendsLouderThan', { db: settings.sensitivity })}
-            {!testing && ` ${t('settings.voice.useLetsCheck')}`}
+            {recordingKey ? t('settings.voice.pushToTalk.recordingHint') : isDesktopApp()
+              ? t('settings.voice.pushToTalk.desktopHint')
+              : t('settings.voice.pushToTalk.browserHint')}
           </p>
+          <label className="voice-settings-field">
+            <span>{t('settings.voice.pushToTalk.releaseDelay')}</span>
+            <span className="sound-volume">
+              <input
+                type="range" min="0" max={MAX_PUSH_TO_TALK_DELAY} step="10"
+                aria-label={t('settings.voice.pushToTalk.releaseDelay')}
+                value={settings.pushToTalkDelay}
+                onChange={(e) => setAudioSettings({ pushToTalkDelay: Number(e.target.value) })}
+              />
+              <span className="sound-volume-value">{t('settings.voice.pushToTalk.ms', { ms: settings.pushToTalkDelay })}</span>
+            </span>
+          </label>
+          <p className="vc-hint">{t('settings.voice.pushToTalk.releaseDelayHint')}</p>
         </div>
+      )}
+
+      <h6 id="settings-input-sensitivity" className="voice-settings-heading">{t('settings.voice.inputSensitivity')}</h6>
+      {pushToTalk && <p className="vc-hint">{t('settings.voice.pushToTalk.noSensitivity')}</p>}
+      {!pushToTalk && (
+        <>
+          <label className="settings-toggle voice-settings-toggle">
+            <input
+              type="checkbox" checked={settings.autoSensitivity}
+              onChange={(e) => setAudioSettings({ autoSensitivity: e.target.checked })}
+            />
+            <span>
+              {t('settings.voice.autoSensitivity.label')}
+              <span className="vc-hint">
+                {t('settings.voice.autoSensitivity.hint')}
+              </span>
+            </span>
+          </label>
+          {!settings.autoSensitivity && (
+            <div className="voice-sensitivity">
+              <input
+                type="range" min={ALWAYS_OPEN_DB} max="0" step="1"
+                aria-label={t('settings.voice.inputSensitivity')}
+                value={settings.sensitivity}
+                onChange={(e) => setAudioSettings({ sensitivity: Number(e.target.value) })}
+              />
+              <div
+                className="voice-sensitivity-meter"
+                role="meter" aria-label={t('settings.voice.levelAgainstSensitivity')} aria-valuemin={ALWAYS_OPEN_DB} aria-valuemax={0}
+                aria-valuenow={gate ? Math.round(gate.db) : ALWAYS_OPEN_DB}
+              >
+                <div
+                  className={`voice-sensitivity-level${gate?.open ? ' open' : ''}`}
+                  style={{ transform: `scaleX(${gate ? meterShare(gate.db) : 0})` }}
+                />
+                <div className="voice-sensitivity-mark" style={{ left: `${meterShare(settings.sensitivity) * 100}%` }} />
+              </div>
+              <p className="vc-hint">
+                {settings.sensitivity <= ALWAYS_OPEN_DB
+                  ? t('settings.voice.alwaysSending')
+                  : t('settings.voice.sendsLouderThan', { db: settings.sensitivity })}
+                {!testing && ` ${t('settings.voice.useLetsCheck')}`}
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       <h6 id="settings-voice-processing" className="voice-settings-heading">{t('settings.voice.voiceProcessing')}</h6>

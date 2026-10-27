@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Icon } from '../Icon';
 import { faPhone, faThumbtack, faUsers } from '@fortawesome/free-solid-svg-icons';
@@ -49,6 +49,12 @@ export default function GroupDm({ user }) {
     const rect = e.currentTarget.getBoundingClientRect();
     setPinsAnchor((open) => (open ? null : rect));
   };
+  // Opens it from a "pinned a message" row, under the same button.
+  const pinsButtonRef = useRef(null);
+  const showPins = useCallback(() => {
+    const rect = pinsButtonRef.current?.getBoundingClientRect();
+    if (rect) setPinsAnchor(rect);
+  }, []);
 
   // A search result to scroll to ({ messageId }; ChatPane's jumpTo).
   const [jumpTarget, setJumpTarget] = useState(null);
@@ -102,6 +108,7 @@ export default function GroupDm({ user }) {
         {group && (
           <button
             type="button"
+            ref={pinsButtonRef}
             className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
             aria-label={t('groups.dm.pinnedMessages')}
             aria-pressed={Boolean(pinsAnchor)}
@@ -179,6 +186,7 @@ export default function GroupDm({ user }) {
             emptyText={t('groups.dm.empty')}
             pinsAnchor={pinsAnchor}
             onClosePins={closePins}
+            onShowPins={showPins}
             jumpTo={jumpTarget}
             onJumped={clearJump}
           />

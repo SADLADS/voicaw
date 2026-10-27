@@ -1,4 +1,4 @@
-// Guild search: from:/in:/has:/mentions: suggestions in the header box, results under it,
+// Guild search: from:/in:/has:/mentions:/before:/after: suggestions in the header box, results under it,
 // Jump into another channel's history that isn't loaded yet, sorting, unknown names, a
 // private channel's messages staying out of reach, and the phone's full-screen search.
 //   node e2e/serve.mjs &   then   node e2e/search.mjs [screenshot dir]
@@ -76,7 +76,7 @@ try {
   await box.click();
   await a.locator('.guild-search-suggestions').waitFor();
   const keys = await a.locator('.guild-search-suggestion strong').allTextContents();
-  check(keys.join(' ') === 'from: mentions: in: has:', `an empty box offers the filters (${keys.join(' ')})`);
+  check(keys.join(' ') === 'from: mentions: in: has: before: after:', `an empty box offers the filters (${keys.join(' ')})`);
   await shot(a, '01-options');
   await a.locator('.guild-search-suggestion', { hasText: 'from:' }).click();
   check(await box.inputValue() === 'from:', 'picking one writes it');
@@ -107,6 +107,42 @@ try {
   check(texts.length === 1 && texts[0].includes('example.com'), 'has:link');
   await searchFor(a, `mentions:${alice.name}`);
   check((await resultTexts(a)).length === 1, 'mentions:');
+  // Dates: everything here was sent today.
+  const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('sv'); };
+  await searchFor(a, `pizza before:${isoDay(0)}`);
+  check(await a.locator('.search-panel .pins-panel-empty').count() === 1, 'before:today finds nothing sent today');
+  await searchFor(a, `pizza after:${isoDay(0)}`);
+  check(await a.locator('.search-panel .pins-panel-empty').count() === 1, 'after:today leaves today out');
+  // The calendar: keys, then the mouse.
+  await box.fill('');
+  await box.type('pizza after:');
+  await a.locator('.search-date-picker').waitFor();
+  check(await a.locator('.search-date-picker-day.chosen.today').count() === 1, 'after: opens a calendar on today');
+  await a.keyboard.press('ArrowLeft');
+  check(await a.locator('.search-date-picker-day.today:not(.chosen)').count() === 1, 'left arrow moves to yesterday');
+  await shot(a, '03b-calendar');
+  await a.keyboard.press('Enter');
+  check(/^pizza after:\S+ $/.test(await box.inputValue()) && await a.locator('.search-date-picker').count() === 0,
+    `Enter writes the day and closes the calendar (${await box.inputValue()})`);
+  const searched = a.waitForResponse((r) => r.url().includes('/messages/search'));
+  await a.keyboard.press('Enter');
+  await searched;
+  await a.locator('.search-panel .search-result').first().waitFor();
+  check((await resultTexts(a)).length === 3, 'a second Enter searches: after:yesterday finds today\'s');
+  await box.fill('');
+  await box.type('pizza before:');
+  await a.locator('.search-date-picker').waitFor();
+  await a.locator('.search-date-picker-header button').nth(1).click();
+  check(await box.evaluate((el) => el === document.activeElement), 'the month buttons keep the focus in the box');
+  await a.locator('.search-date-picker-day:not(.other-month)').first().click();
+  const written = await box.inputValue();
+  await a.keyboard.press('Enter');
+  await a.locator('.search-panel .search-result').first().waitFor();
+  check((await resultTexts(a)).length === 3, `a clicked day (next month's 1st) works: ${written}`);
+  await searchFor(a, `pizza after:${isoDay(-1)} before:${isoDay(1)}`);
+  check((await resultTexts(a)).length === 3, 'after: and before: together');
+  await searchFor(a, 'pizza before:someday');
+  check((await a.locator('.search-panel .error-text').textContent()).includes('before: needs a date'), 'a date it can\'t read is reported');
   await searchFor(a, 'from:nobody-at-all');
   check((await a.locator('.search-panel .error-text').textContent()).includes('No member called nobody-at-all'), 'an unknown member is reported');
 
@@ -158,6 +194,17 @@ try {
   await c.keyboard.press('Enter');
   await c.locator('.search-panel .search-result').first().waitFor();
   await shot(c, '05-phone-results');
+  await c.locator('.guild-search-input').fill('');
+  await c.keyboard.type('treasure after:');
+  await c.locator('.search-date-picker').waitFor();
+  const cal = await c.locator('.guild-search-dates').boundingBox();
+  check(cal.x >= 0 && cal.x + cal.width <= c.viewportSize().width, 'the calendar fits the phone');
+  await shot(c, '05b-phone-calendar');
+  await c.locator('.search-date-picker-day.today').tap();
+  check(/^treasure after:\S+ $/.test(await c.locator('.guild-search-input').inputValue()), 'tapping a day writes it');
+  await c.locator('.guild-search-input').fill('treasure');
+  await c.keyboard.press('Enter');
+  await c.locator('.search-panel .search-result').first().waitFor();
   await c.locator('.search-panel .pinned-message-jump').first().tap();
   check(await c.locator('.search-panel').count() === 0, 'Jump closes it on a phone');
   await c.locator('.each-dm-message-wrapper', { hasText: 'the treasure map' }).waitFor({ timeout: 20000 });

@@ -58,7 +58,8 @@ import { groupReactions } from '../utils/reactions';
 // adds @everyone and @here; `channels` ([{ id, name, type, private, category }]) are the
 // channels "#name" suggests. `canPin` lets you pin and unpin (always in DMs and groups; Pin
 // Messages in a channel). `pinsAnchor` (the header pin button's rect, or null) opens the
-// pinned messages list; `onClosePins` closes it. `pollKind` ('dm', 'group' or 'guild') is
+// pinned messages list; `onClosePins` closes it, `onShowPins` opens it (from a "pinned a
+// message" row). `pollKind` ('dm', 'group' or 'guild') is
 // the chat's kind for the server's poll timers (pollService). `jumpTo` ({ messageId }, a new object each
 // time) scrolls to that message once the chat is loaded, then calls `onJumped`.
 // `focusOnOpen` false keeps the composer from taking the focus when the chat opens.
@@ -91,6 +92,7 @@ export default function ChatPane({
   canPin = true,
   pinsAnchor = null,
   onClosePins,
+  onShowPins,
   jumpTo = null,
   onJumped,
   focusOnOpen = true,
@@ -498,6 +500,7 @@ export default function ChatPane({
             onRemovePollAnswer={reactions.removeAnswer}
             onEndPoll={endPollNow}
             onJumpToMessage={jumpToMessage}
+            onShowPins={readOnly ? undefined : onShowPins}
             reactionNames={reactionNames}
             onOpenActions={openActions}
             onOpenMenu={openMenu}

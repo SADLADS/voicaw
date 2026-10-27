@@ -740,6 +740,41 @@ describe('group DM pins', () => {
   });
 });
 
+describe('group DM "pinned a message" rows', () => {
+  it('posts one in the pinned message\'s epoch and pushes it to the others', async () => {
+    const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const before = (await send(ann, groupId, 'pin me')).body;
+    for (const user of [ann, cal]) {
+      await api.post(user, '/save-subscription', { subscription: { endpoint: `https://push.test/${user.username}`, keys: { p256dh: 'p', auth: 'a' } } });
+    }
+    // Dan, added later, can't read the message: no row for him either.
+    await change(ann, groupId, 'add', dan, [ann, bea, cal, dan]);
+    const calEvents = listen(cal);
+    const danEvents = listen(dan);
+    const since = sentPushes.length;
+
+    expect((await api.put(bea, `/group-dm-messages/${before.id}/pin`)).status).toBe(200);
+    const row = calEvents.find((e) => e.type === 'group_dm_message_new')?.message;
+    expect(row).toMatchObject({ system: 'pin', sender_id: bea.id, parent_message_id: before.id, epoch: before.epoch, content: '' });
+    expect(danEvents.some((e) => e.type === 'group_dm_message_new')).toBe(false);
+    expect((await api.get(dan, `/group-dms/${groupId}/messages`)).body.some((m) => m.system === 'pin')).toBe(false);
+
+    const pushes = (await waitForPushes(2, since)).filter((p) => p.payload.system === 'pin');
+    expect(pushes.map((p) => p.endpoint).sort()).toEqual([`https://push.test/${ann.username}`, `https://push.test/${cal.username}`].sort());
+    expect(pushes[0].payload).toMatchObject({
+      type: 'group', groupId, tag: `group-${groupId}`, senderId: bea.id, epoch: before.epoch,
+      messageId: before.id, messageSenderId: ann.id, messageCiphertext: before.content,
+    });
+    expect(pushes[0].payload.ciphertext).toBeUndefined();
+
+    // A pin row can't itself be pinned, and goes with the message.
+    expect((await api.put(ann, `/group-dm-messages/${row.id}/pin`)).status).toBe(400);
+    await api.delete(ann, `/group-dm-messages/${before.id}`);
+    expect(calEvents.filter((e) => e.type === 'group_dm_message_delete').map((e) => e.messageId)).toEqual([before.id, row.id]);
+  });
+});
+
 describe('group DM edit history', () => {
   it('keeps earlier versions for members who can read the message, until it goes', async () => {
     const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
@@ -787,6 +822,24 @@ describe('group polls', () => {
     expect((await api.put(ann, `/group-dm-messages/${row.id}`, { content: poll.content })).status).toBe(403);
     await api.delete(ann, `/group-dm-messages/${poll.id}`);
     expect(beaEvents.filter((e) => e.type === 'group_dm_message_delete').map((e) => e.messageId)).toEqual([poll.id, row.id]);
+  });
+
+  it('tells its author and those who voted when it closes', async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    for (const user of [ann, bea, cal]) {
+      await api.post(user, '/save-subscription', { subscription: { endpoint: `https://push.test/${user.username}`, keys: { p256dh: 'p', auth: 'a' } } });
+    }
+    const poll = (await send(ann, groupId, 'poll:v1:{"q":"x","multi":false,"d":3600,"o":[{"id":"aaaa1111","t":"a"}]}')).body;
+    await api.post(ann, `/polls/group/${poll.id}/timer`, { duration: 3600 });
+    await api.post(bea, `/group-dm-messages/${poll.id}/reactions`, { content: 'v2.' + 'A'.repeat(signedReactionLength() - 3) });
+    const since = sentPushes.length;
+    await api.post(ann, `/polls/group/${poll.id}/end`);
+    const pushes = (await waitForPushes(2, since)).filter((p) => p.payload.system === 'poll_end');
+    expect(pushes.map((p) => [p.endpoint, p.payload.mine]).sort()).toEqual([
+      [`https://push.test/${ann.username}`, true], [`https://push.test/${bea.username}`, false],
+    ].sort());
+    expect(pushes[0].payload).toMatchObject({ type: 'group', groupId, senderId: ann.id, messageId: poll.id, messageCiphertext: poll.content });
   });
 });
 

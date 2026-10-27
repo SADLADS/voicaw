@@ -738,21 +738,33 @@ can; DMs and group DMs can't be searched this way).
   parameters: `content` (every word matches a word starting with it, `"quoted"` an exact phrase;
   something with no letters or digits, like an emoji, is looked for in the text as typed),
   `author_id` and `channel_id` (any of them; comma separated or repeated), `has` and `mentions`
-  (user ids written in the text as `<@id>`; all of them), `sort_order` (desc/asc), `offset`
+  (user ids written in the text as `<@id>`; all of them), `before_time` / `after_time` (unix
+  seconds: sent before the one, at or after the other), `sort_order` (desc/asc), `offset`
   (pages of 25, up to 5000). Returns `{ total_results, messages }` (channel message rows).
   Only text and voice channels the caller can view are searched; non-members get 404.
 - **Client:** `guild/GuildSearch.jsx` (its box and results are `MessageSearch.jsx`, shared with
   the device's search of DMs: Search in encrypted chats in docs/messages.md), at the end of the channel header (on a phone a button that
   opens it full screen). `utils/searchQuery.js` parses the box (`from:user`, `mentions:user`
-  by username or unique display name, `in:channel`, `has:thing`, quoted values with spaces)
-  into those parameters and reports unknown names instead of searching; it also gives the
-  suggestions (the four filters in an empty box, then members, channels or `has:` values;
+  by username or unique display name, `in:channel`, `has:thing`, quoted values with spaces,
+  `before:date` / `after:date`) into those parameters and reports unknown names and dates
+  instead of searching; it also gives the suggestions (the six filters in an empty box, then
+  members, channels, `has:` values or dates;
   arrows, Tab or Enter pick; Enter searches once the word is complete). Results float under
   the box like the pinned list (Newest/Oldest, Load more) and stay open after Jump on a computer.
   Jump (`GuildView`) opens the message's channel and passes `ChatPane` a `jumpTo` once
   `useChannel`'s `loadedChannelId` is that channel; `ChatPane` then loads older pages until
   it's there, as the pinned list's Jump does.
-- **Not done yet:** `before:`/`after:`/`during:`, `pinned:`, author type (webhooks), a
+- **Dates** (`before:`, `after:`, as Discord's): the day named is left out (`before:2026-10-20`
+  is up to the end of the 19th, `after:` from the start of the 21st), days on the searcher's
+  own clock. Dates are typed as Settings → Date & time shows them (`dateFormat.js`
+  `parseDate`; `2026-10-20` always works) or picked from a calendar that opens under the box
+  once `before:` or `after:` is typed (`SearchDatePicker.jsx`, Monday first as the events
+  calendar, on today or the typed date): up/down move a week, left/right a day (with nothing
+  typed yet), the month arrows a month; a click, Tab or Enter writes the day (as dates are
+  shown, `searchQuery.js` `dateInsert`), and Enter searches once the typed date is the one
+  shown. Something typed that isn't a date is searched and reported, not replaced. The client sends the days' starts as `before_time` /
+  `after_time`; several of one keep the strictest.
+- **Not done yet:** `during:`, `pinned:`, author type (webhooks), a
   "most relevant" order. DMs and group DMs are searched on the device instead (Search in
   encrypted chats in docs/messages.md).
 

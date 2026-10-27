@@ -12,6 +12,7 @@
 const db = require('./db');
 const { sendToUserSockets } = require('./sockets');
 const { POLL_END, parsePoll } = require('./polls');
+const { PIN_ROW } = require('./pins');
 
 const KINDS = {
   dm: { table: 'direct_messages', reactions: 'dm_reactions' },
@@ -96,7 +97,10 @@ async function announce(kind, messageId) {
     const { lastID } = await insertRow(kind, poll);
     return lastID;
   });
-  if (id) await deliver(kind, id);
+  if (id) {
+    await deliver(kind, id);
+    await require('./systemPushes').notifyPollEnded(kind, id);
+  }
   return id;
 }
 
@@ -131,8 +135,8 @@ async function insertRow(kind, poll) {
   );
 }
 
-// Sends a new system row ("poll ended", or a call: callLog.js) as the chat's usual
-// new-message event (no pushes).
+// Sends a new system row ("poll ended", "pinned a message": pins.js, or a call: callLog.js) as
+// the chat's usual new-message event (pushes, where there are any, are systemPushes.js's).
 async function deliver(kind, id) {
   if (kind === 'dm') {
     const { loadMessage, sendToConversation } = require('./routes/dms');
@@ -168,7 +172,7 @@ async function announceDue() {
 }
 
 // Drops the timers of polls that are gone: deleting a whole chat (a guild, a channel, a group
-// DM) doesn't go through removePollRows.
+// DM) doesn't go through removeLinkedRows.
 async function removeStaleTimers() {
   for (const [kind, { table }] of Object.entries(KINDS)) {
     await db.run(
@@ -185,13 +189,13 @@ function startPollTimers() {
   return setInterval(announceDue, SWEEP_MS);
 }
 
-// A poll message is being deleted: its timer goes, and so does its "poll ended" row (with that
-// row's reactions). Call inside the delete's transaction; returns the removed rows' ids, for
-// the delete events.
-async function removePollRows(kind, messageId) {
+// A message is being deleted: a poll's timer goes, and so do the rows about it, its "poll ended"
+// row and its "pinned a message" rows (pins.js), with those rows' reactions. Call inside the
+// delete's transaction; returns the removed rows' ids, for the delete events.
+async function removeLinkedRows(kind, messageId) {
   const { table, reactions } = KINDS[kind];
   await db.run('DELETE FROM poll_timers WHERE kind = ? AND message_id = ?', [kind, messageId]);
-  const rows = await db.all(`SELECT id FROM ${table} WHERE system = ? AND parent_message_id = ?`, [POLL_END, messageId]);
+  const rows = await db.all(`SELECT id FROM ${table} WHERE system IN (?, ?) AND parent_message_id = ?`, [POLL_END, PIN_ROW, messageId]);
   for (const { id } of rows) {
     await db.run(`DELETE FROM ${reactions} WHERE message_id = ?`, [id]);
     await db.run(`DELETE FROM ${table} WHERE id = ?`, [id]);
@@ -199,4 +203,4 @@ async function removePollRows(kind, messageId) {
   return rows.map((r) => r.id);
 }
 
-module.exports = { KINDS, PollError, registerPoll, endPollNow, announceDue, removeStaleTimers, startPollTimers, removePollRows, deliverRow: deliver };
+module.exports = { KINDS, PollError, registerPoll, endPollNow, announceDue, removeStaleTimers, startPollTimers, removeLinkedRows, deliverRow: deliver };

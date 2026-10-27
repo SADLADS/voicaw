@@ -75,6 +75,12 @@ export default function GuildView({ user }) {
     const rect = e.currentTarget.getBoundingClientRect();
     setPinsAnchor((open) => (open ? null : rect));
   };
+  // Opens it from a "pinned a message" row, under the same button.
+  const pinsButtonRef = useRef(null);
+  const showPins = useCallback(() => {
+    const rect = pinsButtonRef.current?.getBoundingClientRect();
+    if (rect) setPinsAnchor(rect);
+  }, []);
 
   // The mute menu, under the header's bell (null: closed).
   const [muteAnchor, setMuteAnchor] = useState(null);
@@ -426,6 +432,7 @@ export default function GuildView({ user }) {
           {chatChannelId && (
             <button
               type="button"
+              ref={pinsButtonRef}
               className={`channel-header-button pins-button${pinsAnchor ? ' active' : ''}`}
               aria-label={t('guilds.view.pinnedMessages')}
               aria-pressed={Boolean(pinsAnchor)}
@@ -531,6 +538,7 @@ export default function GuildView({ user }) {
                   canPin={has(permissions, PERMISSIONS.PIN_MESSAGES)}
                   pinsAnchor={pinsAnchor}
                   onClosePins={closePins}
+                  onShowPins={showPins}
                   jumpTo={jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null}
                   onJumped={clearJump}
                   nameColors={nameColors}
@@ -567,7 +575,7 @@ export default function GuildView({ user }) {
               conversation={conversation}
               isMobile={isMobile}
               chatProps={chatProps}
-              pins={{ anchor: pinsAnchor, onClose: closePins }}
+              pins={{ anchor: pinsAnchor, onClose: closePins, onShow: showPins }}
               jump={{
                 jumpTo: jumpTarget?.channelId === channel.id && conversation.loadedChannelId === channelId ? jumpTarget : null,
                 onJumped: clearJump,

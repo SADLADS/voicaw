@@ -462,7 +462,7 @@ function voiceStateObject({ guildId, channelId, userId, state, member = null }) 
 
 // Join log rows (joinLog.js): a join is Discord's USER_JOIN; Discord has no leave, so a leave is
 // a default message with no content.
-const MESSAGE_TYPES = { default: 0, member_join: 7, reply: 19, thread: 18, poll_end: 46 };
+const MESSAGE_TYPES = { default: 0, pin: 6, member_join: 7, reply: 19, thread: 18, poll_end: 46 };
 
 // Messages (rows from guildMessages' MESSAGE_SELECT, after withReactions) as Discord's, seen by
 // bot `botId`. `guildId` adds guild_id (and `member` for authors who are still members), as
@@ -512,6 +512,8 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
     let type = MESSAGE_TYPES.default;
     if (m.system === 'thread') type = MESSAGE_TYPES.thread;
     else if (m.system === 'poll_end') type = MESSAGE_TYPES.poll_end;
+    // Discord's CHANNEL_PINNED_MESSAGE, its message_reference the pinned message.
+    else if (m.system === 'pin') type = MESSAGE_TYPES.pin;
     else if (m.system === 'member_join') type = MESSAGE_TYPES.member_join;
     else if (m.system === 'member_leave') type = MESSAGE_TYPES.default;
     else if (m.parent_message_id) type = MESSAGE_TYPES.reply;

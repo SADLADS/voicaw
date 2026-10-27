@@ -7,9 +7,10 @@ import defaultAvatar from '../assets/images/default.png';
 import '../assets/css/guilds.css';
 import { MessageContent } from './MessageList';
 import { ConfigContext } from '../contexts';
-import { HAS_VALUES, SEARCH_KEYS, parseSearch, searchContext, searchSuggestions } from '../utils/searchQuery';
+import { DAY_KEYS, HAS_VALUES, SEARCH_KEYS, dateInsert, parseSearch, searchContext, searchSuggestions } from '../utils/searchQuery';
+import SearchDatePicker from './SearchDatePicker';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
-import { formatDateTime, useDateFormat } from '../utils/dateFormat';
+import { formatDate, formatDateTime, parseDate, useDateFormat } from '../utils/dateFormat';
 import { t } from '../i18n';
 
 const MARGIN = 8;
@@ -20,10 +21,13 @@ const keyHint = (key, hasValues) => ({
   mentions: t('guilds.search.hint.user'),
   in: t('guilds.search.hint.channel'),
   has: t('guilds.search.hint.has', { values: hasValues.slice(0, -1).join(', '), last: hasValues[hasValues.length - 1] }),
+  before: t('guilds.search.hint.date', { example: formatDate(new Date()) }),
+  after: t('guilds.search.hint.date', { example: formatDate(new Date()) }),
 })[key];
 
 // A search box and its results, Discord's: words plus the filters in `keys` (from:, mentions:,
-// in:, has:; utils/searchQuery.js), with suggestions for them while typing. On a computer the
+// in:, has:, before:, after:; utils/searchQuery.js), with suggestions for them while typing
+// (a calendar for before: and after:). On a computer the
 // box sits in the chat's header and results float under it, like the pinned messages; on a
 // phone the header has a button that opens both over the whole screen. Used by GuildSearch
 // (the server searches) and ChatSearch (DMs and groups, searched on the device).
@@ -84,6 +88,17 @@ export default function MessageSearch({
 
   const context = focused ? searchContext(text, caret, keys) : null;
   const suggestions = searchSuggestions(context, { members, channels, nameOf, keys, hasValues });
+
+  // before:/after:'s calendar: the day it shows follows what's typed once that's a date, and
+  // the arrow keys and month buttons move it.
+  const dateKey = context && DAY_KEYS.includes(context.kind) ? context.kind : null;
+  const [picker, setPicker] = useState({ value: null, day: null });
+  if (dateKey && picker.value !== context.value) {
+    setPicker({ value: context.value, day: parseDate(context.value) ?? picker.day ?? new Date() });
+  }
+  const pickerDay = dateKey ? (picker.value === context.value ? picker.day : parseDate(context.value) ?? picker.day ?? new Date()) : null;
+  const moveDay = (date) => setPicker((prev) => ({ ...prev, day: date }));
+  const pickDay = (date) => pick({ insert: dateInsert(dateKey, date) });
 
   // Something else to search: start again.
   useEffect(() => {
@@ -187,6 +202,7 @@ export default function MessageSearch({
     highlighted.insert.trim().toLowerCase() === text.slice(context.start, caret).toLowerCase());
 
   function onKeyDown(e) {
+    if (dateKey && onDateKey(e)) return;
     if (suggestions.length && ['ArrowDown', 'ArrowUp'].includes(e.key)) {
       e.preventDefault();
       const step = e.key === 'ArrowDown' ? 1 : -1;
@@ -202,6 +218,32 @@ export default function MessageSearch({
       if (suggestions.length) inputRef.current?.blur();
       else closeResults();
     }
+  }
+
+  // The calendar's keys: up and down a week, left and right a day (in an empty value: otherwise
+  // they move the caret), Tab writes the day shown, and so does Enter unless what's typed is
+  // that day (then it searches) or isn't a date (it searches and says so). True when the key
+  // was the calendar's.
+  function onDateKey(e) {
+    const steps = { ArrowUp: -7, ArrowDown: 7, ...(context.value === '' ? { ArrowLeft: -1, ArrowRight: 1 } : {}) };
+    if (steps[e.key]) {
+      e.preventDefault();
+      moveDay(new Date(pickerDay.getFullYear(), pickerDay.getMonth(), pickerDay.getDate() + steps[e.key]));
+      return true;
+    }
+    const typed = parseDate(context.value);
+    const enterPicks = context.value === '' || (typed && typed.getTime() !== pickerDay.getTime());
+    if (e.key === 'Tab' || (e.key === 'Enter' && enterPicks)) {
+      e.preventDefault();
+      pickDay(pickerDay);
+      return true;
+    }
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      inputRef.current?.blur();
+      return true;
+    }
+    return false;
   }
 
   const trackCaret = (e) => setCaret(e.target.selectionStart ?? e.target.value.length);
@@ -246,6 +288,16 @@ export default function MessageSearch({
         </button>
       ) : (
         <span className="guild-search-icon" aria-hidden="true"><Icon icon={faMagnifyingGlass} /></span>
+      )}
+      {dateKey && (
+        <div className="emoji-suggestions guild-search-suggestions guild-search-dates">
+          <SearchDatePicker
+            title={t(`guilds.search.datePicker.${dateKey}`)}
+            day={pickerDay}
+            onMove={moveDay}
+            onPick={pickDay}
+          />
+        </div>
       )}
       {suggestions.length > 0 && (
         <div className="emoji-suggestions guild-search-suggestions" role="listbox" aria-label={t('guilds.search.options')}>

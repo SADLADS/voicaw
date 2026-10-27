@@ -11,6 +11,7 @@ import { closeStreamWindow } from '../../voice/streamWindow';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import UserAvatar from '../voice/UserAvatar';
 import VoiceControls from '../voice/VoiceControls';
+import PushToTalkButton from '../voice/PushToTalkButton';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import CameraButton from '../voice/CameraButton';
 import SoundboardButton from '../voice/SoundboardButton';
@@ -81,6 +82,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
     footer = (
       <div className="voice-view-controls">
         <VoiceControls className="voice-view-button" />
+        <PushToTalkButton className="voice-view-button" />
         <CameraButton className="voice-view-button" />
         <ScreenShareButton className="voice-view-button" />
         <SoundboardButton className="voice-view-button" />

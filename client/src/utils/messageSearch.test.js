@@ -57,5 +57,10 @@ describe('messageSearch', () => {
     expect(m({ mentions: [12] }, SAMPLES[1])).toBe(true);
     expect(m({ has: ['video'] }, SAMPLES[3])).toBe(true);
     expect(m({ has: ['video', 'link'] }, SAMPLES[3])).toBe(false);
+    const at = (t) => ({ ...entry('hi'), t });
+    expect(messageMatcher({ before_time: 2000 })(at(1999))).toBe(true);
+    expect(messageMatcher({ before_time: 2000 })(at(2000))).toBe(false);
+    expect(messageMatcher({ after_time: 2000 })(at(2000))).toBe(true);
+    expect(messageMatcher({ after_time: 2000 })(at(1999))).toBe(false);
   });
 });

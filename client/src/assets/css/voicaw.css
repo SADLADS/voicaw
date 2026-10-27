@@ -480,6 +480,7 @@ body:not(.mobile-mode) .day-divider,
 body:not(.mobile-mode) .new-divider-date,
 body:not(.mobile-mode) .poll-end,
 body:not(.mobile-mode) .call-log,
+body:not(.mobile-mode) .pin-notice,
 body:not(.mobile-mode) .join-log,
 body:not(.mobile-mode) .channel-header-topic {
   -webkit-user-select: text;
@@ -2620,6 +2621,35 @@ body.sidebar-resizing * {
 
 .voice-settings-heading {
   margin: 1rem 0 0.25rem;
+}
+
+/* Push to talk: the key (label above, as the fields'), then the release delay. */
+.push-to-talk-settings {
+  max-width: 420px;
+  margin-top: 0.5rem;
+}
+
+.push-to-talk-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 4px;
+}
+
+.push-to-talk-key-label {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+}
+
+.push-to-talk-key-button {
+  min-width: 140px;
+}
+
+.push-to-talk-key-button.recording {
+  outline: 2px solid var(--vc-accent);
 }
 
 .mic-test {

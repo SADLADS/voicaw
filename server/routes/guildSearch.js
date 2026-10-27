@@ -8,13 +8,16 @@ const { MESSAGE_SELECT, withReactions } = require('./guildMessages');
 
 // Searching a guild's messages, like Discord's GET /guilds/:id/messages/search: only in the
 // text channels the caller can see (the others don't exist for them). The client turns
-// `from:` / `in:` / `has:` / `mentions:` in the search box into these parameters:
+// `from:` / `in:` / `has:` / `mentions:` / `before:` / `after:` in the search box into these parameters:
 // - `content`: words, each matching a word starting with it (`"quoted words"`: that exact
 //   phrase), all of them (the index: searchText.js, db.js). Something with no letters or
 //   digits (an emoji) is looked for in the text as typed.
 // - `author_id`, `channel_id`: any of them (repeat the parameter for several).
 // - `has`: link, embed, file, image, video, sound, poll; all of them.
 // - `mentions`: user ids named in the message (`<@id>`); all of them.
+// - `before_time`, `after_time`: unix seconds; sent before the one, at or after the other (the
+//   client gives a day's start in its own time zone for `before:date`, the next day's for
+//   `after:date`).
 // - `sort_order`: desc (newest first, the default) or asc; `offset` (pages of 25).
 // Returns { total_results, messages } (message rows as in a channel, plus their channel_id).
 const router = express.Router();
@@ -65,17 +68,20 @@ router.get('/guilds/:guildId/messages/search', authenticateJWT, async (req, res)
   const channelIds = ids(q.channel_id);
   const mentionIds = ids(q.mentions);
   const hasValues = list(q.has).map((v) => v.toLowerCase());
+  const beforeTime = q.before_time == null ? null : Number(q.before_time);
+  const afterTime = q.after_time == null ? null : Number(q.after_time);
   const offset = q.offset == null ? 0 : Number(q.offset);
   const order = String(q.sort_order ?? 'desc').toLowerCase();
   if (content.length > MAX_CONTENT) return res.status(400).json({ error: 'That search is too long' });
   if (!authorIds || !channelIds || !mentionIds) return res.status(400).json({ error: 'Invalid id' });
   if (!hasValues.every((v) => Object.hasOwn(HAS, v))) return res.status(400).json({ error: 'Unknown has: value' });
+  if (![beforeTime, afterTime].every((v) => v == null || Number.isSafeInteger(v))) return res.status(400).json({ error: 'Invalid time' });
   if (!Number.isInteger(offset) || offset < 0 || offset > MAX_OFFSET) return res.status(400).json({ error: 'Invalid offset' });
   if (!['asc', 'desc'].includes(order)) return res.status(400).json({ error: 'Invalid sort_order' });
   const terms = parseContent(content);
   if (!terms) return res.status(400).json({ error: 'Too many words in that search' });
   if (!terms.match && !terms.likes.length && !authorIds.length && !channelIds.length &&
-    !mentionIds.length && !hasValues.length) {
+    !mentionIds.length && !hasValues.length && beforeTime == null && afterTime == null) {
     return res.status(400).json({ error: 'Nothing to search for' });
   }
 
@@ -88,7 +94,7 @@ router.get('/guilds/:guildId/messages/search', authenticateJWT, async (req, res)
   if (!visible.length) return res.json({ total_results: 0, messages: [] });
 
   // Join log rows (joinLog.js) have nothing to find; "from: someone" would list their arrivals.
-  const where = [`m.channel_id IN (${visible.map(() => '?').join(',')})`, "COALESCE(m.system, '') NOT IN ('member_join', 'member_leave')"];
+  const where = [`m.channel_id IN (${visible.map(() => '?').join(',')})`, "COALESCE(m.system, '') NOT IN ('member_join', 'member_leave', 'pin')"];
   const params = [...visible];
   if (terms.match) {
     where.push('m.id IN (SELECT rowid FROM guild_messages_fts WHERE guild_messages_fts MATCH ?)');
@@ -105,6 +111,14 @@ router.get('/guilds/:guildId/messages/search', authenticateJWT, async (req, res)
   for (const id of mentionIds) {
     where.push('m.content LIKE ?');
     params.push(`%<@${id}>%`);
+  }
+  if (beforeTime != null) {
+    where.push('m.timestamp < ?');
+    params.push(beforeTime);
+  }
+  if (afterTime != null) {
+    where.push('m.timestamp >= ?');
+    params.push(afterTime);
   }
   const bits = hasValues.reduce((all, v) => all | HAS[v], 0);
   if (bits) {

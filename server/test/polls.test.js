@@ -279,3 +279,54 @@ describe('guild poll rows', () => {
     expect(row.parent_content).toContain('poll:v1:');
   });
 });
+
+describe('poll closing notifications', () => {
+  const subscribe = (user) => api.post(user, '/save-subscription', {
+    subscription: { endpoint: `https://push.test/${user.username}`, keys: { p256dh: 'p', auth: 'a' } },
+  });
+  const pollEnds = (user, pushes) => pushes
+    .filter((p) => p.endpoint === `https://push.test/${user.username}` && p.payload.system === 'poll_end')
+    .map((p) => p.payload);
+
+  it('go to the author and the voters in a guild, with the question', async () => {
+    const { owner, bob, guild, general } = await setUp();
+    const cal = await makeUser('poll-member');
+    await api.post(cal, `/invites/${(await api.post(owner, `/guilds/${guild.id}/invites`)).body.code}`);
+    for (const user of [owner, bob, cal]) await subscribe(user);
+    const poll = (await api.post(owner, `/channels/${general.id}/messages`, { content: pollText() })).body;
+    await api.post(owner, `/polls/guild/${poll.id}/timer`, { duration: 3600 });
+    await api.post(bob, `/guild-messages/${poll.id}/reactions`, { emoji: 'poll:aaaa1111' });
+    await api.post(cal, `/guild-messages/${poll.id}/reactions`, { emoji: '👍' });
+    const since = sentPushes.length;
+    await db.run("UPDATE poll_timers SET ends_at = ends_at - 3601 WHERE kind = 'guild' AND message_id = ?", [poll.id]);
+    await announceDue();
+    const pushes = await waitForPushes(2, since);
+    expect(pollEnds(owner, pushes)).toEqual([expect.objectContaining({ type: 'guild', mine: true, preview: 'When?', tag: `channel-${general.id}` })]);
+    expect(pollEnds(bob, pushes)).toEqual([expect.objectContaining({ type: 'guild', mine: false, preview: 'When?' })]);
+    // An emoji isn't a vote.
+    expect(pollEnds(cal, sentPushes.slice(since))).toEqual([]);
+  });
+
+  it('go to the author and whoever reacted in a DM', async () => {
+    const [ann, bob] = [await makeUser('dmpoll'), await makeUser('dmpoll')];
+    for (const user of [ann, bob]) await subscribe(user);
+    const poll = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.encrypted-poll' })).body;
+    await api.post(ann, `/polls/dm/${poll.id}/timer`, { duration: 3600 });
+    let since = sentPushes.length;
+    await api.post(ann, `/polls/dm/${poll.id}/end`);
+    let pushes = await waitForPushes(1, since);
+    expect(pollEnds(ann, pushes)).toEqual([expect.objectContaining({
+      type: 'dm', mine: true, url: `/dm/${bob.id}`, tag: `dm-${bob.id}`, senderId: bob.id, recipientId: ann.id,
+      messageId: poll.id, messageSenderId: ann.id, messageRecipientId: bob.id, messageCiphertext: 'v1.encrypted-poll',
+    })]);
+    expect(pollEnds(bob, pushes)).toEqual([]); // he didn't vote
+
+    const voted = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.encrypted-poll' })).body;
+    await api.post(ann, `/polls/dm/${voted.id}/timer`, { duration: 3600 });
+    await api.post(bob, '/dm-reactions', { messageId: voted.id, content: 'v1.' + 'A'.repeat(123) + '=' });
+    since = sentPushes.length;
+    await api.post(ann, `/polls/dm/${voted.id}/end`);
+    pushes = await waitForPushes(2, since);
+    expect(pollEnds(bob, pushes)).toEqual([expect.objectContaining({ mine: false, url: `/dm/${ann.id}`, senderId: ann.id, recipientId: bob.id })]);
+  });
+});

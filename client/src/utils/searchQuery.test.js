@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSearch, searchContext, searchSuggestions } from './searchQuery';
+import { dateInsert, parseSearch, searchContext, searchSuggestions } from './searchQuery';
 
 const members = [
   { id: 1, username: 'alice', display_name: 'Alice Smith' },
@@ -35,6 +35,16 @@ describe('parseSearch', () => {
     expect(parseSearch('has:link', opts).empty).toBe(false);
   });
 
+  it('turns before: and after: into times, that day left out', () => {
+    const start = (y, m, d) => new Date(y, m - 1, d).getTime() / 1000;
+    const { params, problems } = parseSearch('before:2026-10-20 after:2026-10-01 after:2026-09-01', opts);
+    expect(problems).toEqual([]);
+    expect(params).toMatchObject({ before_time: start(2026, 10, 20), after_time: start(2026, 10, 2) });
+    expect(parseSearch('after:2026-12-31', opts).params.after_time).toBe(start(2027, 1, 1));
+    expect(parseSearch('before:2026-10-20', opts).empty).toBe(false);
+    expect(parseSearch('before:yesterday after:2026-02-30', opts).problems).toHaveLength(2);
+  });
+
   it("doesn't take a word that only contains a filter", () => {
     expect(parseSearch('xfrom:alice', opts).params).toMatchObject({ content: 'xfrom:alice', author_id: [] });
   });
@@ -42,7 +52,7 @@ describe('parseSearch', () => {
 
 describe('suggestions', () => {
   it('offers the filters in an empty box or for a word that starts one', () => {
-    expect(searchSuggestions(searchContext(''), opts).map((s) => s.insert)).toEqual(['from:', 'mentions:', 'in:', 'has:']);
+    expect(searchSuggestions(searchContext(''), opts).map((s) => s.insert)).toEqual(['from:', 'mentions:', 'in:', 'has:', 'before:', 'after:']);
     expect(searchSuggestions(searchContext('pizza m'), opts).map((s) => s.insert)).toEqual(['mentions:']);
     expect(searchSuggestions(searchContext('pizza '), opts)).toEqual([]);
     expect(searchSuggestions(searchContext('pizza'), opts)).toEqual([]);
@@ -54,6 +64,11 @@ describe('suggestions', () => {
     expect(searchSuggestions(searchContext('in:ran'), opts).map((s) => s.insert)).toEqual(['in:random ']);
     expect(searchSuggestions(searchContext('has:'), opts)).toHaveLength(8);
     expect(searchSuggestions(searchContext('has:vi'), opts).map((s) => s.insert)).toEqual(['has:video ']);
+    // Dates come from the calendar, which writes them as they read back.
+    expect(searchContext('pizza before:')).toMatchObject({ kind: 'before', value: '', start: 6 });
+    expect(searchSuggestions(searchContext('before:'), opts)).toEqual([]);
+    const day = new Date(2026, 0, 5);
+    expect(parseSearch(dateInsert('after', day), opts).params.after_time).toBe(new Date(2026, 0, 6).getTime() / 1000);
     // The word the caret is in, not the last one.
     const text = 'from:al pizza';
     const context = searchContext(text, 7);

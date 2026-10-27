@@ -168,18 +168,14 @@ function fallbackPreview(message) {
   return file ? `📎 ${file.filename}` : '';
 }
 
-// After a new message: tells the people mentioned (`guild_mention`, for their unread mention
-// counts) and pushes to every viewer whose notification level wants it ('all': every message;
-// 'mentions': when mentioned; their own level for the channel, if they set one, else the
-// guild's), unless they're looking at the channel or have muted it or the guild (then
-// only when mentioned, like Discord; channelMutes.js). In a thread, its channel's level and mute
-// count when the thread has none of its own, and only its members get messages that don't
-// mention them. `silent` (a webhook's
-// "suppress notifications" flag, like Discord's): no pushes, the counts still go up.
-async function notifyNewMessage(message, channel, { mentioned, viewers }, { silent = false } = {}) {
-  for (const userId of mentioned) {
-    sendToUserSockets(userId, { type: 'guild_mention', guildId: channel.guild_id, channelId: channel.id, messageId: message.id });
-  }
+// Who's pushed about a new message (or a system row) in `channel`, of its `viewers`: those
+// whose notification level wants it ('all': every message; 'mentions': when `mentioned`, a Set;
+// their own level for the channel, if they set one, else the guild's), unless they're looking
+// at the channel or have muted it or the guild (then only when mentioned, like Discord;
+// channelMutes.js). In a thread, its channel's level and mute count when the thread has none of
+// its own, and only its members get messages that don't mention them. Never the sender (unless
+// `sender` is true, for a row about something of theirs), nor anyone who blocked them.
+async function pushRecipients(message, channel, viewers, mentioned, { sender = false } = {}) {
   const levels = new Map((await db.all(
     'SELECT user_id, notify_level FROM guild_members WHERE guild_id = ?',
     [channel.guild_id]
@@ -196,8 +192,8 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
   const blockers = message.sender_id ? await blocks.blockersAmong(message.sender_id, [...viewers.keys()])
     : message.webhook_id ? await blocks.webhookBlockersAmong(message.webhook_id, [...viewers.keys()])
       : new Set();
-  const recipients = [...viewers.keys()].filter((userId) => {
-    if (userId === message.sender_id || blockers.has(userId)) return false;
+  return [...viewers.keys()].filter((userId) => {
+    if (userId === message.sender_id ? !sender : blockers.has(userId)) return false;
     const level = ownLevels.get(userId) ?? parentLevels.get(userId) ?? levels.get(userId) ?? 'mentions';
     const wants = mentioned.has(userId)
       ? level !== 'none'
@@ -206,21 +202,16 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
     if (!wants) return false;
     return !isViewingConversation(userId, `channel-${channel.id}`);
   });
-  if (!recipients.length || silent) return;
+}
 
-  const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [channel.guild_id]);
-  // Channel mentions are named only for those who can see that channel, so the text can differ.
-  const channels = await mentionedChannels(message.content, channel.guild_id);
-  const bodyFor = async (userId) => (await previewText(
-    message.content,
-    channel.guild_id,
-    Object.fromEntries(channels.filter((c) => c.viewers.has(userId)).map((c) => [c.id, c.name]))
-  )) || fallbackPreview(message);
-  const sharedBody = channels.length ? null : await bodyFor(null);
+// A push about `message` in `channel`, without its body: titled with its sender, the channel
+// and the guild, opening the channel (`guildName`: the guild's).
+async function channelPushPayload(message, channel, guildName) {
+  const thread = channel.type === 'thread';
   const where = thread ? `${channel.name}, #${channel.parent_name}` : `#${channel.name}`;
-  const payload = {
+  return {
     type: 'guild',
-    title: `${message.sender_display_name || message.sender_username} (${where}, ${guild.name})`,
+    title: `${message.sender_display_name || message.sender_username} (${where}, ${guildName})`,
     // A reply to a document opens that document, a thread's message the thread beside its channel.
     url: thread
       ? `/guild/${channel.guild_id}/${channel.parent_id}?thread=${channel.id}`
@@ -232,10 +223,32 @@ async function notifyNewMessage(message, channel, { mentioned, viewers }, { sile
       : await getUserImageUrl(message.sender_id),
     timestamp: message.timestamp,
   };
+}
+
+// After a new message: tells the people mentioned (`guild_mention`, for their unread mention
+// counts) and pushes to every viewer who wants it (pushRecipients). `silent` (a webhook's
+// "suppress notifications" flag, like Discord's): no pushes, the counts still go up.
+async function notifyNewMessage(message, channel, { mentioned, viewers }, { silent = false } = {}) {
+  for (const userId of mentioned) {
+    sendToUserSockets(userId, { type: 'guild_mention', guildId: channel.guild_id, channelId: channel.id, messageId: message.id });
+  }
+  const recipients = await pushRecipients(message, channel, viewers, mentioned);
+  if (!recipients.length || silent) return;
+
+  const guild = await db.get('SELECT name FROM guilds WHERE id = ?', [channel.guild_id]);
+  // Channel mentions are named only for those who can see that channel, so the text can differ.
+  const channels = await mentionedChannels(message.content, channel.guild_id);
+  const bodyFor = async (userId) => (await previewText(
+    message.content,
+    channel.guild_id,
+    Object.fromEntries(channels.filter((c) => c.viewers.has(userId)).map((c) => [c.id, c.name]))
+  )) || fallbackPreview(message);
+  const sharedBody = channels.length ? null : await bodyFor(null);
+  const payload = await channelPushPayload(message, channel, guild.name);
   for (const userId of recipients) {
     const body = sharedBody ?? await bodyFor(userId);
     sendPushToUser(userId, { ...payload, body }, { urgency: 'high', topic: `channel${channel.id}` }).catch(() => {});
   }
 }
 
-module.exports = { NOTIFY_LEVELS, parseMentions, resolveMentions, saveMentions, notifyNewMessage, previewText };
+module.exports = { NOTIFY_LEVELS, parseMentions, resolveMentions, saveMentions, notifyNewMessage, previewText, channelViewers, pushRecipients, channelPushPayload };

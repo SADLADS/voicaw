@@ -1,12 +1,13 @@
 import { useSyncExternalStore } from 'react';
 import { ALWAYS_OPEN_DB } from './noise/gate';
+import { isPushToTalkKey } from './pushToTalkKeys';
 import { t } from '../i18n';
 import { isMobileDevice } from '../utils/presence';
 
 // Voice settings on this device (Settings → Voice & video, localStorage `audioSettings`):
 // which microphone and speakers, their volumes, what's done to the microphone (echo
 // cancellation and automatic gain by the browser; noise suppression; the gate's input
-// sensitivity, see noise/gate.js), and whether and how loud soundboard and join sounds play. voiceClient.js applies them to the
+// sensitivity, see noise/gate.js; or push to talk instead, see pushToTalk.js), and whether and how loud soundboard and join sounds play. voiceClient.js applies them to the
 // call you're in as they change; the microphone test (micTest.js) and the app's sounds use
 // them too. Device ids are the browser's, so they only mean something on this device; one
 // that's gone (unplugged) falls back to the system's default.
@@ -23,6 +24,11 @@ export const DEFAULT_AUDIO_SETTINGS = {
   autoGainControl: true,
   autoSensitivity: true, // the gate opens on speech (RNNoise's); else on loudness:
   sensitivity: -50, // dB, -100 (ALWAYS_OPEN_DB) to 0
+  // Push to talk (pushToTalk.js): the microphone is only sent while a key or mouse button
+  // (pushToTalkKeys.js) is held, and for `pushToTalkDelay` ms after it's let go.
+  inputMode: 'voice', // one of INPUT_MODES
+  pushToTalkKey: null,
+  pushToTalkDelay: 20,
   // Soundboards (voice/soundboard.js): the guild's sounds others play, and the join sounds
   // played when someone joins, each heard or not and at its own volume (0–1).
   soundboardOn: true,
@@ -36,6 +42,10 @@ export const DEFAULT_AUDIO_SETTINGS = {
 // (with Chrome's voiceIsolation), Off nothing. Only one ever runs: two in a row make a voice
 // sound worse.
 export const NOISE_SUPPRESSION = ['standard', 'strong', 'browser', 'off'];
+
+// Voice activity: sent whenever the gate's open. Push to talk: while the key is held.
+export const INPUT_MODES = ['voice', 'pushToTalk'];
+export const MAX_PUSH_TO_TALK_DELAY = 2000;
 
 const clamp = (value, min, max, fallback) =>
   (Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback);
@@ -62,6 +72,9 @@ export function cleanAudioSettings(raw) {
     autoGainControl: bool('autoGainControl'),
     autoSensitivity: bool('autoSensitivity'),
     sensitivity: clamp(saved.sensitivity, ALWAYS_OPEN_DB, 0, d.sensitivity),
+    inputMode: INPUT_MODES.includes(saved.inputMode) ? saved.inputMode : d.inputMode,
+    pushToTalkKey: isPushToTalkKey(saved.pushToTalkKey) ? saved.pushToTalkKey : d.pushToTalkKey,
+    pushToTalkDelay: Math.round(clamp(saved.pushToTalkDelay, 0, MAX_PUSH_TO_TALK_DELAY, d.pushToTalkDelay)),
     soundboardOn: bool('soundboardOn'),
     soundboardVolume: clamp(saved.soundboardVolume, 0, 1, d.soundboardVolume),
     joinSoundsOn: bool('joinSoundsOn'),
@@ -125,11 +138,10 @@ export const processingChanged = (a, b) =>
   a.echoCancellation !== b.echoCancellation || a.noiseSuppression !== b.noiseSuppression ||
   a.autoGainControl !== b.autoGainControl;
 
-// The gate's options (noise/gate.js).
-export const gateOptions = (s = settings) => ({
-  auto: s.autoSensitivity,
-  thresholdDb: s.sensitivity,
-});
+// The gate's options (noise/gate.js). With push to talk the key decides instead: always open.
+export const gateOptions = (s = settings) => (s.inputMode === 'pushToTalk'
+  ? { auto: false, thresholdDb: ALWAYS_OPEN_DB }
+  : { auto: s.autoSensitivity, thresholdDb: s.sensitivity });
 
 // The speakers, for setSinkId ('' is the default).
 export const outputSinkId = (s = settings) => s.outputDeviceId || '';
