@@ -53,7 +53,9 @@
       "messagePlaceholder": "Message {{name}}...",
       "showKeyboard": "Show keyboard",
       "emoji": "Emoji",
-      "send": "Send"
+      "send": "Send",
+      "forwarding": "Forwarding a message:",
+      "cancelForward": "Don't forward"
     },
     "attachPanel": {
       "label": "Add to message",
@@ -190,7 +192,9 @@
       "createThreadSheet": "Create thread",
       "copyTextSheet": "Copy text",
       "removePreviewsSheet": "Remove previews",
-      "confirmDelete": "Delete this message? This can't be undone."
+      "confirmDelete": "Delete this message? This can't be undone.",
+      "forward": "Forward",
+      "forwardSheet": "Forward"
     },
     "search": {
       "placeholder": "Search {{name}}",
@@ -439,6 +443,16 @@
       "alsoBlock": "Also block {{name}}",
       "send": "Send report",
       "thanks": "Thanks for telling us. The moderators will look at it."
+    },
+    "forward": {
+      "title": "Forward to",
+      "search": "Search",
+      "empty": "Nothing matches.",
+      "label": "Forwarded",
+      "summary": "Forwarded: {{text}}",
+      "tooLong": "This message is too long to forward.",
+      "notEncrypted": "Not encrypted",
+      "notEncryptedTitle": "Guild channels aren't end-to-end encrypted: the server can read what's forwarded there, files included."
     }
   }
 }

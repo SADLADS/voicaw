@@ -1,4 +1,4 @@
-# Messages: emoji, markdown, GIFs, YouTube links, link previews, polls, mentions, pins, drafts, the message list
+# Messages: emoji, markdown, GIFs, YouTube links, link previews, polls, mentions, forwarding, pins, drafts, the message list
 
 ## Emoji (Discord-style, default Unicode set)
 
@@ -530,6 +530,46 @@ everyone who can see the message (Discord has no history; this is ours).
   so old versions can't show it.
 - **Privacy**: editing no longer takes text back; deleting the message does. Said so in the
   privacy policy.
+
+## Forwarding
+
+Any message you can read can be forwarded to another chat (built 2026-10-27, as Discord's
+forwards): Forward in the right-click menu, the hover menu (an arrow) and the phone's long-press
+sheet, in DMs, notes, group DMs, guild channels and threads, bot DMs. Not offered for messages
+still sending or failed, bots' ephemeral replies, system rows, polls (their votes are reactions
+on the message itself), messages with no text (a bot's embeds or files alone: only the text is
+forwarded) or in the offline copy.
+- **Format** (`utils/forwardMarkup.js`, server `forwards.js`): the message text is `fwd:v1:` +
+  a JSON header on the first line, `{ t }` (when the original was sent, unix s), then the
+  original's text exactly as it was. So in DMs and groups it's inside the encryption, and
+  everything that reads a message's text reads a forward's too: attachments (the same file and
+  key, nothing uploaded again; `uploadNamesIn` / `uploadKeysIn` link the file to the forward, so
+  deleting the original doesn't delete it), link previews, search. Who wrote it and where isn't
+  kept (Discord shows the origin; we have none to show across encrypted chats). Forwarding a
+  forward sends the original (its text and time). Like polls, anyone can type the format by
+  hand; a forward claims nothing but a time.
+- **Picking where** (`ForwardDialog.jsx`): your notes, then people and groups in the DM list's
+  order (no one blocked), then every guild's text channels you may send in (opening the guilds
+  not loaded yet), with a search box. From an encrypted chat, guild channels say "Not encrypted"
+  (the server can read a guild forward, files included, as any guild message). Picking one puts
+  the forward in `services/forwardStore.js` (in memory only, like drafts; logging out clears it)
+  and opens that chat, where the message box shows "Forwarding a message: …" (× takes it back).
+  The next send sends the forward as its own message, then what was typed, if anything (a phone
+  shows Send rather than the mic while one waits). One that fails is kept like any unsent
+  message (Retry).
+- **Drawn** (`MessageList` `ForwardedMessage`): "Forwarded", the text beside a bar, the
+  original's time. A forward can't be edited. Copy Text copies what it forwards; plain-text
+  places (`summarizeAttachments`, guild pushes) say "↪ Forwarded: …".
+- **Mentions** in a forward never ping (server `parseMentions` finds none, and `mentionsMe`
+  doesn't highlight it), as in Discord; `mentions:` search still finds the text naming someone.
+- **Search**: guild and on-device search index what it forwards, plus `has:forward`.
+- **Bots** see Discord's forward: no content, `message_reference` of type 1 (naming the
+  forward's own channel, since the origin isn't kept), `message_snapshots` with the text and
+  time, flag `HAS_SNAPSHOT`. Bots can't forward yet.
+- **Not done yet**: several destinations at once, a note typed in the dialog itself, forwarding
+  a bot's embeds and files.
+
+`e2e/forward.mjs` checks it in the browser.
 
 ## Pinned messages
 

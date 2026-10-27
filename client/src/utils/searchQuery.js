@@ -9,7 +9,7 @@ import { t } from '../i18n';
 
 export const SEARCH_KEYS = ['from', 'mentions', 'in', 'has'];
 
-export const HAS_VALUES = ['link', 'embed', 'file', 'image', 'video', 'sound', 'poll'];
+export const HAS_VALUES = ['link', 'embed', 'file', 'image', 'video', 'sound', 'poll', 'forward'];
 
 const filterRe = (keys) => new RegExp(`(^|\\s)(${keys.join('|')}):("[^"]*"?|\\S*)`, 'gi');
 

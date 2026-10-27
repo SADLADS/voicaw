@@ -5,6 +5,7 @@ const { sendPushToUser, getUserImageUrl } = require('./push');
 const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 const { getAllMembers, getOverrides, getChannelViewers } = require('./guilds');
 const { pollPreview } = require('./polls');
+const { forwardedContent } = require('./forwards');
 const { mutedUserIds, guildMutedUserIds, channelLevels } = require('./channelMutes');
 
 // Mentions in guild messages, and the pushes they (and plain messages) cause.
@@ -21,8 +22,10 @@ function withoutCode(text) {
   return text.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`\n]*`/g, ' ');
 }
 
-// What the text asks for (before any permission check).
+// What the text asks for (before any permission check). A forward (forwards.js) asks for
+// nothing: its mentions were the original's, and never ping, as in Discord.
 function parseMentions(content) {
+  if (forwardedContent(content) != null) return { userIds: new Set(), roleIds: new Set(), everyone: false, here: false };
   const text = withoutCode(String(content ?? ''));
   const ids = (re) => new Set([...text.matchAll(re)].map((m) => Number(m[1])));
   return {
@@ -118,6 +121,12 @@ function timestampPreview(unix, style, now = Date.now()) {
 // (timestampPreview), attachments as
 // their names (their links carry keys; spoilers just "spoiler", voice messages "Voice message"), spoilers hidden, cut to MAX_PREVIEW_LENGTH.
 async function previewText(content, guildId, channelNames = {}) {
+  const forwarded = forwardedContent(content);
+  if (forwarded != null) {
+    const inner = await previewText(forwarded, guildId, channelNames);
+    const text = `↪ Forwarded: ${inner}`;
+    return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
+  }
   const userIds = [...String(content).matchAll(/<@(\d+)>/g)].map((m) => Number(m[1]));
   const users = userIds.length
     ? await db.all(`SELECT id, username, display_name FROM users WHERE pending = 0 AND id IN (${userIds.map(() => '?').join(',')})`, userIds)

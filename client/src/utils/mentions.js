@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import { nameOf } from './profiles';
 import { timestampsToText } from './timestamps';
+import { isForward } from './forwardMarkup';
 
 // Mentions, written like Discord's in message text: `<@id>` (a person), `<@&id>` (a guild role),
 // `<#id>` (a guild channel: anywhere, DMs too; a link to it, notifying nobody),
@@ -59,7 +60,8 @@ export function mentionsUser(text, id) {
 
 // Whether a message is for you: it names you, pinged @everyone/@here, or one of your roles.
 export function mentionsMe(msg, meId, myRoleIds) {
-  if (mentionsUser(msg.plaintext, meId)) return true;
+  // A forward's mentions were the original's: they never ping (utils/forwardMarkup.js).
+  if (!isForward(msg.plaintext) && mentionsUser(msg.plaintext, meId)) return true;
   if (msg.mention_everyone) return true;
   const mine = new Set((myRoleIds ?? []).map(Number));
   return (msg.mention_roles ?? []).some((id) => mine.has(Number(id)));

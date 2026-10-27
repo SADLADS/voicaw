@@ -68,6 +68,8 @@ describe('what gets indexed', () => {
     expect(searchHas({ content: upload('a.zip', 'application/zip') })).toBe(HAS.file);
     expect(searchHas({ content: '![GIF](https://static.klipy.com/x.webp#gif&w=1&h=1)' })).toBe(HAS.image);
     expect(searchHas({ content: 'poll:v1:{"q":"?","o":[]}' })).toBe(HAS.poll);
+    expect(searchHas({ content: `fwd:v1:{"t":1}\nsee ${upload('a.png', 'image/png')}` })).toBe(HAS.forward | HAS.file | HAS.image);
+    expect(searchText({ content: `fwd:v1:{"t":1}\nsee <@4> ${upload('a.png', 'image/png')}` })).toBe(searchText({ content: `see <@4> ${upload('a.png', 'image/png')}` }));
     expect(searchHas({ content: '', embeds: '[{"title":"x"}]', attachments: '[{"content_type":"image/png"}]' })).toBe(HAS.embed | HAS.file | HAS.image);
   });
 });
@@ -117,6 +119,17 @@ describe('guild search', () => {
     // Mention ids and attachment links aren't words.
     expect(await found(owner, guild, { content: String(bob.id) })).toEqual([]);
     expect(await found(owner, guild, { content: 'secretkey' })).toEqual([]);
+  });
+
+  it('finds what forwards say, and has:forward', async () => {
+    const { owner, members: [alice, bob], guild, general } = await setUpGuild();
+    const f1 = await post(alice, general, `fwd:v1:{"t":1700000000}\nsurfing <@${bob.id}> ${upload('wave.jpg', 'image/jpeg')}`);
+    const a1 = await post(alice, general, 'surfing again');
+    expect(await found(owner, guild, { has: 'forward' })).toEqual([f1]);
+    expect(await found(owner, guild, { has: 'image' })).toEqual([f1]);
+    expect(await found(owner, guild, { content: 'surfing' })).toEqual([a1, f1]);
+    // `mentions:` reads the text, so a forward naming someone is found (it never pinged them).
+    expect(await found(owner, guild, { mentions: bob.id })).toEqual([f1]);
   });
 
   it('looks for emoji and punctuation as typed', async () => {

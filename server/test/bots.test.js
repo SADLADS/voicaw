@@ -199,6 +199,20 @@ describe('the bot API', () => {
     expect((await discord.post(bot, '/users/@me/channels', { recipient_id: String(member.id) })).body).toMatchObject({ type: 1 });
   });
 
+  it("sees a forwarded message as Discord's forward", async () => {
+    const { owner, member, general, bot } = await setUp();
+    const sent = await api.post(owner, `/channels/${general.id}/messages`, { content: `fwd:v1:{"t":1700000000}\nlook <@${member.id}>` });
+    const seen = (await discord.get(bot, `/channels/${general.id}/messages/${sent.body.id}`)).body;
+    expect(seen).toMatchObject({
+      type: 0,
+      content: '',
+      mentions: [],
+      flags: 1 << 14,
+      message_reference: { type: 1, channel_id: String(general.id) },
+      message_snapshots: [{ message: { content: `look <@${member.id}>`, timestamp: new Date(1700000000 * 1000).toISOString(), mentions: [] } }],
+    });
+  });
+
   it('sends, reads, edits and deletes messages, with embeds, replies and reactions', async () => {
     const { owner, guild, general, bot } = await setUp(toDiscordPermissions(P.VIEW_CHANNEL | P.SEND_MESSAGES | P.ADD_REACTIONS));
     await api.post(owner, `/channels/${general.id}/messages`, { content: `hi <@${bot.id}>` });

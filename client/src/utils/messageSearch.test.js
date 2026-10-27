@@ -15,6 +15,8 @@ const SAMPLES = [
   'poll:v1:{"q":"Where?","o":[{"id":"aaaa1111","t":"Park"},{"id":"bbbb2222","t":"Beach"}]}',
   'poll:v1:{broken',
   'escaped ![a \\] b](https://s3.example/e#v=1&k=K&t=text/plain)',
+  'fwd:v1:{"t":1730000000}\nforwarded <@12> ![clip.mp4](https://s3.example/c#v=2&k=K2&t=video/mp4) https://example.com',
+  'fwd:v1:{broken\nnot a forward',
 ];
 
 describe('messageSearch', () => {
@@ -24,6 +26,12 @@ describe('messageSearch', () => {
       expect(searchHas(content)).toBe(server.searchHas({ content }));
     }
     expect(HAS).toEqual(server.HAS);
+  });
+
+  it('finds what a forward forwards, and has:forward', () => {
+    expect(searchText(SAMPLES[9])).toBe(searchText(SAMPLES[9].slice(SAMPLES[9].indexOf('\n') + 1)));
+    expect(searchHas(SAMPLES[9])).toBe(HAS.forward | HAS.file | HAS.video | HAS.link);
+    expect(searchHas(SAMPLES[10]) & HAS.forward).toBe(0);
   });
 
   it('never keeps an attachment key in the words', () => {

@@ -35,6 +35,8 @@ function recordFor(seconds) {
 const flush = () => act(async () => {});
 
 import Composer from './Composer';
+import { clearForward, getForward, setForward } from '../services/forwardStore';
+import { editorFor } from '../editor/editorRegistry';
 
 function renderComposer(props = {}) {
   render(
@@ -189,5 +191,41 @@ describe('voice messages', () => {
     renderComposer({ isMobile: true, textOnly: true });
     expect(screen.queryByRole('button', { name: 'Record a voice message' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+  });
+});
+
+describe('forwarding', () => {
+  it('shows the message waiting to be forwarded here, and sends it alone', async () => {
+    const onSend = vi.fn(async () => {});
+    setForward('channel-1', { content: 'look at this', at: 1700000000 });
+    renderComposer({ onSend });
+    expect(screen.getByText('Forwarding a message:')).toBeInTheDocument();
+    expect(screen.getByText(/look at this/)).toBeInTheDocument();
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+    await flush();
+    expect(onSend).toHaveBeenCalledWith({ text: 'fwd:v1:{"t":1700000000}\nlook at this', replyTo: null });
+    expect(screen.queryByText('Forwarding a message:')).toBeNull();
+    expect(getForward('channel-1')).toBeNull();
+  });
+
+  it('sends the forward first, then what was typed', async () => {
+    const onSend = vi.fn(async () => {});
+    setForward('channel-1', { content: 'look at this', at: 1700000000 });
+    renderComposer({ onSend });
+    act(() => editorFor(document.getElementById('dm-input')).setText('thought of you'));
+    fireEvent.submit(document.getElementById('dm-chat-form'));
+    await flush();
+    expect(onSend.mock.calls.map(([sent]) => sent.text)).toEqual(['fwd:v1:{"t":1700000000}\nlook at this', 'thought of you']);
+  });
+
+  it('× takes it back; another chat has none', () => {
+    setForward('channel-1', { content: 'look at this', at: 1 });
+    renderComposer({ chatId: 'channel-2' });
+    expect(screen.queryByText('Forwarding a message:')).toBeNull();
+    act(() => setForward('channel-2', { content: 'now here', at: 1 }));
+    fireEvent.click(screen.getByRole('button', { name: "Don't forward" }));
+    expect(getForward('channel-2')).toBeNull();
+    expect(screen.queryByText('Forwarding a message:')).toBeNull();
+    clearForward('channel-1');
   });
 });

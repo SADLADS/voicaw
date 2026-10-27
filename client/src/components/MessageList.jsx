@@ -5,7 +5,7 @@ import { Trans } from 'react-i18next';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import { Icon } from './Icon';
-import { faEdit, faTrash, faReply, faFaceSmile, faThumbtack } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faReply, faFaceSmile, faShare, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
@@ -47,6 +47,7 @@ import Avatar from './Avatar';
 import { formatDateTime, formatLongDate, formatTime, useDateFormat } from '../utils/dateFormat';
 import { useMessageDisplay } from '../utils/messageDisplay';
 import { parsePoll, pollEnded } from '../utils/pollMarkup';
+import { forwardSource, parseForward } from '../utils/forwardMarkup';
 import { hasEditHistory } from '../utils/editHistory';
 import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 import { ChannelMentionContext } from '../contexts';
@@ -315,6 +316,22 @@ export const DocumentMarkdown = memo(function DocumentMarkdown({ text, user, s3E
   );
 });
 
+// A forwarded message (utils/forwardMarkup.js), as Discord's: "Forwarded", what it forwards
+// beside a bar, and when that was first sent. `forward` is parseForward's (memoised by the row).
+const ForwardedMessage = memo(function ForwardedMessage({ forward, rehypePlugins, mentions }) {
+  return (
+    <div className="message-forward">
+      <div className="message-forward-label"><Icon icon={faShare} /> {t('chat.forward.label')}</div>
+      <MessageMarkdown text={forward.content} rehypePlugins={rehypePlugins} mentions={mentions} />
+      {forward.at != null && (
+        <small className="message-forward-time" title={formatDateTime(forward.at * 1000, { seconds: true })}>
+          {formatDateTime(forward.at * 1000)}
+        </small>
+      )}
+    </div>
+  );
+});
+
 // What MessageMarkdown and EmbedParts take from a message (only what they draw, so memo works).
 const markdownProps = (msg) => ({ text: msg.plaintext, localAttachments: msg.localAttachments });
 const embedProps = (msg) => ({ embeds: msg.embeds, linkEmbeds: msg.link_embeds, attachments: msg.attachments, flags: msg.flags });
@@ -329,11 +346,14 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
     [reactionNames, mentionRoles, user.id, myRoleIds, msg.mention_everyone]
   );
   const poll = useMemo(() => parsePoll(msg.plaintext), [msg.plaintext]);
+  const forward = useMemo(() => parseForward(msg.plaintext), [msg.plaintext]);
   return (
     <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`} data-image-gallery="">
       {poll
         ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} authorId={msg.sender_id} names={reactionNames} sentAt={msg.timestamp} />
-        : <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />}
+        : forward
+          ? <ForwardedMessage forward={forward} rehypePlugins={rehypePlugins} mentions={mentions} />
+          : <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />}
       <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
     </div>
   );
@@ -385,6 +405,8 @@ const MessageRow = memo(function MessageRow({
   handleEdit,
   handleDelete,
   handleReply,
+  // Forward (ForwardDialog, ChatPane), for messages that can be (forwardSource).
+  onForward,
   // Sends a message that couldn't be sent again (ChatPane).
   onRetrySend,
   // Being edited in place, starting from `editingMessageContent`.
@@ -475,7 +497,7 @@ const MessageRow = memo(function MessageRow({
   const mentionsMe = isForMe(msg, user.id, myRoleIds);
   const mentionChannels = useContext(ChannelMentionContext)?.channels;
   const poll = useMemo(() => parsePoll(msg.plaintext), [msg.plaintext]);
-
+  const forward = useMemo(() => parseForward(msg.plaintext), [msg.plaintext]);
 
   // Not before the server has the message (it has no id yet).
   const sent = msg.status !== 'pending' && msg.status !== 'failed';
@@ -551,8 +573,8 @@ const MessageRow = memo(function MessageRow({
               <Icon icon={faThumbtack} title={pinned ? t('common.unpin') : t('common.pin')} />
             </button>
           )}
-          {/* A closed poll and a voice message can't be edited. */}
-          {sent && msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && (
+          {/* A closed poll, a voice message and a forward can't be edited. */}
+          {sent && msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && !forward && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
               <Icon icon={faEdit} title={t('common.edit')} />
             </button>
@@ -560,6 +582,11 @@ const MessageRow = memo(function MessageRow({
           {sent && (
             <button className="icon-button" onClick={() => handleReply(msg)}>
               <Icon icon={faReply} title={t('common.reply')} />
+            </button>
+          )}
+          {onForward && forwardSource(msg) && (
+            <button className="icon-button" onClick={() => onForward(msg)}>
+              <Icon icon={faShare} title={t('chat.messageMenu.forward')} />
             </button>
           )}
           {(msg.sender_id === user.id || canModerate) && (
@@ -695,6 +722,8 @@ const MessageRow = memo(function MessageRow({
             />
           ) : thinking ? (
             <ThinkingLine botName={senderName} />
+          ) : forward ? (
+            <ForwardedMessage forward={forward} rehypePlugins={rehypePlugins} mentions={mentions} />
           ) : (
             <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
@@ -711,7 +740,7 @@ const MessageRow = memo(function MessageRow({
           />
           <MessageComponents messageId={msg.id} channelId={msg.channel_id} components={msg.components} names={reactionNames} roles={mentionRoles} />
 
-          {!poll && !(msg.flags & SUPPRESS_EMBEDS) && <UrlPreviews text={msg.plaintext} encrypted={encrypted} onRemove={removable ? (e) => onRemovePreviews(msg, e) : undefined} />}
+          {!poll && !(msg.flags & SUPPRESS_EMBEDS) && <UrlPreviews text={forward ? forward.content : msg.plaintext} encrypted={encrypted} onRemove={removable ? (e) => onRemovePreviews(msg, e) : undefined} />}
         </div>
 
         {msg.thread && msg.system == null && <ThreadSummary thread={msg.thread} />}
@@ -800,6 +829,7 @@ export default function MessageList({
   handleEdit,
   handleDelete,
   handleReply,
+  onForward,
   onRetrySend,
   editingMessageId,
   editingMessageContent,
@@ -928,7 +958,7 @@ export default function MessageList({
     setHoveredMsgId, handleEdit, handleDelete, handleReply, setEditingMessageContent, setEditingMessageId,
     handleSaveEdit, onToggleReaction, onOpenReactionPicker, onVote, onAddPollAnswer, onRemovePollAnswer,
     onEndPoll, onJumpToMessage, onOpenActions, onOpenMenu, onTogglePin, onShowEdits, canRemovePreviews,
-    onRemovePreviews, onRetrySend,
+    onRemovePreviews, onRetrySend, onForward,
   };
   const latestHandlers = useRef(handlers);
   latestHandlers.current = handlers;
