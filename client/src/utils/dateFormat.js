@@ -76,6 +76,28 @@ export function formatDate(value, { date = settings.date } = {}) {
   }
 }
 
+// The order day, month and year are written in for `date` ('dmy', 'mdy' or 'ymd'; automatic:
+// the browser's).
+function dateOrder(date = settings.date) {
+  if (date !== 'auto') return date;
+  const order = formatter({}).formatToParts(new Date(2026, 10, 22))
+    .map((p) => p.type[0]).filter((c) => 'dmy'.includes(c)).join('');
+  return ['dmy', 'mdy', 'ymd'].includes(order) ? order : 'dmy';
+}
+
+// A typed date -> that day's midnight on this device (a Date), or null: 2026-09-30 always,
+// else three numbers (/, . or - between) in the order dates are shown in (formatDate).
+export function parseDate(text, { date = settings.date } = {}) {
+  const parts = String(text ?? '').trim().match(/^(\d{1,4})[-/.]\s*(\d{1,2})[-/.]\s*(\d{1,4})\.?$/);
+  if (!parts) return null;
+  const [a, b, c] = parts.slice(1).map(Number);
+  const order = parts[1].length === 4 ? 'ymd' : dateOrder(date);
+  const [year, month, day] = order === 'ymd' ? [a, b, c] : order === 'mdy' ? [c, a, b] : [c, b, a];
+  if (year < 1000 || year > 9999) return null;
+  const d = new Date(year, month - 1, day);
+  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day ? d : null;
+}
+
 // The date in words, for the day dividers in chats: 11 September 2026, or September 11, 2026
 // for month first (the browser's way when automatic; 2026-09-11 when that's chosen).
 export function formatLongDate(value, { date = settings.date } = {}) {

@@ -9,7 +9,7 @@ import { MessageContent } from './MessageList';
 import { ConfigContext } from '../contexts';
 import { HAS_VALUES, SEARCH_KEYS, parseSearch, searchContext, searchSuggestions } from '../utils/searchQuery';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
-import { formatDateTime, useDateFormat } from '../utils/dateFormat';
+import { formatDate, formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { t } from '../i18n';
 
 const MARGIN = 8;
@@ -20,10 +20,12 @@ const keyHint = (key, hasValues) => ({
   mentions: t('guilds.search.hint.user'),
   in: t('guilds.search.hint.channel'),
   has: t('guilds.search.hint.has', { values: hasValues.slice(0, -1).join(', '), last: hasValues[hasValues.length - 1] }),
+  before: t('guilds.search.hint.date', { example: formatDate(new Date()) }),
+  after: t('guilds.search.hint.date', { example: formatDate(new Date()) }),
 })[key];
 
 // A search box and its results, Discord's: words plus the filters in `keys` (from:, mentions:,
-// in:, has:; utils/searchQuery.js), with suggestions for them while typing. On a computer the
+// in:, has:, before:, after:; utils/searchQuery.js), with suggestions for them while typing. On a computer the
 // box sits in the chat's header and results float under it, like the pinned messages; on a
 // phone the header has a button that opens both over the whole screen. Used by GuildSearch
 // (the server searches) and ChatSearch (DMs and groups, searched on the device).
@@ -250,7 +252,7 @@ export default function MessageSearch({
       {suggestions.length > 0 && (
         <div className="emoji-suggestions guild-search-suggestions" role="listbox" aria-label={t('guilds.search.options')}>
           <div className="emoji-suggestions-title">
-            {context.kind === 'keys' ? t('guilds.search.options') : context.kind === 'in' ? t('guilds.search.channels') : context.kind === 'has' ? t('guilds.search.messageContains') : t('common.members')}
+            {context.kind === 'keys' ? t('guilds.search.options') : context.kind === 'in' ? t('guilds.search.channels') : context.kind === 'has' ? t('guilds.search.messageContains') : ['before', 'after'].includes(context.kind) ? t('guilds.search.dates') : t('common.members')}
           </div>
           {suggestions.map((item, i) => (
             <div
@@ -262,7 +264,7 @@ export default function MessageSearch({
               onMouseEnter={() => setActiveIndex(i)}
             >
               {item.kind === 'key' && (<><strong>{item.key}:</strong><span className="mention-suggestion-note">{keyHint(item.key, hasValues)}</span></>)}
-              {item.kind === 'has' && <span>{item.label}</span>}
+              {(item.kind === 'has' || item.kind === 'date') && <span>{item.label}</span>}
               {item.kind === 'channel' && (<><Icon icon={faHashtag} className="guild-search-hash" /><span>{item.label}</span></>)}
               {item.kind === 'member' && (
                 <>

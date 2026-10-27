@@ -4,6 +4,7 @@ import request from 'supertest';
 import { registerUser, loginUser } from './helpers/authFlow.js';
 
 const app = require('../index.js');
+const db = require('../db');
 const { PERMISSIONS: P } = require('../permissions.js');
 const { HAS, searchHas, searchText } = require('../searchText.js');
 
@@ -117,6 +118,21 @@ describe('guild search', () => {
     // Mention ids and attachment links aren't words.
     expect(await found(owner, guild, { content: String(bob.id) })).toEqual([]);
     expect(await found(owner, guild, { content: 'secretkey' })).toEqual([]);
+  });
+
+  it('filters by time (before:, after:)', async () => {
+    const { owner, guild, general } = await setUpGuild();
+    const old = await post(owner, general, 'old news');
+    const mid = await post(owner, general, 'mid news');
+    const late = await post(owner, general, 'late news');
+    for (const [id, time] of [[old, 1000], [mid, 2000], [late, 3000]]) {
+      await db.run('UPDATE guild_messages SET timestamp = ? WHERE id = ?', [time, id]);
+    }
+
+    expect(await found(owner, guild, { before_time: 2000 })).toEqual([old]);
+    expect(await found(owner, guild, { after_time: 2000 })).toEqual([late, mid]);
+    expect(await found(owner, guild, { after_time: 1500, before_time: 3000, content: 'news' })).toEqual([mid]);
+    expect((await search(owner, guild, { before_time: 'yesterday' })).status).toBe(400);
   });
 
   it('looks for emoji and punctuation as typed', async () => {
