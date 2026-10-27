@@ -1,0 +1,7 @@
+/* Bootstrap, as a cascade layer below the app's own CSS. Unlayered rules always beat layered
+   ones, so voicaw.css's buttons, forms and colours win whatever order the stylesheets load in.
+   Order alone isn't enough: the desktop build has two pages (the app and overlay.html), so
+   voicaw.css, which both import, goes into a shared stylesheet that loads before the one with
+   Bootstrap, and Bootstrap's blue and grey buttons won there. (Inside a layer, Bootstrap's
+   !important utilities would beat the app's !important rules; none meet on one element.) */
+@import 'bootstrap/dist/css/bootstrap.min.css' layer(bootstrap);
