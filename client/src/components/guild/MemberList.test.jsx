@@ -88,7 +88,7 @@ describe('MemberList', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByText('newbie'));
-    fireEvent.mouseDown(within(screen.getByRole('dialog', { name: 'newbie' })).getByText('newbie', { selector: ':not(.member-name)' }));
+    fireEvent.mouseDown(within(screen.getByRole('dialog', { name: 'newbie' })).getByText('newbie', { selector: '.profile-card-name' }));
     expect(screen.getByRole('dialog', { name: 'newbie' })).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole('dialog')).toBeNull();
