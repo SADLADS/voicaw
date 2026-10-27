@@ -20,6 +20,7 @@ vi.mock('../services/guildService', () => ({
     { id: 6, name: 'Beta', owner: 2, icon_version: 0, voice: {} },
   ]),
   fetchGuildUnread: vi.fn(async () => []),
+  fetchGuildFolders: vi.fn(async () => []),
   fetchChannelMutes: vi.fn(async () => []),
   fetchGuildMutes: vi.fn(async () => []),
   fetchChannelNotifications: vi.fn(async () => []),
@@ -29,7 +30,7 @@ vi.mock('../services/guildService', () => ({
 }));
 
 import { useGuildList } from './useGuildList';
-import { fetchAllEmojis, fetchGuild, fetchGuildMutes, fetchGuildUnread } from '../services/guildService';
+import { fetchAllEmojis, fetchGuild, fetchGuildFolders, fetchGuildMutes, fetchGuildUnread, saveGuildOrder } from '../services/guildService';
 
 const voiceState = (guildId, channelId, userId, joined = true) => ({
   type: 'guild_voice_state', guildId, channelId, userId, state: joined ? { user_id: userId } : null,
@@ -136,5 +137,24 @@ describe('useGuildList guild mutes', () => {
     act(() => emit({ type: 'guild_mute', guildId: 6, muted: true, until: null }));
     act(() => emit({ type: 'guild_remove', guildId: 6 }));
     expect(result.current.guildMutes).toEqual({});
+  });
+});
+
+describe('useGuildList folders', () => {
+  it('builds the rail from the folders, saves a new one and follows other devices', async () => {
+    fetchGuildFolders.mockResolvedValueOnce([{ id: 9, name: 'Both', color: null, guildIds: [5, 6] }]);
+    const { result } = renderHook(() => useGuildList({ userId: 1, activeChannelId: null }));
+    await waitFor(() => expect(result.current.rail).toHaveLength(1));
+    expect(result.current.rail[0]).toMatchObject({ type: 'folder', id: 9, name: 'Both' });
+    expect(result.current.rail[0].guilds.map((g) => g.id)).toEqual([5, 6]);
+
+    // Taken apart, the other way round.
+    const [alpha, beta] = result.current.guilds;
+    await act(() => result.current.saveRail([{ type: 'guild', id: 6, guild: beta }, { type: 'guild', id: 5, guild: alpha }]));
+    expect(saveGuildOrder).toHaveBeenLastCalledWith([6, 5], []);
+    expect(result.current.rail.map((i) => `${i.type}:${i.id}`)).toEqual(['guild:6', 'guild:5']);
+
+    act(() => emit({ type: 'guild_order', guildIds: [5, 6], folders: [{ id: 4, name: null, color: 1, guildIds: [5, 6] }] }));
+    expect(result.current.rail.map((i) => `${i.type}:${i.id}`)).toEqual(['folder:4']);
   });
 });

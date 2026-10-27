@@ -9,9 +9,11 @@ import {
   fetchGuild,
   fetchGuildMutes,
   fetchGuilds,
+  fetchGuildFolders,
   fetchGuildUnread,
   saveGuildOrder,
 } from '../services/guildService';
+import { buildRail, railLayout } from '../utils/guildFolders';
 
 // The logged-in user's guilds, for the whole layout (Layout puts this in LayoutContext):
 // - `guilds`: the list for the guild rail ([{ id, name, owner, icon_version }]).
@@ -35,7 +37,9 @@ import {
 //   'all' | 'mentions' | 'none'; none set: the guild's); `applyChannelLevel(event)` takes what
 //   setting one returned (as the `guild_channel_notify` event other devices get).
 // `clearUnread(channelId)` drops a channel's unread row (after Mark As Read).
-// `reorderGuilds(ids)` saves a new rail order (top first); other devices follow.
+// `folders`: your rail's folders ([{ id, name, color, guildIds }]); `rail`: what the rail shows,
+// guilds and folders of guilds (utils/guildFolders.js buildRail); `saveRail(items)` saves a new
+// one (order and folders), other devices following.
 // `activeChannelId` is the channel on screen, `activeThreadId` a thread open beside it: new
 // messages there don't count as unread. A layout's `threads` are the active threads you can see
 // (with `joined`; only joined ones count as unread), kept current by the thread events.
@@ -51,6 +55,9 @@ const voiceOfLayout = (guild) => Object.fromEntries(
 
 export function useGuildList({ userId, activeChannelId, activeThreadId = null, onRemoved }) {
   const [guilds, setGuilds] = useState([]);
+  const [folders, setFolders] = useState([]);
+  // The rail waits for the folders the first time, so its guilds don't jump into them.
+  const [foldersLoaded, setFoldersLoaded] = useState(false);
   const [layouts, setLayouts] = useState({});
   const [unread, setUnread] = useState([]);
   const [emojis, setEmojis] = useState({});
@@ -187,10 +194,17 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
 
   // The guild list, and who's in voice in each guild.
   const loadList = useCallback(async () => {
+    const folderList = fetchGuildFolders().catch((err) => {
+      console.warn('Failed to load guild folders', err);
+      return null;
+    });
     const list = await fetchGuilds();
     setGuilds(list.map(summaryOf));
     setVoice(Object.fromEntries(list.map((g) => [g.id, g.voice ?? {}])));
     for (const g of list) setGuildStreams(g.id, g.streams);
+    const folderRows = await folderList;
+    if (folderRows) setFolders(folderRows);
+    setFoldersLoaded(true);
   }, []);
 
   // Mutes changed on another device, voice joins and leaves, and emoji added or removed, while
@@ -268,10 +282,14 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
     });
   }, []);
 
-  const reorderGuilds = useCallback(async (guildIds) => {
+  const rail = useMemo(() => (foldersLoaded ? buildRail(guilds, folders) : []), [guilds, folders, foldersLoaded]);
+
+  const saveRail = useCallback(async (items) => {
+    const { guildIds, folders: next } = railLayout(items);
     applyOrder(guildIds);
+    setFolders(next);
     try {
-      await saveGuildOrder(guildIds);
+      await saveGuildOrder(guildIds, next);
     } catch (err) {
       console.warn('Failed to save the guild order', err);
       loadList().catch(() => {});
@@ -294,6 +312,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
           break;
         case 'guild_order':
           applyOrder(event.guildIds);
+          if (event.folders) setFolders(event.folders);
           break;
         case 'guild_channel_mute':
           applyMute(event);
@@ -410,6 +429,7 @@ export function useGuildList({ userId, activeChannelId, activeThreadId = null, o
   return {
     guilds, layouts, guildVoice, unread, activeUnread, emojis, mutes, isMuted, applyMute,
     guildMutes, isGuildMuted, applyGuildMute, channelLevels, applyChannelLevel, loaded,
-    loadGuild, upsertGuild, removeGuild, refreshUnread, clearUnread, reorderGuilds,
+    loadGuild, upsertGuild, removeGuild, refreshUnread, clearUnread,
+    folders, rail, saveRail,
   };
 }

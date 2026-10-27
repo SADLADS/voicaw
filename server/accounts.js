@@ -101,6 +101,7 @@ async function deleteAccount(userId, plan) {
       'DELETE FROM guild_member_xp WHERE user_id = ?', // their XP in every guild (guildLevels.js)
       'DELETE FROM activity_sessions WHERE user_id = ?', // the games they played (activityHistory.js)
       'DELETE FROM signup_requests WHERE user_id = ?', // their sign-up request (signups.js)
+      'DELETE FROM guild_folders WHERE user_id = ?', // their folders in the guild rail
     ]) {
       await db.run(sql, [userId]);
     }

@@ -371,11 +371,11 @@ export default function Layout({ user, onLogout }) {
             onLogout={onLogout}
             hasUnreadDms={activeUnreadDms.length > 0 || hasUnreadGroups || hasFriendRequests}
             unreadChats={railUnreadChats}
-            guilds={guildList.guilds}
+            rail={guildList.rail}
             unreadGuildIds={unreadGuildIds}
             guildMentions={guildMentions}
             guildVoice={guildList.guildVoice}
-            onReorderGuilds={guildList.reorderGuilds}
+            onChangeRail={guildList.saveRail}
           />
 
           {/* DM sidebar only shows on the /dm route */}

@@ -20,6 +20,7 @@ import Sidebar from './Sidebar';
 import { ConfigContext, InteractionContext, LayoutContext } from '../contexts';
 import { leaveGuild, markChannelReadToLatest, muteGuild, setGuildNotifications, unmuteGuild } from '../services/guildService';
 import { mergeProfiles } from '../utils/profiles';
+import { buildRail } from '../utils/guildFolders';
 
 const ALL = 2 ** 31 - 1;
 const DEFAULT = 135; // view, send, react, create invite
@@ -28,9 +29,12 @@ const layout = (id, permissions, extra = {}) => ({
   ...guilds.find((g) => g.id === id), my_permissions: permissions, my_notify_level: 'mentions', roles: [], categories: [], channels: [], ...extra,
 });
 
-function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildMutes = {}, guildVoice, guildMentions, unreadChats, path = '/dm' } = {}) {
+function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, unread = [], guildMutes = {}, guildVoice, guildMentions, unreadChats, path = '/dm', folders = [], unreadGuildIds } = {}) {
+  const rail = buildRail(guilds, folders);
   const guildList = {
     guilds,
+    rail,
+    saveRail: vi.fn(),
     layouts,
     unread,
     guildMutes,
@@ -45,7 +49,7 @@ function renderRail({ layouts = { 5: layout(5, ALL), 6: layout(6, DEFAULT) }, un
         <LayoutContext.Provider value={{ guildList }}>
           <MemoryRouter initialEntries={[path]}>
             <ShowPath />
-            <Sidebar user={{ id: 1, username: 'owner' }} guilds={guilds} guildVoice={guildVoice} guildMentions={guildMentions} unreadChats={unreadChats} />
+            <Sidebar user={{ id: 1, username: 'owner' }} rail={rail} onChangeRail={guildList.saveRail} unreadGuildIds={unreadGuildIds} guildVoice={guildVoice} guildMentions={guildMentions} unreadChats={unreadChats} />
           </MemoryRouter>
         </LayoutContext.Provider>
       </InteractionContext.Provider>
@@ -64,6 +68,7 @@ const icon = (name) => screen.getByRole('link', { name });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   myVoice = { status: 'idle', guildId: null };
 });
 
@@ -240,5 +245,59 @@ describe('the guild rail menu', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Leave Guild' }));
     await waitFor(() => expect(leaveGuild).toHaveBeenCalledWith(6));
     expect(guildList.removeGuild).toHaveBeenCalledWith(6);
+  });
+});
+
+describe('guild folders', () => {
+  const folders = [{ id: 9, name: null, color: 0xe74c3c, guildIds: [5, 6] }];
+  const folderButton = () => screen.getByRole('button', { name: 'Alpha, Beta' });
+
+  it('shows a closed folder as its guilds together, and opens it on a click (remembered here)', () => {
+    renderRail({ folders, unreadGuildIds: new Set([6]), guildMentions: { 5: 1, 6: 2 }, guildVoice: { 6: 'others' }, path: '/guild/5/12' });
+    const top = folderButton().parentElement;
+    expect(folderButton()).toHaveAttribute('aria-expanded', 'false');
+    expect(folderButton().querySelectorAll('.guild-icon')).toHaveLength(2);
+    expect(screen.queryByRole('link', { name: 'Alpha' })).toBeNull();
+    // It stands for its guilds: the open one, unread, mentions, voice.
+    expect(top).toHaveClass('active');
+    expect(top.querySelector('.dot')).toHaveClass('visible');
+    expect(top.querySelector('.rail-mention-badge')).toHaveTextContent('3');
+    expect(top.querySelector('.rail-voice-badge')).not.toHaveClass('self');
+    expect(top.parentElement.style.getPropertyValue('--rail-folder-color')).toBe('#e74c3c');
+
+    fireEvent.click(folderButton());
+    expect(folderButton()).toHaveAttribute('aria-expanded', 'true');
+    expect(icon('Alpha').parentElement).toHaveClass('active');
+    expect(top).not.toHaveClass('active');
+    expect(top.querySelector('.rail-mention-badge')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('openGuildFolders'))).toEqual([9]);
+
+    cleanup();
+    renderRail({ folders });
+    expect(icon('Beta')).toBeTruthy();
+  });
+
+  it('marks a folder read, renames and recolours it, and ungroups it', async () => {
+    const guildList = renderRail({ folders, unread: [{ guild_id: 5, channel_id: 10, count: 2, mentions: 0 }, { guild_id: 6, channel_id: 20, count: 1, mentions: 0 }] });
+    fireEvent.contextMenu(folderButton());
+    expect(items(screen.getByRole('menu', { name: 'Alpha, Beta' }))).toEqual(['Mark Folder As Read', 'Folder Settings', 'Ungroup Folder']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark Folder As Read' }));
+    await waitFor(() => expect(guildList.clearUnread).toHaveBeenCalledTimes(2));
+    expect(markChannelReadToLatest).toHaveBeenCalledWith(10);
+    expect(markChannelReadToLatest).toHaveBeenCalledWith(20);
+
+    fireEvent.contextMenu(folderButton());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Folder Settings' }));
+    fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: ' Games ' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Default' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(guildList.saveRail).toHaveBeenLastCalledWith([expect.objectContaining({ type: 'folder', id: 9, name: 'Games', color: null })]);
+
+    fireEvent.contextMenu(folderButton());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ungroup Folder' }));
+    expect(guildList.saveRail).toHaveBeenLastCalledWith([
+      { type: 'guild', id: 5, guild: guilds[0] },
+      { type: 'guild', id: 6, guild: guilds[1] },
+    ]);
   });
 });

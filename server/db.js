@@ -261,6 +261,21 @@ sqlite.exec('CREATE INDEX IF NOT EXISTS guild_sounds_guild ON guild_sounds (guil
 
 // Each member's own order of their guilds in the guild rail (lowest first).
 addColumn('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
+// GUILD FOLDERS. Each member's own folders in the rail (as Discord's): `guild_members.folder_id`
+// puts a guild in one of its member's folders (their guilds next to each other in `position`).
+// The id is made by the member's app (any positive integer, unique per member), so a new folder
+// is saved with the order in one request. `color`: 0xRRGGBB, or null for the theme's.
+addColumn('ALTER TABLE guild_members ADD COLUMN folder_id INTEGER');
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_folders (
+  user_id INTEGER NOT NULL,
+  id INTEGER NOT NULL,
+  name TEXT,
+  color INTEGER,
+  PRIMARY KEY (user_id, id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
 // Unused since migration 20 (join sounds became one per person, users.join_sound_id).
 addColumn('ALTER TABLE guild_members ADD COLUMN join_sound_id INTEGER');
 // The person's join sound (guild_sounds.id, see above, in a guild they're in), or null.
