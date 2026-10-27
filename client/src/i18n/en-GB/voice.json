@@ -189,6 +189,7 @@
     "camera": {
       "start": "Turn on camera",
       "stop": "Turn off camera",
+      "switch": "Switch camera",
       "cameraOf": "{{name}}'s camera",
       "yourCamera": "Your camera"
     },

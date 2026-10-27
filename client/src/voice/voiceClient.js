@@ -96,7 +96,9 @@ function loadPrefs() {
 // the username from their token), `streamError`, `streamLimit` (the
 // server's cap on screen share quality, { resolution, frameRate }; null: none, see streamSettings.js).
 // Cameras: `canCamera` (Video in a channel; always in a call), `cameraOn` (yours), `cameras`
-// (the user ids, strings, whose camera is on in this room, you included), `cameraError`.
+// (the user ids, strings, whose camera is on in this room, you included), `cameraError`,
+// `cameraFacing` (null: the camera chosen in Settings; 'user' or 'environment' once a phone's
+// camera was switched, see switchCamera).
 const NOT_IN_VOICE = {
   status: 'idle',
   guildId: null,
@@ -116,6 +118,7 @@ const NOT_IN_VOICE = {
   cameraOn: false,
   cameras: [],
   cameraError: null,
+  cameraFacing: null,
 };
 let snapshot = {
   ...NOT_IN_VOICE,
@@ -710,6 +713,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
   if (!rejoining) {
     cancelRejoin();
     cameraWanted = false;
+    cameraFacing = null;
   }
   const current = ++attempt;
   await teardown();
@@ -836,6 +840,7 @@ export async function leaveVoice() {
   const wasConnected = snapshot.status === 'connected' || snapshot.status === 'reconnecting';
   cancelRejoin();
   cameraWanted = false;
+  cameraFacing = null;
   attempt++;
   await teardown();
   if (wasConnected) playSound('disconnect');
@@ -1101,14 +1106,15 @@ export function setStreamError(message) {
 // leaving). Turned off, its track is unpublished (not just muted), so the camera's light goes
 // off and the channel's "camera on" mark (the server's, from LiveKit's webhooks) goes with it.
 let cameraWanted = false;
+let cameraFacing = null; // see switchCamera
 
 export async function startCamera() {
   const current = room;
   if (!current || snapshot.status !== 'connected' || !snapshot.canCamera) return;
   cameraWanted = true;
-  update({ cameraError: null });
+  update({ cameraError: null, cameraFacing });
   try {
-    await current.localParticipant.setCameraEnabled(true, cameraOptions(), CAMERA_PUBLISH);
+    await current.localParticipant.setCameraEnabled(true, cameraOptions(undefined, cameraFacing), CAMERA_PUBLISH);
     if (room !== current) return;
     updateCameras();
   } catch (err) {
@@ -1140,6 +1146,35 @@ function cameraErrorMessage(err) {
   return t('voice.errors.cameraFailed');
 }
 
+// A phone's other camera (front ↔ back) while yours is on: the same track, restarted on the
+// other one (the old one is let go first, as phones open one camera at a time), so it isn't
+// published again. Kept until you leave, through turning the camera off and on and rejoins.
+let switchingCamera = false;
+
+export async function switchCamera() {
+  const current = room;
+  const track = current?.localParticipant.getTrackPublication(livekit.Track.Source.Camera)?.track;
+  if (!track || switchingCamera) return;
+  const facing = cameraFacing ?? track.mediaStreamTrack?.getSettings?.().facingMode ?? 'user';
+  const next = facing === 'environment' ? 'user' : 'environment';
+  switchingCamera = true;
+  update({ cameraError: null });
+  try {
+    await track.restartTrack(cameraOptions(undefined, next));
+    if (room !== current) return;
+    cameraFacing = next;
+    update({ cameraFacing });
+  } catch (err) {
+    console.warn('Could not switch camera', err);
+    if (room !== current) return;
+    update({ cameraError: cameraErrorMessage(err) });
+    // Back to the one we had, so the camera isn't left stopped.
+    await track.restartTrack(cameraOptions(undefined, cameraFacing)).catch(() => {});
+  } finally {
+    switchingCamera = false;
+  }
+}
+
 export function clearCameraError() {
   update({ cameraError: null });
 }
@@ -1148,6 +1183,8 @@ export function clearCameraError() {
 onVideoSettingsChange(async (next, previous) => {
   const current = room;
   if (!current || next.cameraDeviceId === previous.cameraDeviceId) return;
+  cameraFacing = null;
+  update({ cameraFacing });
   current.options.videoCaptureDefaults = { ...current.options.videoCaptureDefaults, ...cameraOptions(next) };
   const track = current.localParticipant.getTrackPublication(livekit.Track.Source.Camera)?.track;
   if (!track) return;

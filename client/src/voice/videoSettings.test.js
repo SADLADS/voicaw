@@ -17,4 +17,10 @@ describe('videoSettings', () => {
       deviceId: { ideal: 'abc' }, resolution: { width: 1280, height: 720, frameRate: 30 },
     });
   });
+
+  it("asks for a phone's front or back camera once switched, over the chosen one", () => {
+    expect(cameraOptions({ cameraDeviceId: 'abc' }, 'environment')).toEqual({
+      facingMode: 'environment', resolution: { width: 1280, height: 720, frameRate: 30 },
+    });
+  });
 });

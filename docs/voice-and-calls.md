@@ -214,7 +214,14 @@ LiveKit carries the audio.
   is hidden or an element isn't in its viewport, which would freeze a stream watched in its
   pop-out window, so it isn't used. In a voice channel, a camera fills its tile (16:9, name and
   icons over it; tiles grow while any camera is on); in a call it replaces the person's picture
-  in the panel. Your own is mirrored, as in a mirror (others see it the right way round). In
+  in the panel. Your own is mirrored, as in a mirror (others see it the right way round),
+  except a phone's back camera. **Front and back** (2026-10-27): on a phone or tablet
+  (`isMobileDevice`), a Switch camera button sits next to the camera's while it's on;
+  `switchCamera` restarts the same track (`restartTrack`, which lets the old camera go first:
+  phones open one at a time) with `facingMode` the other way, so nothing is published again.
+  The side (`cameraFacing`) overrides the camera chosen in Settings and is kept through turning
+  the camera off and on and rejoins, until leaving; choosing a camera in Settings drops it. If
+  the other camera fails, it goes back to the one it had and shows the error. In
   calls the video is end-to-end encrypted with the call's key like the audio (LiveKit's E2EE
   covers every track; `e2e/camera.mjs` asks LiveKit). Settings → Voice & video: the camera (a
   list, named once the page may use the camera) and Test camera, a mirrored preview captured
@@ -527,7 +534,7 @@ LiveKit carries the audio.
     with real Jellyfin and Emby servers in Docker (`e2e/mediacontainers.mjs` starts them).
 - **Not done yet:** a per-user local mute (Discord has one), output volume above 100%, server mute/move (Mute Members, Move Members), push to talk
   with a key combination or several keys, Discord's push to talk (priority), noise suppression and the gate on the other side (for people whose
-  app doesn't, like Discord's "suppress others' noise"), switching between a phone's front and back camera in a call,
+  app doesn't, like Discord's "suppress others' noise"),
   background blur, a camera spotlight (one camera big, like a watched stream), viewers picking
   a stream's quality (its simulcast copy; see Stream quality); Watch Together: a party surviving an API restart, other sites than YouTube and the guild's
   Jellyfin or Emby (Plex), choosing a media server video's subtitles or audio track (the

@@ -44,6 +44,19 @@ const lk = vi.hoisted(() => {
       if (this.processor) this.processor.processedTrack = { enabled: true };
     }
   }
+  // The camera: restarting it on another camera (switchCamera) fails while `state.cameraFails`.
+  class LocalCamera {
+    constructor(options) {
+      this.options = options;
+      this.restarts = [];
+    }
+    get mediaStreamTrack() { return { getSettings: () => ({ facingMode: this.options.facingMode }) }; }
+    async restartTrack(options) {
+      this.restarts.push(options);
+      if (state.cameraFails) throw Object.assign(new Error('busy'), { name: 'NotReadableError' });
+      this.options = options;
+    }
+  }
   class LocalParticipant {
     constructor() {
       this.identity = '1';
@@ -54,6 +67,7 @@ const lk = vi.hoisted(() => {
     }
     get isMicrophoneEnabled() { return Boolean(this.mic && !this.mic.isMuted); }
     getTrackPublication(source) {
+      if (source === 'camera') return this.camera ? { track: this.camera, isMuted: false } : undefined;
       if (source !== 'microphone' || !this.mic) return undefined;
       const track = this.mic;
       return { track, audioTrack: track, get isMuted() { return track.isMuted; } };
@@ -74,6 +88,10 @@ const lk = vi.hoisted(() => {
     }
     async unpublishTrack(track) {
       if (track === this.mic) this.mic = null;
+      if (track === this.camera) this.camera = null;
+    }
+    async setCameraEnabled(enabled, options) {
+      this.camera = enabled ? new LocalCamera(options) : null;
     }
     async setScreenShareEnabled(enabled, capture, publish) {
       state.screenShares.push({ enabled, capture, publish });
@@ -134,6 +152,7 @@ const lk = vi.hoisted(() => {
     state,
     deferred,
     RemoteAudioTrack,
+    LocalCamera,
     module: {
       Room,
       RoomEvent,
@@ -472,5 +491,54 @@ describe('voiceClient screen share quality', () => {
     expect(saveWatching).toHaveBeenCalledTimes(2);
     await voice.leaveVoice();
     expect(voice.getVoiceSnapshot().watchers).toEqual({});
+  });
+});
+
+describe('voiceClient camera', () => {
+  beforeEach(async () => {
+    await voice.leaveVoice();
+    lk.state.cameraFails = false;
+  });
+
+  async function joinWithCamera() {
+    lk.state.permissions = { canPublish: true, canPublishSources: [1, 2] };
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    try {
+      await voice.joinVoice(1, 2);
+    } finally {
+      lk.state.permissions = undefined;
+    }
+    await voice.startCamera();
+    expect(voice.getVoiceSnapshot()).toMatchObject({ cameraOn: true, cameraFacing: null });
+    return lk.state.room.localParticipant;
+  }
+
+  it("switches a phone's camera between front and back, and keeps the choice until leaving", async () => {
+    const me = await joinWithCamera();
+    const camera = me.camera;
+    await voice.switchCamera();
+    expect(camera.restarts.at(-1)).toMatchObject({ facingMode: 'environment' });
+    expect(voice.getVoiceSnapshot().cameraFacing).toBe('environment');
+    await voice.switchCamera();
+    expect(camera.restarts.at(-1)).toMatchObject({ facingMode: 'user' });
+    await voice.switchCamera();
+    // The same track throughout (not published again), and back on the same camera next time.
+    expect(me.camera).toBe(camera);
+    await voice.stopCamera();
+    await voice.startCamera();
+    expect(me.camera.options).toMatchObject({ facingMode: 'environment' });
+    await voice.leaveVoice();
+    expect(voice.getVoiceSnapshot().cameraFacing).toBe(null);
+    const again = await joinWithCamera();
+    expect(again.camera.options).toMatchObject({ facingMode: 'user' });
+  });
+
+  it('goes back to the camera it had when the other one fails', async () => {
+    const me = await joinWithCamera();
+    lk.state.cameraFails = true;
+    await voice.switchCamera();
+    expect(voice.getVoiceSnapshot()).toMatchObject({ cameraFacing: null, cameraError: expect.any(String) });
+    expect(me.camera.restarts.map((o) => o.facingMode)).toEqual(['environment', 'user']);
   });
 });

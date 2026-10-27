@@ -50,10 +50,12 @@ export function setVideoSettings(changes) {
 
 // The camera as LiveKit takes it: 720p at 30 fps (LiveKit sends it in three sizes, see
 // CAMERA_PUBLISH), the chosen camera as `ideal` so a missing one falls back to another, the
-// front one on phones.
-export function cameraOptions(s = settings) {
+// front one on phones. `facing` ('user' or 'environment'): a phone's front or back camera,
+// switched to during a call, instead of the chosen one.
+export function cameraOptions(s = settings, facing = null) {
+  const which = facing ? { facingMode: facing } : s.cameraDeviceId ? { deviceId: { ideal: s.cameraDeviceId } } : { facingMode: 'user' };
   return {
-    ...(s.cameraDeviceId ? { deviceId: { ideal: s.cameraDeviceId } } : { facingMode: 'user' }),
+    ...which,
     resolution: { width: 1280, height: 720, frameRate: 30 },
   };
 }

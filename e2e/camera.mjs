@@ -3,7 +3,8 @@
 // channel list marks it; Bob downloads nothing while he's on another page; Carol, on a phone,
 // sees it too. Bob turns his on and Alice (the owner) takes Video away: it goes off. Alice
 // turns hers off. Then a DM call with both cameras (LiveKit only sees encrypted video, and each
-// side's video decodes, so it decrypted), and a group call.
+// side's video decodes, so it decrypted), and a group call, where Carol's phone switches between
+// its front and back camera.
 //   node e2e/serve.mjs &   then   node e2e/camera.mjs [screenshot dir]
 // (E2E_API_PORT too when serve.mjs isn't on the default ports: it reads LiveKit's keys.)
 import { readFileSync } from 'fs';
@@ -228,6 +229,30 @@ try {
   await c.waitForTimeout(500);
   await shot(c, '07-group-call-phone');
   await shot(a, '08-group-call-desktop');
+
+  // Carol's phone switches between its front and back camera: the same track restarted, so
+  // Alice keeps seeing it; her own isn't mirrored on the back camera. Computers get no switch.
+  if (await a.locator('.group-call-panel button[aria-label="Switch camera"]').count()) throw new Error('a computer has Switch camera');
+  await c.click('.group-call-panel button[aria-label="Turn on camera"]');
+  const carolsTile = `.call-panel-person:has([aria-label="${carol.name}'s camera"])`;
+  await cameraPlaying(a, carolsTile);
+  const own = c.locator('.group-call-panel video[aria-label="Your camera"]');
+  await own.waitFor();
+  if (!(await own.evaluate((v) => v.classList.contains('mirrored')))) throw new Error('front camera not mirrored');
+  const trackIds = () => a.locator(`${carolsTile} video`).evaluate((v) => v.srcObject?.getVideoTracks()[0]?.id);
+  const before = await trackIds();
+  await c.click('.group-call-panel button[aria-label="Switch camera"]');
+  await c.waitForFunction(() => !document.querySelector('.group-call-panel video[aria-label="Your camera"]').classList.contains('mirrored'));
+  const state = await own.evaluate((v) => v.srcObject?.getVideoTracks()[0]?.readyState);
+  if (state !== 'live') throw new Error(`carol's camera after switching: ${state}`);
+  await cameraPlaying(c, '.call-panel-person:has(video[aria-label="Your camera"])');
+  await a.waitForTimeout(1500);
+  await cameraPlaying(a, carolsTile);
+  if ((await trackIds()) !== before) throw new Error('switching published the camera again');
+  await shot(c, '09-group-call-phone-back-camera');
+  await c.click('.group-call-panel button[aria-label="Switch camera"]');
+  await c.waitForFunction(() => document.querySelector('.group-call-panel video[aria-label="Your camera"]').classList.contains('mirrored'));
+  console.log('carol (phone) switched to the back camera and back; alice kept seeing it');
   await a.click('.group-call-panel button[aria-label="Leave call"]');
   console.log('OK');
 } finally {
