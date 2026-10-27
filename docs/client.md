@@ -850,7 +850,8 @@ the other person accepts.
   'blocked'`, not saying who) stops requests, and blocking someone ends the friendship and any
   request (`routes/blocks.js`). Deleting an account deletes its friends and requests. Migration
   14 made every account at the time friends with every other (not bots, pending, deleted or
-  blocked pairs), so nobody's list changed. No pushes for requests yet: the count in the app only.
+  blocked pairs), so nobody's list changed. A new request and an accepted one are pushed to
+  the other person (see Friend request notifications in `docs/realtime.md`).
 - **Not a privacy boundary**: `/dms-list` still returns everyone (it's the app's directory:
   names, pictures and contact keys for guilds, calls and mentions; "Everyone sees everyone" in
   CLAUDE.md), and being friends isn't needed to DM someone (people meet in guilds, as in

@@ -4,6 +4,7 @@ const { authenticateJWT } = require('../auth');
 const blocks = require('../blocks');
 const friends = require('../friends');
 const { sendToUserSockets } = require('../sockets');
+const { clearFriendRequest } = require('../friendPushes');
 
 // Your blocked list (blocks.js): GET it, PUT or DELETE /blocks/:userId, and webhooks with PUT
 // or DELETE /blocks/webhooks/:webhookId. Each answers, and your other devices get `blocks` with,
@@ -47,6 +48,8 @@ router.put('/blocks/:userId', authenticateJWT, async (req, res) => {
     for (const userId of [req.user.id, id]) {
       sendToUserSockets(userId, { type: 'friends', ...(await friends.listFor(userId)) });
     }
+    clearFriendRequest(req.user.id, id);
+    clearFriendRequest(id, req.user.id);
   }
   res.json(await announce(req.user.id));
 });
