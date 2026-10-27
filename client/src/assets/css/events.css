@@ -1110,6 +1110,15 @@ button.event-card-name:hover {
   background: var(--vc-bg-card);
 }
 
+/* Interested (not yet) and View: a step up from the card, as the invite card's buttons
+   (guilds.css .invite-embed), so they read as buttons on it rather than holes in it. */
+.event-embed .btn-secondary {
+  --bs-btn-bg: var(--vc-bg-elevated-hover);
+  --bs-btn-hover-bg: var(--vc-bg-hover);
+  --bs-btn-active-bg: var(--vc-bg-hover);
+  --bs-btn-border-color: var(--vc-border-light);
+}
+
 .event-embed-gone {
   padding: 8px 12px;
   border-radius: 8px;
