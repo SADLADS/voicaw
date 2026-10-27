@@ -129,6 +129,9 @@ small {
   border-radius: var(--vc-radius-lg);
   margin: var(--vc-dock-inset);
   margin-top: 0;
+  /* Its left edge in line with the messages' pictures (10px into the list), not 2px right of
+     them. */
+  margin-left: 10px;
   border: 1px solid var(--vc-border-dark);
   background-color: var(--vc-bg-elevated);
   transition: border-color var(--vc-duration-base) var(--vc-ease-out);
@@ -994,6 +997,21 @@ small {
 .typing-indicator-slot {
   position: relative;
   height: 0;
+}
+
+/* The bottom of the message list fades out just above the message box, so a message scrolling
+   under it (its picture most of all) isn't cut off in a hard line against the box's rounded
+   corner. Over the room left at the bottom of the list, so nothing is covered at rest; clear of
+   the scrollbar, like the typing line. */
+.typing-indicator-slot::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0.75rem;
+  height: 10px;
+  background: linear-gradient(to top, var(--vc-bg-subtle), transparent);
+  pointer-events: none;
 }
 
 .typing-indicator {
