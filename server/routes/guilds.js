@@ -24,7 +24,7 @@ const {
   markGuildRead,
 } = require('../guilds');
 const { NOTIFY_LEVELS } = require('../mentions');
-const { parseDuration, listGuildMutes, setGuildMute } = require('../channelMutes');
+const { parseDuration, listGuildMutes, setGuildMute, listCategoryMutes, setCategoryMute } = require('../channelMutes');
 const { logAudit, diff } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const { ActionError, withActionErrors } = require('../actionError');
@@ -172,6 +172,28 @@ async function changeGuildMute(req, res, muted) {
 
 router.put('/guilds/:guildId/mute', member, (req, res) => changeGuildMute(req, res, true));
 router.delete('/guilds/:guildId/mute', member, (req, res) => changeGuildMute(req, res, false));
+
+// Your muted categories (channelMutes.js): [{ category_id, guild_id, until }].
+router.get('/category-mutes', authenticateJWT, async (req, res) => {
+  res.json(await listCategoryMutes(req.user.id));
+});
+
+// Mutes one of the guild's categories for `duration` seconds, or until you unmute it (null or
+// none); DELETE unmutes. Your other devices get `guild_category_mute`.
+async function changeCategoryMute(req, res, muted) {
+  const categoryId = Number(req.params.categoryId);
+  const category = await db.get('SELECT id FROM guild_categories WHERE id = ? AND guild_id = ?', [categoryId, req.guild.id]);
+  if (!category) return res.status(404).json({ error: 'Category not found' });
+  const duration = parseDuration(req.body?.duration);
+  if (muted && duration === undefined) return res.status(400).json({ error: 'Invalid mute duration' });
+  const mute = await setCategoryMute(req.user.id, category.id, { muted, duration });
+  const result = { guildId: req.guild.id, categoryId: category.id, muted, until: mute?.until ?? null };
+  sendToUserSockets(req.user.id, { type: 'guild_category_mute', ...result });
+  res.json(result);
+}
+
+router.put('/guilds/:guildId/categories/:categoryId/mute', member, (req, res) => changeCategoryMute(req, res, true));
+router.delete('/guilds/:guildId/categories/:categoryId/mute', member, (req, res) => changeCategoryMute(req, res, false));
 
 // The icon just uploaded to guild-icons/<id> (see /upload_guild_icon), as it came, becomes a
 // square WebP cut to `crop` (from the app's cropper; null: the middle), like profile pictures
@@ -591,6 +613,7 @@ router.delete('/guilds/:guildId/categories/:categoryId', manageChannels, async (
     const category = await db.get('SELECT id, name FROM guild_categories WHERE id = ? AND guild_id = ?', [categoryId, req.guild.id]);
     if (!category) return false;
     await db.run('DELETE FROM guild_categories WHERE id = ?', [categoryId]);
+    await db.run('DELETE FROM guild_category_mutes WHERE category_id = ?', [categoryId]);
     await db.run('UPDATE guild_channels SET category_id = NULL WHERE category_id = ?', [categoryId]);
     await audit(req, { action: 'category_delete', targetType: 'category', targetId: categoryId, details: { name: category.name } });
     return true;

@@ -630,11 +630,13 @@ router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel
 
 // Unread counts for every channel of the caller's guilds that has any and they can see:
 // messages by other people after the caller's read marker (`count`), and how many of those
-// mention them (`mentions`). Threads count only for their members.
+// mention them (`mentions`), with its `category_id` (a thread's: its channel's), for muted
+// categories. Threads count only for their members.
 router.get('/guild-unread', authenticateJWT, async (req, res) => {
   const me = req.user.id;
   const rows = await db.all(
     `SELECT c.id AS channel_id, c.guild_id, COUNT(m.id) AS count,
+       COALESCE(c.category_id, (SELECT p.category_id FROM guild_channels p WHERE p.id = c.parent_id)) AS category_id,
        (SELECT COUNT(*) FROM guild_mentions gmn WHERE gmn.user_id = ? AND gmn.channel_id = c.id
           AND gmn.message_id > COALESCE(r.last_read_id, 0)) AS mentions
      FROM guild_channels c

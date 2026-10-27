@@ -197,7 +197,7 @@ describe('private channels and overrides', () => {
 
     // Unread counts only cover channels you can see.
     expect((await api.get(bob, '/guild-unread')).body).toEqual([]);
-    expect((await api.get(alice, '/guild-unread')).body).toEqual([{ channel_id: channel.id, guild_id: guild.id, count: 1, mentions: 0 }]);
+    expect((await api.get(alice, '/guild-unread')).body).toEqual([{ channel_id: channel.id, guild_id: guild.id, category_id: null, count: 1, mentions: 0 }]);
 
     // Taking the role away hides it again, and alice is told.
     const events = listen(alice);

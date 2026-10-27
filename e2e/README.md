@@ -57,6 +57,7 @@ node e2e/nsfw.mjs [dir]   # NSFW channels: dialog switch, header tag, age gate (
 node e2e/mentions.mjs [dir] # @ suggestions, highlight, badges, @everyone, roles, private channel, notify level
 node e2e/mutes.mjs [dir]  # muted channels: right-click mute, dimmed, no unread (mentions still count), header bell unmutes, phone
 node e2e/guildmute.mjs [dir] # muted guilds: rail icon menu → Mute Guild → 1 hour, no rail dot (a mention still counts), Unmute Guild says until when, channels not drawn muted, unmuting lights it again; phone hold → sheet → mute
+node e2e/categorymute.mjs [dir] # muted categories: right-click → Mute Category → 1 hour, bell on the category, its channels dimmed with no unread (a mention still counts), Mute Channel says so, Unmute Category says until when, no rail dot for it (a channel outside still lights it)
 node e2e/channelmenu.mjs [dir] # channel/category menus: read, mute, notify level, copy link, duplicate, delete, keys, edge; phone hold = sheet, hold+move = drag
 node e2e/draftviewer.mjs [dir] # a picture attached to a message being written: clicking (tapping on a phone) its tray thumbnail opens the image viewer, steps to the tray's other picture (not a text file), no Copy Link in its menu, Escape leaves the drafts and the chat
 node e2e/imagemenu.mjs [dir] # picture menu: plain (copy image as PNG, copy link) vs encrypted (save, open, no link), over the viewer (Escape closes only it), phone hold in the viewer

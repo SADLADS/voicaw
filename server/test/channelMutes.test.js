@@ -222,6 +222,118 @@ describe('guild mutes', () => {
   });
 });
 
+describe('category mutes', () => {
+  it('mutes and unmutes a category, listed per person, on your other devices too', async () => {
+    const { members: [bob, carol], guild, general } = await setUp();
+    const categoryId = general.category_id;
+    const events = connect(bob);
+    const res = await api.put(bob, `/guilds/${guild.id}/categories/${categoryId}/mute`, {});
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ guildId: guild.id, categoryId, muted: true, until: null });
+    expect(events).toContainEqual({ type: 'guild_category_mute', ...res.body });
+    expect((await api.get(bob, '/category-mutes')).body).toEqual([{ category_id: categoryId, guild_id: guild.id, until: null }]);
+    expect((await api.get(carol, '/category-mutes')).body).toEqual([]);
+
+    const before = Math.floor(Date.now() / 1000);
+    const timed = await api.put(bob, `/guilds/${guild.id}/categories/${categoryId}/mute`, { duration: 900 });
+    expect(timed.body.until).toBeGreaterThanOrEqual(before + 900);
+
+    expect((await api.delete(bob, `/guilds/${guild.id}/categories/${categoryId}/mute`)).body.muted).toBe(false);
+    expect((await api.get(bob, '/category-mutes')).body).toEqual([]);
+    events.stop();
+  });
+
+  it("refuses bad durations, other guilds' categories and guilds you aren't in", async () => {
+    const { owner, members: [bob], guild, general } = await setUp(1);
+    const url = `/guilds/${guild.id}/categories/${general.category_id}/mute`;
+    for (const duration of [0, -5, 'soon', 400 * 24 * 3600]) {
+      expect((await api.put(bob, url, { duration })).status).toBe(400);
+    }
+    const elsewhere = (await api.post(owner, '/guilds', { name: 'Elsewhere' })).body;
+    const theirs = elsewhere.channels[0].category_id;
+    expect((await api.put(bob, `/guilds/${guild.id}/categories/${theirs}/mute`, {})).status).toBe(404);
+    const stranger = await makeUser();
+    expect((await api.put(stranger, url, {})).status).not.toBe(200);
+  });
+
+  it("stops pushes from its channels and their threads (not mentions) and reactions' pushes", async () => {
+    const { owner, members: [bob, carol], guild, general } = await setUp();
+    const outside = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'outside' })).body;
+    await api.put(bob, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(carol, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(bob, `/guilds/${guild.id}/categories/${general.category_id}/mute`, {});
+
+    let since = sentPushes.length;
+    await say(owner, general, 'hello all');
+    await say(owner, outside, 'hello outside');
+    expect((await pushesSince(since)).map((p) => p.endpoint).sort()).toEqual([bob.endpoint, carol.endpoint, carol.endpoint].sort());
+
+    since = sentPushes.length;
+    await say(owner, general, `hey <@${bob.id}>`);
+    expect((await pushesSince(since)).map((p) => p.endpoint).sort()).toEqual([bob.endpoint, carol.endpoint].sort());
+    expect(await unreadFor(bob, general)).toMatchObject({ category_id: general.category_id, count: 2, mentions: 1 });
+    expect(await unreadFor(bob, outside)).toMatchObject({ category_id: null });
+
+    // A thread in one of its channels is muted too (bob joins it by posting).
+    const start = (await say(owner, general, 'thread here')).body;
+    const thread = (await api.post(owner, `/channels/${general.id}/threads`, { name: 'Plans', messageId: start.id })).body;
+    await say(bob, thread, 'joining');
+    since = sentPushes.length;
+    await say(owner, thread, 'in the thread');
+    expect((await pushesSince(since)).filter((p) => p.endpoint === bob.endpoint)).toEqual([]);
+    expect(await unreadFor(bob, thread)).toMatchObject({ category_id: general.category_id });
+
+    const mine = (await say(bob, general, 'react to me')).body;
+    const react = (emoji) => api.post(owner, `/guild-messages/${mine.id}/reactions`, { emoji });
+    since = sentPushes.length;
+    expect((await react('👍')).status).toBe(201);
+    expect((await pushesSince(since)).filter((p) => p.endpoint === bob.endpoint)).toEqual([]);
+    await api.delete(bob, `/guilds/${guild.id}/categories/${general.category_id}/mute`);
+    since = sentPushes.length;
+    await react('🎉');
+    expect((await pushesSince(since)).filter((p) => p.endpoint === bob.endpoint)).toHaveLength(1);
+  });
+
+  it('follows channels moved in or out of it', async () => {
+    const { owner, members: [bob], guild, general } = await setUp(1);
+    await api.put(bob, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(bob, `/guilds/${guild.id}/categories/${general.category_id}/mute`, {});
+    const moved = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'moved', categoryId: general.category_id })).body;
+    let since = sentPushes.length;
+    await say(owner, moved, 'muted here');
+    expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([]);
+    expect((await api.put(owner, `/guilds/${guild.id}/channels/${moved.id}/move`, { categoryId: null })).status).toBe(200);
+    since = sentPushes.length;
+    await say(owner, moved, 'not muted now');
+    expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([bob.endpoint]);
+  });
+
+  it('ends by itself, and goes with leaving the guild or deleting the category', async () => {
+    const { owner, members: [bob], guild, general } = await setUp(1);
+    const url = `/guilds/${guild.id}/categories/${general.category_id}/mute`;
+    await api.put(bob, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    await api.put(bob, url, { duration: 60 });
+    const realNow = Date.now;
+    Date.now = () => realNow() + 61_000;
+    try {
+      const since = sentPushes.length;
+      await say(owner, general, 'after the mute');
+      expect((await pushesSince(since)).map((p) => p.endpoint)).toEqual([bob.endpoint]);
+      expect((await api.get(bob, '/category-mutes')).body).toEqual([]);
+    } finally {
+      Date.now = realNow;
+    }
+    await api.put(bob, url, {});
+    expect((await api.delete(owner, `/guilds/${guild.id}/categories/${general.category_id}`)).status).toBe(200);
+    expect((await api.get(bob, '/category-mutes')).body).toEqual([]);
+
+    const category = (await api.post(owner, `/guilds/${guild.id}/categories`, { name: 'More' })).body;
+    await api.put(bob, `/guilds/${guild.id}/categories/${category.id}/mute`, {});
+    await api.delete(bob, `/guilds/${guild.id}/members/me`);
+    expect((await api.get(bob, '/category-mutes')).body).toEqual([]);
+  });
+});
+
 describe('Mark As Read', () => {
   it('marks a channel read up to its newest message', async () => {
     const { owner, members: [bob], general } = await setUp(1);

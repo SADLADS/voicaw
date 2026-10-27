@@ -443,6 +443,8 @@
     },
     "categoryMenu": {
       "markAsRead": "Mark As Read",
+      "mute": "Mute Category",
+      "unmute": "Unmute Category",
       "expand": "Expand Category",
       "collapse": "Collapse Category",
       "edit": "Edit Category",
@@ -635,6 +637,7 @@
       "unmute": "Unmute Channel",
       "mute": "Mute Channel",
       "muteLabel": "Mute #{{name}}",
+      "categoryMuted": "Its category is muted",
       "guildDefault": "Guild default",
       "useGuildDefault": "Use Guild Default",
       "edit": "Edit Channel",

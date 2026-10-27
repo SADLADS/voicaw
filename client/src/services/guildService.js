@@ -236,6 +236,20 @@ export async function unmuteChannel(channelId) {
   return (await api.delete(`/channels/${channelId}/mute`)).data;
 }
 
+// Your muted categories: [{ category_id, guild_id, until }] (until: unix s, or null until unmuted).
+export async function fetchCategoryMutes() {
+  return (await api.get('/category-mutes')).data;
+}
+
+// Mutes a category (every channel in it) for `duration` seconds, or until it's unmuted (null).
+export async function muteCategory(guildId, categoryId, duration = null) {
+  return (await api.put(`/guilds/${guildId}/categories/${categoryId}/mute`, { duration })).data;
+}
+
+export async function unmuteCategory(guildId, categoryId) {
+  return (await api.delete(`/guilds/${guildId}/categories/${categoryId}/mute`)).data;
+}
+
 // Your muted guilds: [{ guild_id, until }] (until: unix s, or null until unmuted).
 export async function fetchGuildMutes() {
   return (await api.get('/guild-mutes')).data;

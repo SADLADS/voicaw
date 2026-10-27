@@ -190,7 +190,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   A voice channel's Edit also has its bitrate, user limit and voice region (see Channel settings
   and Voice regions in `docs/voice-and-calls.md`).
   `CategoryMenu`: Mark
-  As Read, Collapse/Expand, Copy Category ID (the bot API's: offset by 2^40, see Ids in
+  As Read, Mute Category ▸ / Unmute Category (see Muted categories in `docs/messages.md`), Collapse/Expand, Copy Category ID (the bot API's: offset by 2^40, see Ids in
   `docs/bots.md`), Edit, Create Channel, Delete. The Copy … ID items (here, on guilds, threads
   and people: `utils/copyId.js`) copy the ids bots know them by, as Discord's Developer Mode
   does (always shown here). On a phone the long press shares the

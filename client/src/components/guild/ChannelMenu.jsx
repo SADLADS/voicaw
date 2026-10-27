@@ -64,6 +64,7 @@ export default function ChannelMenu({ guild, channel, anchor, sheet, onEdit, onC
       : {
         key: 'mute',
         label: t('guildAdmin.channelMenu.mute'),
+        hint: guildList.isMuted?.(channel.id) ? t('guildAdmin.channelMenu.categoryMuted') : undefined,
         icon: faBellSlash,
         submenu: {
           title: t('guildAdmin.channelMenu.mute'),
