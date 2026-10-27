@@ -498,6 +498,33 @@ describe('MessageList', () => {
     expect(props.handleSaveEdit).not.toHaveBeenCalled();
   });
 
+  it('suggests mentions and channels while editing', () => {
+    const msg = { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'ask', timestamp: 1000 };
+    const props = baseProps({
+      messages: [msg],
+      editingMessageId: 1,
+      editingMessageContent: 'ask',
+      editSuggestions: {
+        people: [{ id: 2, username: 'bob' }, { id: 3, username: 'carol' }],
+        channels: [{ id: 7, name: 'general', type: 'text' }],
+      },
+    });
+    render(<MessageList {...props} />);
+    const box = document.getElementById('edit-input-1');
+    const editor = editorFor(box);
+
+    act(() => editor.insertText(' @ca'));
+    expect(screen.getByRole('listbox')).toHaveTextContent('carol');
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(editor.getText()).toBe('ask <@3> ');
+
+    act(() => editor.insertText('in #gen'));
+    expect(screen.getByRole('listbox')).toHaveTextContent('general');
+    fireEvent.keyDown(box, { key: 'Tab' });
+    expect(editor.getText()).toBe('ask <@3> in <#7> ');
+    expect(props.handleSaveEdit).not.toHaveBeenCalled();
+  });
+
   it('goes back to the bottom when you send a message, not when someone else does', () => {
     const older = [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'hi', timestamp: 1000 }];
     const { container, rerender } = render(<MessageList {...baseProps({ messages: older })} />);

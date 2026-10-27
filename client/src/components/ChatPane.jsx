@@ -135,6 +135,11 @@ export default function ChatPane({
 
   const inputRef = useRef(null);
   const editRef = useRef(null);
+  // What the box editing a message in place suggests, as the message box (Composer).
+  const editSuggestions = useMemo(
+    () => ({ people, roles: suggestRoles, roleInfo: mentionRoles, canMentionEveryone, channels }),
+    [people, suggestRoles, mentionRoles, canMentionEveryone, channels]
+  );
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const cancelReply = useCallback(() => setReplyTo(null), []);
@@ -470,6 +475,7 @@ export default function ChatPane({
             onRetrySend={readOnly ? undefined : retrySend}
             editingMessageId={isMobile ? null : editingMessageId}
             editingMessageContent={editingMessageContent}
+            editSuggestions={editSuggestions}
             setEditingMessageContent={setEditingMessageContent}
             setEditingMessageId={setEditingMessageId}
             handleSaveEdit={handleSaveEdit}

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Trans } from 'react-i18next';
 import MessageEditor from '../editor/MessageEditor';
-import EmojiSuggestions from './EmojiSuggestions';
-import { useEmojiSuggestions } from '../hooks/useEmojiSuggestions';
+import EditorSuggestions from './EditorSuggestions';
+import { useEditorSuggestions } from '../hooks/useEditorSuggestions';
 import { t } from '../i18n';
 
-// A message being edited in place (MessageList), with the message box's ":shortcode"
-// suggestions above it (in the row, not floating: the list scrolls, so the top message's would
+// A message being edited in place (MessageList), with the message box's ":smi", "@na" and
+// "#gen" suggestions (`suggestFrom`: useEditorSuggestions' people, roles, roleInfo,
+// canMentionEveryone and channels) above it (in the row, not floating: the list scrolls, so the top message's would
 // be cut off). `editRef` is its MessageEditor's handle.
 export default function InlineMessageEdit({
   messageId,
@@ -17,23 +18,15 @@ export default function InlineMessageEdit({
   maxLength,
   submitOnEnter,
   s3Endpoint,
+  suggestFrom,
   onChange,
   onSave,
   onCancel,
 }) {
-  const emoji = useEmojiSuggestions(editRef, s3Endpoint);
+  const suggest = useEditorSuggestions(editRef, { s3Endpoint, ...suggestFrom });
   return (
     <div className="inline-edit-wrapper">
-      {emoji.suggestions.length > 0 && (
-        <EmojiSuggestions
-          query={emoji.query}
-          emojis={emoji.suggestions}
-          activeIndex={emoji.activeIndex}
-          onPick={emoji.pick}
-          onHover={emoji.setActiveIndex}
-          s3Endpoint={s3Endpoint}
-        />
-      )}
+      <EditorSuggestions suggest={suggest} s3Endpoint={s3Endpoint} />
       <MessageEditor
         ref={editRef}
         id={`edit-input-${messageId}`}
@@ -47,10 +40,10 @@ export default function InlineMessageEdit({
         onSubmit={onSave}
         onChange={(change) => {
           onChange(change.text);
-          emoji.onChange(change);
+          suggest.onChange(change);
         }}
         onKeyDown={(e) => {
-          if (emoji.onKeyDown(e)) return;
+          if (suggest.onKeyDown(e)) return;
           if (e.key === 'Escape') {
             e.preventDefault();
             onCancel();
