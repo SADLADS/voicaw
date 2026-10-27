@@ -34,6 +34,14 @@ function EmbedImage({ image, className, external, compact = false }) {
   return external ? <SiteMediaGate url={image.url} compact={compact}>{img}</SiteMediaGate> : img;
 }
 
+// A webhook's or bot's own size for the author or footer icon (`icon_size`, ours; the server
+// keeps it within 12–128 px), else the stylesheet's.
+function iconStyle(size) {
+  if (!Number.isInteger(size)) return undefined;
+  const px = Math.min(Math.max(size, 12), 128);
+  return { width: px, height: px };
+}
+
 const colorHex = (color) => `#${color.toString(16).padStart(6, '0')}`;
 
 // One of Discord's embeds (a webhook's or a bot's, or a link preview's card): coloured bar,
@@ -56,7 +64,7 @@ function Embed({ embed, renderMarkdown, isExternal }) {
         )}
         {author && (
           <div className="embed-author">
-            {icon(author.icon_url) && <img className="embed-author-icon" src={author.icon_url} alt="" referrerPolicy="no-referrer" />}
+            {icon(author.icon_url) && <img className="embed-author-icon" src={author.icon_url} style={iconStyle(author.icon_size)} alt="" referrerPolicy="no-referrer" />}
             {author.url ? <EmbedLink href={author.url}>{author.name}</EmbedLink> : <span>{author.name}</span>}
           </div>
         )}
@@ -81,7 +89,7 @@ function Embed({ embed, renderMarkdown, isExternal }) {
         ) : image && <EmbedImage image={image} className="embed-image" external={isExternal(image.url)} />}
         {(footer || time) && (
           <div className="embed-footer">
-            {icon(footer?.icon_url) && <img className="embed-footer-icon" src={footer.icon_url} alt="" referrerPolicy="no-referrer" />}
+            {icon(footer?.icon_url) && <img className="embed-footer-icon" src={footer.icon_url} style={iconStyle(footer.icon_size)} alt="" referrerPolicy="no-referrer" />}
             <span>
               {footer?.text && time ? t('media.embeds.footerWithTime', { text: footer.text, time }) : footer?.text || time}
             </span>

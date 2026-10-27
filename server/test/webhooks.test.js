@@ -183,6 +183,25 @@ describe('executing a webhook (Discord API)', () => {
       .toMatchObject({ code: 50035 });
   });
 
+  it('takes bigger or smaller author and footer icons (icon_size, ours), 12 to 128 px', async () => {
+    const { member, general, hook } = await setUp();
+    const icon_url = 'https://ci.example/a.png';
+    const send = (author, footer) => request(app).post(hookPath(hook)).send({ embeds: [{ author: { name: 'a', ...author }, footer: { text: 'f', ...footer } }] });
+    expect((await send({ icon_url, icon_size: 96 }, { icon_url, icon_size: 128 })).status).toBe(204);
+    // The default size and a size without an icon aren't kept.
+    expect((await send({ icon_url, icon_size: 24 }, { icon_size: 64 })).status).toBe(204);
+    expect((await send({ icon_url, icon_size: 12 }, { icon_url, icon_size: 16 })).status).toBe(204);
+    const [big, plain, small] = (await messagesIn(member, general)).slice(-3).map((m) => m.embeds[0]);
+    expect([big.author, big.footer]).toEqual([{ name: 'a', icon_url, icon_size: 96 }, { text: 'f', icon_url, icon_size: 128 }]);
+    expect([plain.author, plain.footer]).toEqual([{ name: 'a', icon_url }, { text: 'f' }]);
+    expect([small.author.icon_size, small.footer.icon_size]).toEqual([12, 16]);
+
+    const tooBig = await send({ icon_url, icon_size: 129 });
+    expect(tooBig.body).toMatchObject({ code: 50035, errors: { embeds: { 0: { author: { icon_size: { _errors: [{ code: 'NUMBER_TYPE_MAX' }] } } } } } });
+    expect((await send({}, { icon_url, icon_size: 11 })).body.errors.embeds[0].footer.icon_size._errors[0].code).toBe('NUMBER_TYPE_MIN');
+    expect((await send({ icon_url, icon_size: 40.5 })).status).toBe(400);
+  });
+
   it('refuses bad requests the way Discord does', async () => {
     const { hook } = await setUp();
     expect((await request(app).post(`/api/webhooks/${hook.id}/wrong`).send({ content: 'x' })).body).toMatchObject({ code: 50027, message: 'Invalid Webhook Token' });

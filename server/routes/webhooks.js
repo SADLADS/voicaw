@@ -37,6 +37,10 @@ const WEBHOOK_TYPES = ['text', 'voice'];
 const MAX_URL_LENGTH = 2048;
 const MAX_FILES = 10;
 const EMBED_LIMITS = { embeds: 10, total: 6000, title: 256, description: 4096, fields: 25, fieldName: 256, fieldValue: 1024, footer: 2048, author: 256 };
+// Our own addition to Discord's embed: `icon_size` (px) on the author and footer makes their
+// icon bigger or smaller than the default (24 and 20 px, Discord's), within ICON_SIZE.
+const ICON_SIZE_DEFAULT = { author: 24, footer: 20 };
+const ICON_SIZE = { min: 12, max: 128 };
 const FLAGS = { SUPPRESS_EMBEDS: 1 << 2, SUPPRESS_NOTIFICATIONS: 1 << 12 };
 const AVATAR_BUCKET = 'profile-pics';
 const FILE_BUCKET = 'uploads';
@@ -155,6 +159,16 @@ function cleanText(value, max, path, { required = false } = {}) {
   return text;
 }
 
+// `icon_size` of the author or footer: undefined for the default size, else whole pixels.
+function cleanIconSize(value, part, path) {
+  if (value == null) return undefined;
+  const size = Number(value);
+  if (!Number.isInteger(size) || size < ICON_SIZE.min || size > ICON_SIZE.max) {
+    throw new FormError(path, `Int value should be between ${ICON_SIZE.min} and ${ICON_SIZE.max}.`, size > ICON_SIZE.max ? 'NUMBER_TYPE_MAX' : 'NUMBER_TYPE_MIN');
+  }
+  return size !== ICON_SIZE_DEFAULT[part] ? size : undefined;
+}
+
 // Discord's embed, checked and cut down to the parts we keep. Throws FormError.
 function cleanEmbed(raw, i, files) {
   const at = (...keys) => ['embeds', i, ...keys];
@@ -177,7 +191,9 @@ function cleanEmbed(raw, i, files) {
   if (raw.footer != null) {
     embed.footer = { text: cleanText(raw.footer.text, EMBED_LIMITS.footer, at('footer', 'text'), { required: true }) };
     const icon = cleanUrl(raw.footer.icon_url, at('footer', 'icon_url'), files);
+    const size = cleanIconSize(raw.footer.icon_size, 'footer', at('footer', 'icon_size'));
     if (icon) embed.footer.icon_url = icon;
+    if (icon && size) embed.footer.icon_size = size;
   }
   for (const key of ['image', 'thumbnail']) {
     if (raw[key] != null) {
@@ -191,8 +207,10 @@ function cleanEmbed(raw, i, files) {
     embed.author = { name: cleanText(raw.author.name, EMBED_LIMITS.author, at('author', 'name'), { required: true }) };
     const url = cleanUrl(raw.author.url, at('author', 'url'), files);
     const icon = cleanUrl(raw.author.icon_url, at('author', 'icon_url'), files);
+    const size = cleanIconSize(raw.author.icon_size, 'author', at('author', 'icon_size'));
     if (url) embed.author.url = url;
     if (icon) embed.author.icon_url = icon;
+    if (icon && size) embed.author.icon_size = size;
   }
   if (raw.provider != null) {
     embed.provider = {};
