@@ -1195,3 +1195,19 @@ button.event-card-name:hover {
   margin-bottom: 4px;
   font-size: 1rem;
 }
+
+/* RSVPs: who answered what on an event's page. */
+.event-rsvps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.event-rsvp-group .event-interested {
+  padding-top: 4px;
+}
+
+.event-editor-limit {
+  max-width: 140px;
+}

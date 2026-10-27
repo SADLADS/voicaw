@@ -153,7 +153,9 @@ previews; `server/mentions.js` does the same for guild pushes). Copying a messag
 markdown. Styles are at the end of `dms.css` (MESSAGE MARKDOWN); only the text inside blocks
 keeps its line breaks (`pre-wrap`), and blank lines between blocks (which markdown folds into
 one paragraph break) are counted from the source and drawn as empty `.blank-line` paragraphs,
-so every newline typed shows.
+so every newline typed shows. The newlines markdown leaves between a list's blocks (between
+items, around a nested list) are dropped by `utils/rehypeTightLists.js`, or a `pre-wrap` `<li>`
+drew them as blank lines around every nested bullet.
 
 ## GIFs (Klipy)
 

@@ -39,8 +39,8 @@ mentions, for their red counts), `guild_task_upsert` / `_delete` / `guild_tasks_
 `guild_task_comment_new` / `_edit` / `_delete` (to whoever can see the list channel) and
 `guild_task_assigned` (only to whoever was just assigned; see List channels),
 `guild_event_create` / `_update` / `_delete` (an event, to whoever can see it; one moved out of
-sight is a delete for those who lose it) and `guild_event_interest` (who's interested changed,
-with the new count; see Events in `docs/guilds.md`),
+sight is a delete for those who lose it) and `guild_event_interest` (someone's RSVP changed,
+with the new counts and waitlist; see RSVPs in `docs/guilds.md`),
 `guild_document_upsert` (a feed card) / `_update` (the whole document, after a save) / `_delete` /
 `guild_document_reaction_add` / `_remove` (to whoever can see the document channel), for calls `call_incoming`, `call_update`,
 `call_end`, and for group DMs `group_dm_add` / `_update` / `_remove` / `_epoch` /

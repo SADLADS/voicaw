@@ -181,7 +181,8 @@ describe('scheduled events', () => {
     expect(heard.filter((e) => e.type === 'guild_event_interest')).toEqual([
       {
         type: 'guild_event_interest', guildId: guild.id, eventId: event.id, userId: alice.id,
-        interested: true, interestedAll: true, occurrences: {}, changed: true, userCount: 2,
+        interested: true, interestedAll: true, occurrences: {}, rsvp: 'going', rsvpAll: 'going', rsvps: {},
+        changed: true, userCount: 2, rsvpCounts: { going: 2, maybe: 0, declined: 0, waitlisted: 0 }, waitlist: [],
       },
     ]);
     expect((await api.get(alice, `/guild-events/${event.id}`)).body).toMatchObject({ interested: true, user_count: 2 });
@@ -193,6 +194,59 @@ describe('scheduled events', () => {
     await api.put(bob, `/guild-events/${event.id}/interest`);
     await api.delete(bob, `/guilds/${guild.id}/members/me`);
     expect((await api.get(owner, `/guild-events/${event.id}`)).body.user_count).toBe(1);
+  });
+
+  it('takes RSVPs: going, maybe or not going, Interested being going or maybe', async () => {
+    const { owner, members: [alice, bob], guild } = await setUp(2);
+    const event = (await create(owner, guild, external())).body;
+    expect(event).toMatchObject({ rsvp: 'going', rsvp_limit: null, rsvp_counts: { going: 1, maybe: 0, declined: 0, waitlisted: 0 } });
+    const url = `/guild-events/${event.id}/rsvp`;
+    const heard = listen(owner);
+    expect((await api.put(alice, url, { rsvp: 'maybe' })).body).toMatchObject({ rsvp: 'maybe', rsvp_all: 'maybe', interested: true });
+    expect((await api.put(bob, url, { rsvp: 'declined' })).body).toMatchObject({ rsvp: 'declined', interested: false });
+    expect((await api.put(bob, url, { rsvp: 'nope' })).status).toBe(400);
+    expect(heard.filter((e) => e.type === 'guild_event_interest').map((e) => [e.userId, e.rsvp, e.changed, e.userCount])).toEqual([
+      [alice.id, 'maybe', true, 2], [bob.id, 'declined', false, 2],
+    ]);
+    expect((await api.get(owner, `/guild-events/${event.id}`)).body).toMatchObject({
+      user_count: 2, rsvp_counts: { going: 1, maybe: 1, declined: 1, waitlisted: 0 },
+    });
+    expect((await api.get(bob, `/guild-events/${event.id}/rsvps`)).body).toEqual([
+      { user_id: owner.id, rsvp: 'going' }, { user_id: alice.id, rsvp: 'maybe' }, { user_id: bob.id, rsvp: 'declined' },
+    ]);
+    // Bots' (and older apps') interested: going or maybe.
+    expect((await api.get(bob, `/guild-events/${event.id}/users`)).body.sort()).toEqual([owner.id, alice.id].sort());
+    // Taking it back.
+    expect((await api.put(bob, url, { rsvp: null })).body).toMatchObject({ rsvp: null, rsvp_all: null });
+    expect((await api.get(owner, `/guild-events/${event.id}`)).body.rsvp_counts.declined).toBe(0);
+  });
+
+  it('caps how many go, the rest waiting in the order they said so', async () => {
+    const { owner, members: [alice, bob, carol], guild } = await setUp(3);
+    expect((await create(owner, guild, external({ rsvpLimit: 0 }))).status).toBe(400);
+    const event = (await create(owner, guild, external({ rsvpLimit: 2 }))).body;
+    expect(event.rsvp_limit).toBe(2);
+    const url = `/guild-events/${event.id}/rsvp`;
+    // Answers in the same second go by user id: these are a minute apart.
+    const later = () => db.run('UPDATE guild_event_users SET created_at = created_at - 60 WHERE event_id = ?', [event.id]);
+    for (const user of [alice, bob, carol]) {
+      await later();
+      await api.put(user, url, { rsvp: 'going' });
+    }
+    const read = async () => (await api.get(owner, `/guild-events/${event.id}`)).body;
+    expect(await read()).toMatchObject({ user_count: 4, rsvp_counts: { going: 2, waitlisted: 2 }, waitlist: [bob.id, carol.id] });
+    expect((await api.get(owner, `/guild-events/${event.id}/rsvps`)).body.map((r) => r.rsvp)).toEqual(['going', 'going', 'waitlisted', 'waitlisted']);
+
+    // Alice steps down to maybe: Bob moves up. Saying going again puts her at the back.
+    await api.put(alice, url, { rsvp: 'maybe' });
+    expect((await read()).waitlist).toEqual([carol.id]);
+    await later();
+    await api.put(alice, url, { rsvp: 'going' });
+    expect((await read()).waitlist).toEqual([carol.id, alice.id]);
+
+    // A bigger limit lets them in; none, everyone.
+    expect((await api.patch(owner, `/guild-events/${event.id}`, { rsvpLimit: 3 })).body.waitlist).toEqual([alice.id]);
+    expect((await api.patch(owner, `/guild-events/${event.id}`, { rsvpLimit: null })).body).toMatchObject({ rsvp_limit: null, waitlist: [] });
   });
 
   it("hides a voice channel's events from those who can't see the channel", async () => {
@@ -581,9 +635,9 @@ describe('scheduled events', () => {
       const heard = listen(owner);
 
       // Alice: only the third. Bob: all but the second.
-      expect((await api.put(alice, `${url}?occurrence=${third}`)).body).toEqual({ interested: true, interested_all: false, my_occurrences: { [third]: true } });
+      expect((await api.put(alice, `${url}?occurrence=${third}`)).body).toMatchObject({ interested: true, interested_all: false, my_occurrences: { [third]: true } });
       await api.put(bob, url);
-      expect((await api.delete(bob, `${url}?occurrence=${second}`)).body).toEqual({ interested: false, interested_all: true, my_occurrences: { [second]: false } });
+      expect((await api.delete(bob, `${url}?occurrence=${second}`)).body).toMatchObject({ interested: false, interested_all: true, my_occurrences: { [second]: false } });
       expect(heard.filter((e) => e.type === 'guild_event_interest').map((e) => [e.userId, e.interested, e.changed, e.userCount])).toEqual([
         [alice.id, false, false, 1], [bob.id, true, true, 2], [bob.id, true, false, 2],
       ]);
@@ -596,7 +650,33 @@ describe('scheduled events', () => {
       await api.post(owner, `/guild-events/${id}/skip`, { occurrence: second });
       expect((await api.get(bob, `/guild-events/${id}`)).body.my_occurrences).toEqual({});
       expect((await api.put(alice, `${url}?occurrence=${second}`)).body.error).toMatch(/cancelled/);
-      expect((await api.put(alice, url)).body).toEqual({ interested: true, interested_all: true, my_occurrences: {} });
+      expect((await api.put(alice, url)).body).toMatchObject({ interested: true, interested_all: true, my_occurrences: {} });
+    });
+
+    it('takes RSVPs to single occurrences, apart from the series', async () => {
+      const { owner, members: [alice], guild } = await setUp(1);
+      const monday = nextMonday();
+      const [, second, third] = dates(monday, 3);
+      const { id } = (await series(owner, guild, monday)).body;
+      const url = `/guild-events/${id}/rsvp`;
+      await api.put(alice, url, { rsvp: 'going' });
+      expect((await api.put(alice, url, { rsvp: 'declined', occurrence: second })).body).toMatchObject({
+        rsvp: 'declined', rsvp_all: 'going', my_rsvps: { [second]: 'declined' }, interested: false,
+      });
+      expect((await api.put(alice, url, { rsvp: 'maybe', occurrence: third })).body.my_rsvps).toEqual({ [second]: 'declined', [third]: 'maybe' });
+      // No answer to one date, apart from the series.
+      expect((await api.put(alice, url, { rsvp: null, occurrence: monday })).body).toMatchObject({ rsvp: null, my_rsvps: { [monday]: null } });
+      const at = async (original) => (await api.get(owner, `/guild-events/${id}?occurrence=${original}`)).body.occurrence.rsvp_counts;
+      expect(await at(monday)).toEqual({ going: 1, maybe: 0, declined: 0, waitlisted: 0 });
+      expect(await at(second)).toEqual({ going: 1, maybe: 0, declined: 1, waitlisted: 0 });
+      expect(await at(third)).toEqual({ going: 1, maybe: 1, declined: 0, waitlisted: 0 });
+      expect((await api.get(owner, `/guild-events/${id}/rsvps?occurrence=${third}`)).body).toEqual([
+        { user_id: owner.id, rsvp: 'going' }, { user_id: alice.id, rsvp: 'maybe' },
+      ]);
+      // The same as the series' again: the date's own answer goes.
+      expect((await api.put(alice, url, { rsvp: 'going', occurrence: third })).body.my_rsvps).toEqual({ [monday]: null, [second]: 'declined' });
+      // All of them replaces single ones.
+      expect((await api.put(alice, url, { rsvp: 'maybe' })).body).toMatchObject({ rsvp: 'maybe', rsvp_all: 'maybe', my_rsvps: {} });
     });
 
     it('changes this and following as a new series, which old links follow once the old one ends', async () => {

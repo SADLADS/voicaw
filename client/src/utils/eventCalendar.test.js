@@ -37,9 +37,9 @@ describe('occurrences of repeating events', () => {
     const event = series(weekly, start, {
       end: start + 7200,
       until: at('2026-11-17T20:00:00Z'),
-      interested: true,
-      interested_all: true,
-      my_occurrences: { [third]: false },
+      rsvp: 'going',
+      rsvp_all: 'going',
+      my_rsvps: { [third]: 'declined' },
       user_count: 4,
       occurrences: [
         { original_start: second, status: 'canceled' },
@@ -54,9 +54,9 @@ describe('occurrences of repeating events', () => {
     ]);
     expect(upcomingOccurrences(event, 10).map((o) => o.original)).toEqual([start, third, fourth]);
     expect(occurrenceView(event, third)).toMatchObject({
-      start_time: third + 86400, name: 'Late one', original_start: third, current: false, interested: false, user_count: null, status: 'scheduled',
+      start_time: third + 86400, name: 'Late one', original_start: third, current: false, rsvp: 'declined', interested: false, user_count: null, status: 'scheduled',
     });
-    expect(occurrenceView(event, fourth)).toMatchObject({ name: 'Game night', interested: true, end_time: fourth + 7200 });
+    expect(occurrenceView(event, fourth)).toMatchObject({ name: 'Game night', rsvp: 'going', interested: true, end_time: fourth + 7200 });
     expect(occurrenceView(event)).toMatchObject({ original_start: start, current: true, user_count: 4 });
     expect(dateKeyIn(third, 'Europe/London')).toBe('2026-11-03');
   });

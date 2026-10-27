@@ -568,7 +568,7 @@ export default function GuildSidebar({ guild, user }) {
           user={user}
           events={guildEvents.events}
           loaded={guildEvents.loaded}
-          setInterested={guildEvents.setInterested}
+          setRsvp={guildEvents.setRsvp}
           history={eventHistory.history}
           loadHistory={eventHistory.loadRange}
           eventId={dialog.eventId ?? null}

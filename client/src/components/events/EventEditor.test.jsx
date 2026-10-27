@@ -71,6 +71,24 @@ describe('EventEditor', () => {
     expect(new Date(fields.startTime * 1000).getHours()).toBe(20);
   });
 
+  it('caps how many can go', async () => {
+    const onSaved = vi.fn();
+    renderEditor({ onSaved });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByLabelText('Event topic'), { target: { value: 'Game night' } });
+    fireEvent.change(screen.getByLabelText('Start date'), { target: { value: tomorrow() } });
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '20:00' } });
+    fireEvent.click(screen.getByLabelText('Limit how many can go'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('The limit is a number from 1 to 1000.');
+    fireEvent.change(screen.getByLabelText('Places'), { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('article', { name: 'Game night' })).toHaveTextContent('1 of 8 going');
+    fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(createEvent.mock.calls[0][1].rsvpLimit).toBe(8);
+  });
+
   it('needs an end somewhere else, not a location', () => {
     renderEditor();
     fireEvent.click(screen.getByLabelText(/Somewhere else/));

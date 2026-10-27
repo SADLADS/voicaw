@@ -348,7 +348,7 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <LayoutContext.Provider value={{
-      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, botDmList, conversationSettings,
+      user, fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, botDmList, conversationSettings,
       settingsNavSlot: settingsColumn ? settingsNavSlot : null,
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
@@ -371,11 +371,11 @@ export default function Layout({ user, onLogout }) {
             onLogout={onLogout}
             hasUnreadDms={activeUnreadDms.length > 0 || hasUnreadGroups || hasFriendRequests}
             unreadChats={railUnreadChats}
-            guilds={guildList.guilds}
+            rail={guildList.rail}
             unreadGuildIds={unreadGuildIds}
             guildMentions={guildMentions}
             guildVoice={guildList.guildVoice}
-            onReorderGuilds={guildList.reorderGuilds}
+            onChangeRail={guildList.saveRail}
           />
 
           {/* DM sidebar only shows on the /dm route */}

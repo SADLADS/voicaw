@@ -261,6 +261,21 @@ sqlite.exec('CREATE INDEX IF NOT EXISTS guild_sounds_guild ON guild_sounds (guil
 
 // Each member's own order of their guilds in the guild rail (lowest first).
 addColumn('ALTER TABLE guild_members ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
+// GUILD FOLDERS. Each member's own folders in the rail (as Discord's): `guild_members.folder_id`
+// puts a guild in one of its member's folders (their guilds next to each other in `position`).
+// The id is made by the member's app (any positive integer, unique per member), so a new folder
+// is saved with the order in one request. `color`: 0xRRGGBB, or null for the theme's.
+addColumn('ALTER TABLE guild_members ADD COLUMN folder_id INTEGER');
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_folders (
+  user_id INTEGER NOT NULL,
+  id INTEGER NOT NULL,
+  name TEXT,
+  color INTEGER,
+  PRIMARY KEY (user_id, id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+`);
 // Unused since migration 20 (join sounds became one per person, users.join_sound_id).
 addColumn('ALTER TABLE guild_members ADD COLUMN join_sound_id INTEGER');
 // The person's join sound (guild_sounds.id, see above, in a guild they're in), or null.
@@ -1078,9 +1093,10 @@ function numberAttachmentIds() {
 // occurrence is named by its event and `original_start`, when the rule puts it (unix s), even
 // once moved. guild_event_occurrences holds only those still to come that differ: moved
 // (`start_time`, `end_time`), given their own `name` / `description` / `location`, or `status`
-// 'canceled'. guild_event_occurrence_users is interest in one occurrence that differs from the
-// series' (guild_event_users): `interested` 1 in it alone, 0 in all but it. Both go once their
-// occurrence is over. Defined here for migration 17, which runs before the tables below.
+// 'canceled'. guild_event_occurrence_users is someone's RSVP to one occurrence where it differs
+// from theirs to the series (guild_event_users): `rsvp` 'going', 'maybe', 'declined', or null
+// for no answer that date; `interested` is 1 for going or maybe (before RSVPs: 1 in it alone, 0
+// in all but it). Both go once their occurrence is over. Defined here for migration 17, which runs before the tables below.
 const EVENT_OCCURRENCE_TABLES = `
 CREATE TABLE IF NOT EXISTS guild_event_occurrences (
   event_id INTEGER NOT NULL,
@@ -1123,6 +1139,15 @@ function eventOccurrenceRows() {
       SELECT id, occurrence_start, start_time, end_time FROM guild_events
       WHERE recurrence IS NOT NULL AND occurrence_start IS NOT NULL AND start_time != occurrence_start;
   `);
+}
+
+// 21: guild_event_occurrence_users gains `rsvp` (null: no answer that date); `interested` 1
+// was Going.
+function eventOccurrenceRsvps() {
+  const exists = sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'guild_event_occurrence_users'").get();
+  if (!exists) return;
+  addColumn('ALTER TABLE guild_event_occurrence_users ADD COLUMN rsvp TEXT');
+  sqlite.exec("UPDATE guild_event_occurrence_users SET rsvp = 'going' WHERE interested = 1");
 }
 
 // Sign-up requests (signups.js), while sign-ups need an admin's approval: the account waiting
@@ -1226,6 +1251,9 @@ const MIGRATIONS = [
   // one of them (the newest sound).
   () => sqlite.exec(`UPDATE users SET join_sound_id = (SELECT MAX(join_sound_id) FROM guild_members WHERE user_id = users.id)
     WHERE EXISTS (SELECT 1 FROM guild_members WHERE user_id = users.id AND join_sound_id IS NOT NULL)`),
+  // 21. Events' RSVPs: interest in one occurrence alone becomes Going to it (a series' interest
+  // is Going by the column's default). Nothing to do on a new database (its tables come later).
+  () => eventOccurrenceRsvps(),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');
@@ -1460,6 +1488,13 @@ addColumn('ALTER TABLE guild_events ADD COLUMN until INTEGER');
 addColumn('ALTER TABLE guild_events ADD COLUMN continued_as INTEGER');
 addColumn('ALTER TABLE guild_events ADD COLUMN revision INTEGER NOT NULL DEFAULT 0');
 sqlite.exec(EVENT_OCCURRENCE_TABLES);
+// RSVPs (Guilded's, 2026-10-27): guild_event_users' `rsvp` is the answer to the whole series,
+// 'going', 'maybe' or 'declined' (Interested, before, is Going); guild_event_occurrence_users'
+// is one date's (null: none that date). `rsvp_limit` caps how many go to each occurrence: the
+// rest of those going are its waitlist, in the order they said so (`created_at`).
+addColumn("ALTER TABLE guild_event_users ADD COLUMN rsvp TEXT NOT NULL DEFAULT 'going'");
+addColumn('ALTER TABLE guild_event_occurrence_users ADD COLUMN rsvp TEXT');
+addColumn('ALTER TABLE guild_events ADD COLUMN rsvp_limit INTEGER');
 // Occurrences that happened (guildEvents.js recordHistory): what an event was when it ended,
 // kept a year for the calendar's past days (shown greyed), whatever becomes of the event since
 // (deleted with its channel or guild). `event_id` and `original_start` name the occurrence in

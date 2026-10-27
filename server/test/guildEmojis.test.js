@@ -254,4 +254,58 @@ describe('guild rail order', () => {
     expect((await api.put(alice, '/guilds-order', { guildIds: [a.id, stranger.id] })).status).toBe(400);
     expect((await api.put(alice, '/guilds-order', { guildIds: [b.id, a.id] })).status).toBe(200);
   });
+
+  it('keeps your folders with the order', async () => {
+    const alice = await makeUser();
+    const bob = await makeUser();
+    const a = await guildWith(alice, 'A', bob);
+    const b = await guildWith(alice, 'B');
+    const c = await guildWith(alice, 'C');
+    expect((await api.get(alice, '/guild-folders')).body).toEqual([]);
+
+    const events = listen(alice);
+    const folders = [{ id: 7, name: '  Games ', color: 0x5865f2, guildIds: [c.id, a.id] }];
+    expect((await api.put(alice, '/guilds-order', { guildIds: [b.id, c.id, a.id], folders })).status).toBe(200);
+    events.stop();
+    const saved = [{ id: 7, name: 'Games', color: 0x5865f2, guildIds: [c.id, a.id] }];
+    expect(events).toEqual([{ type: 'guild_order', guildIds: [b.id, c.id, a.id], folders: saved }]);
+    expect((await api.get(alice, '/guild-folders')).body).toEqual(saved);
+    expect((await api.get(alice, '/guilds')).body.map((g) => g.name)).toEqual(['B', 'C', 'A']);
+    // Bob's rail has no folders.
+    expect((await api.get(bob, '/guild-folders')).body).toEqual([]);
+
+    // The order alone (an older app) leaves the folders as they are.
+    expect((await api.put(alice, '/guilds-order', { guildIds: [c.id, a.id, b.id] })).status).toBe(200);
+    expect((await api.get(alice, '/guild-folders')).body).toEqual(saved);
+
+    // A new list replaces the old: renamed, and with no colour.
+    await api.put(alice, '/guilds-order', { guildIds: [c.id, a.id, b.id], folders: [{ id: 9, name: '', color: null, guildIds: [a.id, b.id] }] });
+    expect((await api.get(alice, '/guild-folders')).body).toEqual([{ id: 9, name: null, color: null, guildIds: [a.id, b.id] }]);
+
+    // Leaving a guild takes it out; a folder left with none isn't listed.
+    expect((await api.put(bob, '/guilds-order', { guildIds: [a.id], folders: [{ id: 3, guildIds: [a.id] }] })).status).toBe(200);
+    expect((await api.get(bob, '/guild-folders')).body).toHaveLength(1);
+    expect((await api.delete(bob, `/guilds/${a.id}/members/me`)).status).toBeLessThan(300);
+    expect((await api.get(bob, '/guild-folders')).body).toEqual([]);
+  });
+
+  it('checks the folders', async () => {
+    const alice = await makeUser();
+    const a = await guildWith(alice, 'A');
+    const b = await guildWith(alice, 'B');
+    const c = await guildWith(alice, 'C');
+    const guildIds = [a.id, b.id, c.id];
+    const put = (folders) => api.put(alice, '/guilds-order', { guildIds, folders });
+    expect((await put({})).status).toBe(400);
+    expect((await put([{ id: 0, guildIds: [a.id] }])).status).toBe(400);
+    expect((await put([{ id: 1.5, guildIds: [a.id] }])).status).toBe(400);
+    expect((await put([{ id: 1, guildIds: [] }])).status).toBe(400);
+    expect((await put([{ id: 1, guildIds: [a.id] }, { id: 1, guildIds: [b.id] }])).status).toBe(400);
+    expect((await put([{ id: 1, guildIds: [a.id] }, { id: 2, guildIds: [a.id] }])).status).toBe(400);
+    expect((await put([{ id: 1, guildIds: [a.id, c.id] }])).status).toBe(400); // b is between them
+    expect((await put([{ id: 1, guildIds: [999999] }])).status).toBe(400);
+    expect((await put([{ id: 1, name: 'x'.repeat(101), guildIds: [a.id] }])).status).toBe(400);
+    expect((await put([{ id: 1, color: 0x1000000, guildIds: [a.id] }])).status).toBe(400);
+    expect((await put([{ id: 1, guildIds: [b.id, c.id] }, { id: 2, guildIds: [a.id] }])).status).toBe(200);
+  });
 });

@@ -86,63 +86,69 @@ export function formatEventWhen(event, { start = event.start_time, end = event.e
 // The event's colour as CSS (#rrggbb), or null for the default.
 export const eventColor = (event) => (event.color != null ? colorToHex(event.color) : null);
 
-// What Interested offers on an occurrence of a repeating event (occurrenceView's): this one,
-// and all of them, each added or taken away as fits how interested you are (`interested`:
-// this one, `interested_all`: the series). { key (its label, events.interest.<key>),
-// interested, occurrence (its original start, or null for all of them) }.
-export const interestChoices = (view) => [
-  { key: view.interested ? 'thisRemove' : 'thisAdd', interested: !view.interested, occurrence: view.original_start ?? null },
-  { key: view.interested_all ? 'allRemove' : 'allAdd', interested: !view.interested_all, occurrence: null },
-];
+// RSVPs (server/guildEvents.js setRsvp): 'going', 'maybe', 'declined' (Can't go), or null for
+// no answer. Discord's Interested is going or maybe.
+export const RSVPS = ['going', 'maybe', 'declined'];
+export const isInterested = (rsvp) => rsvp === 'going' || rsvp === 'maybe';
 
-// Where you are interested in occurrences of the series apart from it (`mine`, original start
-// -> interested), the current one's `interested` follows.
+// Your answers to an event: to the series (`all`), to occurrences apart from it (`mine`,
+// original start -> rsvp or null), and the current one's, which follows them.
 function withCurrent(event, all, mine) {
   const current = event.occurrence_start;
-  return { interested: current != null && current in mine ? mine[current] : all, interested_all: all, my_occurrences: mine };
+  const rsvp = current != null && current in mine ? mine[current] : all;
+  return { rsvp, rsvp_all: all, my_rsvps: mine, interested: isInterested(rsvp) };
 }
 
-// { interested (the current occurrence), interested_all, my_occurrences } after a choice (as
-// interestChoices'; a plain toggle has `occurrence` null), as the server's setInterest works
-// it out: all of them replaces any single ones.
-export function interestAfter(event, { interested, occurrence = null }) {
-  if (!event.recurrence || occurrence == null) return { interested, interested_all: interested, my_occurrences: {} };
-  const all = Boolean(event.interested_all);
-  const mine = { ...(event.my_occurrences ?? {}) };
-  if (interested === all) delete mine[occurrence];
-  else mine[occurrence] = interested;
+// { rsvp (the current occurrence), rsvp_all, my_rsvps, interested } after a choice ({ rsvp,
+// occurrence: an original start, or null for all of them }), as the server's setRsvp works it
+// out: all of them replaces any single ones, and a date answered as the series is goes.
+export function rsvpAfter(event, { rsvp, occurrence = null }) {
+  if (!event.recurrence || occurrence == null) return withCurrent({}, rsvp, {});
+  const all = event.rsvp_all ?? null;
+  const mine = { ...(event.my_rsvps ?? {}) };
+  if (rsvp === all) delete mine[occurrence];
+  else mine[occurrence] = rsvp;
   return withCurrent(event, all, mine);
 }
 
-// Your interest (interestAfter's shape) in `event` when it's sent again changed, from what you
-// had (`before`, null for a new one: its creator, `userId`, is interested in all of it). As on
-// the server: occurrences gone by take their single interest with them, and a new `revision`
-// (the series edited anew) all of it.
-export function interestKept(before, event, userId = null) {
-  if (!before) {
-    const mine = event.creator_id === userId;
-    return { interested: mine, interested_all: mine, my_occurrences: {} };
-  }
-  const all = Boolean(before.interested_all ?? before.interested);
+// Single dates' answers of `from` still to come in `event` (from its current occurrence on).
+function laterOnes(from, event) {
   const kept = {};
-  if ((before.revision ?? 0) === (event.revision ?? 0) && event.recurrence) {
-    for (const [original, value] of Object.entries(before.my_occurrences ?? {})) {
-      if (Number(original) >= event.occurrence_start) kept[original] = value;
-    }
+  for (const [original, value] of Object.entries(from ?? {})) {
+    if (Number(original) >= event.occurrence_start) kept[original] = value;
   }
-  return withCurrent(event, all, kept);
+  return kept;
 }
 
-// Your interest in an event "this and following" just made from `old` (the series it
-// continues): the series' carries over, and single ones from its first occurrence on when its
-// times stayed (the server moves them then).
-export function interestContinued(old, event) {
-  const all = Boolean(old.interested_all);
-  const kept = {};
-  if (event.recurrence && old.until === event.occurrence_start) {
-    for (const [original, value] of Object.entries(old.my_occurrences ?? {})) {
-      if (Number(original) >= event.occurrence_start) kept[original] = value;
-    }
-  }
-  return withCurrent(event, all, kept);
+// Your answers (rsvpAfter's shape) to `event` when it's sent again changed, from what you had
+// (`before`, null for a new one: its creator, `userId`, is going to all of it). As on the
+// server: occurrences gone by take their own answers with them, and a new `revision` (the
+// series edited anew) all of them.
+export function rsvpKept(before, event, userId = null) {
+  if (!before) return withCurrent(event, event.creator_id === userId ? 'going' : null, {});
+  const kept = (before.revision ?? 0) === (event.revision ?? 0) && event.recurrence ? laterOnes(before.my_rsvps, event) : {};
+  return withCurrent(event, before.rsvp_all ?? null, kept);
+}
+
+// Your answers to an event "this and following" just made from `old` (the series it
+// continues): the series' carries over, and single dates' from its first occurrence on when
+// its times stayed (the server moves them then).
+export function rsvpContinued(old, event) {
+  const kept = event.recurrence && old.until === event.occurrence_start ? laterOnes(old.my_rsvps, event) : {};
+  return withCurrent(event, old.rsvp_all ?? null, kept);
+}
+
+// How many answered the occurrence shown, in words ("3 of 10 going · 1 maybe · 2 on the
+// waitlist"); "N interested" where only that is known (what took place, the editor's preview).
+export function rsvpSummary(event) {
+  const counts = event.rsvp_counts;
+  if (!counts) return t('events.interestedCount', { count: event.user_count ?? 0 });
+  const parts = [
+    event.rsvp_limit != null
+      ? t('events.rsvp.goingOf', { count: counts.going, limit: event.rsvp_limit })
+      : t('events.rsvp.goingCount', { count: counts.going }),
+  ];
+  if (counts.maybe) parts.push(t('events.rsvp.maybeCount', { count: counts.maybe }));
+  if (counts.waitlisted) parts.push(t('events.rsvp.waitlistCount', { count: counts.waitlisted }));
+  return parts.join(' · ');
 }

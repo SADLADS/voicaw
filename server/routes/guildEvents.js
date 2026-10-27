@@ -6,9 +6,11 @@ const events = require('../guildEvents');
 
 // Scheduled events (guildEvents.js has the rules; the bot API shares its actions). Events are
 // sent to whoever can see them: guild_event_create / _update / _delete { guildId, event } and
-// guild_event_interest { guildId, eventId, userId, interested (the current occurrence),
-// interestedAll (the series), occurrences ({ original start: interested } where one differs),
-// changed (who's interested in the current occurrence), userCount }. A repeating event's
+// guild_event_interest { guildId, eventId, userId, rsvp (the current occurrence: 'going',
+// 'maybe', 'declined' or null), rsvpAll (the series), rsvps ({ original start: rsvp } where one
+// differs), the same as Discord's interest (going or maybe; for older apps): interested,
+// interestedAll, occurrences; changed (who's interested in the current occurrence), userCount,
+// rsvpCounts, waitlist }. A repeating event's
 // occurrences are named by their original start (`occurrence`, `from`).
 const router = express.Router();
 
@@ -50,20 +52,23 @@ const fieldsOf = (body = {}) => ({
   allDay: body.allDay,
   emoji: body.emoji,
   color: body.color,
+  rsvpLimit: body.rsvpLimit,
 });
 
-// The guild's events the caller can see, soonest first (with `interested` and `interested_all`:
-// theirs).
+// The guild's events the caller can see, soonest first (with `rsvp`, `rsvp_all` and `my_rsvps`:
+// theirs; guildEvents.interestState).
 router.get('/guilds/:guildId/events', authenticateJWT, requireMember, async (req, res) => {
   res.json(await events.listEvents(req.member));
 });
 
 // { name, description?, entityType: 'voice' | 'external', channelId (voice) | location?
 // (external), startTime, endTime (required somewhere else and all day), image?, recurrence?,
-// timezone?, allDay?, emoji?, color? }
+// timezone?, allDay?, emoji?, color?, rsvpLimit? (null: none) }
 router.post('/guilds/:guildId/events', authenticateJWT, requireMember, withActionErrors(async (req, res) => {
   const event = await events.createEvent(req.member, fieldsOf(req.body));
-  res.status(201).json({ ...event, interested: true, interested_all: true });
+  res.status(201).json({
+    ...event, rsvp: 'going', rsvp_all: 'going', my_rsvps: {}, interested: true, interested_all: true, my_occurrences: {},
+  });
 }));
 
 // What took place between ?from and ?to (unix s, at most 100 days apart), for the calendar's
@@ -72,7 +77,7 @@ router.get('/guilds/:guildId/event-history', authenticateJWT, requireMember, wit
   res.json(await events.listHistory(req.member, Number(req.query.from), Number(req.query.to)));
 }));
 
-// One event (event links open it), with `interested`, `interested_all` and `my_occurrences`.
+// One event (event links open it), with your answers (`rsvp`, `rsvp_all`, `my_rsvps`...).
 // A repeating one's ?occurrence=<original start> or ?on=YYYY-MM-DD (a link's date) adds that
 // `occurrence` (guildEvents.occurrenceDetail: still to come, cancelled, taken place, or null).
 router.get('/guild-events/:eventId', authenticateJWT, requireEvent, async (req, res) => {
@@ -126,16 +131,34 @@ router.delete('/guild-events/:eventId', authenticateJWT, requireEvent, withActio
   res.json({ success: true });
 }));
 
-// Interested (PUT) or not (DELETE): in every occurrence, or with ?occurrence=<original start>
-// only that one (?occurrence=1: the current one). Answers { interested (in that one),
-// interested_all, my_occurrences }.
+// ?occurrence=<original start> (1: the current one), or null for every occurrence.
+function occurrenceParam(value) {
+  const text = String(value ?? '');
+  return ['1', 'true'].includes(text) ? 'current' : originalOf(text);
+}
+
+// An RSVP { rsvp: 'going' | 'maybe' | 'declined' | null (none), occurrence? (as above) }: to
+// every occurrence, or only that one. Answers with your answers (interestState), `rsvp` and
+// `interested` being that occurrence's.
+router.put('/guild-events/:eventId/rsvp', authenticateJWT, requireEvent, withActionErrors(async (req, res) => {
+  const body = req.body ?? {};
+  res.json(await events.setRsvp(req.member, req.eventId, body.rsvp ?? null, { occurrence: occurrenceParam(body.occurrence) }));
+}));
+
+// Interested (PUT: going) or not (DELETE: no answer), as before RSVPs (older apps): in every
+// occurrence, or with ?occurrence= only that one. Answers as an RSVP does.
 const interestRoute = (interested) => withActionErrors(async (req, res) => {
-  const value = String(req.query.occurrence ?? '');
-  const occurrence = ['1', 'true'].includes(value) ? 'current' : originalOf(value);
-  res.json(await events.setInterest(req.member, req.eventId, interested, { occurrence }));
+  res.json(await events.setInterest(req.member, req.eventId, interested, { occurrence: occurrenceParam(req.query.occurrence) }));
 });
 router.put('/guild-events/:eventId/interest', authenticateJWT, requireEvent, interestRoute(true));
 router.delete('/guild-events/:eventId/interest', authenticateJWT, requireEvent, interestRoute(false));
+
+// Everyone's answer to the current occurrence (or ?occurrence=<original start>): [{ user_id,
+// rsvp: 'going' | 'waitlisted' | 'maybe' | 'declined' }], in the order given (the waitlist's).
+router.get('/guild-events/:eventId/rsvps', authenticateJWT, requireEvent, async (req, res) => {
+  const occurrence = originalOf(req.query.occurrence);
+  res.json(await events.eventRsvps(req.eventId, occurrence != null ? { occurrence } : {}));
+});
 
 // Who's interested in the current occurrence (or ?occurrence=<original start>): user ids.
 router.get('/guild-events/:eventId/users', authenticateJWT, requireEvent, async (req, res) => {

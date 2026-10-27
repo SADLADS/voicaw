@@ -33,6 +33,7 @@ import { isEmojiOnly } from '../emoji/emojiIndex';
 import { rehypeTwemoji } from '../emoji/rehypeTwemoji';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { rehypeMentions } from '../utils/rehypeMentions';
+import { rehypeTightLists } from '../utils/rehypeTightLists';
 import Timestamp from './Timestamp';
 import { rehypeHighlightShared } from '../utils/rehypeHighlightShared';
 import { isPlainText } from '../utils/plainText';
@@ -222,7 +223,7 @@ function messageRehypePlugins(emojiIndex, s3Endpoint) {
   const key = emojiIndex ?? noIndex;
   if (!pluginLists.has(key)) pluginLists.set(key, new Map());
   const lists = pluginLists.get(key);
-  if (!lists.has(s3Endpoint)) lists.set(s3Endpoint, [rehypeHighlightShared, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)]);
+  if (!lists.has(s3Endpoint)) lists.set(s3Endpoint, [rehypeHighlightShared, rehypeTightLists, rehypeMentions, rehypeTwemoji(emojiIndex, s3Endpoint)]);
   return lists.get(s3Endpoint);
 }
 

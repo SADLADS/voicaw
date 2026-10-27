@@ -308,8 +308,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the channel list, its first tab (Week the second, the list the third), made from the same events (repeats laid out by a client copy of the
   server's stepping); events can be made on a day of it. A Week tab (2026-10-09, as Guilded's) shows the chosen day's week as
   hours, events made by clicking one. All-day events, an emoji and a colour (2026-10-06) are the
-  app's own, not in the bot API. Guilded's calendar channels and RSVPs
-  are planned next, on the same tables.
+  app's own, not in the bot API. RSVPs (2026-10-27, Guilded's: Going / Maybe / Can't go, on
+  the interest tables) replaced Interested, which is now going or maybe (bots, pushes and older
+  apps still see that); an event may cap how many go, the rest a waitlist worked out in the
+  order they said so (nothing stored, nobody told yet when they move up). Guilded's calendar
+  channels are planned next, on the same tables.
 - **TURN on 443** (built 2026-10-14, see TURN in `docs/voice-and-calls.md`): for networks that
   allow only the web (no UDP 7882, no TCP 7881; Discord's voice fails there too), LiveKit's own
   TURN over TLS on 443, sharing the port with nginx's sites by TLS name (nginx `stream` +
@@ -460,6 +463,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   itself, so listeners each choose, per device, whether they hear soundboard sounds and join
   sounds (each member's one sound played when they join one of the guild's voice channels) and
   how loud. 5.2 s at most, kept by the apps (they cut longer files when uploading).
+- **Guild folders** (built 2026-10-27, see Guild folders in `docs/guilds.md`): Discord's folders
+  in the rail, per person and kept on the server with the rail order (so they follow you to
+  every device); open or closed is per device, as in Discord. Folder ids are made by the app so
+  a new folder saves in the same request as the order.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
