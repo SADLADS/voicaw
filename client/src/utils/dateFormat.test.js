@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { formatDate, formatDateTime, formatLongDate, formatTime } from './dateFormat';
+import { formatDate, formatDateTime, formatLongDate, formatTime, parseDate } from './dateFormat';
 
 const when = new Date(2026, 8, 3, 16, 7, 5); // 3 Sep 2026, 16:07:05 local
 
@@ -18,6 +18,19 @@ describe('dateFormat', () => {
     expect(formatDateTime(when, { date: 'auto', time: 'auto' }).replace(/\s/g, ' ')).toBe('9/3/2026, 4:07 PM');
     vi.stubGlobal('navigator', { language: '' });
     expect(formatDateTime(when, { date: 'auto', time: 'auto' })).toBe('03/09/2026, 16:07');
+  });
+
+  it('reads typed dates back, in the order they are shown', () => {
+    const day = (y, m, d) => new Date(y, m - 1, d).getTime();
+    expect(parseDate('2026-09-03', { date: 'dmy' }).getTime()).toBe(day(2026, 9, 3));
+    expect(parseDate('03/09/2026', { date: 'dmy' }).getTime()).toBe(day(2026, 9, 3));
+    expect(parseDate('09/03/2026', { date: 'mdy' }).getTime()).toBe(day(2026, 9, 3));
+    expect(parseDate('3.9.2026', { date: 'dmy' }).getTime()).toBe(day(2026, 9, 3));
+    vi.stubGlobal('navigator', { language: 'en-US' });
+    expect(parseDate('9/3/2026', { date: 'auto' }).getTime()).toBe(day(2026, 9, 3));
+    expect(parseDate('31/02/2026', { date: 'dmy' })).toBe(null);
+    expect(parseDate('yesterday')).toBe(null);
+    expect(parseDate('1/2/26', { date: 'dmy' })).toBe(null);
   });
 
   it('formats times in 12 or 24 hours, with seconds if asked', () => {

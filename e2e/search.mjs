@@ -1,4 +1,4 @@
-// Guild search: from:/in:/has:/mentions: suggestions in the header box, results under it,
+// Guild search: from:/in:/has:/mentions:/before:/after: suggestions in the header box, results under it,
 // Jump into another channel's history that isn't loaded yet, sorting, unknown names, a
 // private channel's messages staying out of reach, and the phone's full-screen search.
 //   node e2e/serve.mjs &   then   node e2e/search.mjs [screenshot dir]
@@ -76,7 +76,7 @@ try {
   await box.click();
   await a.locator('.guild-search-suggestions').waitFor();
   const keys = await a.locator('.guild-search-suggestion strong').allTextContents();
-  check(keys.join(' ') === 'from: mentions: in: has:', `an empty box offers the filters (${keys.join(' ')})`);
+  check(keys.join(' ') === 'from: mentions: in: has: before: after:', `an empty box offers the filters (${keys.join(' ')})`);
   await shot(a, '01-options');
   await a.locator('.guild-search-suggestion', { hasText: 'from:' }).click();
   check(await box.inputValue() === 'from:', 'picking one writes it');
@@ -107,6 +107,26 @@ try {
   check(texts.length === 1 && texts[0].includes('example.com'), 'has:link');
   await searchFor(a, `mentions:${alice.name}`);
   check((await resultTexts(a)).length === 1, 'mentions:');
+  // Dates: everything here was sent today.
+  const isoDay = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('sv'); };
+  await searchFor(a, `pizza before:${isoDay(0)}`);
+  check(await a.locator('.search-panel .pins-panel-empty').count() === 1, 'before:today finds nothing sent today');
+  await searchFor(a, `pizza after:${isoDay(0)}`);
+  check(await a.locator('.search-panel .pins-panel-empty').count() === 1, 'after:today leaves today out');
+  await box.fill('');
+  await box.type('pizza after:');
+  await a.locator('.guild-search-suggestions').waitFor();
+  const days = await a.locator('.guild-search-suggestion').allTextContents();
+  check(days.length === 2, `after: offers today and yesterday (${days.join(', ')})`);
+  await shot(a, '03b-dates');
+  await a.locator('.guild-search-suggestion').nth(1).click();
+  await a.keyboard.press('Enter');
+  await a.locator('.search-panel .search-result').first().waitFor();
+  check((await resultTexts(a)).length === 3, 'after:yesterday (picked) finds today\'s');
+  await searchFor(a, `pizza after:${isoDay(-1)} before:${isoDay(1)}`);
+  check((await resultTexts(a)).length === 3, 'after: and before: together');
+  await searchFor(a, 'pizza before:someday');
+  check((await a.locator('.search-panel .error-text').textContent()).includes('before: needs a date'), 'a date it can\'t read is reported');
   await searchFor(a, 'from:nobody-at-all');
   check((await a.locator('.search-panel .error-text').textContent()).includes('No member called nobody-at-all'), 'an unknown member is reported');
 
