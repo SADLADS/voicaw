@@ -6,7 +6,9 @@
 // cover and the time ticking; a game leaving takes its activity away; Settings → Desktop App's
 // "Share what I'm playing" off closes the socket and clears it, on opens it again. A music
 // player giving its cover as a web address (Feishin with Navidrome) shows that cover, fetched
-// by Bob's app only.
+// by Bob's app only, and doesn't push a game out from under his name. A Steam game that never
+// talks to the socket (FTL) is found among his programs and shows too; one that does isn't
+// shown twice.
 //   node e2e/serve.mjs &   (the client built for the desktop app against it first: README,
 //   "The real desktop app")   then   node e2e/richpresence.mjs [screenshot dir]
 // E2E_RP_DISPLAY (:93) and E2E_RP_CDP_PORT (9341) if those are taken.
@@ -53,6 +55,8 @@ mkdirSync(join(steam, 'appcache', 'librarycache'), { recursive: true });
 mkdirSync(run, { recursive: true, mode: 0o700 });
 writeFileSync(join(steam, 'steamapps', 'appmanifest_367520.acf'),
   '"AppState"\n{\n\t"appid"\t\t"367520"\n\t"name"\t\t"Hollow Knight"\n\t"installdir"\t\t"Hollow Knight"\n}\n');
+writeFileSync(join(steam, 'steamapps', 'appmanifest_212680.acf'),
+  '"AppState"\n{\n\t"appid"\t\t"212680"\n\t"name"\t\t"FTL: Faster Than Light"\n\t"installdir"\t\t"FTL Faster Than Light"\n}\n');
 execFileSync('convert', ['-size', '600x900', 'gradient:#2a6fdb-#f0a020', join(steam, 'appcache', 'librarycache', '367520_library_600x900.jpg')]);
 
 // A game: Discord's RPC client in a few lines (frames: opcode, length, JSON).
@@ -161,6 +165,9 @@ try {
   await card.locator('.activity').first().waitFor();
   const sections = await card.locator('.activity').allTextContents();
   check(sections.length === 2, `his card shows both games (${sections.length})`);
+  // The Steam game is also among his programs: after the next look (every 15 s), still once.
+  await sleep(16000);
+  check(await card.locator('.activity').count() === 2, 'a Rich Presence Steam game found running too is shown once');
   const hk = card.locator('.activity:has-text("Hollow Knight")');
   check((await hk.textContent()).includes('Forgotten Crossroads') && (await hk.textContent()).includes('Steel Soul (2 of 4)'), 'with what the game says and the party size');
   const cover = hk.locator('img.activity-image');
@@ -176,6 +183,17 @@ try {
   // The Steam game quits: only Celeste is left.
   games[0].kill();
   check(await until(async () => (await card.locator('.activity').count()) === 1), 'a game that quits leaves the card');
+
+  // A Steam game without Rich Presence (FTL): just running, with Steam's app id.
+  const ftl = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { env: { PATH: process.env.PATH, SteamAppId: '212680' }, stdio: 'ignore' });
+  games.push(ftl);
+  check(await until(async () => (await memberRow.locator('.member-activity').textContent()) === 'Playing FTL: Faster Than Light', 20000),
+    'a Steam game without Rich Presence shows, the newest game first');
+  const ftlSection = card.locator('.activity:has-text("FTL: Faster Than Light")');
+  check(/^\d+:\d\d elapsed$/.test(await ftlSection.locator('.activity-text div').last().textContent()), 'timed from when it was found');
+  if (shots) await page.screenshot({ path: join(shots, 'steam-game.png') });
+  ftl.kill();
+  check(await until(async () => (await card.locator('.activity').count()) === 1, 20000), 'and it leaves when it quits');
 
   // Sharing off: the socket goes, and so does the activity.
   await bob.goto('voicaw://app/settings/desktop-app');
@@ -207,10 +225,11 @@ try {
   const coverUrl = `http://127.0.0.1:${coverServer.address().port}/share/img/token?size=300`;
   startGame({ type: 2, details: 'Song Title', state: 'Some Artist', assets: { large_image: coverUrl, large_text: 'The Album', small_image: 'paused', small_text: 'Paused' } },
     {});
-  check(await until(async () => /^Listening to /.test(await memberRow.locator('.member-activity').textContent())), 'a music player: "Listening to …"');
   if (!(await page.locator('.member-card').count())) await memberRow.click();
   const song = page.locator('.profile-card .activity:has-text("Song Title")');
   await song.waitFor();
+  check((await memberRow.locator('.member-activity').textContent()) === 'Playing Hollow Knight', 'music started after a game: the game stays under his name');
+  check((await song.textContent()).includes('Listening'), 'a music player: under Listening on the card');
   const songCover = song.locator('img.activity-image');
   check(await until(() => songCover.evaluate((img) => img.complete && img.naturalWidth === 128)), "its cover from the address it gave, made 128 px");
   check((await songCover.getAttribute('src')).includes('/activity-images/'), 'served by the API, not the music server');

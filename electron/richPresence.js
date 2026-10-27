@@ -60,18 +60,20 @@ function decode(buffer) {
 }
 
 // `net` and `fs` are Node's (passed in for tests). `onChange(games)` gets every game showing
-// an activity, the latest first: [{ id, clientId, pid, activity }] (activity as the game sent it).
+// an activity, the one that started showing it last first: [{ id, clientId, pid, activity,
+// since }] (activity as the game sent it; since: when it went from none to one, in ms). A game
+// updating its activity (a music player's next song) doesn't move it to the front.
 function createRichPresenceServer({ net, fs, platform = process.platform, env = process.env, onChange }) {
     let server = null;
     let listening = null; // the socket path
-    const connections = new Map(); // id -> { socket, clientId, pid, activity, at }
+    const connections = new Map(); // id -> { socket, clientId, pid, activity, since }
     let nextId = 1;
 
     function changed() {
         const games = [...connections.entries()]
             .filter(([, c]) => c.activity)
-            .sort(([, a], [, b]) => b.at - a.at)
-            .map(([id, c]) => ({ id, clientId: c.clientId, pid: c.pid, activity: c.activity }));
+            .sort(([, a], [, b]) => b.since - a.since)
+            .map(([id, c]) => ({ id, clientId: c.clientId, pid: c.pid, activity: c.activity, since: c.since }));
         onChange(games);
     }
 
@@ -87,7 +89,7 @@ function createRichPresenceServer({ net, fs, platform = process.platform, env = 
             const activity = args?.activity && typeof args.activity === 'object' ? args.activity : null;
             const had = Boolean(conn.activity);
             conn.activity = activity;
-            conn.at = Date.now();
+            if (!had) conn.since = Date.now();
             reply(conn.socket, { cmd, evt: null, data: activity, nonce });
             if (activity || had) changed();
         } else if (cmd === 'SUBSCRIBE' || cmd === 'UNSUBSCRIBE') {
@@ -101,7 +103,7 @@ function createRichPresenceServer({ net, fs, platform = process.platform, env = 
     function handleConnection(socket) {
         if (connections.size >= MAX_CONNECTIONS) return socket.destroy();
         const id = String(nextId++);
-        const conn = { socket, clientId: null, pid: null, activity: null, at: 0 };
+        const conn = { socket, clientId: null, pid: null, activity: null, since: 0 };
         let buffered = Buffer.alloc(0);
         connections.set(id, conn);
 

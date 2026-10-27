@@ -28,10 +28,10 @@ const { fetchPage } = require('./pageFetch');
 const { createFileSaver } = require('./fileSave');
 const { createRichPresenceServer } = require('./richPresence');
 const { createGameActivities, pictureFrom } = require('./gameActivities');
-const { identifyGame, steamApps, steamRoots } = require('./gameLookup');
+const { identifyGame, steamApps, steamPicture, steamRoots } = require('./gameLookup');
 const { inGamingMode } = require('./gamingMode');
 const { createOverlay, OVERLAY_PRELOAD } = require('./overlay');
-const { runningSteamGame } = require('./runningGames');
+const { runningSteamGames } = require('./runningGames');
 
 const APP_ID = 'com.voicaw.app';
 const ICON = path.join(__dirname, 'assets', 'icon.png');
@@ -268,9 +268,11 @@ function setUpRichPresence() {
 function applyRichPresence() {
     if (!settings.get().richPresence) {
         richPresence.stop();
+        gameActivities.setSteamGames([]);
         overlay.setGames({ presence: false });
         return;
     }
+    lookForGames?.();
     richPresence.start().then((file) => {
         if (!file) console.error('Rich Presence: every discord-ipc socket is taken');
     }).catch((err) => console.error('Rich Presence failed to start', err.message));
@@ -293,7 +295,8 @@ async function installedSteamApps() {
 
 // The in-game overlay (overlay.js): shown while in voice and playing. Games that don't use
 // Rich Presence are looked for among the running programs (runningGames.js), every 15
-// seconds, only while it could be shown.
+// seconds, while the overlay could be shown or Rich Presence is on (then they're shared as
+// "Playing X" too, gameActivities.js).
 const GAME_POLL_MS = 15 * 1000;
 
 function setUpOverlay() {
@@ -318,14 +321,18 @@ function setUpOverlay() {
     let polling = false;
     async function look() {
         if (polling) return;
-        if (!overlay.lookingForGames()) {
-            overlay.setGames({ running: false });
-            return;
-        }
+        const forOverlay = overlay.lookingForGames();
+        const share = settings.get().richPresence;
+        if (!forOverlay) overlay.setGames({ running: false });
+        if (!share) gameActivities.setSteamGames([]);
+        if (!forOverlay && !share) return;
         polling = true;
         try {
-            const game = await runningSteamGame({ platform: process.platform, fs, run, apps: await installedSteamApps() });
-            overlay.setGames({ running: Boolean(game) });
+            const games = await runningSteamGames({ platform: process.platform, fs, run, apps: await installedSteamApps() });
+            if (overlay.lookingForGames()) overlay.setGames({ running: games.length > 0 });
+            if (settings.get().richPresence) {
+                gameActivities.setSteamGames(games.map((game) => ({ appId: game.appId, name: game.name, picture: steamPicture(fs, game.root, game.appId) })));
+            }
         } catch (err) {
             console.error('Looking for running games failed', err.message);
         } finally {

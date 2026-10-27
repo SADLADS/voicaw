@@ -6,7 +6,7 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const { createOverlay, lockedBounds, cleanVoiceState } = require('../overlay.js');
-const { runningSteamGame } = require('../runningGames.js');
+const { runningSteamGame, runningSteamGames } = require('../runningGames.js');
 const { createSettingsStore, cleanChanges } = require('../desktopSettings.js');
 
 const SCREEN = { x: 0, y: 0, width: 1920, height: 1080 };
@@ -217,6 +217,7 @@ describe('running Steam games (runningGames.js)', () => {
     const apps = [
         { appId: '252490', name: 'Rust', installDir: 'Rust', library: '/games', root: '/steam' },
         { appId: '1493710', name: 'Proton Experimental', installDir: 'Proton - Experimental', library: '/games', root: '/steam' },
+        { appId: '212680', name: 'FTL: Faster Than Light', installDir: 'FTL Faster Than Light', library: '/games', root: '/steam' },
     ];
 
     // A stand-in /proc: { pid: { environ, cmdline } } (a pid without environ isn't readable).
@@ -243,6 +244,16 @@ describe('running Steam games (runningGames.js)', () => {
         // Steam's app id 0, and someone else's process: not games.
         expect(await runningSteamGame({ platform: 'linux', fs: fakeProc({ 5: { environ: 'SteamAppId=0\0', cmdline: 'steam\0' }, 6: { cmdline: '/games/steamapps/common/Rust/RustClient\0' } }), run, apps })).toBeNull();
         expect(run).not.toHaveBeenCalled();
+    });
+
+    it('lists every Steam game running, once each', async () => {
+        const fs = fakeProc({
+            7: { environ: 'SteamAppId=252490\0', cmdline: 'RustClient\0' },
+            8: { environ: 'SteamAppId=252490\0', cmdline: 'helper\0' },
+            9: { environ: 'HOME=/x\0', cmdline: '/games/steamapps/common/FTL Faster Than Light/FTL\0' },
+        });
+        const games = await runningSteamGames({ platform: 'linux', fs, run: vi.fn(), apps });
+        expect(games.map((g) => g.appId).sort()).toEqual(['212680', '252490']);
     });
 
     it("finds a Windows game from WMI's paths, and copes with nothing found or a failure", async () => {

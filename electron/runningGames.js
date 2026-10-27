@@ -1,9 +1,9 @@
-// Whether a game is running, for the in-game overlay (overlay.js), including games that don't
-// use Rich Presence: a Steam game among this computer's processes, found by its Steam app id
+// The games running now, including those that don't use Rich Presence (FTL...), for the
+// in-game overlay (overlay.js) and to share as "Playing X" (gameActivities.js): a Steam game among this computer's processes, found by its Steam app id
 // (Linux, from the process's environment, as Steam sets it for everything a game starts,
 // Proton games included) or by its program's path under a library's steamapps/common (every
 // system; Wine's Z:\ paths too). Steam's own tools (Proton, the runtime) aren't games.
-// Only asked while the overlay could show (in voice, overlay on): main.js polls it.
+// main.js polls it while the overlay could show (in voice, overlay on) or Rich Presence is on.
 const { STEAM_TOOL, steamGameForPaths } = require('./gameLookup');
 
 const read = (fs, file) => {
@@ -50,17 +50,24 @@ async function processes({ platform, fs, run }) {
     }
 }
 
-// The Steam game running now ({ appId, name }), or null. `apps`: installed Steam apps
-// (gameLookup.js steamApps).
-async function runningSteamGame({ platform, fs, run, apps }) {
-    if (!apps.length) return null;
+// Every Steam game running now, once each, as listed in `apps` (installed Steam apps,
+// gameLookup.js steamApps: { appId, name, root... }).
+async function runningSteamGames({ platform, fs, run, apps }) {
+    if (!apps.length) return [];
+    const found = new Map();
     for (const { appId, paths } of await processes({ platform, fs, run })) {
         let app = appId && appId !== '0' ? apps.find((a) => a.appId === appId) : null;
         if (app && STEAM_TOOL.test(app.name)) app = null;
         app ??= steamGameForPaths(apps, paths);
-        if (app) return { appId: app.appId, name: app.name };
+        if (app) found.set(app.appId, app);
     }
-    return null;
+    return [...found.values()];
 }
 
-module.exports = { runningSteamGame };
+// The Steam game running now ({ appId, name }), or null.
+async function runningSteamGame(options) {
+    const [app] = await runningSteamGames(options);
+    return app ? { appId: app.appId, name: app.name } : null;
+}
+
+module.exports = { runningSteamGame, runningSteamGames };
