@@ -84,6 +84,36 @@ try {
     || sizes.thumbnail.some((n) => n > 80)) throw new Error(`embed icon sizes ${JSON.stringify(sizes)}`);
   console.log('icons 24 and 20 px, footer on one line, thumbnail', sizes.thumbnail.join('x'));
 
+  // icon_size (ours) makes them bigger or smaller; a big footer icon keeps its text beside it.
+  res = await post('', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ embeds: [{
+      author: { name: 'Big player', icon_url: `${BASE}/default.png`, icon_size: 96 },
+      title: 'Sized icons',
+      footer: { text: 'Tiny footer', icon_url: `${BASE}/default.png`, icon_size: 12 },
+    }, {
+      title: 'Big footer',
+      footer: { text: 'Beside a big icon', icon_url: `${BASE}/default.png`, icon_size: 128 },
+    }] }),
+  });
+  if (res.status !== 204) throw new Error(`sized icons: ${res.status} ${await res.text()}`);
+  await a.waitForSelector('.embed .embed-title:has-text("Big footer")', { timeout: 10000 });
+  await a.waitForFunction(() => [...document.querySelectorAll('.embed-author-icon, .embed-footer-icon')].every((img) => img.complete && img.naturalWidth));
+  const sized = await a.evaluate(() => {
+    const embeds = [...document.querySelectorAll('.embed')].slice(-2);
+    const box = (embed, sel) => embed.querySelector(sel).getBoundingClientRect();
+    const [one, two] = embeds;
+    const icon = box(two, '.embed-footer-icon'), text = box(two, '.embed-footer span');
+    return {
+      author: box(one, '.embed-author-icon').width, footer: box(one, '.embed-footer-icon').width,
+      bigFooter: icon.width, textBeside: text.left >= icon.right && text.top >= icon.top && text.bottom <= icon.bottom,
+    };
+  });
+  if (sized.author !== 96 || sized.footer !== 12 || sized.bigFooter !== 128 || !sized.textBeside) throw new Error(`icon_size ${JSON.stringify(sized)}`);
+  await shot(a, 'webhook-icon-sizes');
+  console.log('icon_size: author 96 px, footer 12 px, a 128 px footer icon with its text beside it');
+
   // Multipart: payload_json, a picture (also the embed's image) and a text file.
   const form = new FormData();
   form.append('payload_json', JSON.stringify({ username: 'Chart Bot', embeds: [{ title: 'Load', image: { url: 'attachment://load.png' } }] }));

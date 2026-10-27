@@ -3894,6 +3894,12 @@ body.mobile-mode .dm-user-list-container .dm-user {
   color: var(--vc-fg-muted);
 }
 
+/* A row, so a bigger icon (`icon_size`) sits beside its text, which wraps beside it. */
+.embed-footer {
+  display: flex;
+  align-items: center;
+}
+
 .embed-author {
   display: flex;
   align-items: center;
@@ -3903,7 +3909,8 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 /* `.embed` first, to beat `.dm-message img` (voicaw.css), which would otherwise show these
-   at their full size (and the footer's on a line of its own). */
+   at their full size (and the footer's on a line of its own). A webhook's or bot's
+   `icon_size` replaces width and height inline (MessageEmbeds.jsx). */
 .embed .embed-author-icon,
 .embed .embed-footer-icon {
   flex: none;
@@ -3915,11 +3922,9 @@ body.mobile-mode .dm-user-list-container .dm-user {
 }
 
 .embed .embed-footer-icon {
-  display: inline-block;
   width: 20px;
   height: 20px;
   margin-right: 8px;
-  vertical-align: middle;
 }
 
 .embed-title {

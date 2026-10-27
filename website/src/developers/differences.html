@@ -16,6 +16,11 @@
         <li>Slow mode, boosts, role icons, ban reasons.</li>
       </ul>
 
+      <h2 id="added">Added by Voicaw</h2>
+      <ul>
+        <li><strong>Embed icon sizes</strong>: an embed's <code>author</code> and <code>footer</code> can have <code>icon_size</code>, the icon's size in pixels (12 to 128; 24 and 20 without it). Discord ignores the field, so the same embed still works there. discord.js: build the embed as a plain object (<code>{ author: { name, icon_url, icon_size: 64 } }</code>) or <code>new EmbedBuilder({ author: { … } })</code>, since <code>setAuthor</code> drops it. discord.py: after <code>embed.set_author(name=…, icon_url=…)</code>, set <code>embed._author['icon_size'] = 64</code> (or make the embed with <code>discord.Embed.from_dict</code>). See <a href="/developers/docs/rest/#icon-size">Sending messages</a>.</li>
+      </ul>
+
       <h2 id="different">Works differently</h2>
       <ul>
         <li>IDs aren't snowflakes, and categories' ids are offset (see <a href="/developers/docs/objects/#ids">Objects and IDs</a>).</li>

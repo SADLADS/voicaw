@@ -779,7 +779,9 @@ like the rest of a guild.
   `attachments` to keep, new files). Discord's checks and errors (`{ message, code, errors }`:
   10015 unknown, 50027 bad token, 50006 empty, 50035 invalid form body with the field's path,
   40005 too large, 50109 bad JSON), embed limits (10 embeds, 6000 characters, title 256,
-  description 4096, 25 fields...), `attachment://<name>` in embeds, `allowed_mentions`, flags
+  description 4096, 25 fields...), `attachment://<name>` in embeds, our own `icon_size` on an
+  embed's author and footer (12–128 px, whole; the default 24 and 20 px aren't stored, and it's
+  dropped without an `icon_url`; MessageEmbeds sets it inline, 2026-10-27), `allowed_mentions`, flags
   SUPPRESS_EMBEDS and SUPPRESS_NOTIFICATIONS (no pushes). Rate limit 5 per 2 s per webhook
   (429 `{ retry_after }` and `X-RateLimit-*` headers). Like Discord, a webhook may ping
   @everyone, @here and any role (`mentions.js` `allowed`).

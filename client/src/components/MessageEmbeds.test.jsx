@@ -74,4 +74,19 @@ describe('MessageEmbeds (link previews)', () => {
       setPrivacyPref('linkPreviews', true);
     }
   });
+
+  it("sizes the author and footer icons by the embed's icon_size, else leaves it to the stylesheet", () => {
+    const icon_url = 'https://ci.example/a.png';
+    const { container } = render(
+      <MessageEmbeds
+        embeds={[
+          { author: { name: 'Big', icon_url, icon_size: 96 }, footer: { text: 'Small', icon_url, icon_size: 12 } },
+          { author: { name: 'Plain', icon_url }, footer: { text: 'Too big', icon_url, icon_size: 999 } },
+        ]}
+        renderMarkdown={(text) => text}
+      />
+    );
+    const sizes = [...container.querySelectorAll('.embed-author-icon, .embed-footer-icon')].map((img) => img.style.width);
+    expect(sizes).toEqual(['96px', '12px', '', '128px']);
+  });
 });
