@@ -88,7 +88,7 @@ router.get('/guilds/:guildId/messages/search', authenticateJWT, async (req, res)
   if (!visible.length) return res.json({ total_results: 0, messages: [] });
 
   // Join log rows (joinLog.js) have nothing to find; "from: someone" would list their arrivals.
-  const where = [`m.channel_id IN (${visible.map(() => '?').join(',')})`, "COALESCE(m.system, '') NOT IN ('member_join', 'member_leave')"];
+  const where = [`m.channel_id IN (${visible.map(() => '?').join(',')})`, "COALESCE(m.system, '') NOT IN ('member_join', 'member_leave', 'pin')"];
   const params = [...visible];
   if (terms.match) {
     where.push('m.id IN (SELECT rowid FROM guild_messages_fts WHERE guild_messages_fts MATCH ?)');

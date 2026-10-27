@@ -11,9 +11,9 @@ const groups = require('../groupDms');
 const { notifyGroupReaction } = require('../reactionPushes');
 const calls = require('../calls');
 const { displayNameOf } = require('../profiles');
-const { setPinned } = require('../pins');
+const { setPinned, announcePin } = require('../pins');
 const { reactionIdsFor, pollReactionsFor } = require('../polls');
-const { removePollRows } = require('../pollTimers');
+const { removeLinkedRows } = require('../pollTimers');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 const { parseRanges, countRanges } = require('../messageRanges');
 const { deduplicated } = require('../sendNonces');
@@ -394,11 +394,11 @@ router.put('/group-dm-messages/:messageId/link-previews', authenticateJWT, findM
 // Delete your own message (and its reactions).
 router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, notCallRow, async (req, res) => {
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
-  // A poll takes its "poll ended" row with it.
+  // A poll takes its "poll ended" row with it, a pinned message its "pinned" rows.
   const removed = await db.transaction(async () => {
     await db.run('DELETE FROM group_dm_reactions WHERE message_id = ?', [req.message.id]);
     await db.run('DELETE FROM group_dm_messages WHERE id = ?', [req.message.id]);
-    return removePollRows('group', req.message.id);
+    return removeLinkedRows('group', req.message.id);
   });
   releaseUploads();
   for (const id of [req.message.id, ...removed]) {
@@ -443,6 +443,7 @@ async function pinRoute(req, res, pinned) {
   if (result.error) return res.status(result.status).json({ error: result.error });
   const pin = { messageId: req.message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
   if (result.changed) await groups.sendToGroup(groupId, { type: 'group_dm_message_pin', groupId, ...pin });
+  await announcePin('group_dm_messages', result.rowId);
   res.json(pin);
 }
 

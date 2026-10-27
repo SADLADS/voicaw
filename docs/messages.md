@@ -382,7 +382,10 @@ posting. A poll is sent as its own message (replying if a reply is set, like a G
   give or take a minute) isn't shown, and neither is one whose poll can't be read (someone
   added to a group later never gets it: it's in the poll's epoch). Rows can't be edited;
   deleting a poll deletes its row (and timer). An app from before this shows them as unreadable.
-- **Not done yet:** a notification when a poll closes.
+- **Notifications when a poll closes** (`server/systemPushes.js`, see "Pinned" and "poll
+  ended" notifications in `realtime.md`): its author ("Your poll “Q” has closed") and everyone
+  who voted, in a guild also whoever gets every message in the channel. In DMs and groups the
+  server can't tell a vote from an emoji, so there it's everyone who reacted to the poll.
 
 ## Mentions
 
@@ -557,8 +560,20 @@ chat (`MAX_PINS`, Discord's number; 400 past it).
   (`MessageList`'s markdown, no menu) and has Jump (loads older pages until the message is
   there, then scrolls to it and flashes it, `.jump-highlight`) and Unpin. A pinned message shows
   a small pin by its time (after the text when grouped).
-- **Not done yet:** a "X pinned a message" line in the chat (Discord's system message) and
-  notifications for pins.
+- **"Pinned a message" rows** (as Discord's system message): pinning (not unpinning) posts a
+  message with `system` = 'pin' in the chat (`pins.js` `setPinned` in the pin's transaction,
+  then `announcePin`): the pinner as sender, the pinned message as parent, no content, so in
+  encrypted chats it tells the server nothing it didn't know. In a DM it's unread for the other
+  person (not in notes); in a group it's in the pinned message's epoch, so only those who can
+  read that message get it; it arrives as the chat's usual new-message event. `PinNotice.jsx`
+  draws it ("X pinned *a message* to this chat. *See all pinned messages.*"): "a message" jumps
+  to it, "See all" opens the list under the header's pin button (`ChatPane` `onShowPins`). It
+  can't be pinned itself or edited; deleting the pinned message deletes its rows
+  (`pollTimers.js` `removeLinkedRows`). Guild search leaves them out; bots see Discord's
+  CHANNEL_PINNED_MESSAGE (type 6, `message_reference` the pinned message).
+- **Notifications** (`server/systemPushes.js`, see "Pinned" and "poll ended" notifications in
+  `realtime.md`): everyone else in a DM or group; in a guild channel the pinned message's
+  author and whoever gets every message there.
 
 ## Unsent messages (drafts)
 

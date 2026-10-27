@@ -10,7 +10,7 @@ import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
 import { mentionsToText } from '../utils/mentions';
 import { hideSpoilers } from '../utils/remarkDiscord';
-import { isPollReaction } from '../utils/pollMarkup';
+import { isPollReaction, parsePoll } from '../utils/pollMarkup';
 import { getSetting } from './settingsStore';
 import { t } from '../i18n';
 
@@ -179,6 +179,61 @@ async function reactionNotification(data) {
   return null;
 }
 
+// The plaintext of the message a "pinned" or "poll ended" push is about (`messageCiphertext`),
+// opened like a preview: in a DM with the other person's key this device checked (never a key
+// from the push) and the message's own two people, in a group with the saved group keys and
+// only if its signature is its sender's. -> { plaintext, names } or null.
+async function openSystemMessage(data) {
+  if (!data.messageCiphertext) return null;
+  if (data.type === 'dm') {
+    const myKey = await loadEncryptionKey();
+    const other = myKey && await getPinnedContact(data.recipientId, data.senderId);
+    if (!other) return null;
+    const key = await deriveConversationKey(myKey, other.encryptionKey);
+    const plaintext = await decryptMessage(data.messageCiphertext, key, dmContext(data.messageSenderId, data.messageRecipientId));
+    return { plaintext, names: { [data.senderId]: data.title, [data.recipientId]: data.recipientName } };
+  }
+  const own = await loadOwnPublicKeys();
+  const saved = own && await recallGroup(own.userId, data.groupId);
+  const key = saved?.epochs[data.epoch];
+  if (!key) return null;
+  const { groupId, epoch, messageId, messageSenderId } = data;
+  const { text, signed, verified } = await decryptGroupMessage(
+    data.messageCiphertext, key, groupMessageContext(groupId, epoch, messageSenderId), saved.identityKeys[messageSenderId] ?? 'unknown',
+    messageSignatureContext({ groupId, epoch, senderId: messageSenderId, replyTo: data.replyTo ?? null, editOf: data.edited ? messageId : null })
+  );
+  if (!signed || !verified) return null;
+  return { plaintext: text, names: Object.fromEntries(saved.members.map((m) => [m.id, m.name])) };
+}
+
+// A "pinned a message" or "poll ended" row (server/systemPushes.js, `system` 'pin' / 'poll_end'),
+// worded here: "Pinned a message: <its text>", "Ann's poll “<question>” has closed". The text
+// is the message's (a guild's arrives as `preview`; DMs and groups open theirs above), left out
+// when it won't open or Settings → Privacy hides message text. Always true without it, so
+// these are always shown. -> the body.
+async function systemBody(data) {
+  let text = null;
+  if (await getSetting('notificationPreviews')) {
+    if (data.type === 'guild') text = data.preview || null;
+    else {
+      try {
+        const opened = await openSystemMessage(data);
+        if (opened) text = data.system === 'poll_end' ? parsePoll(opened.plaintext)?.question ?? null : previewText(opened.plaintext, opened.names);
+      } catch (err) {
+        console.warn('Could not decrypt notification preview', err);
+      }
+    }
+  }
+  const name = data.actorName;
+  if (data.system === 'poll_end') {
+    if (data.mine) return text ? t('app.push.ownPollClosedQuestion', { question: text }) : t('app.push.ownPollClosed');
+    return text ? t('app.push.pollClosedQuestion', { name, question: text }) : t('app.push.pollClosed', { name });
+  }
+  // A group's title is the group, so it says who pinned; a DM's and a guild's title already do.
+  if (data.type === 'group') return text ? t('app.push.namePinnedText', { name, text }) : t('app.push.namePinned', { name });
+  return text ? t('app.push.pinnedText', { text }) : t('app.push.pinned');
+}
+
 // Pushes whose body is a message's text, which Settings → Privacy's "Show message text in
 // notifications" (settingsStore `notificationPreviews`) leaves out. DMs and groups decrypt
 // theirs (above) only when it's on; guild messages and bot DMs arrive readable from the server,
@@ -209,7 +264,8 @@ export async function notificationFromPush(data) {
     ({ title, body } = reaction);
   }
   if (data.type === 'admin') ({ title, body } = adminNotification(data));
-  if (PLAIN_MESSAGE_PUSHES.has(data.type) && !(await getSetting('notificationPreviews'))) body = t('app.push.newMessage');
+  if (data.system === 'pin' || data.system === 'poll_end') body = await systemBody(data);
+  else if (PLAIN_MESSAGE_PUSHES.has(data.type) && !(await getSetting('notificationPreviews'))) body = t('app.push.newMessage');
   if ((data.type === 'group' || data.type === 'call') && data.groupId) {
     try {
       const group = await groupNotification(data);

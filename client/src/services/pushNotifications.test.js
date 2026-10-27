@@ -303,3 +303,76 @@ describe('reaction notifications', () => {
     expect([n.title, n.options.body]).toEqual(['New report', '2 waiting']);
   });
 });
+
+describe('"pinned a message" and "poll ended" notifications', () => {
+  const MESSAGE = 52;
+  const POLL = 'poll:v1:{"q":"Lunch?","multi":false,"o":[{"id":"aaaa1111","t":"Pizza"}]}';
+
+  // Alice's push about Bob's (this device's) DM saying `text`.
+  async function dmSystemPush(system, text, extra = {}) {
+    const key = await deriveConversationKey(await importEncryptionPrivateKey(alice.private.encryptionKey), bob.public.encryptionKey);
+    return {
+      type: 'dm', system, title: 'alice', body: 'Pinned a message', url: `/dm/${ALICE}`, tag: `dm-${ALICE}`,
+      senderId: ALICE, recipientId: BOB, recipientName: 'bob', actorName: 'alice',
+      messageId: MESSAGE, messageSenderId: BOB, messageRecipientId: ALICE,
+      messageCiphertext: await encryptMessage(text, key, dmContext(BOB, ALICE)),
+      ...extra,
+    };
+  }
+
+  it("words a DM pin with the pinned message's text, opened with the checked key", async () => {
+    const { title, options } = await notificationFromPush(await dmSystemPush('pin', 'see you at 8'));
+    expect(getPinnedContact).toHaveBeenCalledWith(BOB, ALICE);
+    expect(title).toBe('alice');
+    expect(options).toMatchObject({ body: 'Pinned a message: see you at 8', tag: `dm-${ALICE}` });
+    // Without previews, an unchecked key or a message from another conversation: no text.
+    expect((await notificationFromPush(await dmSystemPush('pin', 'x', { messageRecipientId: 9 }))).options.body).toBe('Pinned a message');
+    getPinnedContact.mockResolvedValue(null);
+    expect((await notificationFromPush(await dmSystemPush('pin', 'x'))).options.body).toBe('Pinned a message');
+    getSetting.mockResolvedValue(false);
+    expect((await notificationFromPush(await dmSystemPush('pin', 'x'))).options.body).toBe('Pinned a message');
+  });
+
+  it("words a closed poll with its question, the author's own as theirs", async () => {
+    expect((await notificationFromPush(await dmSystemPush('poll_end', POLL, { mine: true }))).options.body).toBe('Your poll “Lunch?” has closed');
+    expect((await notificationFromPush(await dmSystemPush('poll_end', POLL, { actorName: 'cleo' }))).options.body).toBe("cleo's poll “Lunch?” has closed");
+    getSetting.mockResolvedValue(false);
+    expect((await notificationFromPush(await dmSystemPush('poll_end', POLL, { mine: true }))).options.body).toBe('Your poll has closed');
+  });
+
+  it("words a guild's from its preview, leaving it out when previews are off", async () => {
+    const pin = { type: 'guild', system: 'pin', title: 'ann (#general, Guild)', body: 'Pinned a message: hi', preview: 'hi', actorName: 'ann' };
+    expect((await notificationFromPush(pin)).options.body).toBe('Pinned a message: hi');
+    const poll = { type: 'guild', system: 'poll_end', title: 'ann (#general, Guild)', preview: 'Lunch?', actorName: 'ann', mine: false };
+    expect((await notificationFromPush(poll)).options.body).toBe("ann's poll “Lunch?” has closed");
+    getSetting.mockResolvedValue(false);
+    expect((await notificationFromPush(pin)).options.body).toBe('Pinned a message');
+  });
+
+  it('opens a group one with the saved keys, only if signed by its sender', async () => {
+    const GROUP = '11111111-2222-4333-8444-555555555555';
+    const epochKey = await importGroupKey(generateGroupKey());
+    loadOwnPublicKeys.mockResolvedValue({ userId: String(BOB) });
+    recallGroup.mockResolvedValue({
+      userId: String(BOB),
+      epochs: { 3: epochKey },
+      identityKeys: { [ALICE]: alice.public.identityKey, [BOB]: bob.public.identityKey },
+      members: [{ id: ALICE, name: 'Alice A.' }, { id: BOB, name: 'bob' }],
+      name: { name: 'Climbing', version: 2 },
+    });
+    const push = async (signer) => ({
+      type: 'group', system: 'pin', title: 'Group', body: 'alice pinned a message', url: `/dm/g/${GROUP}`, tag: `group-${GROUP}`,
+      groupId: GROUP, senderId: ALICE, senderName: 'alice', actorName: 'Alice A.', recipientId: BOB, epoch: 3,
+      messageId: MESSAGE, messageSenderId: BOB, replyTo: null, edited: false,
+      messageCiphertext: await encryptGroupMessage(
+        'Pizza?', epochKey, groupMessageContext(GROUP, 3, BOB), signer,
+        messageSignatureContext({ groupId: GROUP, epoch: 3, senderId: BOB })
+      ),
+    });
+    const { title, options } = await notificationFromPush(await push(await importIdentityPrivateKey(bob.private.identityKey)));
+    expect(title).toBe('Climbing');
+    expect(options.body).toBe('Alice A. pinned a message: Pizza?');
+    const forged = await notificationFromPush(await push(await importIdentityPrivateKey(alice.private.identityKey)));
+    expect(forged.options.body).toBe('Alice A. pinned a message');
+  });
+});

@@ -17,6 +17,7 @@ import { EphemeralFooter, InteractionHeader, ThinkingLine } from './InteractionN
 import { isEphemeral, isThinking } from '../utils/botComponents';
 import Poll from './Poll';
 import PollEndNotice from './PollEndNotice';
+import PinNotice from './PinNotice';
 import CallLogNotice from './CallLogNotice';
 import { ThreadStartNotice, ThreadSummary } from './guild/ThreadSummary';
 import JoinLogNotice from './guild/JoinLogNotice';
@@ -816,6 +817,7 @@ export default function MessageList({
   onRemovePollAnswer,
   onEndPoll,
   onJumpToMessage,
+  onShowPins,
   reactionNames,
   onOpenActions,
   onOpenMenu,
@@ -1110,9 +1112,11 @@ export default function MessageList({
             {i === newIndex
               ? <NewDivider time={startsNewDay(messages[i - 1], msg, { hasMore }) ? rowTime(msg) : null} />
               : startsNewDay(messages[i - 1], msg, { hasMore }) && <DayDivider time={rowTime(msg)} />}
-            {/* A poll's result when it closed, a call; group DMs: membership changes, between the messages. */}
+            {/* A poll's result when it closed, a pin, a call; group DMs: membership changes, between the messages. */}
             {msg.system === 'poll_end'
               ? <PollEndNotice msg={msg} onJump={onJumpToMessage} />
+              : msg.system === 'pin'
+              ? <PinNotice msg={msg} onJump={onJumpToMessage} onShowPins={onShowPins} />
               : msg.system === 'call'
               ? <CallLogNotice msg={msg} meId={user?.id} />
               : msg.system === 'thread'

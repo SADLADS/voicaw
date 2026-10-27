@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { faPhone, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import { useParams } from 'react-router-dom';
@@ -55,6 +55,12 @@ export default function Dm({ user }) {
     const rect = e.currentTarget.getBoundingClientRect();
     setPinsAnchor((open) => (open ? null : rect));
   };
+  // Opens it from a "pinned a message" row, under the same button.
+  const pinsButtonRef = useRef(null);
+  const showPins = useCallback(() => {
+    const rect = pinsButtonRef.current?.getBoundingClientRect();
+    if (rect) setPinsAnchor(rect);
+  }, []);
   const profilesVersion = useProfiles();
   const chatName = chatUser ? nameOf(chatUser) : null;
   const deleted = isDeleted(chatUser);
@@ -129,6 +135,7 @@ export default function Dm({ user }) {
             {chatUser && sharedKey && !keyBlocked && (
               <button
               type="button"
+              ref={pinsButtonRef}
               className={`chat-call-button pins-button${pinsAnchor ? ' active' : ''}`}
               aria-label={t('chat.pins.title')}
               aria-pressed={Boolean(pinsAnchor)}
@@ -195,6 +202,7 @@ export default function Dm({ user }) {
               people={people}
               pinsAnchor={pinsAnchor}
               onClosePins={closePins}
+              onShowPins={showPins}
               jumpTo={jumpTarget}
               onJumped={clearJump}
               canSend={!deleted && !blockedThem}
