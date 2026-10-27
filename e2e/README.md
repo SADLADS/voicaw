@@ -15,6 +15,7 @@ node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots int
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
+node e2e/guildfolders.mjs [dir] # guild folders: drag a guild onto another (ring), closed folder's small icons, open it, drag into it (line), Folder Settings name and colour, kept after reload (open per device), drag out, folder dragged whole, Ungroup, phone long-press drag makes one
 node e2e/joinemoji.mjs [dir] # joining a guild shows its custom emoji at once (picker, :name:), no reload
 node e2e/emojicopy.mjs [dir] # Ctrl+A, Ctrl+C, Ctrl+V in the box keeps a custom emoji and a mention (clipboard holds <:name:id> / <@id>), a second paste adds them again, sent message has both twice
 node e2e/pickerswipe.mjs [dir] # phone emoji panel: swipe up = full screen (follows finger, chat doesn't jump), grid scrolls, swipe down (top follows the finger, bottom stays put) / handle = back, search from full screen

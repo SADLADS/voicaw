@@ -25,6 +25,15 @@
       "othersInVoice": "Someone is in voice here",
       "resize": "Resize sidebar",
       "dragToResize": "Drag to resize",
+      "folder": {
+        "markAsRead": "Mark Folder As Read",
+        "settings": "Folder Settings",
+        "ungroup": "Ungroup Folder",
+        "name": "Folder name",
+        "colour": "Folder colour",
+        "defaultColour": "Default",
+        "customColour": "Custom colour"
+      },
       "leaveGuild": {
         "title": "Leave '{{name}}'",
         "message": "Are you sure you want to leave {{name}}? You won't be able to rejoin unless you are re-invited.",

@@ -160,6 +160,26 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   In the rail, guilds are dragged into order (`hooks/useDragReorder.js`, on
   `hooks/usePointerDrag.js`, which channel dragging shares: a mouse drag after a few pixels, a
   touch drag after holding still, so swiping still scrolls; the click after a drop is swallowed).
+- **Guild folders** (2026-10-27, as Discord's): each member's own folders in the rail
+  (`guild_folders` (user_id, id, name, color) and `guild_members.folder_id`; a folder's guilds
+  sit next to each other in `position`). `GET /guild-folders` → `[{ id, name, color, guildIds }]`
+  (folders with no guild left, after leaving them, aren't listed); `PUT /guilds-order` takes
+  `folders` beside `guildIds` and replaces them all (each guild in one folder at most, its
+  guilds adjacent in the order, ids positive integers made by the app, names up to 100, colour
+  0xRRGGBB or null); without `folders` they stay as they are (older apps). `guild_order` carries
+  `folders` when they were sent. Client: `utils/guildFolders.js` turns guilds and folders into
+  the rail's items (`buildRail`; a folder left with one guild shows as that guild and goes on
+  the next save) and back (`railLayout`), and works out drops (`dropTarget`, `applyDrop`);
+  `useGuildList` keeps `folders`, `rail` and `saveRail(items)`; `hooks/useRailDrag.js` drags.
+  Dropping a guild on the middle of another makes a folder (a ring shows on the target and the
+  dragged icon shrinks), on a closed folder (or an open one's lower half) puts it in, between
+  rows moves it (a line shows where; between an open folder's guilds is inside it); a folder
+  drags whole. Closed, a folder shows its first four guilds small, in its colour, with their
+  unread pill, mention count and voice speaker added up (and the open guild's tall pill); a click
+  opens it (open folders are per device, localStorage `openGuildFolders`, keyed per server), its
+  guilds on a pill below it. Its menu (`guild/FolderMenu.jsx`): Mark Folder As Read, Folder
+  Settings (`FolderSettingsDialog`: name, colour from the role swatches) and Ungroup Folder
+  (not Discord's: easier than dragging each guild out on a phone). `e2e/guildfolders.mjs`.
 - **Custom emoji** (`routes/guildEmojis.js`, `guild_emojis`): per guild, plain images (not
   encrypted) in the public `emojis` bucket at `emojis/<id>`, written `<:name:id>` in messages
   (DMs too, inside the encryption). Rendering only needs the id (`emoji/customEmoji.js`
@@ -231,8 +251,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   a note saying how many. "Loading…" shows until the preferences have loaded, so someone who
   ticked never sees the gate flash. It's a client-side check: the API still serves an NSFW
   channel to any member (bots included), as Discord's does.
-- **Not done yet:** category-level permissions (overrides are per channel), server folders in the
-  rail, search dates (see Guild search), muting a category, a list of your
+- **Not done yet:** category-level permissions (overrides are per channel), search dates (see Guild search), muting a category, a list of your
   recent mentions. Voice: see
   Voice channels.
 

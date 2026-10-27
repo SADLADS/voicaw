@@ -55,6 +55,7 @@ vi.mock('../services/guildService', () => ({
   fetchGuilds: vi.fn(async () => []),
   fetchGuild: vi.fn(),
   fetchGuildUnread: vi.fn(async () => []),
+  fetchGuildFolders: vi.fn(async () => []),
   fetchAllEmojis: vi.fn(async () => []),
   saveGuildOrder: vi.fn(async () => {}),
 }));

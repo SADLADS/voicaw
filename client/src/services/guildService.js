@@ -328,8 +328,14 @@ export async function deleteGuildEmoji(guildId, emojiId) {
 }
 
 // Your guilds, top first, as the guild rail should show them.
-export async function saveGuildOrder(guildIds) {
-  await api.put('/guilds-order', { guildIds });
+// With `folders` ([{ id, name, color, guildIds }]), replaces your rail's folders too.
+export async function saveGuildOrder(guildIds, folders) {
+  await api.put('/guilds-order', folders ? { guildIds, folders } : { guildIds });
+}
+
+// Your rail's folders ([{ id, name, color, guildIds }], see utils/guildFolders.js).
+export async function fetchGuildFolders() {
+  return (await api.get('/guild-folders')).data;
 }
 
 // ---- Webhooks (server/routes/webhooks.js; Discord's API) ----

@@ -460,6 +460,10 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   itself, so listeners each choose, per device, whether they hear soundboard sounds and join
   sounds (each member's one sound played when they join one of the guild's voice channels) and
   how loud. 5.2 s at most, kept by the apps (they cut longer files when uploading).
+- **Guild folders** (built 2026-10-27, see Guild folders in `docs/guilds.md`): Discord's folders
+  in the rail, per person and kept on the server with the rail order (so they follow you to
+  every device); open or closed is per device, as in Discord. Folder ids are made by the app so
+  a new folder saves in the same request as the order.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

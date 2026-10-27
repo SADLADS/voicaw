@@ -2263,25 +2263,109 @@ button.audit-log-row:focus-visible {
   font-size: 13px;
 }
 
-/* Dragging a guild in the rail: it follows the pointer, the others slide out of its way. */
+/* Dragging a guild or folder in the rail (useRailDrag): it follows the pointer, and a line shows
+   where it would land, or a ring the guild or folder it would join. */
 .rail-guilds .nav-item {
   -webkit-touch-callout: none;
   user-select: none;
 }
 
-.rail-guilds.reordering .nav-item {
-  transition: transform 0.15s ease;
-}
-
-.rail-guilds .nav-item.dragging {
+.rail-guilds .nav-item.dragging,
+.rail-folder.dragging {
   z-index: 2;
-  transition: none;
   opacity: 0.85;
   cursor: grabbing;
 }
 
-.rail-guilds .nav-item.dragging .dot {
+.rail-guilds .nav-item.dragging .dot,
+.rail-folder.dragging .dot {
   opacity: 0;
+}
+
+.rail-guilds .nav-item.drop-before::before,
+.rail-guilds .nav-item.drop-after::after,
+.rail-guilds.drop-end::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background-color: var(--vc-accent);
+  pointer-events: none;
+}
+
+.rail-guilds .nav-item.drop-before::before {
+  top: -6px;
+}
+
+.rail-guilds .nav-item.drop-after::after {
+  bottom: -6px;
+}
+
+.rail-guilds.drop-end {
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.rail-guilds.drop-end::after {
+  bottom: 0;
+}
+
+.rail-guilds .nav-item.drop-onto .nav-icon {
+  border-radius: var(--vc-radius-lg);
+  box-shadow: 0 0 0 3px var(--vc-accent);
+}
+
+/* ---- Guild folders in the rail ---- */
+
+.rail-folder {
+  position: relative;
+}
+
+/* Open: a pill behind the folder and its guilds, in the folder's colour (--rail-folder-color,
+   set inline) or the theme's. */
+.rail-folder.open::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: 50%;
+  width: 56px;
+  transform: translateX(-50%);
+  border-radius: 20px;
+  background-color: color-mix(in srgb, var(--rail-folder-color, var(--vc-fg-muted)) 18%, transparent);
+  pointer-events: none;
+}
+
+.nav-icon.rail-folder-icon {
+  padding: 0;
+  border: 0;
+  background-color: color-mix(in srgb, var(--rail-folder-color, var(--vc-fg-muted)) 30%, var(--vc-bg-elevated));
+}
+
+.rail-folder.open .nav-icon.rail-folder-icon {
+  background-color: transparent;
+}
+
+.nav-icon.rail-folder-icon svg {
+  font-size: 1.4rem;
+  color: var(--rail-folder-color, var(--vc-accent));
+}
+
+/* Closed: its first four guilds, small. */
+.rail-folder-guilds {
+  display: grid;
+  grid-template-columns: repeat(2, 16px);
+  grid-auto-rows: 16px;
+  gap: 4px;
+}
+
+.rail-folder-guilds .guild-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 6px;
 }
 
 /* ---- Custom emoji ---- */
