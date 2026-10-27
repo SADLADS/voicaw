@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   addDays, addMonths, allDayInputs, allDayTimes, dayKey, defaultStart, eventsByDay, fromKey, isPastDay, monthGrid, startAtHour, startOnDay,
   weekBlocks, weekDays,
@@ -148,8 +148,14 @@ describe('all-day events', () => {
   });
 
   it('shows dates, not times', () => {
-    expect(formatEventWhen(allDay('2026-10-20', '2026-10-20'))).toBe('Tuesday 20 October 2026 · All day');
-    expect(formatEventWhen(allDay('2026-10-20', '2026-10-22'))).toBe('Tuesday 20 October 2026 – Thursday 22 October 2026');
+    // Dates follow the device's language; the wording below is British English's.
+    vi.stubGlobal('navigator', { language: 'en-GB' });
+    try {
+      expect(formatEventWhen(allDay('2026-10-20', '2026-10-20'))).toBe('Tuesday 20 October 2026 · All day');
+      expect(formatEventWhen(allDay('2026-10-20', '2026-10-22'))).toBe('Tuesday 20 October 2026 – Thursday 22 October 2026');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('lies on each of its days, before timed events', () => {

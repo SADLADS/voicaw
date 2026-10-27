@@ -166,8 +166,10 @@ describe('ListChannelView', () => {
     renderBoard({ url: '/guild/5/30?task=1' });
     const panel = await screen.findByRole('complementary', { name: 'Task: Task 1' });
     expect(within(panel).getByText('The **details**')).toBeTruthy();
-    expect(within(panel).getByText('alice')).toBeTruthy();
+    // Assigned to alice, who also wrote the comment (which loads after the task).
     expect(await within(panel).findByText('On it')).toBeTruthy();
+    expect(within(panel).getByText('alice', { selector: '.task-assignee-chip' })).toBeTruthy();
+    expect(within(panel).getByText('alice', { selector: '.task-comment-name' })).toBeTruthy();
     expect(within(panel).getByRole('button', { name: 'Sub' })).toBeTruthy();
 
     fireEvent.change(within(panel).getByLabelText('Write a comment'), { target: { value: 'Thanks' } });
