@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import '../../assets/css/voice.css';
 import { Icon } from '../Icon';
 import {
-  faArrowRight, faDownLeftAndUpRightToCenter, faExpand, faEye, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
+  faArrowRight, faCheck, faDownLeftAndUpRightToCenter, faExpand, faEye, faSliders, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import UserAvatar from './UserAvatar';
 import { InteractionContext } from '../../contexts';
@@ -12,13 +12,15 @@ import { displayName, useProfiles } from '../../utils/profiles';
 import { attachStream, setStreamError, watchStream } from '../../voice/voiceClient';
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
 import { DEFAULT_USER_VOLUME, maxUserVolume, setStreamVolume, useStreamVolume } from '../../voice/userVolumes';
+import { VIEW_QUALITIES, setStreamViewQuality, useStreamViewQuality } from '../../voice/streamViewSettings';
 import { t } from '../../i18n';
 
 // The screen share being watched, big (the voice channel view's stage, or its own window when
 // popped out) or small in a corner (`corner`, StreamCorner, while no page shows it; `onOpen`
 // goes to its channel or call, `openLabel` saying which): the video, whose it is, who else is
-// watching it (like Discord's viewers; never you), its volume, pop out (or bring back),
-// full screen and stop watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
+// watching it (like Discord's viewers; never you), its volume, its quality (which copy this
+// device downloads; not in the corner, no room), pop out (or bring back), full screen and stop
+// watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
 // on this device (like Discord's Stream Volume, userVolumes.js); not for our own, which we don't
 // hear.
 export default function StreamView({ userId, name, own, popout = false, corner = false, onOpen, openLabel }) {
@@ -26,7 +28,21 @@ export default function StreamView({ userId, name, own, popout = false, corner =
   const { isMobile } = useContext(InteractionContext);
   const videoRef = useRef(null);
   const stageRef = useRef(null);
+  // The size of what's arriving (the copy LiveKit sends, see StreamQuality).
+  const [size, setSize] = useState(null);
   useShowsStreamOnPage(!popout && !corner);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    const measure = () => setSize(video.videoWidth > 0 ? { width: video.videoWidth, height: video.videoHeight } : null);
+    video.addEventListener('resize', measure);
+    video.addEventListener('loadedmetadata', measure);
+    return () => {
+      video.removeEventListener('resize', measure);
+      video.removeEventListener('loadedmetadata', measure);
+    };
+  }, []);
 
   useEffect(() => {
     if (!watchingReady) return undefined;
@@ -55,6 +71,7 @@ export default function StreamView({ userId, name, own, popout = false, corner =
         <span className="stream-name" title={corner ? name : undefined}>{own ? t('voice.stream.yourStream') : name}</span>
         <StreamWatchers watchers={watchers?.[userId] ?? []} compact={corner || isMobile} />
         {!own && <StreamVolume userId={userId} deafened={selfDeaf} />}
+        {!own && !corner && <StreamQuality size={size} />}
         {corner && onOpen && (
           <button type="button" className="stream-button" aria-label={openLabel} title={openLabel} onClick={onOpen}>
             <Icon icon={faArrowRight} fixedWidth />
@@ -123,6 +140,61 @@ function StreamWatchers({ watchers, compact }) {
             </li>
           ))}
         </ul>
+      )}
+    </span>
+  );
+}
+
+// Which copy of the stream this device downloads (voice/streamViewSettings.js: full size, or
+// the half-size one to save data), for every stream, and the size arriving now.
+function StreamQuality({ size }) {
+  const quality = useStreamViewQuality();
+  const [open, setOpen] = useState(false);
+  const label = t('voice.stream.quality');
+  return (
+    <span className="stream-view-quality-menu">
+      <button
+        type="button"
+        className="stream-button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={label}
+        onClick={() => setOpen((was) => !was)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false);
+        }}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        <Icon icon={faSliders} fixedWidth />
+      </button>
+      {open && (
+        <div className="stream-view-quality-list" role="menu" aria-label={label} onDoubleClick={(e) => e.stopPropagation()}>
+          <p className="stream-watchers-heading">{label}</p>
+          {VIEW_QUALITIES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="menuitemradio"
+              aria-checked={option === quality}
+              className="stream-view-quality-item"
+              // Keeps the focus on the menu's button, whose blur closes the menu.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setStreamViewQuality(option);
+                setOpen(false);
+              }}
+            >
+              <span className="stream-view-quality-check">{option === quality && <Icon icon={faCheck} />}</span>
+              <span>
+                <span className="stream-view-quality-name">{t(`voice.stream.qualities.${option}`)}</span>
+                <span className="stream-view-quality-hint">{t(`voice.stream.qualityHints.${option}`)}</span>
+              </span>
+            </button>
+          ))}
+          {size && <p className="stream-view-quality-size">{t('voice.stream.receiving', size)}</p>}
+        </div>
       )}
     </span>
   );

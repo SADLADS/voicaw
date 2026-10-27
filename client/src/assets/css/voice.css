@@ -641,6 +641,77 @@ button.user-panel-button {
   gap: 4px;
 }
 
+/* The stream's quality (which copy this device downloads): a menu above its button. */
+.stream-view-quality-menu {
+  position: relative;
+  display: flex;
+}
+
+.stream-view-quality-list {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 1;
+  width: 260px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border-radius: 8px;
+  background-color: var(--vc-popup);
+  color: var(--vc-fg);
+  box-shadow: 0 8px 24px var(--vc-popup-shadow);
+}
+
+.stream-view-quality-list .stream-watchers-heading {
+  margin: 0;
+  padding: 4px 6px;
+}
+
+.stream-view-quality-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.stream-view-quality-item:hover {
+  background-color: var(--vc-accent);
+  color: var(--vc-on-accent);
+}
+
+.stream-view-quality-item:hover :is(.stream-view-quality-check, .stream-view-quality-hint) {
+  color: inherit;
+}
+
+.stream-view-quality-check {
+  flex: none;
+  width: 16px;
+  color: var(--vc-accent);
+}
+
+.stream-view-quality-name {
+  display: block;
+  font-weight: 600;
+}
+
+.stream-view-quality-hint,
+.stream-view-quality-size {
+  display: block;
+  color: var(--vc-fg-muted);
+  font-size: 0.8rem;
+}
+
+.stream-view-quality-size {
+  margin: 4px 0 0;
+  padding: 4px 6px 0;
+  border-top: 1px solid var(--vc-border);
+}
+
 /* The stream's volume: the slider shows while the pointer is over it (always on a phone). */
 .stream-volume {
   display: flex;

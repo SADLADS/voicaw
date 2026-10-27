@@ -10,6 +10,7 @@ import {
 } from './userVolumes';
 import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
 import { getStreamSettings, screenShareOptions } from './streamSettings';
+import { getStreamViewQuality, onStreamViewQualityChange } from './streamViewSettings';
 import { createSpeakingMeters, whoIsSpeaking } from './speaking';
 import { onPushToTalkChange, pushToTalkStage, startPushToTalkKeys } from './pushToTalk';
 import { playSound } from '../sounds/sounds';
@@ -224,6 +225,19 @@ function syncSubscriptions() {
       if (wanted && publication.source === livekit.Track.Source.Camera) sizeCamera(participant.identity);
     }
   }
+  applyStreamQuality();
+}
+
+// Asks LiveKit for the copy of the watched stream this device's Stream quality picks
+// (streamViewSettings.js): at most the full size ('auto', LiveKit's server still moving to the
+// half-size copy while the connection can't keep up) or always the half-size one ('low').
+function applyStreamQuality() {
+  if (!room || snapshot.watching == null) return;
+  const publication = room.remoteParticipants.get(snapshot.watching)?.getTrackPublication(livekit.Track.Source.ScreenShare);
+  // LiveKit only takes it for a publication we've asked for.
+  if (!publication?.setVideoQuality || !subscriptions.get(publication)) return;
+  const { VideoQuality } = livekit;
+  publication.setVideoQuality(getStreamViewQuality() === 'low' ? VideoQuality.LOW : VideoQuality.HIGH);
 }
 
 // Cameras on screen: identity -> the <video> elements showing it (showCamera).
@@ -1193,6 +1207,8 @@ onVideoSettingsChange(async (next, previous) => {
     if (room === current) update({ cameraError: cameraErrorMessage(err) });
   });
 });
+
+onStreamViewQualityChange(() => applyStreamQuality());
 
 // Back from the background: cameras shown on screen are downloaded again (and not while hidden).
 if (typeof document !== 'undefined') {

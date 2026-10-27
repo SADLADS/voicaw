@@ -187,8 +187,17 @@ LiveKit carries the audio.
   It applies from the next Go Live, not to a running stream. **Simulcast:** LiveKit sends every screen share
   twice (its default, which we keep): full size and half the width and height at the same frame
   rate and a quarter of the bitrate (about 25% more upload and encoding for the sharer).
-  LiveKit's server moves a struggling viewer to the small copy on its own; viewers can't pick a
-  copy themselves yet. **Admin limit:** Settings → Admin's Screen share resolution limit and
+  LiveKit's server moves a struggling viewer to the small copy on its own. **Viewers' quality**
+  (2026-10-27): the stream bar's Stream quality menu (`StreamView` `StreamQuality`; not in the
+  corner, no room; not on your own stream) picks which copy this device downloads: Auto (the
+  full size, LiveKit still dropping to the small copy while the connection can't keep up; what
+  everyone got before) or Data saver (always the small copy: half the width and height, about a
+  quarter of the data), and says what size is arriving (the `<video>`'s own size). One choice for
+  every stream, remembered per device (`voice/streamViewSettings.js`, `localStorage
+  streamViewQuality`); `voiceClient` `applyStreamQuality` asks LiveKit with `setVideoQuality`
+  (HIGH or LOW) once the stream is subscribed, and again on a change. Calls' streams the same.
+  The sharer's choice still decides the copies: Data saver of a 720p stream is 360p, of a 4K
+  Source one 1080p. `e2e/streamviewquality.mjs` checks it. **Admin limit:** Settings → Admin's Screen share resolution limit and
   frame rate limit (`appSettings.js` `streamMaxResolution` / `streamMaxFramerate`, no limit by
   default) come with the join token (`streamLimit`, `voice.js` `joinToken`; so from people's
   next join); the pickers grey out what's above them and say so, and a choice above goes out
@@ -535,8 +544,7 @@ LiveKit carries the audio.
 - **Not done yet:** a per-user local mute (Discord has one), output volume above 100%, server mute/move (Mute Members, Move Members), push to talk
   with a key combination or several keys, Discord's push to talk (priority), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"),
-  background blur, a camera spotlight (one camera big, like a watched stream), viewers picking
-  a stream's quality (its simulcast copy; see Stream quality); Watch Together: a party surviving an API restart, other sites than YouTube and the guild's
+  background blur, a camera spotlight (one camera big, like a watched stream); Watch Together: a party surviving an API restart, other sites than YouTube and the guild's
   Jellyfin or Emby (Plex), choosing a media server video's subtitles or audio track (the
   account's settings on the server decide; not checked how subtitles come out),
   playlists, start times from links (`t=`). Phones: a PWA's audio stops when it's in the background (iOS also when locked; it

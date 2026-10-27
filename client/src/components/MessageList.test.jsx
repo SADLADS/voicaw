@@ -472,6 +472,32 @@ describe('MessageList', () => {
     expect(props.setEditingMessageId).toHaveBeenCalledWith(null);
   });
 
+  it('suggests emoji for a ":shortcode" typed while editing', () => {
+    const msg = { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hm', timestamp: 1000 };
+    const props = baseProps({ messages: [msg], editingMessageId: 1, editingMessageContent: 'hm' });
+    render(
+      <EmojiContext.Provider value={buildEmojiIndex(emojiData)}>
+        <MessageList {...props} />
+      </EmojiContext.Provider>
+    );
+    const box = document.getElementById('edit-input-1');
+    const editor = editorFor(box);
+
+    act(() => editor.insertText(' :think'));
+    expect(screen.getByRole('listbox')).toHaveTextContent(':thinking_face:');
+
+    // Escape closes the list first, leaving the edit open.
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(props.setEditingMessageId).not.toHaveBeenCalled();
+
+    // Enter picks the suggestion rather than saving.
+    act(() => editor.insertText('i'));
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(editor.getText()).toBe('hm 🤔 ');
+    expect(props.handleSaveEdit).not.toHaveBeenCalled();
+  });
+
   it('goes back to the bottom when you send a message, not when someone else does', () => {
     const older = [{ id: 1, sender_id: 2, sender_username: 'bob', plaintext: 'hi', timestamp: 1000 }];
     const { container, rerender } = render(<MessageList {...baseProps({ messages: older })} />);

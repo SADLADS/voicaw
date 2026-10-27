@@ -79,3 +79,33 @@ describe('StreamView watchers', () => {
     expect(screen.queryByRole('button', { name: /\d watching/ })).toBeNull();
   });
 });
+
+describe('StreamView quality', () => {
+  it('picks which copy of others’ streams this device downloads, and shows the size arriving', async () => {
+    const { getStreamViewQuality, setStreamViewQuality } = await import('../../voice/streamViewSettings');
+    render(<StreamView userId={7} name="alice" />);
+    const button = screen.getByRole('button', { name: 'Stream quality' });
+    fireEvent.click(button);
+    expect(screen.getByRole('menuitemradio', { name: /Auto/ }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Data saver/ }));
+    expect(getStreamViewQuality()).toBe('low');
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    const video = document.querySelector('video');
+    Object.defineProperty(video, 'videoWidth', { value: 960, configurable: true });
+    Object.defineProperty(video, 'videoHeight', { value: 540, configurable: true });
+    fireEvent(video, new Event('resize'));
+    fireEvent.click(button);
+    expect(screen.getByRole('menuitemradio', { name: /Data saver/ }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('menu').textContent).toContain('Receiving 960 × 540');
+    setStreamViewQuality('auto');
+  });
+
+  it('isn’t offered for our own stream or in the corner', () => {
+    render(<StreamView userId={7} name="alice" own />);
+    expect(screen.queryByRole('button', { name: 'Stream quality' })).toBeNull();
+    cleanup();
+    render(<StreamView userId={7} name="alice" corner />);
+    expect(screen.queryByRole('button', { name: 'Stream quality' })).toBeNull();
+  });
+});
