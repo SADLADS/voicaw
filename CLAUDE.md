@@ -481,5 +481,6 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
     text boxes (titles, bio, task fields) keep the browser's, which can disagree with our
     suggestions there. Our dictionaries are English only (UK, US); other languages fall back
     to the browser's (or the desktop app's) own checker.
-  - npm 11 warns that the install script of `esbuild` isn't in an `allowScripts` list yet. It
-    still runs today; a future npm will need it approved (`npm install-scripts approve`).
+  - npm 11 warns that the install scripts of `esbuild` and `uiohook-napi` (the desktop app's
+    push to talk hook) aren't in an `allowScripts` list yet. They still run today; a future npm
+    will need them approved (`npm install-scripts approve`).

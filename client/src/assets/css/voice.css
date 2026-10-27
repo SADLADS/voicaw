@@ -2164,3 +2164,55 @@ body.popout-window {
 .voice-settings-soundboard {
   margin-bottom: 8px;
 }
+
+/* ---- Push to talk (PushToTalkButton): held to talk, green while sending ---- */
+
+.push-to-talk-button {
+  gap: 8px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.push-to-talk-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The voice bar's: a wide row of its own, under the other buttons. */
+.user-panel-button.voice-bar-ptt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 36px;
+  margin-top: 6px;
+  border-radius: var(--vc-radius-md);
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: 15px;
+}
+
+.user-panel-button.voice-bar-ptt:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+/* The call views': a pill among the round buttons. */
+.voice-view-button.push-to-talk-button {
+  width: auto;
+  padding: 0 20px;
+  border-radius: 26px;
+}
+
+.push-to-talk-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.user-panel-button.push-to-talk-button.active,
+.voice-view-button.push-to-talk-button.active {
+  background-color: color-mix(in srgb, var(--vc-online) 22%, transparent);
+  color: var(--vc-online);
+}

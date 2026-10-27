@@ -23,7 +23,15 @@ module.exports = {
     electronVersion,
     extraMetadata: { voicawAutoUpdate: AUTO_UPDATE, ...(VERSION && { version: VERSION }) },
     directories: { output: '../dist-desktop' },
-    files: ['*.js', 'assets/**', '!builder.config.js', '!vitest.config.js', '!test/**'],
+    files: [
+        '*.js', 'assets/**', '!builder.config.js', '!vitest.config.js', '!test/**',
+        // The push to talk hook (pushToTalk.js) ships ready-built for every system (N-API
+        // prebuilds, picked when it loads), so its C sources stay out...
+        '!**/node_modules/uiohook-napi/{libuiohook,src,binding.gyp}',
+    ],
+    // ...and nothing is rebuilt for Electron: it's the only native module, and compiling it
+    // would need a compiler and X11 headers (and can't be done for Windows from Linux).
+    npmRebuild: false,
     extraResources: [{ from: '../build', to: 'app' }],
     icon: '../client/public/logo512.png',
     publish: [{ provider: 'generic', url: UPDATE_URL }],
