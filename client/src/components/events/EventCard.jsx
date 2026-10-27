@@ -3,14 +3,13 @@ import { Icon } from '../Icon';
 import { faCalendarDays, faLocationDot, faRepeat, faUserGroup, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import DocumentCover from '../documents/DocumentCover';
 import EventEmoji from './EventEmoji';
-import { eventPlace, eventStatusText, formatEventWhen } from '../../utils/eventDisplay';
+import { eventPlace, eventStatusText, formatEventWhen, rsvpSummary } from '../../utils/eventDisplay';
 import { describeRepeat } from '../../utils/eventRecurrence';
 import { useDateFormat } from '../../utils/dateFormat';
-import { t } from '../../i18n';
 
 // A scheduled event as a card (the events list, the editor's preview, a link's embed): its
 // cover, when (and "in 2 hours", "happening now"), its name (opens it, with `onOpen`), how it
-// repeats, where, and how many are interested; `children` are its buttons.
+// repeats, where, and how many answered (going, maybe, waiting); `children` are its buttons.
 export default function EventCard({ event, guild, onOpen = null, children = null, className = '' }) {
   useDateFormat();
   const place = eventPlace(event, guild);
@@ -44,7 +43,7 @@ export default function EventCard({ event, guild, onOpen = null, children = null
         )}
         <div className="event-card-footer">
           <span className="event-card-count">
-            <Icon icon={faUserGroup} aria-hidden="true" /> {t('events.interestedCount', { count: event.user_count })}
+            <Icon icon={faUserGroup} aria-hidden="true" /> {rsvpSummary(event)}
           </span>
           {children && <span className="event-card-buttons">{children}</span>}
         </div>

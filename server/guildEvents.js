@@ -35,9 +35,12 @@ const {
 //   guild_event_occurrences rows. Changing "this and following" ends the series there (`until`)
 //   and makes a new one from then on (`continued_as`); old links follow it once the old one ends
 //   (guild_event_redirects).
-// - Interest: in the whole series (guild_event_users), and per occurrence where it differs
-//   (guild_event_occurrence_users: in it alone, or in all but it). `user_count`, who's listed
-//   and who's notified are for the current occurrence unless an occurrence is asked for.
+// - RSVPs (Guilded's): going, maybe or can't go ('declined'), to the whole series
+//   (guild_event_users) and per occurrence where it differs (guild_event_occurrence_users, null
+//   for no answer that date). Discord's Interested is going or maybe: `user_count`, bots' user
+//   list and who's told it started. An event may cap how many go (`rsvp_limit`): the rest of
+//   those going wait, in the order they said so. Counts, lists and pushes are for the current
+//   occurrence unless an occurrence is asked for.
 
 const MAX_NAME = 100;
 const MAX_DESCRIPTION = 1000;
@@ -47,6 +50,11 @@ const MAX_IMAGE = 1000;
 const MAX_EVENTS_PER_GUILD = 100;
 // Changed or cancelled occurrences still to come, per series.
 const MAX_EXCEPTIONS = 50;
+// The most an event's going may be capped at.
+const MAX_RSVP_LIMIT = 1000;
+const RSVPS = ['going', 'maybe', 'declined'];
+// Discord's Interested.
+const isInterested = (rsvp) => rsvp === 'going' || rsvp === 'maybe';
 const MAX_AHEAD_SECONDS = 5 * 366 * 86400;
 const UNATTENDED_SECONDS = 12 * 3600;
 const EMPTY_SECONDS = 5 * 60;
@@ -67,7 +75,7 @@ const notFound = () => new ActionError(404, 'Event not found', 10070);
 
 const EVENT_COLUMNS = `id, guild_id, channel_id, creator_id, name, description, entity_type, location, start_time,
   end_time, status, image, recurrence, timezone, occurrence_start, duration, started_at, created_at, updated_at, all_day, emoji, color,
-  until, continued_as, revision`;
+  until, continued_as, revision, rsvp_limit`;
 const EXCEPTION_COLUMNS = 'event_id, original_start, start_time, end_time, status, name, description, location';
 
 // ---- Reading ----
@@ -100,9 +108,14 @@ const publicException = (row) => ({
   location: row.location,
 });
 
+// No RSVPs (rsvpStats' shape).
+const NO_RSVPS = { count: 0, going: 0, maybe: 0, declined: 0, waitlist: [] };
+
 // What clients get: the row with `recurrence` parsed, `user_count` (how many are interested in
-// the current occurrence) and `occurrences`, the changed or cancelled ones still to come.
-function publicEvent(row, userCount = 0, exceptions = []) {
+// the current occurrence: going or maybe), `rsvp_counts` ({ going (with a place), maybe,
+// declined, waitlisted }) and `waitlist` (user ids, first in line first) for it, and
+// `occurrences`, the changed or cancelled ones still to come.
+function publicEvent(row, stats = NO_RSVPS, exceptions = []) {
   return {
     id: row.id,
     guild_id: row.guild_id,
@@ -127,9 +140,12 @@ function publicEvent(row, userCount = 0, exceptions = []) {
     all_day: Boolean(row.all_day),
     emoji: row.emoji ?? null,
     color: row.color ?? null,
+    rsvp_limit: row.rsvp_limit ?? null,
     started_at: row.started_at,
     created_at: row.created_at,
-    user_count: userCount,
+    user_count: stats.count,
+    rsvp_counts: { going: stats.going, maybe: stats.maybe, declined: stats.declined, waitlisted: stats.waitlist.length },
+    waitlist: stats.waitlist,
   };
 }
 
@@ -150,39 +166,72 @@ async function exceptionMap(eventId) {
   return new Map(((await exceptionsFor([eventId])).get(eventId) ?? []).map((r) => [r.original_start, r]));
 }
 
-// SQL for who's interested in occurrences `pairs` ([[event id, original start]]; the original
-// is ignored for an event that doesn't repeat): a `who` table (event_id, user_id, created_at)
-// to select from, and its params. The series' people, but those not coming to that one, and
-// those coming to it alone.
+// SQL for who answered occurrences `pairs` ([[event id, original start]]; the original is
+// ignored for an event that doesn't repeat): a `who` table (event_id, user_id, rsvp,
+// created_at) to select from, and its params. Each person's answer to that date where they
+// gave one (even none: null, left out), else theirs to the series.
 function whoQuery(pairs) {
   return {
     cte: `WITH occ(event_id, original) AS (VALUES ${pairs.map(() => '(?, ?)').join(', ')}),
       who AS (
-        SELECT event_id, user_id, MIN(created_at) AS created_at FROM (
-          SELECT u.event_id, u.user_id, u.created_at FROM guild_event_users u JOIN occ ON occ.event_id = u.event_id
-           WHERE NOT EXISTS (SELECT 1 FROM guild_event_occurrence_users x WHERE x.event_id = u.event_id AND x.user_id = u.user_id
-             AND x.original_start = occ.original AND x.interested = 0)
-          UNION ALL
-          SELECT x.event_id, x.user_id, x.created_at FROM guild_event_occurrence_users x
-           JOIN occ ON occ.event_id = x.event_id AND x.original_start = occ.original WHERE x.interested = 1
-        ) GROUP BY event_id, user_id
+        SELECT u.event_id, u.user_id, u.rsvp, u.created_at FROM guild_event_users u JOIN occ ON occ.event_id = u.event_id
+         WHERE NOT EXISTS (SELECT 1 FROM guild_event_occurrence_users x WHERE x.event_id = u.event_id AND x.user_id = u.user_id
+           AND x.original_start = occ.original)
+        UNION ALL
+        SELECT x.event_id, x.user_id, x.rsvp, x.created_at FROM guild_event_occurrence_users x
+         JOIN occ ON occ.event_id = x.event_id AND x.original_start = occ.original WHERE x.rsvp IS NOT NULL
       )`,
     params: pairs.flatMap(([id, original]) => [id, original ?? -1]),
   };
 }
 
-// How many are interested in each event's current occurrence (rows), or in `original` of one.
-async function userCounts(events, original = undefined) {
-  if (!events.length) return new Map();
+const INTERESTED_SQL = "rsvp IN ('going', 'maybe')";
+
+// Everyone's answer to each event's current occurrence (rows), or to `original` of one: Map of
+// event id -> [{ user_id, rsvp, created_at }], in the order they gave it; going past the
+// event's `rsvp_limit` is 'waitlisted'.
+async function rsvpsOf(events, original = undefined) {
+  const map = new Map(events.map((e) => [e.id, []]));
+  if (!events.length) return map;
   const { cte, params } = whoQuery(events.map((e) => [e.id, original !== undefined ? original : e.occurrence_start]));
-  const rows = await db.all(`${cte} SELECT event_id, COUNT(*) AS count FROM who GROUP BY event_id`, params);
-  return new Map(rows.map((r) => [r.event_id, r.count]));
+  const rows = await db.all(`${cte} SELECT event_id, user_id, rsvp, created_at FROM who ORDER BY created_at, user_id`, params);
+  const limits = new Map(events.map((e) => [e.id, e.rsvp_limit ?? null]));
+  const going = new Map();
+  for (const row of rows) {
+    let { rsvp } = row;
+    if (rsvp === 'going') {
+      const n = (going.get(row.event_id) ?? 0) + 1;
+      going.set(row.event_id, n);
+      const limit = limits.get(row.event_id);
+      if (limit != null && n > limit) rsvp = 'waitlisted';
+    }
+    map.get(row.event_id)?.push({ user_id: row.user_id, rsvp, created_at: row.created_at });
+  }
+  return map;
+}
+
+// rsvpsOf's answers counted: { count (interested: going, waiting or maybe), going, maybe,
+// declined, waitlist (user ids, first in line first) }.
+function statsOf(list = []) {
+  const stats = { count: 0, going: 0, maybe: 0, declined: 0, waitlist: [] };
+  for (const { user_id: userId, rsvp } of list) {
+    if (rsvp === 'waitlisted') stats.waitlist.push(userId);
+    else stats[rsvp]++;
+    if (rsvp !== 'declined') stats.count++;
+  }
+  return stats;
+}
+
+// statsOf for each event's current occurrence (rows), or for `original` of one: Map by id.
+async function rsvpStats(events, original = undefined) {
+  const lists = await rsvpsOf(events, original);
+  return new Map(events.map((e) => [e.id, statsOf(lists.get(e.id))]));
 }
 
 async function loadPublic(id) {
   const row = await getEvent(id);
   if (!row) return null;
-  return publicEvent(row, (await userCounts([row])).get(row.id) ?? 0, (await exceptionsFor([row.id])).get(row.id));
+  return publicEvent(row, (await rsvpStats([row])).get(row.id), (await exceptionsFor([row.id])).get(row.id));
 }
 
 // The permissions that apply to `event` for `member`: its voice channel's (null if they can't
@@ -223,22 +272,28 @@ async function visibleFilter(member) {
     has(channelPermissions(member, member.userId, overrides.get(e.channel_id) ?? []), PERMISSIONS.VIEW_CHANNEL));
 }
 
-// How interested someone is in `event` (a row): `interested_all` in the series (`inSeries`),
-// `my_occurrences` { original start: interested } where an occurrence differs (`overrides`,
-// guild_event_occurrence_users rows), and `interested` in the current occurrence.
-function interestState(event, inSeries, overrides = []) {
+// Someone's answers to `event` (a row): `rsvp_all` to the series (`series`, or null),
+// `my_rsvps` { original start: rsvp or null } where an occurrence differs (`overrides`,
+// guild_event_occurrence_users rows), and `rsvp` to the current occurrence. With Discord's
+// interest in each (going or maybe; as before RSVPs, for older apps): `interested`,
+// `interested_all` and `my_occurrences`.
+function interestState(event, series, overrides = []) {
   const mine = {};
-  for (const o of overrides) if (o.original_start >= (event.occurrence_start ?? Infinity)) mine[o.original_start] = Boolean(o.interested);
+  for (const o of overrides) if (o.original_start >= (event.occurrence_start ?? Infinity)) mine[o.original_start] = o.rsvp ?? null;
   const current = event.occurrence_start;
+  const rsvp = current != null && current in mine ? mine[current] : series ?? null;
   return {
-    interested: current != null && current in mine ? mine[current] : inSeries,
-    interested_all: inSeries,
-    my_occurrences: mine,
+    rsvp,
+    rsvp_all: series ?? null,
+    my_rsvps: mine,
+    interested: isInterested(rsvp),
+    interested_all: isInterested(series),
+    my_occurrences: Object.fromEntries(Object.entries(mine).map(([k, v]) => [k, isInterested(v)])),
   };
 }
 
-// Whether that state (interestState) is interested in occurrence `original`.
-const interestedIn = (state, original) => (original != null && original in state.my_occurrences ? state.my_occurrences[original] : state.interested_all);
+// That state's (interestState) answer to occurrence `original`.
+const rsvpTo = (state, original) => (original != null && original in state.my_rsvps ? state.my_rsvps[original] : state.rsvp_all);
 
 // The events of the guild `member` can see, soonest first, each with their interestState.
 async function listEvents(member) {
@@ -247,29 +302,29 @@ async function listEvents(member) {
   const visible = rows.filter(await visibleFilter(member));
   const ids = visible.map((e) => e.id);
   if (!ids.length) return [];
-  const counts = await userCounts(visible);
+  const stats = await rsvpStats(visible);
   const exceptions = await exceptionsFor(ids);
   const marks = ids.map(() => '?').join(',');
-  const series = new Set((await db.all(
-    `SELECT event_id FROM guild_event_users WHERE user_id = ? AND event_id IN (${marks})`, [member.userId, ...ids]
-  )).map((r) => r.event_id));
+  const series = new Map((await db.all(
+    `SELECT event_id, rsvp FROM guild_event_users WHERE user_id = ? AND event_id IN (${marks})`, [member.userId, ...ids]
+  )).map((r) => [r.event_id, r.rsvp]));
   const overrides = await db.all(
-    `SELECT event_id, original_start, interested FROM guild_event_occurrence_users WHERE user_id = ? AND event_id IN (${marks})`,
+    `SELECT event_id, original_start, rsvp FROM guild_event_occurrence_users WHERE user_id = ? AND event_id IN (${marks})`,
     [member.userId, ...ids]
   );
   return visible.map((e) => ({
-    ...publicEvent(e, counts.get(e.id) ?? 0, exceptions.get(e.id)),
-    ...interestState(e, series.has(e.id), overrides.filter((o) => o.event_id === e.id)),
+    ...publicEvent(e, stats.get(e.id), exceptions.get(e.id)),
+    ...interestState(e, series.get(e.id), overrides.filter((o) => o.event_id === e.id)),
   }));
 }
 
 // `userId`'s interestState for `event` (a row).
 async function interestOf(event, userId) {
-  const inSeries = Boolean(await db.get('SELECT 1 AS yes FROM guild_event_users WHERE event_id = ? AND user_id = ?', [event.id, userId]));
+  const series = await db.get('SELECT rsvp FROM guild_event_users WHERE event_id = ? AND user_id = ?', [event.id, userId]);
   const overrides = await db.all(
-    'SELECT original_start, interested FROM guild_event_occurrence_users WHERE event_id = ? AND user_id = ?', [event.id, userId]
+    'SELECT original_start, rsvp FROM guild_event_occurrence_users WHERE event_id = ? AND user_id = ?', [event.id, userId]
   );
-  return interestState(event, inSeries, overrides);
+  return interestState(event, series?.rsvp ?? null, overrides);
 }
 
 // Who's interested in the current occurrence of `eventId`, or in `occurrence` (an original
@@ -279,7 +334,7 @@ async function interestedUsers(eventId, { limit = 100, after = null, before = nu
   const event = await getEvent(eventId);
   if (!event) return [];
   const { cte, params } = whoQuery([[event.id, occurrence !== undefined ? occurrence : event.occurrence_start]]);
-  const where = ['1'];
+  const where = [INTERESTED_SQL];
   if (after != null) {
     where.push('user_id > ?');
     params.push(after);
@@ -294,6 +349,16 @@ async function interestedUsers(eventId, { limit = 100, after = null, before = nu
     [...params, limit]
   );
   return rows.map((r) => ({ user_id: r.user_id, created_at: r.created_at })).sort((a, b) => a.user_id - b.user_id);
+}
+
+// Everyone's answer to the current occurrence of `eventId`, or to `occurrence` (an original
+// start): [{ user_id, rsvp: 'going' | 'waitlisted' | 'maybe' | 'declined' }], in the order
+// they gave it (the waitlist's order).
+async function eventRsvps(eventId, { occurrence = undefined } = {}) {
+  const event = await getEvent(eventId);
+  if (!event) return [];
+  const list = (await rsvpsOf([event], occurrence !== undefined ? occurrence : event.occurrence_start)).get(event.id);
+  return list.map((r) => ({ user_id: r.user_id, rsvp: r.rsvp }));
 }
 
 // ---- Occurrences ----
@@ -342,8 +407,8 @@ function neighbours(event, original, exceptions) {
 
 // One occurrence of `event` (a row) as asked for in a link or by the app: `occurrence` (its
 // original start) or `on` (its date, 'YYYY-MM-DD' in the event's time zone). Still to come:
-// { original_start, start_time, end_time, status, name, description, location, user_count }
-// with its own values; cancelled: { original_start, status: 'canceled' }; one that took place
+// { original_start, start_time, end_time, status, name, description, location, user_count,
+// rsvp_counts, waitlist } with its own values; cancelled: { original_start, status: 'canceled' }; one that took place
 // (from the history): that record; none on that date: null.
 async function occurrenceDetail(event, { occurrence = null, on = null } = {}) {
   if (!event.recurrence) return null;
@@ -372,9 +437,16 @@ async function occurrenceDetail(event, { occurrence = null, on = null } = {}) {
     name: exception?.name ?? null,
     description: exception?.description ?? null,
     location: exception?.location ?? null,
-    user_count: (await userCounts([event], original)).get(event.id) ?? 0,
+    ...countsOf((await rsvpStats([event], original)).get(event.id)),
   };
 }
+
+// statsOf's numbers as publicEvent sends them.
+const countsOf = (stats) => ({
+  user_count: stats.count,
+  rsvp_counts: { going: stats.going, maybe: stats.maybe, declined: stats.declined, waitlisted: stats.waitlist.length },
+  waitlist: stats.waitlist,
+});
 
 // ---- Telling people ----
 
@@ -400,15 +472,17 @@ async function broadcast(kind, event, before = null) {
   }
 }
 
-// Tells whoever sees `event` how interested `userId` is now (interestState; not at all by
-// default). `changed`: whether that changed who's interested in the current occurrence (bots
-// are only told then).
-async function broadcastInterest(event, userId, state = interestState(event, false), changed = true) {
-  const count = (await userCounts([event])).get(event.id) ?? 0;
+// Tells whoever sees `event` how `userId` answers now (interestState; no answer by default),
+// with the current occurrence's counts and waitlist. `changed`: whether that changed who's
+// interested in the current occurrence (bots are only told then).
+async function broadcastInterest(event, userId, state = interestState(event, null), changed = true) {
+  const counts = countsOf((await rsvpStats([event])).get(event.id));
   for (const viewer of await viewersOf(event)) {
     sendToUserSockets(viewer, {
       type: 'guild_event_interest', guildId: event.guild_id, eventId: event.id, userId,
-      interested: state.interested, interestedAll: state.interested_all, occurrences: state.my_occurrences, changed, userCount: count,
+      interested: state.interested, interestedAll: state.interested_all, occurrences: state.my_occurrences,
+      rsvp: state.rsvp, rsvpAll: state.rsvp_all, rsvps: state.my_rsvps,
+      changed, userCount: counts.user_count, rsvpCounts: counts.rsvp_counts, waitlist: counts.waitlist,
     });
   }
 }
@@ -500,7 +574,7 @@ function cleanImage(image) {
 }
 
 // The event as it would be after `input` ({ name, description, entityType, channelId, location,
-// startTime, endTime, image, recurrence, timezone, allDay, emoji, color }, each optional when
+// startTime, endTime, image, recurrence, timezone, allDay, emoji, color, rsvpLimit }, each optional when
 // `before` is given), checked; throws ActionError. `member` is who's doing it. An all-day event
 // runs from a midnight to a later one in `timezone` (the client works them out) and may start
 // on a day that has begun, as long as it hasn't ended.
@@ -527,6 +601,12 @@ async function checkedFields(member, input, before = null) {
     fields.color = input.color;
   }
   if (input.emoji !== undefined) fields.emoji = cleanEmoji(input.emoji);
+  if (input.rsvpLimit !== undefined) {
+    if (input.rsvpLimit !== null && !(Number.isInteger(input.rsvpLimit) && input.rsvpLimit >= 1 && input.rsvpLimit <= MAX_RSVP_LIMIT)) {
+      throw badRequest(`The limit is a number from 1 to ${MAX_RSVP_LIMIT}`);
+    }
+    fields.rsvp_limit = input.rsvpLimit;
+  }
   if (input.timezone !== undefined) {
     fields.timezone = input.timezone == null ? null : cleanTimeZone(input.timezone);
     if (input.timezone != null && !fields.timezone) throw badRequest('Unknown time zone');
@@ -603,13 +683,13 @@ async function insertEvent(guildId, creatorId, fields) {
   const repeating = Boolean(fields.recurrence);
   const { lastID } = await db.run(
     `INSERT INTO guild_events (guild_id, channel_id, creator_id, name, description, entity_type, location, start_time, end_time,
-       status, image, recurrence, timezone, occurrence_start, duration, created_at, updated_at, all_day, emoji, color)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       status, image, recurrence, timezone, occurrence_start, duration, created_at, updated_at, all_day, emoji, color, rsvp_limit)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [guildId, fields.channel_id ?? null, creatorId, fields.name, fields.description ?? null, fields.entity_type,
       fields.location ?? null, fields.start_time, fields.end_time ?? null, fields.image ?? null, fields.recurrence ?? null,
       repeating || fields.all_day ? fields.timezone : null, repeating ? fields.start_time : null,
       fields.end_time != null ? fields.end_time - fields.start_time : null, at, at,
-      fields.all_day ? 1 : 0, fields.emoji ?? null, fields.color ?? null]
+      fields.all_day ? 1 : 0, fields.emoji ?? null, fields.color ?? null, fields.rsvp_limit ?? null]
   );
   await linkImage(lastID, fields.image);
   return lastID;
@@ -617,13 +697,13 @@ async function insertEvent(guildId, creatorId, fields) {
 
 // ---- Actions ----
 
-// `member` schedules an event; resolves to it (publicEvent). Its creator is interested.
+// `member` schedules an event; resolves to it (publicEvent). Its creator is going.
 async function createEvent(member, input) {
   const fields = await checkedFields(member, input);
   await checkCanCreate(member, fields);
   const id = await db.transaction(async () => {
     const lastID = await insertEvent(member.guild.id, member.userId, fields);
-    await db.run('INSERT INTO guild_event_users (event_id, user_id, created_at) VALUES (?, ?, ?)', [lastID, member.userId, now()]);
+    await db.run("INSERT INTO guild_event_users (event_id, user_id, rsvp, created_at) VALUES (?, ?, 'going', ?)", [lastID, member.userId, now()]);
     await logAudit({
       guildId: member.guild.id, actorId: member.userId, action: 'event_create', targetType: 'event', targetId: lastID,
       channelId: fields.channel_id ?? null, details: { name: fields.name },
@@ -655,7 +735,7 @@ async function dropOccurrences(eventId, from = -Infinity) {
 async function auditChanges(before, after) {
   const changes = diff(before, {
     name: after.name, description: after.description, location: after.location, start_time: after.start_time, end_time: after.end_time,
-    all_day: after.all_day, emoji: after.emoji, color: after.color,
+    all_day: after.all_day, emoji: after.emoji, color: after.color, rsvp_limit: after.rsvp_limit ?? null,
   });
   if ((after.channel_id ?? null) !== (before.channel_id ?? null)) {
     const nameOf = async (id) => (id == null ? null : (await db.get('SELECT name FROM guild_channels WHERE id = ?', [id]))?.name ?? null);
@@ -684,12 +764,13 @@ async function updateEvent(member, eventId, input, { from = null } = {}) {
   await db.transaction(async () => {
     await db.run(
       `UPDATE guild_events SET name = ?, description = ?, entity_type = ?, channel_id = ?, location = ?, start_time = ?, end_time = ?,
-         image = ?, recurrence = ?, timezone = ?, occurrence_start = ?, duration = ?, all_day = ?, emoji = ?, color = ?, updated_at = ?,
-         revision = revision + ?
+         image = ?, recurrence = ?, timezone = ?, occurrence_start = ?, duration = ?, all_day = ?, emoji = ?, color = ?, rsvp_limit = ?,
+         updated_at = ?, revision = revision + ?
        WHERE id = ?`,
       [after.name, after.description ?? null, after.entity_type, after.channel_id ?? null, after.location ?? null, after.start_time,
         after.end_time ?? null, after.image ?? null, after.recurrence ?? null, repeating || after.all_day ? after.timezone : null,
-        occurrenceStart, duration, after.all_day ? 1 : 0, after.emoji ?? null, after.color ?? null, now(), retimed ? 1 : 0, before.id]
+        occurrenceStart, duration, after.all_day ? 1 : 0, after.emoji ?? null, after.color ?? null, after.rsvp_limit ?? null, now(),
+        retimed ? 1 : 0, before.id]
     );
     if (retimed) await dropOccurrences(before.id);
     await linkImage(before.id, after.image);
@@ -708,8 +789,8 @@ async function updateEvent(member, eventId, input, { from = null } = {}) {
 
 // "This and following": the series `before` (a row) ends before occurrence `from`, and a new
 // series, edited by `input`, takes over from there (its first occurrence is `from`'s, or where
-// the edit moves it). Who's interested in the series is interested in the new one; occurrences'
-// own changes and interest move with it unless its times or rule changed. Resolves to the new
+// the edit moves it). Answers to the series are answers to the new one; occurrences' own
+// changes and answers move with it unless its times or rule changed. Resolves to the new
 // series.
 async function splitEvent(member, before, input, from) {
   checkOriginal(before, from);
@@ -728,7 +809,7 @@ async function splitEvent(member, before, input, from) {
   const id = await db.transaction(async () => {
     const newId = await insertEvent(before.guild_id, before.creator_id, after);
     await db.run(
-      'INSERT INTO guild_event_users (event_id, user_id, created_at) SELECT ?, user_id, created_at FROM guild_event_users WHERE event_id = ?',
+      'INSERT INTO guild_event_users (event_id, user_id, rsvp, created_at) SELECT ?, user_id, rsvp, created_at FROM guild_event_users WHERE event_id = ?',
       [newId, before.id]
     );
     // `from`'s own changes are the new series' values now.
@@ -896,21 +977,30 @@ async function moveOccurrence(member, eventId, { occurrence = null, startTime, e
   return updated;
 }
 
-// `member` is (or isn't) interested in the event: the whole series (`occurrence` null), or one
-// occurrence ('current', or an original start; the same thing for one that doesn't repeat).
-// Interest in the series replaces any in single occurrences. Resolves to their interestState,
-// with `interested` for the occurrence asked about.
-async function setInterest(member, eventId, interested, { occurrence = null } = {}) {
+// `member` answers the event (`rsvp`: 'going', 'maybe', 'declined', or null to take theirs
+// back): the whole series (`occurrence` null), or one occurrence ('current', or an original
+// start; the same thing for one that doesn't repeat). An answer to the series replaces any to
+// single occurrences. Saying going again (after something else) goes to the back of a
+// waitlist. Resolves to their interestState, with `rsvp` and `interested` for the occurrence
+// asked about.
+async function setRsvp(member, eventId, rsvp, { occurrence = null } = {}) {
+  if (rsvp !== null && !RSVPS.includes(rsvp)) throw badRequest('Answer going, maybe or not going');
   const access = await eventAccess(eventId, member.userId);
   if (!access) throw notFound();
   const { event } = access;
   const { userId } = member;
   const before = await interestOf(event, userId);
   const original = event.occurrence_start == null ? null : occurrence === 'current' ? event.occurrence_start : occurrence;
+  // A changed answer is a new one (its place in the waitlist); the same one keeps its time.
+  const upsertTime = 'created_at = CASE WHEN rsvp IS excluded.rsvp THEN created_at ELSE excluded.created_at END';
   if (original == null) {
     await db.transaction(async () => {
-      if (interested) {
-        await db.run('INSERT OR IGNORE INTO guild_event_users (event_id, user_id, created_at) VALUES (?, ?, ?)', [event.id, userId, now()]);
+      if (rsvp) {
+        await db.run(
+          `INSERT INTO guild_event_users (event_id, user_id, rsvp, created_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT (event_id, user_id) DO UPDATE SET ${upsertTime}, rsvp = excluded.rsvp`,
+          [event.id, userId, rsvp, now()]
+        );
       } else {
         await db.run('DELETE FROM guild_event_users WHERE event_id = ? AND user_id = ?', [event.id, userId]);
       }
@@ -922,21 +1012,27 @@ async function setInterest(member, eventId, interested, { occurrence = null } = 
       "SELECT 1 AS yes FROM guild_event_occurrences WHERE event_id = ? AND original_start = ? AND status = 'canceled'", [event.id, original]
     );
     if (cancelled) throw badRequest('That occurrence was cancelled');
-    if (interested === before.interested_all) {
+    if (rsvp === before.rsvp_all) {
       await db.run('DELETE FROM guild_event_occurrence_users WHERE event_id = ? AND user_id = ? AND original_start = ?', [event.id, userId, original]);
     } else {
       await db.run(
-        `INSERT INTO guild_event_occurrence_users (event_id, user_id, original_start, interested, created_at) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (event_id, user_id, original_start) DO UPDATE SET interested = excluded.interested`,
-        [event.id, userId, original, interested ? 1 : 0, now()]
+        `INSERT INTO guild_event_occurrence_users (event_id, user_id, original_start, interested, rsvp, created_at) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (event_id, user_id, original_start) DO UPDATE SET ${upsertTime}, interested = excluded.interested, rsvp = excluded.rsvp`,
+        [event.id, userId, original, isInterested(rsvp) ? 1 : 0, rsvp, now()]
       );
     }
   }
   const after = await interestOf(event, userId);
-  const unchanged = after.interested === before.interested && after.interested_all === before.interested_all &&
-    JSON.stringify(after.my_occurrences) === JSON.stringify(before.my_occurrences);
+  const unchanged = after.rsvp === before.rsvp && after.rsvp_all === before.rsvp_all &&
+    JSON.stringify(after.my_rsvps) === JSON.stringify(before.my_rsvps);
   if (!unchanged) await broadcastInterest(event, userId, after, after.interested !== before.interested);
-  return { ...after, interested: original == null ? after.interested : interestedIn(after, original) };
+  const asked = original == null ? after.rsvp : rsvpTo(after, original);
+  return { ...after, rsvp: asked, interested: isInterested(asked) };
+}
+
+// Discord's Interested (as before RSVPs, for older apps): going, or no answer.
+function setInterest(member, eventId, interested, options = {}) {
+  return setRsvp(member, eventId, interested ? 'going' : null, options);
 }
 
 // ---- Moving through the lifecycle ----
@@ -1048,12 +1144,13 @@ function publicHistory(row) {
 }
 
 // Keeps what `event`'s current occurrence was as it ends (its own name and place, when it
-// started and ended, how many were interested), and forgets those over a year old.
+// started and ended, how many were interested: going or maybe), and forgets those over a year
+// old.
 async function recordHistory(event) {
   const own = event.occurrence_start != null
     ? await db.get(`SELECT ${EXCEPTION_COLUMNS} FROM guild_event_occurrences WHERE event_id = ? AND original_start = ?`, [event.id, event.occurrence_start])
     : null;
-  const count = (await userCounts([event])).get(event.id) ?? 0;
+  const { count } = (await rsvpStats([event])).get(event.id);
   const at = now();
   // Where it sits on the calendar: its dates all day; else from when it started (Start may be
   // early) to its end, or now if it ended sooner or had none.
@@ -1223,6 +1320,7 @@ module.exports = {
   MAX_LOCATION,
   MAX_EVENTS_PER_GUILD,
   MAX_EXCEPTIONS,
+  MAX_RSVP_LIMIT,
   UNATTENDED_SECONDS,
   EMPTY_SECONDS,
   getEvent,
@@ -1234,6 +1332,7 @@ module.exports = {
   listHistory,
   occurrenceDetail,
   interestedUsers,
+  eventRsvps,
   interestOf,
   broadcastInterest,
   createEvent,
@@ -1244,6 +1343,7 @@ module.exports = {
   cancelFollowing,
   skipOccurrence,
   moveOccurrence,
+  setRsvp,
   setInterest,
   deleteChannelEvents,
   deleteGuildEvents,

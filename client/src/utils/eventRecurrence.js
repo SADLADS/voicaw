@@ -243,26 +243,27 @@ export function upcomingOccurrences(event, count, years = 5) {
   return found.slice(0, count);
 }
 
-// Whether you're interested in occurrence `original` of `event` (your `my_occurrences` where
-// one differs from the series, else `interested_all`; the current one's is `interested`).
-export function interestedIn(event, original) {
-  if (!event.recurrence || original == null) return Boolean(event.interested);
-  const mine = event.my_occurrences ?? {};
-  if (original in mine) return Boolean(mine[original]);
-  if (original === event.occurrence_start) return Boolean(event.interested);
-  return Boolean(event.interested_all);
+// Your answer to occurrence `original` of `event` (your `my_rsvps` where one differs from the
+// series, else `rsvp_all`; the current one's is `rsvp`): 'going', 'maybe', 'declined' or null.
+export function rsvpTo(event, original) {
+  if (!event.recurrence || original == null) return event.rsvp ?? null;
+  const mine = event.my_rsvps ?? {};
+  if (original in mine) return mine[original];
+  if (original === event.occurrence_start) return event.rsvp ?? null;
+  return event.rsvp_all ?? null;
 }
 
 // One occurrence of `event` (its original start; the current one by default) as an event of
 // its own, for cards and the event's page: its own times, name, description and place,
 // `original_start`, `current` (the series' current occurrence), its status (later ones are
-// scheduled), whether you're `interested` in it, and `user_count` (null when only the server
-// knows: ask for that occurrence).
+// scheduled), your `rsvp` to it (and whether that's `interested`), and `user_count`,
+// `rsvp_counts` and `waitlist` (null when only the server knows: ask for that occurrence).
 export function occurrenceView(event, original = event.occurrence_start ?? null) {
   if (!event.recurrence || original == null) return { ...event, original_start: null, current: true };
   const current = original === event.occurrence_start;
   const own = (event.occurrences ?? []).find((o) => o.original_start === original) ?? null;
   const moved = own?.start_time != null;
+  const rsvp = rsvpTo(event, original);
   return {
     ...event,
     start_time: current ? event.start_time : moved ? own.start_time : original,
@@ -273,11 +274,14 @@ export function occurrenceView(event, original = event.occurrence_start ?? null)
     status: current ? event.status : 'scheduled',
     original_start: original,
     current,
-    interested: interestedIn(event, original),
+    rsvp,
+    interested: rsvp === 'going' || rsvp === 'maybe',
     user_count: current ? event.user_count : null,
+    rsvp_counts: current ? event.rsvp_counts : null,
+    waitlist: current ? event.waitlist : null,
   };
 }
 
 // An occurrence that took place (the server's history: like an event, status 'completed') as
-// occurrenceView's: not current, nobody's interest.
-export const pastView = (record) => ({ ...record, current: false, past: true, interested: false, occurrences: [] });
+// occurrenceView's: not current, nobody's answer (only how many were interested is kept).
+export const pastView = (record) => ({ ...record, current: false, past: true, rsvp: null, interested: false, occurrences: [] });

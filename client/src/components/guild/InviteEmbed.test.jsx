@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { LayoutContext } from '../../contexts';
 import UrlPreviews from '../UrlPreviews';
-import { acceptInvite, fetchEvent, fetchInvitePreview } from '../../services/guildService';
+import { acceptInvite, fetchEvent, fetchInvitePreview, setEventRsvp } from '../../services/guildService';
 import { setPrivacyPref } from '../../utils/privacy';
 
 vi.mock('../../services/guildService', () => ({
@@ -13,7 +13,7 @@ vi.mock('../../services/guildService', () => ({
   invitePreviewRequested: vi.fn(() => false),
   acceptInvite: vi.fn(),
   fetchEvent: vi.fn(),
-  setEventInterest: vi.fn(),
+  setEventRsvp: vi.fn(async () => ({})),
 }));
 vi.mock('../../utils/ws-client', () => ({ onGuildEvent: () => () => {} }));
 
@@ -116,6 +116,14 @@ describe('event embeds', () => {
     expect(fetchEvent).toHaveBeenCalledWith(34, { on: null });
     fireEvent.click(screen.getByRole('button', { name: 'View' }));
     expect(await screen.findByText('guild page')).toBeInTheDocument();
+  });
+
+  it('takes an RSVP from the card', async () => {
+    renderPreviews({ text: EVENT_LINK, encrypted: false });
+    fireEvent.click(await screen.findByRole('button', { name: 'RSVP' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Maybe' }));
+    expect(setEventRsvp).toHaveBeenCalledWith(34, 'maybe', { occurrence: null });
+    expect(screen.getByRole('button', { name: 'RSVP: Maybe' })).toBeInTheDocument();
   });
 
   it('asks the server only once tapped with Settings → Privacy turned off', async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { describeRepeat, interestedIn, repeatChoices, repeatKey, ruleFor, weekdayOf } from './eventRecurrence';
+import { describeRepeat, repeatChoices, repeatKey, rsvpTo, ruleFor, weekdayOf } from './eventRecurrence';
 import { eventFromUrl } from './inviteLinks';
-import { fromInputs, interestAfter, interestChoices, interestContinued, interestKept, toInputs } from './eventDisplay';
+import { fromInputs, rsvpAfter, rsvpContinued, rsvpKept, rsvpSummary, toInputs } from './eventDisplay';
 
 describe('repeating events', () => {
   // Tuesday 20 October 2026, 20:00 on this machine: the third Tuesday.
@@ -55,44 +55,45 @@ describe('event links and times', () => {
   });
 });
 
-describe('interest in occurrences', () => {
+describe('RSVPs to occurrences', () => {
   const rule = { frequency: 2, interval: 1, by_weekday: [1] };
-  const series = { id: 1, recurrence: rule, occurrence_start: 100, interested: true, interested_all: true, my_occurrences: {}, revision: 0 };
+  const series = { id: 1, recurrence: rule, occurrence_start: 100, rsvp: 'going', rsvp_all: 'going', my_rsvps: {}, revision: 0 };
 
-  it('offers this one or all of them, for the occurrence shown', () => {
-    expect(interestChoices({ ...series, original_start: 200, interested: false })).toEqual([
-      { key: 'thisAdd', interested: true, occurrence: 200 },
-      { key: 'allRemove', interested: false, occurrence: null },
-    ]);
-  });
-
-  it('works out the choice as the server does', () => {
-    const notSecond = interestAfter(series, { interested: false, occurrence: 200 });
-    expect(notSecond).toEqual({ interested: true, interested_all: true, my_occurrences: { 200: false } });
-    const notNow = interestAfter({ ...series, ...notSecond }, { interested: false, occurrence: 100 });
-    expect(notNow).toEqual({ interested: false, interested_all: true, my_occurrences: { 200: false, 100: false } });
+  it('works out an RSVP as the server does', () => {
+    const notSecond = rsvpAfter(series, { rsvp: 'declined', occurrence: 200 });
+    expect(notSecond).toEqual({ rsvp: 'going', rsvp_all: 'going', my_rsvps: { 200: 'declined' }, interested: true });
+    const noneNow = rsvpAfter({ ...series, ...notSecond }, { rsvp: null, occurrence: 100 });
+    expect(noneNow).toEqual({ rsvp: null, rsvp_all: 'going', my_rsvps: { 200: 'declined', 100: null }, interested: false });
     // Back as the series is: no single one left for it. All of them replaces them all.
-    expect(interestAfter({ ...series, ...notNow }, { interested: true, occurrence: 200 }).my_occurrences).toEqual({ 100: false });
-    expect(interestAfter({ ...series, ...notNow }, { interested: true, occurrence: null })).toEqual({ interested: true, interested_all: true, my_occurrences: {} });
-    // One that doesn't repeat is a plain toggle.
-    expect(interestAfter({ id: 2, recurrence: null }, { interested: true, occurrence: null })).toEqual({ interested: true, interested_all: true, my_occurrences: {} });
+    expect(rsvpAfter({ ...series, ...noneNow }, { rsvp: 'going', occurrence: 200 }).my_rsvps).toEqual({ 100: null });
+    expect(rsvpAfter({ ...series, ...noneNow }, { rsvp: 'maybe', occurrence: null })).toEqual({ rsvp: 'maybe', rsvp_all: 'maybe', my_rsvps: {}, interested: true });
+    // One that doesn't repeat has one answer.
+    expect(rsvpAfter({ id: 2, recurrence: null }, { rsvp: 'declined', occurrence: null })).toEqual({ rsvp: 'declined', rsvp_all: 'declined', my_rsvps: {}, interested: false });
   });
 
-  it('keeps single ones still to come when the series is sent again, unless it was edited anew', () => {
-    const before = { ...series, my_occurrences: { 100: false, 200: true } };
-    expect(interestKept(before, { ...series, occurrence_start: 200 })).toEqual({ interested: true, interested_all: true, my_occurrences: { 200: true } });
-    expect(interestKept(before, { ...series, revision: 1 })).toEqual({ interested: true, interested_all: true, my_occurrences: {} });
-    expect(interestKept(null, { ...series, creator_id: 5 }, 5)).toEqual({ interested: true, interested_all: true, my_occurrences: {} });
+  it('keeps single answers still to come when the series is sent again, unless it was edited anew', () => {
+    const before = { ...series, my_rsvps: { 100: null, 200: 'maybe' } };
+    expect(rsvpKept(before, { ...series, occurrence_start: 200 })).toEqual({ rsvp: 'maybe', rsvp_all: 'going', my_rsvps: { 200: 'maybe' }, interested: true });
+    expect(rsvpKept(before, { ...series, revision: 1 })).toEqual({ rsvp: 'going', rsvp_all: 'going', my_rsvps: {}, interested: true });
+    expect(rsvpKept(null, { ...series, creator_id: 5 }, 5)).toEqual({ rsvp: 'going', rsvp_all: 'going', my_rsvps: {}, interested: true });
+    expect(rsvpKept(null, { ...series, creator_id: 5 }, 6)).toEqual({ rsvp: null, rsvp_all: null, my_rsvps: {}, interested: false });
   });
 
-  it('carries interest over to the event "this and following" made', () => {
-    const old = { ...series, interested_all: false, until: 300, my_occurrences: { 300: true, 400: false } };
-    expect(interestContinued(old, { ...series, occurrence_start: 300 })).toEqual({ interested: true, interested_all: false, my_occurrences: { 300: true, 400: false } });
-    expect(interestContinued(old, { ...series, occurrence_start: 310 })).toEqual({ interested: false, interested_all: false, my_occurrences: {} });
+  it('carries answers over to the event "this and following" made', () => {
+    const old = { ...series, rsvp_all: null, until: 300, my_rsvps: { 300: 'going', 400: 'declined' } };
+    expect(rsvpContinued(old, { ...series, occurrence_start: 300 })).toEqual({ rsvp: 'going', rsvp_all: null, my_rsvps: { 300: 'going', 400: 'declined' }, interested: true });
+    expect(rsvpContinued(old, { ...series, occurrence_start: 310 })).toEqual({ rsvp: null, rsvp_all: null, my_rsvps: {}, interested: false });
   });
 
-  it('knows your interest in any occurrence', () => {
-    const mine = { ...series, interested_all: false, interested: false, my_occurrences: { 200: true } };
-    expect([interestedIn(mine, 100), interestedIn(mine, 200), interestedIn(mine, 300)]).toEqual([false, true, false]);
+  it('knows your answer to any occurrence', () => {
+    const mine = { ...series, rsvp_all: 'maybe', rsvp: 'maybe', my_rsvps: { 200: 'declined', 300: null } };
+    expect([rsvpTo(mine, 100), rsvpTo(mine, 200), rsvpTo(mine, 300), rsvpTo(mine, 400)]).toEqual(['maybe', 'declined', null, 'maybe']);
+  });
+
+  it('says how many answered', () => {
+    expect(rsvpSummary({ user_count: 3, rsvp_counts: { going: 2, maybe: 1, declined: 4, waitlisted: 0 } })).toBe('2 going · 1 maybe');
+    expect(rsvpSummary({ rsvp_limit: 2, rsvp_counts: { going: 2, maybe: 0, declined: 0, waitlisted: 3 } })).toBe('2 of 2 going · 3 on the waitlist');
+    // What took place keeps only how many were interested.
+    expect(rsvpSummary({ user_count: 5 })).toBe('5 interested');
   });
 });

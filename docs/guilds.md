@@ -529,7 +529,7 @@ Not end-to-end encrypted, like the rest of a guild.
   events, left out of lists), one somewhere else every member.
 - **Permissions**: Create Events makes events (in a voice channel also needs Connect there; both
   are channel permissions too, in voice channels' overrides, as in Discord) and lets you edit,
-  start, end and cancel your own; Manage Events does it to anyone's (`canManage`). Interested:
+  start, end and cancel your own; Manage Events does it to anyone's (`canManage`). RSVPs:
   anyone who can see it. At most 100 events per guild; starts at most five years ahead.
 - **Lifecycle** (`server/guildEvents.js`, sweep every 15 s, `startEventTimers`): scheduled ->
   active -> completed, or cancelled. Every event starts on its own at its time (unlike Discord,
@@ -541,8 +541,8 @@ Not end-to-end encrypted, like the rest of a guild.
   occurrence whose end went by before it could start (the server was down) just ends. Only
   scheduled and active events are kept: one that ends
   or is cancelled is deleted (people are sent it with status `completed` / `canceled` first), a
-  repeating one moves on to its next occurrence still to come, keeping who's interested in the
-  series (see Interested).
+  repeating one moves on to its next occurrence still to come, keeping the answers to the
+  series (see RSVPs).
 - **History** (built 2026-10-21): an occurrence that took place (it was on: started by its time
   or by hand, then ended) is kept in `guild_event_history` as it was (name, description, place,
   times, emoji, colour, how many were interested; `recordHistory`), a year, whatever becomes of
@@ -571,8 +571,8 @@ Not end-to-end encrypted, like the rest of a guild.
   following** (`PATCH /guild-events/:id?from=<original start>`, `DELETE ...?from=`), or **all
   events** (as before). "This and following" from a later date ends the series there (`until`,
   sent to bots as the rule's `end`) and makes a new event from then on (`splitEvent`, the same
-  creator; `continued_as` on the old one): the series' interested people carry over, and so do
-  later dates' own changes and interest unless its times or rule changed. Once the old one has no
+  creator; `continued_as` on the old one): answers to the series carry over, and so do
+  later dates' own changes and answers unless its times or rule changed. Once the old one has no
   dates left it's deleted, and `guild_event_redirects` sends its id to the new one (old links
   still open). From the current date, "this and following" is all of it. Editing every date with
   a new start, rule or time zone re-anchors the series and drops single dates' changes and
@@ -593,37 +593,57 @@ Not end-to-end encrypted, like the rest of a guild.
   `color` (0xRRGGBB, the role swatches or any) tints its chip, dot and day-list entry on the
   calendar (`--event-color`). The editor has All day under the topic (dates only), and Emoji
   (the emoji picker) and Colour after the cover; the audit log shows changes to all three.
-- **Interested**: its creator is, at once. Interested people get a push when it starts (`type:
-  'event'`, the occurrence's name, "Starting now · place (Guild)", url `/guild/<g>/<voice
-  channel>?event=<id>` (and `&on=<date>` for a repeating one), tag `event-<id>`), unless their
-  notification level for the guild is 'none', and never the one who started it. Leaving the
-  guild (or deleting your account) drops your interest.
-  On a repeating event (built 2026-10-20, as Discord's; any date since 2026-10-21), Interested
-  opens a menu (`events/InterestButton.jsx`, `interestChoices`): this event (the occurrence
-  shown) or all of them, each added or taken away. `guild_event_users` is interest in the
-  series; `guild_event_occurrence_users` is a date where yours differs (`interested` 1: that one
-  alone, 0: all but it). Interest in all of them replaces any single ones; single ones go once
-  their date has (and when the series is edited anew). Events carry `interested` (yours, the
-  current occurrence), `interested_all` and `my_occurrences` ({ original start: interested });
-  `user_count`, the start push and bots' user list are for the current occurrence (`whoQuery`),
-  and `GET /guild-events/:id?occurrence=<original start>` and `.../users?occurrence=` give
-  another's. The client mirrors the server (`interestAfter`, `interestKept`, and
-  `interestContinued` for an event "this and following" made).
+- **RSVPs** (built 2026-10-27, as Guilded's; they replaced Discord's Interested): each person
+  answers **Going**, **Maybe** or **Can't go** (`rsvp` 'going' / 'maybe' / 'declined'), or
+  nothing; its creator is going, at once. Discord's Interested is going or maybe: that's
+  `user_count`, bots' user list and gateway events (`GUILD_SCHEDULED_EVENT_USER_ADD` when
+  someone starts going or maybe), the history's count, and who gets a push when it starts
+  (`type: 'event'`, the occurrence's name, "Starting now · place (Guild)", url
+  `/guild/<g>/<voice channel>?event=<id>` (and `&on=<date>` for a repeating one), tag
+  `event-<id>`), unless their notification level for the guild is 'none', and never the one who
+  started it. Leaving the guild (or deleting your account) drops your answers. Everyone who can
+  see the event sees who answered what (the page's RSVPs tab, `GET /guild-events/:id/rsvps`).
+  **Limits**: an event may cap how many go (`rsvp_limit`, 1–1000, the editor's "Limit how many
+  can go"; per occurrence of a repeating one; the app's own, so bots neither see nor set it).
+  Past it, those going are its **waitlist**, worked out when read, not stored: everyone going in
+  the order they said so (`created_at`, which a changed answer renews, so saying going again
+  goes to the back; the same second goes by user id), the first `rsvp_limit` going, the rest
+  waiting (shown "Waitlisted"), so someone stepping down lets the next in at once (nobody is
+  told yet), and a bigger limit lets more in. Waiting still counts as interested.
+  On a repeating event (as Discord's interest was since 2026-10-20) RSVP opens a menu
+  (`events/RsvpButton.jsx`): this event (the occurrence shown) or all events, each a submenu of
+  the answers and Remove my RSVP. `guild_event_users` is your answer to the series (its `rsvp`;
+  rows from before RSVPs are going); `guild_event_occurrence_users` is a date where yours
+  differs (`rsvp`, null: no answer that date; `interested` mirrors going or maybe; migration 21
+  turned older rows' 1s into going). An answer to all of them replaces any single ones; single
+  ones go once their date has (and when the series is edited anew). Events carry yours, `rsvp`
+  (the current occurrence), `rsvp_all` and `my_rsvps` ({ original start: rsvp }), plus, as
+  Discord's interest for older apps (the desktop and Android apps carry their own copy of the
+  client), `interested`, `interested_all` and `my_occurrences`; and everyone's for the current
+  occurrence: `user_count`, `rsvp_counts` ({ going (with a place), maybe, declined, waitlisted
+  }) and `waitlist` (user ids, first in line first). `GET /guild-events/:id?occurrence=<original
+  start>` gives another date's counts, `.../rsvps?occurrence=` its answers. The client mirrors
+  the server (`rsvpAfter`, `rsvpKept`, and `rsvpContinued` for an event "this and following"
+  made; `utils/eventDisplay.js`).
 - **Server** (`guildEvents.js` has the actions, shared with the bot API, throwing `ActionError`;
   `routes/guildEvents.js`; tables `guild_events`, `guild_event_users`, `guild_event_occurrences`,
   `guild_event_occurrence_users`, `guild_event_history`, `guild_event_redirects`; migration 17
-  moved the old per-occurrence interest columns into them): `GET/POST /guilds/:id/events` (each
-  with `interested`, `interested_all`, `my_occurrences`, `user_count` and `occurrences`), `GET
+  moved the old per-occurrence interest columns into them, 21 gave them RSVPs): `GET/POST
+  /guilds/:id/events` (each with your answers, the counts (see RSVPs) and `occurrences`), `GET
   /guilds/:id/event-history`, `GET/PATCH/DELETE /guild-events/:id` (GET with `?occurrence=` or
-  `?on=` adds that `occurrence`: still to come with its own values and count, `{ status:
+  `?on=` adds that `occurrence`: still to come with its own values and counts, `{ status:
   'canceled' }`, the history's record if it took place, or null; PATCH and DELETE take `?from=`),
   `POST /guild-events/:id/start`, `/end`, `/skip { occurrence? }`, `PUT
   /guild-events/:id/occurrence { occurrence?, startTime, endTime?, name?, description?,
-  location? }`, `PUT/DELETE /guild-events/:id/interest` (`?occurrence=<original start>`, or `1`
-  for the current one; answers `{ interested, interested_all, my_occurrences }`), `GET
-  /guild-events/:id/users` (user ids). Events go to whoever can see the event
-  (`guild_event_create` / `_update` / `_delete`, `guild_event_interest` with `interested`,
-  `interestedAll`, `occurrences`, `changed` and `userCount`); moving one to a channel someone
+  location? }`, `PUT /guild-events/:id/rsvp { rsvp: 'going' | 'maybe' | 'declined' | null,
+  occurrence? }` (an original start, or `1` for the current one; answers with your answers),
+  `GET /guild-events/:id/rsvps` (`?occurrence=`; [{ user_id, rsvp: 'going' | 'waitlisted' |
+  'maybe' | 'declined' }] in the order given), and as before RSVPs, for older apps, `PUT/DELETE
+  /guild-events/:id/interest` (going / no answer) and `GET /guild-events/:id/users` (the
+  interested's user ids). Events go to whoever can see the event (`guild_event_create` /
+  `_update` / `_delete`, `guild_event_interest` with `rsvp`, `rsvpAll`, `rsvps`, the same as
+  interest (`interested`, `interestedAll`, `occurrences`), `changed`, `userCount`, `rsvpCounts`
+  and `waitlist`); moving one to a channel someone
   can't see is a delete for them. Audit log: `event_create`, `event_update` (changes, the
   channel by name, cover and repeat notes: `split` for "this and following", `shortened` for
   cancelling them), `event_delete`.
@@ -637,17 +657,18 @@ Not end-to-end encrypted, like the rest of a guild.
   you may hold one in). `events/EventsDialog.jsx`: one dialog, the same size whatever it shows
   (900 × 700 at most), with three tabs, Month (first), Week and Events (the tab, month and day are kept in `GuildSidebar`
   while the editor is open; it always opens on the calendar, on today), and the list (`EventCard`: cover, when and "Starts
-  in 3 hours" / "Happening now", repeat, place, interested count, Interested, Start/End, the
+  in 3 hours" / "Happening now", repeat, place, "3 of 10 going · 1 maybe · 2 on the waitlist"
+  (`rsvpSummary`), RSVP, Start/End, the
   menu: edit, copy link, cancel) and one occurrence (`occurrenceView`: its own date, name and
   place; info, a repeating one's next five dates to switch between (`NextDates`), and an
-  Interested tab with who; one that took place (`pastView`) is greyed, "Ended", with how many
-  were interested and a button to the next date). On a repeating event Edit and Cancel ask
+  RSVPs tab with who answered what (going, the waitlist in order, maybe, can't go); one that
+  took place (`pastView`) is greyed, "Ended", with how many were interested and a button to the next date). On a repeating event Edit and Cancel ask
   which dates (`events/ScopeDialog.jsx`: this event, this and following, all), and Copy Link is
   two: to this date, to the series. `events/EventEditor.jsx` (`scope`): this event alone is a
   short form (`OccurrenceEditor`: times, topic, place somewhere else, description); this and
   following is the whole editor starting from that date's values. Its three steps are Discord's (where: a voice
   channel you may hold one in, or somewhere else; info: topic, start, end, repeats from
-  `repeatChoices` of the start day, description, cover; review: the card); the steps along the
+  `repeatChoices` of the start day, description, Limit how many can go, cover; review: the card); the steps along the
   top are buttons, going to that step like Next (stopping at an earlier one with something
   missing). `?event=<id>` (and `&on=<date>`) on a
   guild URL opens it (links, notifications; `eventLink`, kept through the redirect to the last
@@ -686,8 +707,9 @@ Not end-to-end encrypted, like the rest of a guild.
   next whole hour if that's sooner than the editor allows), for those who may make events. A
   red line marks now on today. On a phone the columns are about 43 px: the blocks show the
   emoji and the start of the name, no times.
-- **Not done yet**: a day view, events spanning days drawn as one bar across them (they're a bar on each day), calendar channels, RSVP
-  beyond Interested (Going / Maybe / Can't, limits), reminders before an event, a single date's
+- **Not done yet**: a day view, events spanning days drawn as one bar across them (they're a bar on each day), calendar channels, telling
+  someone they've come off the waitlist, inviting people to an event (Guilded's Invited),
+  reminders before an event, a single date's
   own cover, channel, emoji or colour (only its times, topic, description and place), bots
   seeing single dates (Discord's exceptions API), event invite links that also invite into the
   guild, and stage channels.

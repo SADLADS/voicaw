@@ -37,16 +37,40 @@
       }
     },
     "actions": {
-      "interested": "Interested",
       "start": "Start",
       "end": "End event",
       "more": "More"
     },
-    "interest": {
-      "thisAdd": "Interested in this event",
-      "allAdd": "Interested in all events",
-      "thisRemove": "Not interested in this event",
-      "allRemove": "Not interested in any of them"
+    "rsvp": {
+      "button": "RSVP",
+      "going": "Going",
+      "maybe": "Maybe",
+      "declined": "Can't go",
+      "waitlisted": "Waitlisted",
+      "clear": "Remove my RSVP",
+      "yours": "RSVP: {{answer}}",
+      "thisDate": "This event ({{date}})",
+      "allDates": "All events",
+      "goingCount_one": "{{count}} going",
+      "goingCount_other": "{{count}} going",
+      "goingOf_one": "{{count}} of {{limit}} going",
+      "goingOf_other": "{{count}} of {{limit}} going",
+      "maybeCount_one": "{{count}} maybe",
+      "maybeCount_other": "{{count}} maybe",
+      "waitlistCount_one": "{{count}} on the waitlist",
+      "waitlistCount_other": "{{count}} on the waitlist",
+      "groupGoingOf_one": "Going: {{count}} of {{limit}}",
+      "groupGoingOf_other": "Going: {{count}} of {{limit}}",
+      "group": {
+        "going_one": "Going: {{count}}",
+        "going_other": "Going: {{count}}",
+        "waitlisted_one": "Waitlist: {{count}}",
+        "waitlisted_other": "Waitlist: {{count}}",
+        "maybe_one": "Maybe: {{count}}",
+        "maybe_other": "Maybe: {{count}}",
+        "declined_one": "Can't go: {{count}}",
+        "declined_other": "Can't go: {{count}}"
+      }
     },
     "menu": {
       "edit": "Edit event",
@@ -79,9 +103,11 @@
       "info": "Event info",
       "interestedTab_one": "{{count}} interested",
       "interestedTab_other": "{{count}} interested",
+      "rsvps": "RSVPs",
+      "rsvpTab": "RSVPs ({{count}})",
       "createdBy": "Created by {{name}}",
       "loading": "Loading…",
-      "nobodyInterested": "Nobody is interested yet.",
+      "nobodyAnswered": "Nobody has answered yet.",
       "pastCount_one": "{{count}} was interested",
       "pastCount_other": "{{count}} were interested",
       "nextDates": "Next dates",
@@ -160,6 +186,9 @@
       "repeatHint": "On this device's time zone: it stays at this time when the clocks change.",
       "description": "Description",
       "descriptionPlaceholder": "Tell people a little more about your event. Markdown, new lines and links work.",
+      "limit": "Limit how many can go",
+      "spots": "Places",
+      "limitHint": "Once it's full, those who say they're going wait on a waitlist, and move up as places free.",
       "cover": "Cover image",
       "coverFile": "Cover image file",
       "addCover": "Add a cover image",
@@ -175,7 +204,7 @@
       "customColour": "Your own colour",
       "uploading": "Uploading…",
       "coverFailed": "Couldn't upload the image: {{error}}",
-      "reviewHint": "Here's how your event will look. Everyone who can see it sees it in Events; those interested are notified when it starts.",
+      "reviewHint": "Here's how your event will look. Everyone who can see it sees it in Events; those going (or maybe going) are notified when it starts.",
       "errors": {
         "channel": "Pick a voice channel.",
         "name": "Give the event a topic.",
@@ -185,7 +214,8 @@
         "endBeforeDay": "The last day can't be before the first.",
         "endNeeded": "Events somewhere else need an end date and time.",
         "endBefore": "The end must be after the start.",
-        "repeat": "That doesn't repeat from this date: pick another."
+        "repeat": "That doesn't repeat from this date: pick another.",
+        "limit": "The limit is a number from 1 to {{max}}."
       }
     },
     "embed": {

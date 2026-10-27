@@ -4,14 +4,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 vi.mock('../../services/guildService', () => ({
-  cancelEvent: vi.fn(async () => {}), endEvent: vi.fn(), fetchEventUsers: vi.fn(async () => []), setEventInterest: vi.fn(async () => {}),
+  cancelEvent: vi.fn(async () => {}), endEvent: vi.fn(), fetchEventRsvps: vi.fn(async () => []), setEventRsvp: vi.fn(async () => {}),
   skipOccurrence: vi.fn(async () => {}), startEvent: vi.fn(),
-  fetchEvent: vi.fn(async (id) => ({ id, occurrence: { user_count: 3 } })), fetchEventHistory: vi.fn(async () => []),
+  fetchEvent: vi.fn(async (id) => ({
+    id, occurrence: { user_count: 3, rsvp_counts: { going: 2, maybe: 1, declined: 1, waitlisted: 0 }, waitlist: [] },
+  })),
+  fetchEventHistory: vi.fn(async () => []),
 }));
 vi.mock('../MessageList', () => ({ MessageContent: ({ msg }) => <p>{msg.plaintext}</p> }));
 
 import EventsDialog from './EventsDialog';
-import { cancelEvent, fetchEvent, setEventInterest, skipOccurrence } from '../../services/guildService';
+import { cancelEvent, fetchEvent, fetchEventRsvps, setEventRsvp, skipOccurrence } from '../../services/guildService';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { addDays, dayKey, monthKey, startAtHour, startOnDay, weekDays } from '../../utils/eventCalendar';
 import { dateKeyIn, occurrencesBetween } from '../../utils/eventRecurrence';
@@ -32,6 +35,7 @@ function eventIn(days) {
   return {
     id: 7, guild_id: 5, creator_id: 1, name: 'Board games', entity_type: 'external', location: 'The pub', status: 'scheduled',
     start_time: start, end_time: start + 3600, occurrence_start: start, duration: 3600, user_count: 1, interested: true,
+    rsvp: 'going', rsvp_all: 'going', my_rsvps: {}, rsvp_counts: { going: 1, maybe: 0, declined: 0, waitlisted: 0 }, waitlist: [],
     recurrence: { frequency: 2, interval: 1, by_weekday: [(d.getDay() + 6) % 7], by_n_weekday: null, by_month: null, by_month_day: null },
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
@@ -39,7 +43,7 @@ function eventIn(days) {
 
 // The dialog with its view kept, as GuildSidebar does.
 function Harness({
-  events, onCreate, onOpenEvent = vi.fn(), setInterested = vi.fn(), myGuild = guild, eventId = null, occurrence = null, past = null,
+  events, onCreate, onOpenEvent = vi.fn(), setRsvp = vi.fn(), myGuild = guild, eventId = null, occurrence = null, past = null,
   history = [], onEdit = vi.fn(),
 }) {
   const now = new Date();
@@ -52,7 +56,7 @@ function Harness({
           user={user}
           events={events}
           loaded
-          setInterested={setInterested}
+          setRsvp={setRsvp}
           history={history}
           eventId={eventId}
           occurrence={occurrence}
@@ -143,24 +147,51 @@ describe('EventsDialog', () => {
     expect(screen.queryByRole('button', { name: 'Create Event' })).toBeNull();
   });
 
-  it('asks whether interest in a repeating event is for this one or all of them', async () => {
-    const setInterested = vi.fn();
-    const only = { ...eventIn(2), interested: true, interested_all: false };
-    const { rerender } = render(<Harness events={[only]} setInterested={setInterested} />);
+  it('takes an RSVP, and shows a waitlisted one', async () => {
+    const setRsvp = vi.fn();
+    const once = { ...eventIn(2), recurrence: null, occurrence_start: null, rsvp: null, rsvp_all: null, interested: false };
+    const { rerender } = render(<Harness events={[once]} setRsvp={setRsvp} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
-    fireEvent.click(screen.getByRole('button', { name: /Interested/ }));
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Not interested in this event', 'Interested in all events']);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Interested in all events' }));
-    expect(setInterested).toHaveBeenCalledWith(7, { interested: true, interested_all: true, my_occurrences: {} });
-    expect(setEventInterest).toHaveBeenCalledWith(7, true, { occurrence: null });
+    expect(screen.getByRole('article', { name: 'Board games' })).toHaveTextContent('1 going');
+    fireEvent.click(screen.getByRole('button', { name: 'RSVP' }));
+    expect(screen.getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Going', 'Maybe', "Can't go"]);
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Maybe' }));
+    expect(setRsvp).toHaveBeenCalledWith(7, { rsvp: 'maybe', rsvp_all: 'maybe', my_rsvps: {}, interested: true });
+    expect(setEventRsvp).toHaveBeenCalledWith(7, 'maybe', { occurrence: null });
 
-    // In all of them but this one: add this one back, or drop all.
-    rerender(<Harness events={[{ ...only, interested: false, interested_all: true }]} setInterested={setInterested} />);
-    fireEvent.click(screen.getByRole('button', { name: /Interested/ }));
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Interested in this event', 'Not interested in any of them']);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Interested in this event' }));
-    expect(setInterested).toHaveBeenLastCalledWith(7, { interested: true, interested_all: true, my_occurrences: {} });
-    expect(setEventInterest).toHaveBeenLastCalledWith(7, true, { occurrence: only.start_time });
+    // Going past the limit: waitlisted, and it can be taken back.
+    const full = { ...once, rsvp: 'going', rsvp_all: 'going', rsvp_limit: 1, rsvp_counts: { going: 1, maybe: 0, declined: 0, waitlisted: 1 }, waitlist: [user.id] };
+    rerender(<Harness events={[full]} setRsvp={setRsvp} />);
+    expect(screen.getByRole('article', { name: 'Board games' })).toHaveTextContent('1 of 1 going · 1 on the waitlist');
+    fireEvent.click(screen.getByRole('button', { name: 'RSVP: Waitlisted' }));
+    expect(screen.getByRole('menuitemradio', { name: 'Going' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove my RSVP' }));
+    expect(setEventRsvp).toHaveBeenLastCalledWith(7, null, { occurrence: null });
+  });
+
+  it('asks whether an RSVP to a repeating event is for this date or all of them', async () => {
+    const setRsvp = vi.fn();
+    const series = eventIn(2);
+    render(<Harness events={[series]} setRsvp={setRsvp} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
+    fireEvent.click(screen.getByRole('button', { name: 'RSVP: Going' }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([expect.stringMatching(/^This event/), 'All events']);
+    fireEvent.click(screen.getAllByRole('menuitem')[0]);
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: "Can't go" }));
+    expect(setRsvp).toHaveBeenCalledWith(7, {
+      rsvp: 'declined', rsvp_all: 'going', my_rsvps: { [series.start_time]: 'declined' }, interested: false,
+    });
+    expect(setEventRsvp).toHaveBeenLastCalledWith(7, 'declined', { occurrence: series.start_time });
+  });
+
+  it("lists who answered what on an event's page", async () => {
+    fetchEventRsvps.mockResolvedValueOnce([{ user_id: 1, rsvp: 'going' }, { user_id: 2, rsvp: 'waitlisted' }, { user_id: 3, rsvp: 'declined' }]);
+    render(<Harness events={[{ ...eventIn(2), rsvp_limit: 1, rsvp_counts: { going: 1, maybe: 0, declined: 1, waitlisted: 1 }, waitlist: [2] }]} eventId={7} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'RSVPs (3)' }));
+    expect(await screen.findByRole('region', { name: 'Going: 1 of 1' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Waitlist: 1' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: "Can't go: 1" })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /Maybe/ })).toBeNull();
   });
 
   it('shows one date of a repeating event, its next dates, and links to it or the series', async () => {
@@ -176,7 +207,8 @@ describe('EventsDialog', () => {
     fireEvent.click(dates[0]);
     expect(onOpenEvent).toHaveBeenCalledWith(7, event.start_time);
     // Its count is the server's.
-    expect(await screen.findByRole('tab', { name: '3 interested' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'RSVPs (4)' })).toBeInTheDocument();
+    expect(screen.getByText('2 going · 1 maybe')).toBeInTheDocument();
     expect(fetchEvent).toHaveBeenCalledWith(7, { occurrence: second });
 
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
@@ -228,7 +260,7 @@ describe('EventsDialog', () => {
 
     render(<Harness events={[eventIn(6)]} eventId={7} occurrence={record.original_start} past={record} onOpenEvent={onOpenEvent} />);
     expect(screen.getByText('Ended')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Interested/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /RSVP/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^Next:/ }));
     expect(onOpenEvent).toHaveBeenLastCalledWith(7, null);
     fireEvent.click(screen.getByRole('tab', { name: '2 interested' }));

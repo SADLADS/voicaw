@@ -33,16 +33,9 @@
       }
     },
     "actions": {
-      "interested": "興味あり",
       "start": "開始",
       "end": "イベントを終了",
       "more": "その他"
-    },
-    "interest": {
-      "thisAdd": "このイベントに興味あり",
-      "allAdd": "すべてのイベントに興味あり",
-      "thisRemove": "このイベントの興味ありを取り消す",
-      "allRemove": "すべての興味ありを取り消す"
     },
     "menu": {
       "edit": "イベントを編集",
@@ -76,7 +69,6 @@
       "interestedTab_other": "{{count}} 人が興味あり",
       "createdBy": "作成者: {{name}}",
       "loading": "読み込み中…",
-      "nobodyInterested": "まだ誰も興味ありにしていません。",
       "pastCount_other": "{{count}} 人が興味ありでした",
       "nextDates": "今後の日程",
       "showNext": "次回: {{date}}",

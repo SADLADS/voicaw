@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Icon } from '../Icon';
 import {
-  faBan, faBell, faCheck, faChevronLeft, faEllipsis, faLink, faPen, faPlay, faStop,
+  faBan, faChevronLeft, faEllipsis, faLink, faPen, faPlay, faStop,
 } from '@fortawesome/free-solid-svg-icons';
 import '../../assets/css/events.css';
 import Modal from '../guild/Modal';
@@ -12,16 +12,16 @@ import EventCard from './EventCard';
 import EventCalendar from './EventCalendar';
 import EventWeek from './EventWeek';
 import EventEmoji from './EventEmoji';
-import InterestButton from './InterestButton';
+import RsvpButton from './RsvpButton';
 import ScopeDialog from './ScopeDialog';
 import DocumentCover from '../documents/DocumentCover';
 import { MessageContent } from '../MessageList';
 import { ConfigContext, InteractionContext } from '../../contexts';
 import {
-  cancelEvent, endEvent, fetchEvent, fetchEventHistory, fetchEventUsers, setEventInterest, skipOccurrence, startEvent,
+  cancelEvent, endEvent, fetchEvent, fetchEventHistory, fetchEventRsvps, setEventRsvp, skipOccurrence, startEvent,
 } from '../../services/guildService';
 import {
-  canCreateEvents, canManageEvent, eventPlace, eventStatusText, formatEventWhen, interestAfter,
+  canCreateEvents, canManageEvent, eventPlace, eventStatusText, formatEventWhen, rsvpAfter, rsvpSummary,
 } from '../../utils/eventDisplay';
 import { dateKeyIn, describeRepeat, occurrenceView, pastView, upcomingOccurrences } from '../../utils/eventRecurrence';
 import { fromKey } from '../../utils/eventCalendar';
@@ -43,9 +43,10 @@ function Description({ text, user }) {
   return <MessageContent msg={msg} user={user} s3Endpoint={s3Endpoint} />;
 }
 
-// Interested (InterestButton), Start or End for those who may, and the "more" button. An
-// occurrence that took place has only the "more" button (its link).
-function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore }) {
+// RSVP (RsvpButton; `waitlisted`: you're going past its limit), Start or End for those who
+// may, and the "more" button. An occurrence that took place has only the "more" button (its
+// link).
+function EventButtons({ event, waitlisted, manages, busy, onRsvp, onStart, onEnd, onMore }) {
   return (
     <>
       {!event.past && manages && event.current && event.status === 'scheduled' && (
@@ -58,15 +59,7 @@ function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore
           <Icon icon={faStop} /> {t('events.actions.end')}
         </button>
       )}
-      {!event.past && (
-        <InterestButton
-          event={event}
-          className={`btn btn-sm event-interest${event.interested ? ' btn-primary active' : ' btn-secondary'}`}
-          onChoose={onInterest}
-        >
-          <Icon icon={event.interested ? faCheck : faBell} /> {t('events.actions.interested')}
-        </InterestButton>
-      )}
+      {!event.past && <RsvpButton event={event} waitlisted={waitlisted} onChoose={onRsvp} />}
       <button type="button" className="btn btn-secondary btn-sm event-more" aria-label={t('events.actions.more')} title={t('events.actions.more')} onClick={onMore}>
         <Icon icon={faEllipsis} />
       </button>
@@ -74,36 +67,54 @@ function EventButtons({ event, manages, busy, onInterest, onStart, onEnd, onMore
   );
 }
 
-// Who's interested in the occurrence shown (occurrenceView's); for one that took place, how
-// many were.
-function InterestedList({ event }) {
+const RSVP_GROUPS = ['going', 'waitlisted', 'maybe', 'declined'];
+
+// Who answered the occurrence shown (occurrenceView's), by answer: going (of its limit), the
+// waitlist in its order, maybe, can't go. For one that took place, how many were interested.
+function RsvpList({ event }) {
   useProfiles();
-  const [ids, setIds] = useState(null);
+  const [list, setList] = useState(null);
   const [error, setError] = useState(null);
   const occurrence = event.current ? null : event.original_start;
+  const counts = event.rsvp_counts;
   useEffect(() => {
     if (event.past) return undefined;
     let cancelled = false;
-    fetchEventUsers(event.id, { occurrence })
-      .then((list) => { if (!cancelled) setIds(list); })
+    fetchEventRsvps(event.id, { occurrence })
+      .then((found) => { if (!cancelled) setList(found); })
       .catch((err) => { if (!cancelled) setError(errorMessage(err)); });
     return () => {
       cancelled = true;
     };
-  }, [event.id, event.past, occurrence, event.user_count]);
+    // Again whenever the counts change (someone answered).
+  }, [event.id, event.past, occurrence, event.user_count, counts?.going, counts?.maybe, counts?.declined, counts?.waitlisted, event.rsvp_limit]);
   if (event.past) return <p className="vc-hint">{t('events.detail.pastCount', { count: event.user_count ?? 0 })}</p>;
   if (error) return <p className="error-msg" role="alert">{error}</p>;
-  if (!ids) return <p className="vc-hint">{t('events.detail.loading')}</p>;
-  if (!ids.length) return <p className="vc-hint">{t('events.detail.nobodyInterested')}</p>;
+  if (!list) return <p className="vc-hint">{t('events.detail.loading')}</p>;
+  if (!list.length) return <p className="vc-hint">{t('events.detail.nobodyAnswered')}</p>;
   return (
-    <ul className="event-interested">
-      {ids.map((id) => (
-        <li key={id}>
-          <Avatar userId={id} className="event-interested-avatar" />
-          <span>{displayName(id, t('events.unknownUser'))}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="event-rsvps">
+      {RSVP_GROUPS.map((group) => {
+        const ids = list.filter((r) => r.rsvp === group).map((r) => r.user_id);
+        if (!ids.length) return null;
+        const heading = group === 'going' && event.rsvp_limit != null
+          ? t('events.rsvp.groupGoingOf', { count: ids.length, limit: event.rsvp_limit })
+          : t(`events.rsvp.group.${group}`, { count: ids.length });
+        return (
+          <section key={group} className={`event-rsvp-group ${group}`} aria-label={heading}>
+            <h5 className="event-editor-label">{heading}</h5>
+            <ul className="event-interested">
+              {ids.map((id) => (
+                <li key={id}>
+                  <Avatar userId={id} className="event-interested-avatar" />
+                  <span>{displayName(id, t('events.unknownUser'))}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
@@ -135,7 +146,7 @@ function NextDates({ series, shown, onOpen }) {
 
 // One occurrence in full (`event`: occurrenceView's, or pastView's for one that took place):
 // cover, when, how it repeats and its next dates (`series`, the event as listed, if it's still
-// on), who made it, where, the description, and who's interested (a tab).
+// on), who made it, where, how many answered, the description, and who answered what (a tab).
 function EventDetail({ event, series, guild, user, buttons, onOpenOccurrence }) {
   useDateFormat();
   useProfiles();
@@ -150,8 +161,12 @@ function EventDetail({ event, series, guild, user, buttons, onOpenOccurrence }) 
         <button type="button" role="tab" aria-selected={tab === 'info'} className={`settings-tab${tab === 'info' ? ' active' : ''}`} onClick={() => setTab('info')}>
           {t('events.detail.info')}
         </button>
-        <button type="button" role="tab" aria-selected={tab === 'interested'} className={`settings-tab${tab === 'interested' ? ' active' : ''}`} onClick={() => setTab('interested')}>
-          {event.user_count != null ? t('events.detail.interestedTab', { count: event.user_count }) : t('events.actions.interested')}
+        <button type="button" role="tab" aria-selected={tab === 'rsvps'} className={`settings-tab${tab === 'rsvps' ? ' active' : ''}`} onClick={() => setTab('rsvps')}>
+          {event.past
+            ? t('events.detail.interestedTab', { count: event.user_count ?? 0 })
+            : event.rsvp_counts
+              ? t('events.detail.rsvpTab', { count: Object.values(event.rsvp_counts).reduce((a, b) => a + b, 0) })
+              : t('events.detail.rsvps')}
         </button>
       </div>
       {tab === 'info' ? (
@@ -167,6 +182,7 @@ function EventDetail({ event, series, guild, user, buttons, onOpenOccurrence }) 
               {place.voice ? t('events.place.inChannel', { name: place.label }) : place.label}
             </p>
           )}
+          {!event.past && event.rsvp_counts && <p className="event-detail-line event-detail-rsvps">{rsvpSummary(event)}</p>}
           <p className="event-detail-line event-detail-creator">
             <Avatar userId={event.creator_id} className="event-interested-avatar" />
             {t('events.detail.createdBy', { name: displayName(event.creator_id, t('events.unknownUser')) })}
@@ -180,7 +196,7 @@ function EventDetail({ event, series, guild, user, buttons, onOpenOccurrence }) 
           )}
         </div>
       ) : (
-        <InterestedList event={event} />
+        <RsvpList event={event} />
       )}
       <div className="event-detail-buttons">{buttons}</div>
     </div>
@@ -198,10 +214,11 @@ function EventDetail({ event, series, guild, user, buttons, onOpenOccurrence }) 
 // kept by the caller, so it's still there after the editor, and changed with `onView`.
 // `onOpenEvent(id, occurrence?, past?)` opens one; `onCreate(start?)` opens the editor (start:
 // unix s, from a calendar day), `onEdit(event, scope, occurrence)` with 'this', 'following' or
-// 'all'. Interested, Start/End and the menu (edit, copy links, cancel; a repeating event asks
-// which dates) follow your permissions (utils/eventDisplay).
+// 'all'. RSVP (`setRsvp` shows yours at once: useGuildEvents), Start/End and the menu (edit,
+// copy links, cancel; a repeating event asks which dates) follow your permissions
+// (utils/eventDisplay).
 export default function EventsDialog({
-  guild, user, events, loaded, setInterested, history = [], loadHistory = () => Promise.resolve(), eventId, occurrence = null,
+  guild, user, events, loaded, setRsvp, history = [], loadHistory = () => Promise.resolve(), eventId, occurrence = null,
   on = null, past = null, view, onView, onOpenEvent, onCreate, onEdit, onClose,
 }) {
   const { isMobile } = useContext(InteractionContext);
@@ -213,7 +230,8 @@ export default function EventsDialog({
   const [copied, setCopied] = useState(false);
   // Why a link's date isn't the one shown ({ eventId, text }).
   const [note, setNote] = useState(null);
-  // How many are interested in occurrences other than the current one (`${id}-${original}`).
+  // How many answered occurrences other than the current one (`${id}-${original}`: { user_count,
+  // rsvp_counts, waitlist }).
   const [counts, setCounts] = useState({});
   const [missing, setMissing] = useState(false);
   const series = eventId != null ? events.find((e) => e.id === eventId) ?? null : null;
@@ -232,7 +250,7 @@ export default function EventsDialog({
     return occurrenceView(series, occurrence);
   }, [past, series, occurrence, history]);
   const countKey = shown && !shown.past && !shown.current ? `${shown.id}-${shown.original_start}` : null;
-  const open = shown && countKey ? { ...shown, user_count: counts[countKey] ?? null } : shown;
+  const open = shown && countKey ? { ...shown, user_count: null, rsvp_counts: null, waitlist: null, ...counts[countKey] } : shown;
 
   useEffect(() => {
     setError(null);
@@ -295,13 +313,17 @@ export default function EventsDialog({
     let cancelled = false;
     fetchEvent(eventId, { occurrence: countFor })
       .then((found) => {
-        if (!cancelled && found.occurrence?.user_count != null) setCounts((c) => ({ ...c, [`${eventId}-${countFor}`]: found.occurrence.user_count }));
+        const occ = found.occurrence;
+        if (cancelled || occ?.user_count == null) return;
+        const known = { user_count: occ.user_count, rsvp_counts: occ.rsvp_counts ?? null, waitlist: occ.waitlist ?? null };
+        setCounts((c) => ({ ...c, [`${eventId}-${countFor}`]: known }));
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [eventId, countFor, shown?.interested, series?.user_count]);
+    // Again when you answer, or anyone answers the series.
+  }, [eventId, countFor, shown?.rsvp, series?.user_count, series?.rsvp_counts, series?.rsvp_limit]);
 
   async function run(action) {
     setBusy(true);
@@ -315,12 +337,12 @@ export default function EventsDialog({
     }
   }
 
-  // `choice`: { interested, occurrence } (InterestButton) on an occurrence of `listed`.
-  function chooseInterest(listed, choice) {
-    const before = { interested: Boolean(listed.interested), interested_all: Boolean(listed.interested_all), my_occurrences: listed.my_occurrences ?? {} };
-    setInterested(listed.id, interestAfter(listed, choice));
-    setEventInterest(listed.id, choice.interested, { occurrence: choice.occurrence }).catch((err) => {
-      setInterested(listed.id, before);
+  // `choice`: { rsvp, occurrence } (RsvpButton) on an occurrence of `listed`.
+  function chooseRsvp(listed, choice) {
+    const before = { rsvp: listed.rsvp ?? null, rsvp_all: listed.rsvp_all ?? null, my_rsvps: listed.my_rsvps ?? {}, interested: Boolean(listed.interested) };
+    setRsvp(listed.id, rsvpAfter(listed, choice));
+    setEventRsvp(listed.id, choice.rsvp, { occurrence: choice.occurrence }).catch((err) => {
+      setRsvp(listed.id, before);
       setError(errorMessage(err));
     });
   }
@@ -331,9 +353,10 @@ export default function EventsDialog({
     return (
       <EventButtons
         event={shownEvent}
+        waitlisted={Boolean(shownEvent.waitlist?.includes(user.id))}
         manages={Boolean(listed) && canManageEvent(listed, guild, user.id)}
         busy={busy}
-        onInterest={(choice) => chooseInterest(listed, choice)}
+        onRsvp={(choice) => chooseRsvp(listed, choice)}
         onStart={() => run(() => startEvent(shownEvent.id))}
         onEnd={() => run(() => endEvent(shownEvent.id))}
         onMore={(e) => setMenu({ event: shownEvent, anchor: e.currentTarget.getBoundingClientRect() })}

@@ -348,7 +348,7 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <LayoutContext.Provider value={{
-      fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, botDmList, conversationSettings,
+      user, fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, botDmList, conversationSettings,
       settingsNavSlot: settingsColumn ? settingsNavSlot : null,
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
