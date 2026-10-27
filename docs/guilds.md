@@ -757,8 +757,12 @@ can; DMs and group DMs can't be searched this way).
 - **Dates** (`before:`, `after:`, as Discord's): the day named is left out (`before:2026-10-20`
   is up to the end of the 19th, `after:` from the start of the 21st), days on the searcher's
   own clock. Dates are typed as Settings → Date & time shows them (`dateFormat.js`
-  `parseDate`; `2026-10-20` always works); the suggestions offer today and yesterday, and the
-  typed date once it is one. The client sends the days' starts as `before_time` /
+  `parseDate`; `2026-10-20` always works) or picked from a calendar that opens under the box
+  once `before:` or `after:` is typed (`SearchDatePicker.jsx`, Monday first as the events
+  calendar, on today or the typed date): up/down move a week, left/right a day (with nothing
+  typed yet), the month arrows a month; a click, Tab or Enter writes the day (as dates are
+  shown, `searchQuery.js` `dateInsert`), and Enter searches once the typed date is the one
+  shown. Something typed that isn't a date is searched and reported, not replaced. The client sends the days' starts as `before_time` /
   `after_time`; several of one keep the strictest.
 - **Not done yet:** `during:`, `pinned:`, author type (webhooks), a
   "most relevant" order. DMs and group DMs are searched on the device instead (Search in

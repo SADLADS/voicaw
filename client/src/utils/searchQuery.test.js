@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSearch, searchContext, searchSuggestions } from './searchQuery';
+import { dateInsert, parseSearch, searchContext, searchSuggestions } from './searchQuery';
 
 const members = [
   { id: 1, username: 'alice', display_name: 'Alice Smith' },
@@ -64,8 +64,11 @@ describe('suggestions', () => {
     expect(searchSuggestions(searchContext('in:ran'), opts).map((s) => s.insert)).toEqual(['in:random ']);
     expect(searchSuggestions(searchContext('has:'), opts)).toHaveLength(7);
     expect(searchSuggestions(searchContext('has:vi'), opts).map((s) => s.insert)).toEqual(['has:video ']);
-    expect(searchSuggestions(searchContext('before:'), opts)).toHaveLength(2);
-    expect(searchSuggestions(searchContext('after:2026-1-5'), opts).map((s) => s.insert)).toEqual(['after:2026-1-5 ']);
+    // Dates come from the calendar, which writes them as they read back.
+    expect(searchContext('pizza before:')).toMatchObject({ kind: 'before', value: '', start: 6 });
+    expect(searchSuggestions(searchContext('before:'), opts)).toEqual([]);
+    const day = new Date(2026, 0, 5);
+    expect(parseSearch(dateInsert('after', day), opts).params.after_time).toBe(new Date(2026, 0, 6).getTime() / 1000);
     // The word the caret is in, not the last one.
     const text = 'from:al pizza';
     const context = searchContext(text, 7);
