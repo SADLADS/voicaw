@@ -13,8 +13,8 @@ import { applyMessageDisplay } from './utils/messageDisplay';
 import { blockNativeContextMenu } from './utils/nativeContextMenu';
 
 
-// Import Bootstrap CSS
-import 'bootstrap/dist/css/bootstrap.min.css';
+// Bootstrap, in a layer under the app's CSS (bootstrap.css says why).
+import './assets/css/bootstrap.css';
 
 // The app's typeface, bundled so the desktop and Android apps have it offline (twemoji-font.css).
 import '@fontsource-variable/figtree';
