@@ -35,6 +35,17 @@ export const SOUNDS = {
     labelKey: 'settings.sounds.undeafen.label',
     tone: { notes: [[0, 329.6, 0.08], [0.07, 493.9, 0.08], [0.14, 659.3, 0.2]], volume: 0.12, wave: 'triangle' },
   },
+  // Push to talk starting and stopping to send (short and quiet: it's every time you talk).
+  pushToTalkOn: {
+    labelKey: 'settings.sounds.pushToTalkOn.label',
+    descriptionKey: 'settings.sounds.pushToTalkOn.description',
+    tone: { notes: [[0, 1318.5, 0.05]], volume: 0.06, wave: 'triangle' },
+  },
+  pushToTalkOff: {
+    labelKey: 'settings.sounds.pushToTalkOff.label',
+    descriptionKey: 'settings.sounds.pushToTalkOff.description',
+    tone: { notes: [[0, 987.8, 0.05]], volume: 0.06, wave: 'triangle' },
+  },
   userJoin: {
     labelKey: 'settings.sounds.userJoin.label',
     descriptionKey: 'settings.sounds.userJoin.description',

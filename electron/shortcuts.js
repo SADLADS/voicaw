@@ -1,6 +1,6 @@
 // Global keyboard shortcuts (they work while another app has focus): toggle mute, toggle
 // deafen and unlocking the in-game overlay (overlay.js), set in Settings → Desktop App. Electron only reports key presses, never releases,
-// so push-to-talk (held down) would need a native keyboard hook; not done.
+// so push to talk (held down) uses a keyboard hook instead (pushToTalk.js).
 const { globalShortcut } = require('electron');
 
 // Registers `shortcuts` ({ action: accelerator | null }), replacing whatever was registered.

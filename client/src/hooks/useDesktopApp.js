@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 import { desktop, unreadSummary } from '../utils/desktop';
 import { onNotification, setOwnActivities } from '../utils/ws-client';
 import { notificationFromPush } from '../services/pushNotifications';
-import { getVoiceSnapshot, leaveVoice, setSelfDeaf, setSelfMute } from '../voice/voiceClient';
+import { getVoiceSnapshot, leaveVoice, onVoiceChange, setSelfDeaf, setSelfMute } from '../voice/voiceClient';
+import { getAudioSettings, onAudioSettingsChange } from '../voice/audioSettings';
+import { pushToTalkDown, pushToTalkUp, setOutsidePushToTalk } from '../voice/pushToTalk';
 import { hangUp } from '../voice/callClient';
 
 // The desktop app's side of the logged-in page (from Layout); does nothing in a browser:
@@ -11,6 +13,8 @@ import { hangUp } from '../voice/callClient';
 //   app shows it. Clicking one opens its chat (`navigate`).
 // - the unread count on the tray icon and taskbar/dock
 // - the global mute / deafen shortcuts, and the in-game overlay's mute, deafen and disconnect
+// - push to talk while another app has focus: the app's keyboard hook (electron/pushToTalk.js)
+//   listens for the key only while you're in voice with push to talk on
 // - Rich Presence: what this computer's games say you're doing, shared (utils/ws-client.js)
 export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
   // `navigate` changes with every page: kept in a ref, so this is set up once per login. (Set
@@ -57,6 +61,34 @@ export function useDesktopApp({ navigate, unreadDms, groups, guildUnread }) {
       stopShortcut();
       stopActivities();
       setOwnActivities([]);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!desktop?.setPushToTalk) return undefined;
+    let asked;
+    let stale = false;
+    const sync = () => {
+      const { inputMode, pushToTalkKey } = getAudioSettings();
+      const key = getVoiceSnapshot().status !== 'idle' && inputMode === 'pushToTalk' ? pushToTalkKey : null;
+      if (key === asked) return;
+      asked = key;
+      desktop.setPushToTalk(key).then((listening) => {
+        if (!stale && asked === key) setOutsidePushToTalk(key ? (listening ? 'on' : 'failed') : null);
+      }).catch((err) => console.warn('Could not set push to talk', err));
+    };
+    const stopPresses = desktop.onPushToTalk((down) => (down ? pushToTalkDown('desktop') : pushToTalkUp('desktop')));
+    const stopVoice = onVoiceChange(sync);
+    const stopSettings = onAudioSettingsChange(sync);
+    sync();
+    return () => {
+      stale = true;
+      stopPresses();
+      stopVoice();
+      stopSettings();
+      desktop.setPushToTalk(null).catch(() => {});
+      pushToTalkUp('desktop');
+      setOutsidePushToTalk(null);
     };
   }, []);
 

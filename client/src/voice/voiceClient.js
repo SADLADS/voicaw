@@ -11,6 +11,7 @@ import {
 import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
 import { getStreamSettings, screenShareOptions } from './streamSettings';
 import { createSpeakingMeters, whoIsSpeaking } from './speaking';
+import { onPushToTalkChange, pushToTalkStage, startPushToTalkKeys } from './pushToTalk';
 import { playSound } from '../sounds/sounds';
 import { isMobileDevice } from '../utils/presence';
 import {
@@ -28,6 +29,8 @@ import { t } from '../i18n';
 // Components read it through hooks/useVoice.js (getVoiceSnapshot / onVoiceChange).
 // Mute and deafen are remembered on this device, like Discord. Muted, the microphone is
 // released (the browser's recording indicator goes off); deafened, you also can't be heard.
+// With push to talk (pushToTalk.js) the microphone stays on and its chain sends silence
+// until the key is held; mute and deafen still turn it off.
 // Sounds, like Discord's: joining (yours and others'), leaving, being disconnected, mute and
 // deafen (sounds/). The microphone, speakers and their volumes are the device's voice
 // settings (audioSettings.js, Settings → Voice & video), applied as they change, and each
@@ -438,7 +441,7 @@ async function syncMicrophone() {
       // the AudioContext a processor needs.
       const track = enabled?.audioTrack;
       if (track && !track.getProcessor()) {
-        await track.setProcessor(createVoiceChain([inputGainStage, voiceProcessingStage], { sampleRate: VOICE_SAMPLE_RATE }));
+        await track.setProcessor(createVoiceChain([inputGainStage, voiceProcessingStage, pushToTalkStage], { sampleRate: VOICE_SAMPLE_RATE }));
       }
       if (track?.mediaStreamTrack && !track.isMuted) track.mediaStreamTrack.enabled = true;
       if (room === current) update({ micError: null });
@@ -462,6 +465,15 @@ async function syncMicrophone() {
     if (sent && !allowed) sent.enabled = false;
   }
 }
+
+// Push to talk: its key works anywhere in the page, and a sound says when it starts and stops
+// sending (only when that's heard: in voice, allowed to speak and not muted).
+startPushToTalkKeys();
+onPushToTalkChange((next, previous) => {
+  if (!next.on || next.pressed === previous.pressed) return;
+  if (snapshot.status !== 'connected' || !snapshot.canSpeak || snapshot.selfMute || snapshot.selfDeaf) return;
+  playSound(next.pressed ? 'pushToTalkOn' : 'pushToTalkOff');
+});
 
 // Voice settings changed (Settings → Voice & video): a new microphone or processing means
 // capturing it again (or, while muted, dropping the track so unmuting captures it afresh).
