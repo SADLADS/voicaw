@@ -409,9 +409,11 @@ const MessageRow = memo(function MessageRow({
   onForward,
   // Sends a message that couldn't be sent again (ChatPane).
   onRetrySend,
-  // Being edited in place, starting from `editingMessageContent`.
+  // Being edited in place, starting from `editingMessageContent`, with `editSuggestions`
+  // (InlineMessageEdit's suggestFrom).
   editing = false,
   editingMessageContent,
+  editSuggestions,
   setEditingMessageContent,
   setEditingMessageId,
   handleSaveEdit,
@@ -681,6 +683,7 @@ const MessageRow = memo(function MessageRow({
               // Mobile: Enter is a new line; "save" below saves.
               submitOnEnter={!isMobile}
               s3Endpoint={s3Endpoint}
+              suggestFrom={editSuggestions}
               onChange={setEditingMessageContent}
               onSave={() => handleSaveEdit(msg.id)}
               onCancel={() => setEditingMessageId(null)}
@@ -812,6 +815,9 @@ export default function MessageList({
   onRetrySend,
   editingMessageId,
   editingMessageContent,
+  // What the edit box suggests: { people, roles, roleInfo, canMentionEveryone, channels }
+  // (InlineMessageEdit).
+  editSuggestions = null,
   setEditingMessageContent,
   setEditingMessageId,
   handleSaveEdit,
@@ -976,6 +982,7 @@ export default function MessageList({
       replying: replyingToId != null && replyingToId === msg.id,
       editing,
       editingMessageContent: editing ? editingMessageContent : null,
+      editSuggestions: editing ? editSuggestions : null,
     };
   };
 

@@ -2491,7 +2491,8 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   box-shadow: inset 2px 0 0 var(--vc-accent);
 }
 
-.mention-suggestion-avatar {
+/* Two classes, to beat `.dm-message img` when it's in a message being edited. */
+.emoji-suggestion .mention-suggestion-avatar {
   width: 22px;
   height: 22px;
   border-radius: 50%;

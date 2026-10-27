@@ -4,8 +4,7 @@ import { Icon } from './Icon';
 import { faCheck, faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPaperPlane, faPlus, faShare, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
-import EmojiSuggestions from './EmojiSuggestions';
-import MentionSuggestions from './MentionSuggestions';
+import EditorSuggestions from './EditorSuggestions';
 import CommandSuggestions from './CommandSuggestions';
 import CommandComposer from './CommandComposer';
 import { useChannelCommands } from '../hooks/useChannelCommands';
@@ -16,14 +15,8 @@ import FileDropOverlay from './FileDropOverlay';
 import PollDialog from './PollDialog';
 import TimestampDialog from './TimestampDialog';
 import VoiceRecorderBar, { MicButton } from './VoiceRecorder';
-import { useEmojiIndex } from '../emoji/emojiContext';
-import {
-  customEmojiNode,
-  emojiQueryOf,
-  insertSuggestedEmoji,
-  replaceTypedShortcode,
-  searchEmojiSuggestions,
-} from '../emoji/emojiAutocomplete';
+import { customEmojiNode } from '../emoji/emojiAutocomplete';
+import { useEditorSuggestions } from '../hooks/useEditorSuggestions';
 import { getKeyboardHeight } from '../utils/keyboardHeight';
 import { findPlaceholderIds, makePlaceholder, replacePlaceholders } from '../utils/attachmentMarkup';
 import { forwardMarkup } from '../utils/forwardMarkup';
@@ -37,18 +30,12 @@ import { useVoiceRecording } from '../hooks/useVoiceRecording';
 import { useBackClosesWhile } from '../hooks/useBackCloses';
 import MessageEditor from '../editor/MessageEditor';
 import { parseCustomEmoji } from '../emoji/customEmoji';
-import { useCustomEmoji } from '../emoji/customEmojiContext';
-import { searchChannels, searchMentions } from '../utils/mentions';
 import { gifMarkup } from '../utils/gifMarkup';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
 import { noteTyping, typingDone } from '../services/typingService';
 import { getDraft, saveDraft } from '../services/draftStore';
 import { t } from '../i18n';
 
-// "@", "@na": a mention being typed (not "a@b").
-const MENTION_QUERY = /(?:^|[\s([{])@([^\s@<>]{0,32})$/;
-// "#", "#gen": a channel being typed (not "a#b").
-const CHANNEL_QUERY = /(?:^|[\s([{])#([^\s#<>]{0,100})$/;
 // "/", "/we": a bot command being picked (the whole message so far).
 const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 
@@ -122,17 +109,16 @@ export default function Composer({
     placeholder: t('chat.composer.messagePlaceholder', { name }),
     upload: t('media.fileDrop.title', { name }),
   };
-  const emojiIndex = useEmojiIndex();
   useProfiles();
   const mentionNames = Object.fromEntries((people ?? []).map((p) => [p.id, nameOf(p)]));
-  const custom = useCustomEmoji();
-  // The message as text (see editor/messageDoc), and its current line up to the cursor
-  // (which drives ":smi" suggestions).
+  // The message as text (see editor/messageDoc).
   const [inputValue, setInputValue] = useState('');
-  const [beforeCaret, setBeforeCaret] = useState('');
-  const [suggestionIndex, setSuggestionIndex] = useState(0);
-  // The query (":smi" or "@na") whose suggestions Escape closed.
-  const [dismissedQuery, setDismissedQuery] = useState(null);
+  // ":smi", "@na" and "#gen" suggestions (bot commands are this box's own, below).
+  const suggest = useEditorSuggestions(inputRef, { s3Endpoint, people, roles, roleInfo, canMentionEveryone, channels });
+  const beforeCaret = suggest.beforeCaret;
+  const [commandIndex, setCommandIndex] = useState(0);
+  // The "/we" whose commands Escape closed.
+  const [dismissedCommand, setDismissedCommand] = useState(null);
   // The + button's menu (upload a file, create a poll...), the poll dialog and the timestamp one.
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [creatingPoll, setCreatingPoll] = useState(false);
@@ -228,40 +214,17 @@ export default function Composer({
     if (draft) removeDraft(draft.id);
   }
 
-  const emojiQuery = emojiQueryOf(beforeCaret, emojiIndex);
-  const emojiSuggestions = emojiQuery && emojiQuery !== dismissedQuery
-    ? searchEmojiSuggestions(emojiQuery, emojiIndex, custom)
-    : [];
-  const mentionQuery = people?.length ? MENTION_QUERY.exec(beforeCaret)?.[1] ?? null : null;
-  const mentionSuggestions = mentionQuery != null && `@${mentionQuery}` !== dismissedQuery
-    ? searchMentions({ people, roles, everyone: canMentionEveryone }, mentionQuery)
-    : [];
-  const channelQuery = channels?.length ? CHANNEL_QUERY.exec(beforeCaret)?.[1] ?? null : null;
-  const channelSuggestions = channelQuery != null && `#${channelQuery}` !== dismissedQuery
-    ? searchChannels(channels, channelQuery)
-    : [];
   const commandQuery = commandChannelId != null && !editing && inputValue === beforeCaret ? COMMAND_QUERY.exec(beforeCaret)?.[1] ?? null : null;
-  const commandSuggestions = commandQuery != null && `/${commandQuery}` !== dismissedQuery
+  const commandSuggestions = commandQuery != null && commandQuery !== dismissedCommand
     ? groupCommandsByBot(searchCommands(commandEntries(commands), commandQuery, Infinity)).flatMap((s) => s.entries)
     : [];
-  // Only one kind can match what's before the cursor.
-  const suggestions = commandSuggestions.length > 0 ? commandSuggestions
-    : emojiSuggestions.length > 0 ? emojiSuggestions
-    : mentionSuggestions.length > 0 ? mentionSuggestions : channelSuggestions;
-  const activeSuggestion = Math.min(suggestionIndex, Math.max(suggestions.length - 1, 0));
-
-  function pickSuggestion(item) {
-    if (commandSuggestions.length > 0) pickCommand(item);
-    else if (emojiSuggestions.length > 0) pickEmoji(item);
-    else if (item.kind === 'channel') pickChannel(item);
-    else pickMention(item);
-  }
+  const activeCommand = Math.min(commandIndex, Math.max(commandSuggestions.length - 1, 0));
 
   // A command picked: the "/…" typed goes, and the box becomes its form.
   function pickCommand(entry) {
     inputRef.current?.clear();
     typingDone(chatId);
-    setSuggestionIndex(0);
+    setCommandIndex(0);
     setCommandEntry(entry);
   }
 
@@ -270,61 +233,36 @@ export default function Composer({
     queueMicrotask(() => inputRef.current?.focus());
   }
 
-  function pickChannel(item) {
-    inputRef.current?.replaceBeforeCaretWithChannelMention(channelQuery.length + 1, { id: item.id, name: item.name });
-    setSuggestionIndex(0);
-  }
-
-  function pickMention(item) {
-    const count = mentionQuery.length + 1;
-    const editor = inputRef.current;
-    if (item.kind === 'role') editor?.replaceBeforeCaretWithRoleMention(count, { id: item.id, name: item.name, color: roleInfo?.[item.id]?.color });
-    else if (item.kind === 'everyone') editor?.replaceBeforeCaret(count, `@${item.name} `);
-    else editor?.replaceBeforeCaretWithMention(count, { id: item.id, name: item.name });
-    setSuggestionIndex(0);
-  }
-
-  function pickEmoji(emoji) {
-    insertSuggestedEmoji(inputRef.current, emojiQuery, emoji, s3Endpoint);
-    setSuggestionIndex(0);
-  }
-
-  function handleEditorChange({ text, beforeCaret: line, docChanged }) {
+  function handleEditorChange(change) {
+    const { text, docChanged } = change;
     setInputValue(text);
-    setBeforeCaret(line);
-    if (!docChanged) return;
-    // The message being edited isn't a draft, nor typing.
-    if (editingIn.current != null) return;
+    // The message being edited isn't a draft, nor typing; putting a draft back isn't typing
+    // (nor turns its ":shortcode:" into emoji).
+    const editingNow = editingIn.current != null;
+    suggest.onChange(change, { replaceShortcodes: editingNow || !restoringDraft.current });
+    if (!docChanged || editingNow) return;
     saveDraft(draftChatId.current, text);
-    // Putting a draft back isn't typing.
     if (restoringDraft.current) return;
     if (text.trim()) noteTyping(chatId);
     else typingDone(chatId);
-    setSuggestionIndex(0);
-
-    // Typing the closing colon of a known :shortcode: turns it into the emoji.
-    replaceTypedShortcode(line, () => inputRef.current, { emojiIndex, custom, s3Endpoint });
+    setCommandIndex(0);
   }
 
   function handleInputKeyDown(e) {
-    if (suggestions.length > 0) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        const step = e.key === 'ArrowDown' ? 1 : -1;
-        setSuggestionIndex((activeSuggestion + step + suggestions.length) % suggestions.length);
-        return;
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        pickSuggestion(suggestions[activeSuggestion]);
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setDismissedQuery(commandSuggestions.length > 0 ? `/${commandQuery}` : emojiSuggestions.length > 0 ? emojiQuery
-          : mentionSuggestions.length > 0 ? `@${mentionQuery}` : `#${channelQuery}`);
-        return;
-      }
+    if (commandSuggestions.length === 0) {
+      suggest.onKeyDown(e);
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      setCommandIndex((activeCommand + step + commandSuggestions.length) % commandSuggestions.length);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      pickCommand(commandSuggestions[activeCommand]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setDismissedCommand(commandQuery);
     }
   }
 
@@ -581,44 +519,13 @@ export default function Composer({
           <CommandSuggestions
             query={commandQuery}
             entries={commandSuggestions}
-            activeIndex={activeSuggestion}
+            activeIndex={activeCommand}
             onPick={pickCommand}
-            onHover={setSuggestionIndex}
+            onHover={setCommandIndex}
           />
         )}
 
-        {emojiSuggestions.length > 0 && commandSuggestions.length === 0 && (
-          <EmojiSuggestions
-            query={emojiQuery}
-            emojis={emojiSuggestions}
-            activeIndex={activeSuggestion}
-            onPick={pickEmoji}
-            onHover={setSuggestionIndex}
-            s3Endpoint={s3Endpoint}
-          />
-        )}
-
-        {mentionSuggestions.length > 0 && emojiSuggestions.length === 0 && (
-          <MentionSuggestions
-            query={mentionQuery}
-            items={mentionSuggestions}
-            activeIndex={activeSuggestion}
-            onPick={pickMention}
-            onHover={setSuggestionIndex}
-            s3Endpoint={s3Endpoint}
-          />
-        )}
-
-        {channelSuggestions.length > 0 && mentionSuggestions.length === 0 && emojiSuggestions.length === 0 && (
-          <MentionSuggestions
-            symbol="#"
-            query={channelQuery}
-            items={channelSuggestions}
-            activeIndex={activeSuggestion}
-            onPick={pickChannel}
-            onHover={setSuggestionIndex}
-          />
-        )}
+        {commandSuggestions.length === 0 && <EditorSuggestions suggest={suggest} s3Endpoint={s3Endpoint} />}
 
         {editing && (
           <div className="reply-bar">

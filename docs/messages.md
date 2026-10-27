@@ -75,10 +75,11 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   following the account, encrypted: `emojiUsage.js`, see Emoji usage in
   `docs/auth-and-encryption.md`; on a computer its search box is focused on opening and on
   switching between the Emoji and GIFs tabs), `:sm` autocomplete (`EmojiSuggestions`), and a completed
-  `:shortcode:` turns into the emoji as you type (both shared in `emoji/emojiAutocomplete.js`;
-  editing a message in place, `InlineMessageEdit`, has them too through
-  `hooks/useEmojiSuggestions.js`, emoji only). `remark-emoji` still renders any leftover
-  `:shortcode:` text.
+  `:shortcode:` turns into the emoji as you type. Both, and the `@` and `#` lists, are
+  `hooks/useEditorSuggestions.js` (drawn by `EditorSuggestions`), shared by the message box and
+  editing a message in place (`InlineMessageEdit`, which gets the same people, roles and
+  channels from `ChatPane`); bot commands' `/` list is the message box's only. `remark-emoji`
+  still renders any leftover `:shortcode:` text.
 - Mobile: the picker is `docked` in the on-screen keyboard's place, at its height
   (`utils/keyboardHeight.js` measures it via `visualViewport`, see On-screen keyboard in `docs/client.md`, and remembers it per device). It and
   the keyboard are never open together: opening it blurs the message box, and the button (⌨️ while
@@ -399,7 +400,7 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
 `mentionRoles` (`{ id: { name, color } }`; gone: `@deleted-role`).
 - **Who can be mentioned:** typing `@` (after a space/bracket or at the start) lists, in
   `MentionSuggestions` (`searchMentions`: people, then up to 3 roles, then @everyone/@here),
-  `people` (`ChatPane` → `Composer`: the DM's two, the group's current members, or the members
+  `people` (`ChatPane` → `Composer` and the in-place edit box: the DM's two, the group's current members, or the members
   who can see the channel, from `GET /channels/:id/members`, refetched on any guild, member or
   role change; `GuildView` also shows only them in the member list), the roles you may mention
   (`mentionable`, or all with Mention Everyone) and, with Mention Everyone, @everyone and
