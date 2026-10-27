@@ -32,6 +32,11 @@
   end-to-end encrypted like the message, and the server keeps when each was written. Deleting the
   message deletes all its versions. Editing doesn't remove earlier text, so to take something back,
   delete the message (a file an edit takes out is deleted, though).</p>
+<p>Anyone who can read a message can forward it, with its files, to another chat. Forwarded into
+  a direct message, group chat or your notes, it stays end-to-end encrypted. Forwarded into a
+  guild, it isn't: the server can read it and its files there, as any guild message. A file stays
+  as long as any message still shows it, so deleting a message doesn't delete a file someone has
+  forwarded.</p>
 <p>Searching a direct message, group chat or your notes happens on your device: the server is
   never told what you search for or what was found. The first search of a chat downloads its
   history (still encrypted) to read it, and the server only sees that history being read, and

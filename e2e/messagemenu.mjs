@@ -49,7 +49,7 @@ try {
   await waitText(a, 'hi from bob');
 
   await menuOn(a, 'my own message');
-  check(same(await items(a, '.context-menu'), ['Add Reaction', 'Reply', 'Edit Message', 'Pin Message', 'Copy Text', 'Delete Message']),
+  check(same(await items(a, '.context-menu'), ['Add Reaction', 'Reply', 'Forward', 'Edit Message', 'Pin Message', 'Copy Text', 'Delete Message']),
     'right-clicking your own message: every action');
   check(await a.locator('.context-menu-reaction').count() === 5, 'with five quick reactions on top');
   check(await row(a, 'my own message').evaluate((el) => el.classList.contains('focused')), 'the message stays highlighted while it is open');
@@ -61,7 +61,7 @@ try {
   await a.waitForSelector('.context-menu', { state: 'detached' });
 
   await menuOn(a, 'hi from bob');
-  check(same(await items(a, '.context-menu'), ['Add Reaction', 'Reply', 'Pin Message', 'Copy Text', 'Report Message']),
+  check(same(await items(a, '.context-menu'), ['Add Reaction', 'Reply', 'Forward', 'Pin Message', 'Copy Text', 'Report Message']),
     `someone else's: no Edit or Delete (${await items(a, '.context-menu')})`);
   await a.click('.context-menu-reaction[aria-label="React with Thumbs Up"]');
   await a.waitForSelector('.context-menu', { state: 'detached' });
@@ -152,7 +152,7 @@ try {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await c.waitForSelector('.action-sheet');
   const sheet = await c.$$eval('.action-sheet-items button', (els) => els.map((e) => e.textContent.trim()));
-  check(same(sheet, ['Reply', 'Edit', 'Pin message', 'Copy text', 'Delete']), `holding a message opens the same actions (${sheet.join(', ')})`);
+  check(same(sheet, ['Reply', 'Forward', 'Edit', 'Pin message', 'Copy text', 'Delete']), `holding a message opens the same actions (${sheet.join(', ')})`);
   check(await c.locator('.action-sheet-reaction').count() === 7, 'with quick reactions and +');
   check(await c.locator('.context-menu').count() === 0, 'and not the desktop menu');
   await shot(c, '04-phone-sheet');

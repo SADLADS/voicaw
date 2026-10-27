@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { Icon } from './Icon';
-import { faCheck, faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPaperPlane, faPlus, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPaperPlane, faPlus, faShare, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
 import EmojiSuggestions from './EmojiSuggestions';
@@ -26,6 +26,10 @@ import {
 } from '../emoji/emojiAutocomplete';
 import { getKeyboardHeight } from '../utils/keyboardHeight';
 import { findPlaceholderIds, makePlaceholder, replacePlaceholders } from '../utils/attachmentMarkup';
+import { forwardMarkup } from '../utils/forwardMarkup';
+import { forwardPreview } from '../utils/forwardPreview';
+import { clearForward, getForward, onForwardChange } from '../services/forwardStore';
+import { ChannelMentionContext } from '../contexts';
 import { seedAttachmentCache } from '../services/attachmentCache';
 import { useAttachmentDrafts } from '../hooks/useAttachmentDrafts';
 import { useWindowFileDrop } from '../hooks/useFileDrop';
@@ -77,6 +81,9 @@ const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
 // Phone: `editing` (a message) puts its text in the box to be changed, under an "Editing
 // message" bar; Send calls `onSaveEdit(text)` (throws if it couldn't), the bar's × calls
 // `onCancelEdit()`. Either way the box is emptied after, the keyboard staying up.
+// A message forwarded here (ForwardDialog puts it in forwardStore) waits under a "Forwarding a
+// message" bar (× takes it back) and goes out with the next send, before what's typed (which
+// may be nothing), as Discord's forwards with a message.
 export default function Composer({
   chatId,
   chatName,
@@ -141,6 +148,15 @@ export default function Composer({
   const restoringDraft = useRef(false);
   // The conversation an edit (`editing`) started in, while there is one.
   const editingIn = useRef(null);
+  // A message waiting to be forwarded here (forwardStore): { content, at }.
+  const mentionChannels = useContext(ChannelMentionContext)?.channels;
+  const [forward, setForwardHere] = useState(() => getForward(chatId));
+  useEffect(() => {
+    setForwardHere(getForward(chatId));
+    return onForwardChange((changed) => {
+      if (changed === String(chatId)) setForwardHere(getForward(chatId));
+    });
+  }, [chatId]);
 
   // Emoji from the picker (Unicode, or `<:name:id>`). On mobile the box isn't focused (that
   // would open the keyboard).
@@ -319,7 +335,17 @@ export default function Composer({
       await saveEdit(text);
       return;
     }
-    if (!text || !chatName) return;
+    if ((!text && !forward) || !chatName) return;
+    const forwardText = forward ? forwardMarkup(forward) : null;
+    if (forwardText && forwardText.length > maxPlaintextLength) {
+      setError(t('chat.forward.tooLong'));
+      return;
+    }
+    if (!text) {
+      setError(null);
+      await sendForward(forwardText);
+      return;
+    }
 
     const referencedIds = findPlaceholderIds(text);
     const referenced = attachments.drafts.filter((d) => referencedIds.has(d.id));
@@ -340,6 +366,7 @@ export default function Composer({
     typingDone(chatId);
     const sending = attachments.takeDrafts(referencedIds);
     onCancelReply();
+    if (forwardText) await sendForward(forwardText);
 
     try {
       await onSend({
@@ -358,6 +385,17 @@ export default function Composer({
           return replacePlaceholders(text, urls);
         } : undefined,
       });
+    } catch (err) {
+      setError(t('chat.composer.sendFailed', { error: err.message }));
+    }
+  }
+
+  // The forward waiting here, as its own message (one that can't be sent stays in the chat, with
+  // Retry, like any).
+  async function sendForward(forwardText) {
+    clearForward(chatId);
+    try {
+      await onSend({ text: forwardText, replyTo: null });
     } catch (err) {
       setError(t('chat.composer.sendFailed', { error: err.message }));
     }
@@ -529,7 +567,7 @@ export default function Composer({
     setShowEmojiPicker(false);
   }, 'voicawComposerPanel');
   // A phone's mic button takes Send's place while there's nothing to send (as in Discord).
-  const showMic = isMobile && canRecord && (voice.active ? !voice.locked : !inputValue.trim());
+  const showMic = isMobile && canRecord && (voice.active ? !voice.locked : !inputValue.trim() && !forward);
 
   return (
     <>
@@ -593,6 +631,18 @@ export default function Composer({
               onMouseDown={(e) => e.preventDefault()}
               onClick={onCancelEdit}
             >
+              ×
+            </button>
+          </div>
+        )}
+
+        {forward && !editing && (
+          <div className="reply-bar forward-bar">
+            <span className="forward-bar-text">
+              <Icon icon={faShare} /> <strong>{t('chat.composer.forwarding')}</strong>{' '}
+              {forwardPreview(forward.content, mentionChannels).slice(0, 200)}
+            </span>
+            <button className="reply-close" onClick={() => clearForward(chatId)} type="button" aria-label={t('chat.composer.cancelForward')}>
               ×
             </button>
           </div>
@@ -740,7 +790,7 @@ export default function Composer({
               // An icon like the emoji button beside it (the word stays, for screen readers), in
               // the accent once there's something to send.
               <button
-                className={`send-button${inputValue.trim() ? ' ready' : ''}`}
+                className={`send-button${inputValue.trim() || (forward && !editing) ? ' ready' : ''}`}
                 type="submit"
                 // The message box keeps focus, so a phone's keyboard stays up for the next message
                 // (and doesn't come up if it was down).

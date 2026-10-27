@@ -79,6 +79,11 @@ describe('parseMentions', () => {
     expect(parseMentions('mail me@everyone.test').everyone).toBe(false);
     expect(parseMentions('(@here)').here).toBe(true);
   });
+
+  it('finds none in a forward', () => {
+    const found = parseMentions('fwd:v1:{"t":1}\nhi <@1> <@&2> @everyone');
+    expect([found.userIds.size, found.roleIds.size, found.everyone]).toEqual([0, 0, false]);
+  });
 });
 
 describe('guild mentions', () => {
@@ -213,6 +218,21 @@ describe('guild mentions', () => {
     const bodies = Object.fromEntries((await pushesSince(since)).map((p) => [p.endpoint, p.payload.body]));
     expect(bodies[bob.endpoint]).toBe('see #general and #secret and #unknown-channel');
     expect(bodies[carol.endpoint]).toBe('see #general and #unknown-channel and #unknown-channel');
+  });
+
+  it("never pings anyone a forward mentions, and pushes say it's forwarded", async () => {
+    const { owner, members: [bob, carol], general, guild } = await setUp(2);
+    await api.put(carol, `/guilds/${guild.id}/notifications`, { level: 'all' });
+    const since = sentPushes.length;
+    const forward = `fwd:v1:{"t":1700000000}\nhey <@${bob.id}> @everyone ![cat.png](https://media.test/a.bin#v=1&k=SECRET)`;
+    const res = await say(owner, general, forward);
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ mention_everyone: 0 });
+    const pushes = await pushesSince(since);
+    // Bob (mentions only) isn't pinged; Carol (every message) gets it as a forward.
+    expect(pushes.map((p) => p.endpoint)).toEqual([carol.endpoint]);
+    expect(pushes[0].payload.body).toBe(`↪ Forwarded: hey @${bob.username} @everyone 📎 cat.png`);
+    expect(await unreadFor(bob, general)).toMatchObject({ count: 1, mentions: 0 });
   });
 
   it('works mentions out again on edit (without pushing), and forgets them on delete', async () => {

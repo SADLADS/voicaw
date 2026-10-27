@@ -9,6 +9,8 @@ import ConfirmDialog from './guild/ConfirmDialog';
 import PinnedMessages from './PinnedMessages';
 import PollDialog from './PollDialog';
 import EditHistoryDialog from './EditHistoryDialog';
+import ForwardDialog from './ForwardDialog';
+import { forwardSource, isForward, parseForward } from '../utils/forwardMarkup';
 import { hasEditHistory } from '../utils/editHistory';
 import { ChannelMentionContext, ConfigContext, InteractionContext, ThreadContext } from '../contexts';
 import { getKeyboardHeight, watchKeyboardHeight } from '../utils/keyboardHeight';
@@ -166,6 +168,18 @@ export default function ChatPane({
   const showEditsFor = (msg) => (conversation.loadEdits && hasEditHistory(msg) ? () => setEditsFor(msg) : undefined);
   // A poll being edited: { msg, poll } (polls are edited in PollDialog, not inline).
   const [editingPoll, setEditingPoll] = useState(null);
+  // What Forward is sending (ForwardDialog picks where): forwardSource's { content, at }.
+  const [forwarding, setForwarding] = useState(null);
+  const forwardFor = (msg) => {
+    const source = readOnly ? null : forwardSource(msg);
+    return source ? () => setForwarding(source) : undefined;
+  };
+  const openForward = useCallback((msg) => {
+    const source = forwardSource(msg);
+    if (source) setForwarding(source);
+  }, []);
+  // A closed poll, a voice message and a forward can't be edited.
+  const editable = (msg) => !isClosedPoll(msg) && !isVoiceMessage(msg.plaintext) && !isForward(msg.plaintext);
 
   // For jumping to a message, which waits for older pages: always the newest conversation.
   const latestConversation = useRef(conversation);
@@ -230,12 +244,13 @@ export default function ChatPane({
     setMenuFor({ id: msg.id, anchor });
   }
 
-  // Copies what the message says; attachments become their names (their links carry the
-  // decryption key, which shouldn't end up pasted elsewhere), custom emoji `:name:`, mentions
-  // `@name`. copyText throws if it couldn't (the menu shows that); copyMessage says so above
-  // the message box.
+  // Copies what the message says (a forward: what it forwards); attachments become their names
+  // (their links carry the decryption key, which shouldn't end up pasted elsewhere), custom
+  // emoji `:name:`, mentions `@name`. copyText throws if it couldn't (the menu shows that);
+  // copyMessage says so above the message box.
   function copyText(msg) {
-    return navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(msg.plaintext)), reactionNames, mentionRoles, mentionChannels));
+    const text = parseForward(msg.plaintext)?.content ?? msg.plaintext;
+    return navigator.clipboard.writeText(mentionsToText(customEmojiToText(summarizeAttachments(text)), reactionNames, mentionRoles, mentionChannels));
   }
 
   async function copyMessage(msg) {
@@ -258,6 +273,7 @@ export default function ChatPane({
     setEditingMessageId(null);
     setEditingPoll(null);
     setEditsFor(null);
+    setForwarding(null);
   }, [chatId]);
 
   // Someone's message arriving means they've stopped typing (it can beat their typing timeout).
@@ -467,6 +483,7 @@ export default function ChatPane({
             handleEdit={handleEdit}
             handleDelete={requestDelete}
             handleReply={handleReply}
+            onForward={readOnly ? undefined : openForward}
             onRetrySend={readOnly ? undefined : retrySend}
             editingMessageId={isMobile ? null : editingMessageId}
             editingMessageContent={editingMessageContent}
@@ -622,7 +639,8 @@ export default function ChatPane({
           onMoreReactions={() => openReactionPicker(actionsFor, null)}
           onViewReactions={() => setReactionsForId(actionsFor.id)}
           onReply={textOnly || readOnly ? undefined : () => handleReply(actionsFor)}
-          onEdit={isClosedPoll(actionsFor) || isVoiceMessage(actionsFor.plaintext) ? undefined : () => handleEdit(actionsFor)}
+          onForward={forwardFor(actionsFor)}
+          onEdit={editable(actionsFor) ? () => handleEdit(actionsFor) : undefined}
           onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
           onCreateThread={readOnly ? undefined : threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
@@ -648,7 +666,8 @@ export default function ChatPane({
           onMoreReactions={(rect) => openReactionPicker(menuMsg, { getBoundingClientRect: () => rect })}
           onViewReactions={() => setReactionsForId(menuMsg.id)}
           onReply={textOnly || readOnly ? undefined : () => handleReply(menuMsg)}
-          onEdit={isClosedPoll(menuMsg) || isVoiceMessage(menuMsg.plaintext) ? undefined : () => handleEdit(menuMsg)}
+          onForward={forwardFor(menuMsg)}
+          onEdit={editable(menuMsg) ? () => handleEdit(menuMsg) : undefined}
           onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
           onCreateThread={readOnly ? undefined : threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
@@ -671,6 +690,10 @@ export default function ChatPane({
           onRemove={(emoji) => toggleReaction(reactionsMsg, emoji)}
           onClose={closeReactions}
         />
+      )}
+
+      {forwarding && (
+        <ForwardDialog user={user} source={forwarding} encrypted={encrypted} onClose={() => setForwarding(null)} />
       )}
 
       {editsFor && (

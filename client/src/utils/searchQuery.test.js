@@ -62,7 +62,7 @@ describe('suggestions', () => {
     expect(searchSuggestions(searchContext('from:bo'), opts).map((s) => s.insert)).toEqual(['from:bob ', 'from:bobby ']);
     expect(searchSuggestions(searchContext('mentions:ro'), { ...opts, nameOf: (m) => m.display_name || m.username }).map((s) => s.id)).toEqual([3]);
     expect(searchSuggestions(searchContext('in:ran'), opts).map((s) => s.insert)).toEqual(['in:random ']);
-    expect(searchSuggestions(searchContext('has:'), opts)).toHaveLength(7);
+    expect(searchSuggestions(searchContext('has:'), opts)).toHaveLength(8);
     expect(searchSuggestions(searchContext('has:vi'), opts).map((s) => s.insert)).toEqual(['has:video ']);
     // Dates come from the calendar, which writes them as they read back.
     expect(searchContext('pizza before:')).toMatchObject({ kind: 'before', value: '', start: 6 });

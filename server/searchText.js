@@ -2,7 +2,7 @@
 // it): its words (`searchText`, for the full-text index) and what it has (`searchHas`, a bit
 // field for `has:`). Pure functions of the stored row, so the index can be rebuilt any time.
 
-// `has:` values, as in Discord's search (no stickers or forwards here).
+// `has:` values, as in Discord's search (no stickers here).
 const HAS = {
   link: 1,
   embed: 2,
@@ -11,9 +11,11 @@ const HAS = {
   video: 16,
   sound: 32,
   poll: 64,
+  forward: 128,
 };
 
 const POLL_PREFIX = 'poll:v1:';
+const { forwardedContent } = require('./forwards');
 // `![alt](url)` (client utils/attachmentMarkup.js): attachments, GIFs, other images.
 const EMBED_RE = /!\[((?:\\.|[^\]\\])*)\]\(([^)\s]+)\)/g;
 
@@ -54,6 +56,9 @@ function markdownImageBits(url) {
 // { content, embeds, attachments } (the stored columns) → the `has:` bit field.
 function searchHas({ content, embeds, attachments }) {
   const text = String(content ?? '');
+  // A forward (forwards.js): what it forwards, and that it is one.
+  const inner = forwardedContent(text);
+  if (inner != null) return HAS.forward | searchHas({ content: inner, embeds, attachments });
   let bits = 0;
   if (parsePoll(text)) return HAS.poll;
   for (const [, , url] of text.matchAll(EMBED_RE)) bits |= markdownImageBits(url);
@@ -65,9 +70,11 @@ function searchHas({ content, embeds, attachments }) {
 
 // The words to index: the text without mentions (`mentions:` finds people) or channel ids, attachments by
 // name (never their key-carrying links), custom emoji by name, a poll's question and answers,
-// and a webhook's embeds and file names.
+// a forward's text, and a webhook's embeds and file names.
 function searchText({ content, embeds, attachments }) {
   const text = String(content ?? '');
+  const inner = forwardedContent(text);
+  if (inner != null) return searchText({ content: inner, embeds, attachments });
   const parts = [];
   const poll = parsePoll(text);
   if (poll) {

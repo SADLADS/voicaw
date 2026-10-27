@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
-import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faShare, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { quickReactions } from '../emoji/quickReactions';
@@ -10,7 +10,7 @@ import { t } from '../i18n';
 
 // Mobile: what a long press on a message opens (in place of the desktop hover menu). A row of
 // quick reactions (plus the full picker), then View reactions (`onViewReactions`, once it has
-// some, as the desktop menu) / Reply / Edit / Pin (or Unpin) / Create thread / Copy text /
+// some, as the desktop menu) / Reply / Forward (`onForward`) / Edit / Pin (or Unpin) / Create thread / Copy text /
 // Edit history (`onShowEdits`, for an edited message) / Remove previews (`onRemovePreviews`, when you may) / Delete. Actions the
 // message doesn't allow are left out: nothing but copying for one still sending or failed,
 // and editing only your own (deleting: your own, or `canDelete`, e.g. a guild's owner; pinning:
@@ -27,6 +27,7 @@ export default function MessageActionSheet({
   onMoreReactions,
   onViewReactions,
   onReply,
+  onForward,
   onEdit,
   onTogglePin,
   onCreateThread,
@@ -123,6 +124,11 @@ export default function MessageActionSheet({
             {sent && onReply && (
               <button type="button" className="action-sheet-item" onClick={act(onReply)}>
                 <Icon icon={faReply} /> {t('common.reply')}
+              </button>
+            )}
+            {sent && onForward && (
+              <button type="button" className="action-sheet-item" onClick={act(onForward)}>
+                <Icon icon={faShare} /> {t('chat.messageMenu.forwardSheet')}
               </button>
             )}
             {sent && isOwn && onEdit && (

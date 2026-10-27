@@ -83,6 +83,8 @@ emoji are deleted by their own code (a deleted guild takes its icon and emoji im
   and linked the files guild messages and documents showed; DMs', notes' and group DMs' stay
   untracked (the server can't read those messages). A guild file from before that someone also
   pasted into a DM goes with the guild message.
+- **Forwards** (see Forwarding in `docs/messages.md`) show the same file with the same key, so
+  they link it like any message: a forwarded file stays until the last message showing it goes.
 
 ## DM attachments (encrypted, uploaded on send)
 

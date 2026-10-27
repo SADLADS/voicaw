@@ -5,6 +5,7 @@
 // the URL's metadata whether to show it as an image, a video or a download box.
 
 import { parsePoll, pollSummary } from './pollMarkup';
+import { parseForward } from './forwardMarkup';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
 import { t } from '../i18n';
 
@@ -79,9 +80,12 @@ export function isVoiceMessage(text) {
 
 // For places that show raw message text (notifications, reply previews): replaces each
 // embed with a short label so attachment URLs and keys aren't shown. A spoiler's name could
-// give it away, so it's just "spoiler". A voice message is "Voice message", a poll its question.
+// give it away, so it's just "spoiler". A voice message is "Voice message", a poll its question,
+// a forward (utils/forwardMarkup.js) "↪ Forwarded: " and what it forwards.
 export function summarizeAttachments(text) {
   if (!text) return text;
+  const forward = parseForward(text);
+  if (forward) return `↪ ${t('chat.forward.summary', { text: summarizeAttachments(forward.content) })}`;
   const poll = parsePoll(text);
   if (poll) return pollSummary(poll);
   return text.replace(EMBED_RE, (match, alt, url) => {

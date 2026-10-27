@@ -104,7 +104,9 @@ Unknown paths get Discord's 404.
   embeds and attachments; system rows map to Discord's types (thread started 18, poll result
   46, a join in the join log 7; Discord has no leave, so a join log leave is type 0 with no
   content). Content is always included: there's no message content intent to need. A guild's
-  join log channel is its `system_channel_id` (read only: the bot API can't set it).
+  join log channel is its `system_channel_id` (read only: the bot API can't set it). A
+  forwarded message (Forwarding in `docs/messages.md`) is Discord's forward: empty content,
+  `message_reference` type 1, `message_snapshots` with the text and time.
 
 ### Gateway (`server/gateway.js`)
 
@@ -380,7 +382,7 @@ people's encrypted DMs, which bots still never see. The app says so on every one
 ### Not done yet
 
 Discord-compatible voice (see Voice), webhooks managed with a bot token, nicknames, timeouts and server mute,
-stickers, polls through the API, creating guilds, forwarding, creating or
+stickers, polls through the API, creating guilds, forwarding from a bot, creating or
 editing categories, the audit log endpoint. Invites are per guild (a channel's invite only
 echoes the channel back). For interactions: Discord's HTTP interactions endpoint (outgoing
 requests to bots), Components V2 layouts, premium buttons, entitlements, activities,

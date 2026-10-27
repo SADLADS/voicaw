@@ -41,6 +41,14 @@ describe('MessageMenu', () => {
     expect(itemNames()).toEqual(['Add Reaction', 'Reply', 'Unpin Message', 'Copy Text', 'Delete Message']);
   });
 
+  it('offers Forward after Reply when the message can be forwarded', () => {
+    const onForward = vi.fn();
+    renderMenu({ onForward });
+    expect(itemNames()).toEqual(['Add Reaction', 'Reply', 'Forward', 'Edit Message', 'Pin Message', 'Copy Text', 'Delete Message']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Forward' }));
+    expect(onForward).toHaveBeenCalled();
+  });
+
   it('only offers copying for a message still sending', () => {
     renderMenu({ msg: { id: 'temp-1', plaintext: 'hi', status: 'pending' } });
     expect(screen.queryByRole('group', { name: 'React' })).not.toBeInTheDocument();

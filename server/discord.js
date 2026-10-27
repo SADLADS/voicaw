@@ -2,6 +2,7 @@ const db = require('./db');
 const { s3Endpoint } = require('./config');
 const { PERMISSIONS: P, ALL_PERMISSIONS } = require('./permissions');
 const { parseMentions } = require('./mentions');
+const { parseForward } = require('./forwards');
 
 // Our guilds, channels, members, roles and messages as Discord's API shows them, for the bot
 // API (routes/botApi.js) and the gateway (gateway.js); docs/bots.md.
@@ -569,6 +570,27 @@ async function messageObjects(rows, { botId = null, guildId = null, references =
     if (m.parent_message_id) {
       message.message_reference = { type: 0, message_id: id(m.parent_message_id), channel_id: id(m.channel_id), ...(guildId ? { guild_id: id(guildId) } : {}), fail_if_not_exists: false };
       if (references) message.referenced_message = parents.get(m.parent_message_id) ?? null;
+    }
+    // A forward (forwards.js), as Discord's: no content of its own, the original in a snapshot
+    // (its text and time; where it came from isn't kept, so the reference names this channel).
+    const forward = parseForward(m.content);
+    if (forward) {
+      message.content = '';
+      message.flags |= 1 << 14; // HAS_SNAPSHOT
+      message.message_reference = { type: 1, channel_id: id(m.channel_id), ...(guildId ? { guild_id: id(guildId) } : {}), fail_if_not_exists: false };
+      message.message_snapshots = [{
+        message: {
+          type: 0,
+          content: forward.content,
+          embeds: [],
+          attachments: [],
+          timestamp: iso(forward.at ?? m.timestamp),
+          edited_timestamp: null,
+          flags: 0,
+          mentions: [],
+          mention_roles: [],
+        },
+      }];
     }
     if (thread) message.thread = channelObject({ ...thread, archived: m.thread.archived, message_count: m.thread.message_count });
     for (const key of Object.keys(message)) if (message[key] === undefined) delete message[key];

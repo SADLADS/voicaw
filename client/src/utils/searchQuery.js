@@ -12,7 +12,7 @@ import { formatDate, parseDate } from './dateFormat';
 
 export const SEARCH_KEYS = ['from', 'mentions', 'in', 'has', 'before', 'after'];
 
-export const HAS_VALUES = ['link', 'embed', 'file', 'image', 'video', 'sound', 'poll'];
+export const HAS_VALUES = ['link', 'embed', 'file', 'image', 'video', 'sound', 'poll', 'forward'];
 
 const filterRe = (keys) => new RegExp(`(^|\\s)(${keys.join('|')}):("[^"]*"?|\\S*)`, 'gi');
 
