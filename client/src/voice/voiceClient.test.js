@@ -141,6 +141,7 @@ const lk = vi.hoisted(() => {
         Source: { Microphone: 'microphone', Camera: 'camera', ScreenShare: 'screen_share', ScreenShareAudio: 'screen_share_audio' },
         Kind: { Audio: 'audio', Video: 'video' },
       },
+      VideoQuality: { LOW: 0, MEDIUM: 1, HIGH: 2 },
     },
   };
 });
@@ -472,5 +473,39 @@ describe('voiceClient screen share quality', () => {
     expect(saveWatching).toHaveBeenCalledTimes(2);
     await voice.leaveVoice();
     expect(voice.getVoiceSnapshot().watchers).toEqual({});
+  });
+
+  it('asks for the copy of the watched stream that Stream quality picks', async () => {
+    const { setStreamViewQuality } = await import('./streamViewSettings');
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    await voice.joinVoice(1, 2);
+    const room = lk.state.room;
+    const screen = { source: 'screen_share', setSubscribed: vi.fn(), setVideoQuality: vi.fn() };
+    room.remoteParticipants.set('7', {
+      identity: '7',
+      name: 'user7',
+      attributes: {},
+      isMicrophoneEnabled: true,
+      trackPublications: new Map([['TR_screen', screen]]),
+      audioTrackPublications: new Map(),
+      getTrackPublication: (source) => (source === 'screen_share' ? screen : undefined),
+    });
+    room.emit('ParticipantConnected', room.remoteParticipants.get('7'));
+    expect(screen.setSubscribed).toHaveBeenLastCalledWith(false);
+    expect(screen.setVideoQuality).not.toHaveBeenCalled();
+
+    voice.watchStream('7');
+    expect(screen.setSubscribed).toHaveBeenLastCalledWith(true);
+    expect(screen.setVideoQuality).toHaveBeenLastCalledWith(2);
+    setStreamViewQuality('low');
+    expect(screen.setVideoQuality).toHaveBeenLastCalledWith(0);
+
+    // Not watching: nothing asked of a stream we don't download.
+    voice.watchStream(null);
+    screen.setVideoQuality.mockClear();
+    setStreamViewQuality('auto');
+    expect(screen.setVideoQuality).not.toHaveBeenCalled();
+    await voice.leaveVoice();
   });
 });

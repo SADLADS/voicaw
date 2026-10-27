@@ -1,7 +1,6 @@
 import React, { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import { useInRouterContext, useNavigate } from 'react-router-dom';
-import { Trans } from 'react-i18next';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import { Icon } from './Icon';
@@ -25,7 +24,7 @@ import defaultAvatar from '../assets/images/default.png';
 import { useLongPress } from '../hooks/useLongPress';
 import { openPersonMenu } from '../utils/personMenu';
 import { useSwipeToReply } from '../hooks/useSwipeToReply';
-import MessageEditor from '../editor/MessageEditor';
+import InlineMessageEdit from './InlineMessageEdit';
 import { isVoiceMessage, placeholderIdFromUrl, summarizeAttachments } from '../utils/attachmentMarkup';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
@@ -672,41 +671,20 @@ const MessageRow = memo(function MessageRow({
           data-image-gallery=""
         >
           {editing ? (
-            <div className="inline-edit-wrapper">
-              <MessageEditor
-                ref={editRef}
-                id={`edit-input-${msg.id}`}
-                className="inline-edit-editor"
-                ariaLabel={t('chat.message.editLabel')}
-                initialText={editingMessageContent}
-                mentionNames={reactionNames}
-                mentionRoles={mentionRoles}
-                maxLength={maxPlaintextLength}
-                // Mobile: Enter is a new line; "save" below saves.
-                submitOnEnter={!isMobile}
-                onSubmit={() => handleSaveEdit(msg.id)}
-                onChange={({ text }) => setEditingMessageContent(text)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setEditingMessageId(null);
-                  }
-                }}
-                autoFocus
-              />
-
-              <div className="inline-edit-banner">
-                <span>
-                  <Trans
-                    i18nKey="chat.message.editHint"
-                    components={{
-                      cancel: <a href="#" onClick={(e) => { e.preventDefault(); setEditingMessageId(null); }} />,
-                      save: <a href="#" onClick={(e) => { e.preventDefault(); handleSaveEdit(msg.id); }} />,
-                    }}
-                  />
-                </span>
-              </div>
-            </div>
+            <InlineMessageEdit
+              messageId={msg.id}
+              editRef={editRef}
+              initialText={editingMessageContent}
+              mentionNames={reactionNames}
+              mentionRoles={mentionRoles}
+              maxLength={maxPlaintextLength}
+              // Mobile: Enter is a new line; "save" below saves.
+              submitOnEnter={!isMobile}
+              s3Endpoint={s3Endpoint}
+              onChange={setEditingMessageContent}
+              onSave={() => handleSaveEdit(msg.id)}
+              onCancel={() => setEditingMessageId(null)}
+            />
           ) : poll ? (
             <Poll
               poll={poll}

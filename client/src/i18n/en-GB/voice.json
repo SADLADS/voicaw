@@ -51,7 +51,17 @@
       "unmute": "Unmute the stream",
       "deafened": "You're deafened",
       "volume": "Stream volume (just for you)",
-      "percent": "{{percent}}%"
+      "percent": "{{percent}}%",
+      "quality": "Stream quality",
+      "qualities": {
+        "auto": "Auto",
+        "low": "Data saver"
+      },
+      "qualityHints": {
+        "auto": "Full size, smaller only while your connection can't keep up",
+        "low": "Half the width and height, about a quarter of the data"
+      },
+      "receiving": "Receiving {{width}} × {{height}}"
     },
     "userVolume": {
       "title": "User Volume",
