@@ -312,9 +312,18 @@
   layout is CSS (dms.css, COMPACT MESSAGES) but for MessageList giving follow-up lines their name
   and a short time column in compact.
 - **Themes** (`utils/theme.js`, Settings → Appearance, `ThemeSettings.jsx`): Dark (default),
-  Light, Ol' Familiar, Halloween, Slack or Match system (follows `prefers-color-scheme` live, light or dark),
+  Light, Ol' Familiar, Halloween, Christmas, Slack or Match system (follows `prefers-color-scheme` live, light or dark),
   **per device only**
-  (`localStorage theme`; never sent to the server). It's `<html data-theme>` (and Bootstrap's
+  (`localStorage theme`; never sent to the server). **Seasonal themes** (2026-10-28, Settings →
+  Appearance, on by default, per device, `localStorage seasonalThemesOff`): the first time the
+  app runs in October it switches to Halloween, in December to Christmas (`checkSeason`, at
+  startup, hourly and when the app comes back into view), noting what it replaced
+  (`localStorage seasonalTheme`). Choosing any theme in Settings after that is kept; if nobody
+  changed it, the month ending (1 November, 1 January) puts the one before back. Each season
+  switches once a year per device. Turning the setting off while the seasonal theme it put on
+  is showing puts the one before back too. On the day it switches, the page can show the old
+  theme for a moment (`index.html` only reads the stored choice; the switch happens in
+  `main.jsx`). It's `<html data-theme>` (and Bootstrap's
   `data-bs-theme`); a copy of the logic inline in `index.html` sets it before the CSS loads, so a
   light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`
   (COLOURS there), set again in full under `:root[data-theme="light"]` (THEMES): **use tokens,

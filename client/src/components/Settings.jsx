@@ -21,7 +21,7 @@ import AuthorisedApps from './AuthorisedApps';
 import AdminReports from './AdminReports';
 import ProfileVisibilitySettings from './ProfileVisibilitySettings';
 import ContentSettings from "./ContentSettings";
-import ThemeSettings from "./ThemeSettings";
+import ThemeSettings, { SeasonalThemeSettings } from "./ThemeSettings";
 import MessageDisplaySettings from "./MessageDisplaySettings";
 import LanguageSettings from "./LanguageSettings";
 import SoundSettings from "./SoundSettings";
@@ -118,6 +118,7 @@ export default function Settings({ onLogout }) {
       id: 'appearance', group: 'app', title: t('settings.pages.appearance'),
       subs: [
         sub('theme', 'theme', { content: <ThemeSettings /> }),
+        sub('seasonal-themes', 'seasonalThemes', { content: <SeasonalThemeSettings /> }),
         sub('message-display', 'messageDisplay', { content: <MessageDisplaySettings /> }),
       ],
     },

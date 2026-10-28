@@ -1,5 +1,5 @@
 import React from 'react';
-import { setThemeChoice, useTheme } from '../utils/theme';
+import { setSeasonalThemes, setThemeChoice, useTheme } from '../utils/theme';
 import { t } from '../i18n';
 
 const OPTIONS = [
@@ -7,6 +7,7 @@ const OPTIONS = [
   { value: 'light', labelKey: 'settings.theme.light' },
   { value: 'familiar', labelKey: 'settings.theme.familiar' },
   { value: 'halloween', labelKey: 'settings.theme.halloween' },
+  { value: 'christmas', labelKey: 'settings.theme.christmas' },
   { value: 'slack', labelKey: 'settings.theme.slack' },
   { value: 'system', labelKey: 'settings.theme.system' },
 ];
@@ -88,6 +89,21 @@ export default function ThemeSettings() {
         {choice !== 'system' && t('settings.theme.hint')}
         {choice === 'system' && (theme === 'light' ? t('settings.theme.hintSystemLight') : t('settings.theme.hintSystemDark'))}
       </p>
+    </div>
+  );
+}
+
+// Settings → Appearance: Halloween in October and Christmas in December (utils/theme).
+export function SeasonalThemeSettings() {
+  const { seasonal } = useTheme();
+  return (
+    <div className="settings-card">
+      <h5>{t('settings.seasonalThemes.title')}</h5>
+      <label className="settings-toggle">
+        <input type="checkbox" checked={seasonal} onChange={(e) => setSeasonalThemes(e.target.checked)} />
+        {' '}{t('settings.seasonalThemes.toggle')}
+      </label>
+      <p className="vc-hint">{t('settings.seasonalThemes.hint')}</p>
     </div>
   );
 }

@@ -9,7 +9,7 @@
       var t = 'dark';
       try {
         var v = localStorage.getItem('theme');
-        if (v === 'light' || v === 'familiar' || v === 'halloween' || v === 'slack') t = v;
+        if (v === 'light' || v === 'familiar' || v === 'halloween' || v === 'christmas' || v === 'slack') t = v;
         else if (v === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches) t = 'light';
       } catch (e) { /* dark, then */ }
       document.documentElement.setAttribute('data-theme', t);

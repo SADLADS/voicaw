@@ -98,6 +98,10 @@
         "title": "Theme",
         "keywords": "theme dark mode light mode night colours colors system keyboard"
       },
+      "seasonalThemes": {
+        "title": "Seasonal themes",
+        "keywords": "seasonal theme halloween christmas october december holiday automatic switch"
+      },
       "messageDisplay": {
         "title": "Message display",
         "keywords": "compact cosy cozy messages pictures avatars dense layout spacing"
@@ -733,11 +737,17 @@
       "light": "Light",
       "familiar": "Ol’ Familiar",
       "halloween": "Halloween",
+      "christmas": "Christmas",
       "slack": "Slack",
       "system": "Match system",
       "hint": "Saved on this device only.",
       "hintSystemDark": "Your system is using dark mode now. Saved on this device only.",
       "hintSystemLight": "Your system is using light mode now. Saved on this device only."
+    },
+    "seasonalThemes": {
+      "title": "Seasonal themes",
+      "toggle": "Switch to Halloween in October and Christmas in December",
+      "hint": "Choosing another theme during the month keeps it. Otherwise your usual theme comes back when the month ends. Saved on this device only."
     },
     "messageDisplay": {
       "title": "Message display",

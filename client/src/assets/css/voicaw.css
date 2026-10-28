@@ -358,6 +358,75 @@
   color-scheme: dark;
 }
 
+/* Christmas (added 2026-10-28): pine-green neutrals, holly green for what you can do (and the
+   green button), star gold for attention, a red bird and red unread markers, frosty blue links,
+   snow-white text. Errors are a brighter red than the bird so they still read as errors. */
+:root[data-theme="christmas"],
+[data-theme-preview="christmas"] {
+  /* White on the holly is 5.3:1. */
+  --vc-accent: #1b7a48;
+  --vc-accent-hover: #176a3e;
+  --vc-accent-strong: #135a34;
+  --vc-accent-text: #7ad9a0;
+  --vc-accent-soft: rgba(46, 160, 96, 0.2);
+  --vc-on-accent: #ffffff;
+
+  --vc-action: #e6be3c;
+  --vc-action-hover: #cca632;
+  --vc-action-text: #e6be3c;
+  --vc-action-soft: rgba(230, 190, 60, 0.12);
+  --vc-on-action: #141e18;
+  /* The bird goes Christmas red. */
+  --vc-logo: #c42b33;
+
+  /* Rail, sidebar, chat: three steps of the pine. */
+  --vc-bg-rail: #0a120e;
+  --vc-bg-base: #0f1a14;
+  --vc-bg-subtle: #15221b;
+  --vc-bg-elevated: #1d2d24;
+  --vc-bg-elevated-hover: #25382d;
+  /* Cards inside messages (invites, polls, events, bot embeds): a step off the chat. */
+  --vc-bg-card: #1b2a22;
+  --vc-bg-hover: #213328;
+  --vc-border-dark: #23352a;
+  --vc-border-light: #3a5244;
+
+  --vc-fg: #f3f1ea;
+  --vc-fg-muted: #a9bcb0;
+  --vc-placeholder: #829b8b;
+
+  --vc-popup: #0b130f;
+  --vc-spoiler: #0f1a14;
+  --vc-spoiler-hover: #0b130f;
+  --vc-shadow: rgba(0, 0, 0, 0.3);
+  --vc-popup-shadow: rgba(0, 0, 0, 0.5);
+
+  --vc-online: #4fd37a;
+  --vc-success: #1b7a48;
+  --vc-success-hover: #176a3e;
+  --vc-idle: #e6be3c;
+  --vc-warning: #ffb347;
+  --vc-warning-hover: #e89e38;
+  --vc-on-warning: #141e18;
+  --vc-danger: #d9343c;
+  --vc-danger-hover: #bb2b32;
+  --vc-danger-text: #ff8a8a;
+
+  --vc-link: #8ec9f5;
+  --vc-unread: #ff5a5f;
+  --vc-mention-badge: #e6be3c;
+  --vc-on-mention-badge: #141e18;
+
+  --vc-collab-1: #f07a72;
+  --vc-collab-2: #e8a33a;
+  --vc-collab-3: #3fb871;
+  --vc-collab-4: #4fa3e8;
+  --vc-collab-5: #b98af5;
+  --vc-collab-6: #e86fb5;
+
+  color-scheme: dark;
+}
+
 /* Slack (added 2026-10-25): Slack's colours, light underneath like Light: a white chat in
    Slack's neutral greys (no purple tint), its green for what you can do, blue links, red counts
    and errors, its yellow for mentions. The left side (rail, sidebar, user card) is its
