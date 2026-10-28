@@ -224,6 +224,26 @@ message), nor has a picture on the device (a `blob:` copy: one being written or 
 it offers Open Image instead (the decrypted copy in a new tab). Videos keep their
 player's own download button.
 
+**Open Image in the desktop app** (2026-10-28, `utils/imageLink.js`): the app has no tabs, and
+Electron hands only `http(s)` links to the browser, so the decrypted `blob:` copy can't go there
+(Open Image used to do nothing). Nor can the picture's own URL: it carries its key, and the
+uploads bucket is public, so anyone with the link (or the browser's history) could read it,
+logged in or not. So Open Image (and the viewer's Open in new tab button, `imageOpener`) opens
+the web app (`shareOrigin()`, the server's own) at the chat it's in, with `in` (ChatPane's
+`chatId`), `message`, `image` (the file's object name, `<uuid>.bin`) and `as` (the account),
+and no key: `/dm/12?in=12&message=345&image=….bin&as=7` (other query parameters of the page,
+such as `thread`, are kept, so the same pane opens). Gallery items learn where they are from
+the page (`placeOf`: ChatPane's wrapper is marked `data-chat-id`, rows `data-msg-id`); a
+picture with nowhere to link to (search results, pins, a document, one being written) has no
+Open Image in the desktop app. In the browser: logged out, `/dm/*` and `/guild/*` show the
+login and stay at the link (App's routes, as invite links do); logged in as another account,
+`ImageLinkAccount` says whose picture it is and offers Log out (keeping the link) or Cancel
+(drops it). With the right account, `hooks/useImageLink.js` in the chat's ChatPane waits for
+the history, takes the link out of the address, scrolls to the message (loading older pages,
+`jumpToMessage`) and opens the viewer on that file with the message's other pictures; the
+browser decrypts with its own keys. A spoiler still covered isn't in the gallery, so the chat
+just stops at the message.
+
 ## Voice messages
 
 Since 2026-10-09, as Discord's. **Recording:** on a phone the mic button takes Send's place while

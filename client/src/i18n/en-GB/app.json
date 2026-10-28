@@ -2,6 +2,12 @@
   "app": {
     "unreachable": "Can't reach Voicaw. Trying again…",
     "unreachableLogOut": "Log out on this device",
+    "imageLink": {
+      "title": "Another account's picture",
+      "text": "This picture is in {{name}}'s chats, and you're logged in as {{current}}. Log out and log in as {{name}} to see it.",
+      "logOut": "Log out",
+      "unknown": "another account"
+    },
     "offline": {
       "title": "You're offline",
       "text": "Showing messages saved on this device. You can read them, but not send.",

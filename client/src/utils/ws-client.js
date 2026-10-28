@@ -209,6 +209,10 @@ export function connectWebSocket() {
     console.warn('[WS] No JWT token found, not connecting');
     return;
   }
+  // Still connecting for this login (Login connects, then Layout mounts at once when the login
+  // was on a page of the app, such as a link to a chat): a second socket would take `ws` from it
+  // before its onopen, which then sends on the one not open yet.
+  if (ws && ws.readyState === WebSocket.CONNECTING && ws.token === token) return;
 
   const url = websocketUrl();
   console.log("Connecting to WebSocket:", url);

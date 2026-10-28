@@ -76,7 +76,7 @@ describe('ImageViewer', () => {
     expect(dialog.querySelector('.image-viewer-image')).toHaveAttribute('src', 'blob:cat');
   });
 
-  it('saves and opens the decrypted image', () => {
+  it('saves and opens the decrypted image', async () => {
     renderImage();
     fireEvent.click(screen.getByRole('button', { name: 'cat.png' }));
 
@@ -84,7 +84,7 @@ describe('ImageViewer', () => {
     expect(saveUrlAs).toHaveBeenCalledWith('blob:cat', 'cat.png');
 
     fireEvent.click(screen.getByRole('button', { name: 'Open in new tab' }));
-    expect(openInNewTab).toHaveBeenCalledWith('blob:cat', 'cat.png');
+    await waitFor(() => expect(openInNewTab).toHaveBeenCalledWith('blob:cat', 'cat.png'));
   });
 
   it("right-clicking the image opens its menu (no link: it's encrypted); Escape closes only the menu", async () => {

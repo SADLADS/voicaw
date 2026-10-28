@@ -1,13 +1,17 @@
 import { faArrowUpRightFromSquare, faCopy, faDownload, faLink } from '@fortawesome/free-solid-svg-icons';
 import { loadImageSrc, readyImageSrc } from './imageGallery';
 import { openInNewTab, saveUrlAs } from './saveFile';
+import { isDesktopApp } from './desktop';
+import { browserImageLink } from './imageLink';
 import { t } from '../i18n';
 
 // What can be done with a picture (ImageMenu: right-click it in a message or in the full-screen
 // viewer, or hold it in the viewer on a phone). `item` is a gallery item (utils/imageGallery.js:
 // { src, name, meta? }). An encrypted attachment (`meta`) has no link worth sharing: its file is
 // ciphertext and its key only lives inside the message, so it offers Open Image (the decrypted
-// copy in a new tab) instead of Copy/Open Link.
+// copy in a new tab) instead of Copy/Open Link. The desktop app has no tabs: there Open Image opens
+// the web app in the browser at the picture (utils/imageLink.js), and isn't offered where the
+// picture has no chat and message to link to.
 
 // The picture's displayable URL: the decrypted copy already in memory when there is one.
 const srcOf = async (item) => readyImageSrc(item) || loadImageSrc(item);
@@ -54,8 +58,22 @@ export async function copyImage(item) {
   }
 }
 
-// The menu's items for `item`.
-export function imageMenuItems(item) {
+// What opening `item` in a new tab does (the menu's Open Link / Open Image, the viewer's button):
+// its link, the decrypted copy, or in the desktop app the web app at the picture; null where the
+// desktop app has nothing to open (no chat and message to link to, or a picture on this device).
+export function imageOpener(item, userId = null) {
+  const link = imageLink(item);
+  if (link) return () => openInNewTab(link);
+  if (isDesktopApp()) {
+    const inBrowser = browserImageLink(item, userId);
+    return inBrowser ? () => openInNewTab(inBrowser) : null;
+  }
+  return async () => openInNewTab(await srcOf(item), item.name || t('media.image.defaultFileName'));
+}
+
+// The menu's items for `item`; `userId` is the logged-in account (the desktop app's Open Image
+// link says which it is).
+export function imageMenuItems(item, userId = null) {
   const link = imageLink(item);
   const items = [
     {
@@ -87,15 +105,13 @@ export function imageMenuItems(item) {
       { key: 'open-link', label: t('media.image.openLink'), icon: faArrowUpRightFromSquare, onSelect: () => openInNewTab(link) },
     );
   } else {
-    items.push(
-      { separator: true },
-      {
-        key: 'open-image',
-        label: t('media.image.openImage'),
-        icon: faArrowUpRightFromSquare,
-        onSelect: async () => openInNewTab(await srcOf(item), item.name || t('media.image.defaultFileName')),
-      },
-    );
+    const open = imageOpener(item, userId);
+    if (open) {
+      items.push(
+        { separator: true },
+        { key: 'open-image', label: t('media.image.openImage'), icon: faArrowUpRightFromSquare, onSelect: open },
+      );
+    }
   }
   return items;
 }

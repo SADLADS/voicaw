@@ -11,7 +11,9 @@ import {
   faChevronRight,
 } from '@fortawesome/free-solid-svg-icons';
 import { formatBytes } from '../utils/formatBytes';
-import { saveUrlAs, openInNewTab } from '../utils/saveFile';
+import { saveUrlAs } from '../utils/saveFile';
+import { imageOpener } from '../utils/imageActions';
+import { useAuth } from '../hooks/useAuth';
 import { useImageSrc } from '../hooks/useImageSrc';
 import {
   ZOOM_STEP,
@@ -340,6 +342,9 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
   const closeRef = useRef(null);
   const [viewInfo, setViewInfo] = useState(null);
   const { src } = useImageSrc(item);
+  // Opening it in a new tab (in the desktop app: the web app at the picture, when it's in a chat).
+  const userId = useAuth()?.user?.id ?? null;
+  const openNew = imageOpener(item, userId);
   const multiple = images.length > 1;
   const canSwipe = { previous: index > 0, next: index < images.length - 1 };
 
@@ -427,15 +432,17 @@ export default function ImageViewer({ images, index, onIndexChange, onClose }) {
           >
             <Icon icon={faDownload} />
           </button>
-          <button
-            type="button"
-            onClick={() => openInNewTab(src, item.name)}
-            disabled={!src}
-            title={t('media.viewer.openInNewTab')}
-            aria-label={t('media.viewer.openInNewTab')}
-          >
-            <Icon icon={faArrowUpRightFromSquare} />
-          </button>
+          {openNew && (
+            <button
+              type="button"
+              onClick={openNew}
+              disabled={!src}
+              title={t('media.viewer.openInNewTab')}
+              aria-label={t('media.viewer.openInNewTab')}
+            >
+              <Icon icon={faArrowUpRightFromSquare} />
+            </button>
+          )}
           <button
             type="button"
             ref={closeRef}

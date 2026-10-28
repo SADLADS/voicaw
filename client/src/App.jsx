@@ -37,6 +37,7 @@ import { setSoundboardBase } from './voice/soundboard';
 import { t } from './i18n';
 import { watchKeyboardViewport } from './utils/keyboardViewport';
 import TermsGate from './components/TermsGate';
+import ImageLinkAccount from './components/ImageLinkAccount';
 
 
 
@@ -196,6 +197,7 @@ export default function App() {
           <SafetyDialogs />
           <UpdateBanner />
           <OfflineBanner />
+          {user && !user.pending && <ImageLinkAccount user={user} onLogout={handleLogout} />}
           {/* Waiting for an admin's approval (server/signups.js): only that, whatever the address. */}
           {user?.pending ? (
             <PendingApproval user={user} onApproved={() => setUser({ ...user, pending: false })} onLogout={handleLogout} />
@@ -234,6 +236,10 @@ export default function App() {
             {!user && <Route path="/developers/*" element={<Login onLoginSuccess={setUser} />} />}
             {!user && <Route path="/oauth2/authorize" element={<Login onLoginSuccess={setUser} />} />}
             {!user && <Route path="/join/:code" element={<JoinPage onLoginSuccess={setUser} />} />}
+            {/* A link to a chat (a picture in one, opened from the desktop app: utils/imageLink.js)
+                likewise opens it once you've logged in. */}
+            {!user && <Route path="/dm/*" element={<Login onLoginSuccess={setUser} />} />}
+            {!user && <Route path="/guild/*" element={<Login onLoginSuccess={setUser} />} />}
 
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

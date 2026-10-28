@@ -1,5 +1,6 @@
 import React from 'react';
 import { imageMenuItems } from '../utils/imageActions';
+import { useAuth } from '../hooks/useAuth';
 import { t } from '../i18n';
 import ContextMenu from './ContextMenu';
 
@@ -8,11 +9,12 @@ import ContextMenu from './ContextMenu';
 // opened from the full-screen viewer. Right-clicking a picture opens it (PageMenus), and so
 // does holding one in the viewer or a document on a phone.
 export default function ImageMenu({ item, anchor, sheet, overViewer = false, onClose }) {
+  const userId = useAuth()?.user?.id ?? null;
   return (
     <ContextMenu
       title={item.name || t('media.image.menuTitle')}
       label={item.name || t('media.image.menuTitle')}
-      items={imageMenuItems(item)}
+      items={imageMenuItems(item, userId)}
       anchor={anchor}
       sheet={sheet}
       overViewer={overViewer}

@@ -6,9 +6,11 @@ vi.mock('./imageGallery', () => ({
   loadImageSrc: vi.fn(async (item) => (item.meta ? 'blob:decrypted' : item.src)),
 }));
 vi.mock('./saveFile', () => ({ saveUrlAs: vi.fn(), openInNewTab: vi.fn() }));
+vi.mock('./desktop', () => ({ isDesktopApp: vi.fn(() => false) }));
 
 import { copyImage, imageAt, imageLink, imageMenuItems } from './imageActions';
 import { openInNewTab, saveUrlAs } from './saveFile';
+import { isDesktopApp } from './desktop';
 
 const plain = { src: 'https://static.klipy.com/cat.webp', name: 'GIF' };
 const encrypted = { src: 'https://media.test/uploads/a.bin#v=1&k=KEY', name: 'photo.jpg', meta: { kind: 'image' } };
@@ -28,6 +30,25 @@ describe('picture menus', () => {
     const local = { src: 'blob:http://localhost/1', name: 'photo.png' };
     expect(imageLink(local)).toBe(null);
     expect(labels(imageMenuItems(local))).toEqual(['Copy Image', 'Save Image', 'Open Image']);
+  });
+
+  it('opens an encrypted picture in a chat in the browser from the desktop app, by where it is, never its key', async () => {
+    isDesktopApp.mockReturnValue(true);
+    try {
+      window.history.replaceState(null, '', '/dm/g/4?thread=9');
+      const inChat = { ...encrypted, place: { chatId: 'group-4', messageId: '812' } };
+      const open = imageMenuItems(inChat, 7).find((i) => i.label === 'Open Image');
+      await open.onSelect();
+      const [link] = openInNewTab.mock.calls[0];
+      expect(link).toBe(`${window.location.origin}/dm/g/4?thread=9&in=group-4&message=812&image=a.bin&as=7`);
+      expect(link).not.toContain('KEY');
+      // Nowhere to link to (search results, a document): no Open Image, rather than one doing nothing.
+      expect(labels(imageMenuItems(encrypted, 7))).toEqual(['Copy Image', 'Save Image']);
+      expect(labels(imageMenuItems(plain, 7))).toEqual(['Copy Image', 'Save Image', 'Copy Link', 'Open Link']);
+    } finally {
+      isDesktopApp.mockReturnValue(false);
+      window.history.replaceState(null, '', '/');
+    }
   });
 
   it('saves and opens the decrypted copy of an encrypted picture, and copies and opens a plain one\'s link', async () => {

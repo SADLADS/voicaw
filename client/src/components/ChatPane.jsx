@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useInRouterContext } from 'react-router-dom';
 import EmojiPicker from './EmojiPicker';
 import MessageList from './MessageList';
 import Composer from './Composer';
@@ -30,6 +31,7 @@ import { handleInteractionResult, runCommand } from '../services/interactionServ
 import { interactionError } from '../utils/commandOptions';
 import { t } from '../i18n';
 import { flashRow } from '../utils/flashRow';
+import { useImageLink } from '../hooks/useImageLink';
 import { drawnByApp, linksIn, SUPPRESS_EMBEDS } from '../utils/linkPreviews';
 import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup, pollWithAnswers } from '../utils/pollMarkup';
@@ -68,6 +70,12 @@ import { groupReactions } from '../utils/reactions';
 // one, an empty chat shows it instead of `emptyText`. `conversation.firstUnread` places the
 // "New" divider (useNewDivider).
 const noHover = () => {};
+
+// Opens the picture a link from the desktop app asks for, when it's in this chat (useImageLink).
+function ImageLinkOpener(props) {
+  useImageLink(props);
+  return null;
+}
 
 export default function ChatPane({
   chatId,
@@ -128,6 +136,7 @@ export default function ChatPane({
     () => (unsentRows.length ? [...conversation.messages, ...unsentRows] : conversation.messages),
     [conversation.messages, unsentRows]
   );
+  const inRouter = useInRouterContext();
   const newFrom = useNewDivider({ chatId, firstUnread: conversation.firstUnread, isLoading: conversation.isLoading, messages, userId: user?.id });
   // A guild channel or thread (not encrypted, chat id "channel-<id>"): its bots' commands, for
   // the "/" list (Composer) and the message menus' Apps.
@@ -426,6 +435,7 @@ export default function ChatPane({
   }
 
   // Scrolls the chat to message `id` (loading older history until it's there) and flashes it.
+  // Resolves to its row, or null if it couldn't be found.
   async function jumpToMessage(id) {
     if (isMobile) onClosePins?.();
     const deadline = Date.now() + 20000;
@@ -434,7 +444,7 @@ export default function ChatPane({
       if (row) {
         row.scrollIntoView({ block: 'center' });
         flashRow(row, 'jump-highlight');
-        return;
+        return row;
       }
       const current = latestConversation.current;
       if (!current.hasMore) break;
@@ -442,6 +452,7 @@ export default function ChatPane({
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     setComposerError(t('chat.pane.jumpFailed'));
+    return null;
   }
 
   useEffect(() => {
@@ -467,7 +478,11 @@ export default function ChatPane({
 
   return (
     <>
-      <div className="dm-message-wrapper">
+      {/* `data-chat-id`: which chat a picture is in, for the desktop app's Open Image (utils/imageLink.js). */}
+      <div className="dm-message-wrapper" data-chat-id={chatId}>
+        {inRouter && (
+          <ImageLinkOpener chatId={chatId} userId={user?.id} ready={!conversation.isLoading} jumpToMessage={jumpToMessage} />
+        )}
         {conversation.isLoading ? (
           <p></p>
         ) : conversation.error ? (
