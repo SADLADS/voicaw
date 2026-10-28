@@ -616,14 +616,14 @@ describe('MessageList', () => {
     });
   });
 
-  it('falls back to the default avatar when a profile pic fails to load', () => {
+  it('falls back to the letter picture when a profile pic fails to load', () => {
     const msg = { id: 1, sender_id: 1, sender_username: 'alice', plaintext: 'hi', timestamp: 1000 };
     render(<MessageList {...baseProps({ messages: [msg] })} />);
 
     const img = screen.getByAltText('alice');
     fireEvent.error(img);
 
-    expect(img.src).toContain('default');
+    expect(img.src).toMatch(/^data:image\/svg\+xml,/);
   });
 
   it('keeps rendered attachments mounted across re-renders (e.g. hovering a message)', async () => {

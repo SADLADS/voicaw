@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { desktop } from '../utils/desktop';
 import { overlayVoiceState } from '../utils/overlay';
-import { avatarUrl, displayName, useProfiles } from '../utils/profiles';
+import { avatarUrl, displayName, getProfile, useProfiles } from '../utils/profiles';
+import { letterAvatar } from '../utils/letterAvatar';
 import { voiceTitle } from '../utils/voiceTitle';
 import { useVoice } from './useVoice';
 import { useCall } from './useCall';
@@ -21,7 +22,8 @@ export function useGameOverlay({ user, guildList, groupList }) {
     title: voice.status === 'idle' ? '' : voiceTitle({ voice, call, guildList, groupList, user }),
     channelMembers,
     name: displayName,
-    avatar: avatarUrl,
+    // No picture: the same letter one Avatar draws (the overlay has no profile store).
+    avatar: (id) => avatarUrl(id) ?? letterAvatar(id, getProfile(id)?.username),
   });
   const key = desktop?.setOverlayVoice ? JSON.stringify(state) : null;
 

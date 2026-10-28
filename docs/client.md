@@ -675,7 +675,11 @@ even when there is no display name).
   images use `users.avatar` (no requests to the store). Client: the profile store has `avatar`,
   `avatarUrl(id)` gives the URL (null: default), and **`Avatar` (`components/Avatar.jsx`) draws
   every profile picture** (`voice/UserAvatar` adds the speaking ring); nothing builds picture
-  URLs itself. Pictures from before (one unprocessed `profile-pics/<user id>` each) are converted
+  URLs itself. Without a picture (or when it won't load) it draws a letter picture
+  (`utils/letterAvatar.js`, 2026-10-28): the username's first character, white, on one of 12
+  colours picked by hashing the user id (FNV-1a), so it's the same on every device and survives
+  a rename. An SVG data URL, so the same CSS applies; the game overlay is sent the same one.
+  Deleted accounts, webhooks and push notification icons keep `default.png`. Pictures from before (one unprocessed `profile-pics/<user id>` each) are converted
   when the server starts (`migrateLegacyAvatars`: lists the bucket's top level, converts,
   deletes; afterwards there's nothing to list).
 - **Banners** (built 2026-10-13): a picture across the top of someone's card and full profile,

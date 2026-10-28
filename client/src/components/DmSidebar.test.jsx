@@ -96,13 +96,13 @@ describe('DmSidebar', () => {
     expect(dotOf('alice')).toHaveAttribute('title', 'Last seen 3 hours ago');
   });
 
-  it('falls back to the default avatar when the profile pic fails to load', () => {
+  it('falls back to the letter picture when the profile pic fails to load', () => {
     renderSidebar(users);
 
     const img = screen.getByAltText('alice');
     img.dispatchEvent(new Event('error'));
 
-    expect(img.src).toContain('default');
+    expect(img.src).toMatch(/^data:image\/svg\+xml,/);
   });
 
   it('marks conversations with unread messages, except the open one', () => {
