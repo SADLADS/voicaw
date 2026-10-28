@@ -6,7 +6,7 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 const { getAllMembers, getOverrides, getChannelViewers } = require('./guilds');
 const { pollPreview } = require('./polls');
 const { forwardedContent } = require('./forwards');
-const { mutedUserIds, guildMutedUserIds, channelLevels } = require('./channelMutes');
+const { mutedUserIds, guildMutedUserIds, categoryMutedUserIds, channelLevels } = require('./channelMutes');
 
 // Mentions in guild messages, and the pushes they (and plain messages) cause.
 // In the text: `<@userId>`, `<@&roleId>`, `@everyone` (everyone who can see the channel) and
@@ -171,7 +171,7 @@ function fallbackPreview(message) {
 // Who's pushed about a new message (or a system row) in `channel`, of its `viewers`: those
 // whose notification level wants it ('all': every message; 'mentions': when `mentioned`, a Set;
 // their own level for the channel, if they set one, else the guild's), unless they're looking
-// at the channel or have muted it or the guild (then only when mentioned, like Discord;
+// at the channel or have muted it, its category or the guild (then only when mentioned, like Discord;
 // channelMutes.js). In a thread, its channel's level and mute count when the thread has none of
 // its own, and only its members get messages that don't mention them. Never the sender (unless
 // `sender` is true, for a row about something of theirs), nor anyone who blocked them.
@@ -183,6 +183,7 @@ async function pushRecipients(message, channel, viewers, mentioned, { sender = f
   const thread = channel.type === 'thread';
   const muted = await mutedUserIds(channel.id);
   const guildMuted = await guildMutedUserIds(channel.guild_id);
+  const categoryMuted = await categoryMutedUserIds(channel);
   const ownLevels = await channelLevels(channel.id);
   const parentMuted = thread ? await mutedUserIds(channel.parent_id) : new Set();
   const parentLevels = thread ? await channelLevels(channel.parent_id) : new Map();
@@ -198,7 +199,7 @@ async function pushRecipients(message, channel, viewers, mentioned, { sender = f
     const wants = mentioned.has(userId)
       ? level !== 'none'
       : level === 'all' && !muted.has(userId) && !parentMuted.has(userId) && !guildMuted.has(userId)
-        && (!thread || threadMembers.has(userId));
+        && !categoryMuted.has(userId) && (!thread || threadMembers.has(userId));
     if (!wants) return false;
     return !isViewingConversation(userId, `channel-${channel.id}`);
   });

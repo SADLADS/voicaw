@@ -11,6 +11,10 @@ vi.mock('../../services/guildService', () => ({
     guildId: 5, channelId, muted: true, until: duration == null ? null : Math.floor(Date.now() / 1000) + duration,
   })),
   unmuteChannel: vi.fn(async (channelId) => ({ guildId: 5, channelId, muted: false, until: null })),
+  muteCategory: vi.fn(async (guildId, categoryId, duration) => ({
+    guildId, categoryId, muted: true, until: duration == null ? null : Math.floor(Date.now() / 1000) + duration,
+  })),
+  unmuteCategory: vi.fn(async (guildId, categoryId) => ({ guildId, categoryId, muted: false, until: null })),
   setChannelNotifications: vi.fn(async (channelId, level) => ({ guildId: 5, channelId, level })),
   markChannelReadToLatest: vi.fn(async () => {}),
   deleteChannel: vi.fn(async () => {}),
@@ -46,9 +50,11 @@ import {
   deleteChannel,
   leaveGuild,
   markChannelReadToLatest,
+  muteCategory,
   muteChannel,
   setChannelNotifications,
   setEventRsvp,
+  unmuteCategory,
   unmuteChannel,
 } from '../../services/guildService';
 
@@ -81,9 +87,11 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderSidebar({ user = owner, unread = [], mutes = {}, channelLevels = {}, path = '/guild/5/10', permissions, isMobile = false, threads = [] } = {}) {
+function renderSidebar({ user = owner, unread = [], mutes = {}, categoryMutes = {}, channelLevels = {}, path = '/guild/5/10', permissions, isMobile = false, threads = [] } = {}) {
   const guildList = {
-    unread, mutes, channelLevels, isMuted: (id) => Boolean(mutes[id]), applyMute: vi.fn(), applyChannelLevel: vi.fn(),
+    unread, mutes, categoryMutes, channelLevels, applyMute: vi.fn(), applyCategoryMute: vi.fn(), applyChannelLevel: vi.fn(),
+    isMuted: (id) => Boolean(mutes[id] || categoryMutes[baseGuild.channels.find((c) => c.id === id)?.category_id]),
+    isCategoryMuted: (id) => Boolean(categoryMutes[id]),
     clearUnread: vi.fn(), removeGuild: vi.fn(), upsertGuild: vi.fn(), loadGuild: vi.fn(async () => {}),
   };
   const guild = { ...baseGuild, threads, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
@@ -169,6 +177,18 @@ describe('GuildSidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fun' }));
     expect(screen.getByRole('link', { name: /^memes/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^lounge/ })).toBeNull();
+  });
+
+  it('dims the channels of a muted category, the bell on the category only', () => {
+    renderSidebar({
+      unread: [{ channel_id: 11, guild_id: 5, count: 3, mentions: 0 }],
+      categoryMutes: { 2: { guildId: 5, until: null } },
+    });
+    const memes = screen.getByRole('link', { name: 'memes' }).closest('li');
+    expect(memes).toHaveClass('muted');
+    expect(memes).not.toHaveClass('unread');
+    expect(within(memes).queryByLabelText('Muted')).toBeNull();
+    expect(within(screen.getByRole('button', { name: /^Fun/ })).getByLabelText('Muted')).toBeInTheDocument();
   });
 
   const menuItems = (menu) => [...menu.querySelectorAll('[role^="menuitem"]')].map((b) => b.firstChild.firstChild.textContent);
@@ -275,7 +295,7 @@ describe('GuildSidebar', () => {
     renderSidebar();
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Fun' }));
     expect(menuItems(screen.getByRole('menu', { name: 'Fun' }))).toEqual([
-      'Collapse Category', 'Copy Category ID', 'Edit Category', 'Create Channel', 'Delete Category',
+      'Mute Category', 'Collapse Category', 'Copy Category ID', 'Edit Category', 'Create Channel', 'Delete Category',
     ]);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Collapse Category' }));
     await waitFor(() => expect(screen.queryByRole('link', { name: 'lounge' })).toBeNull());
@@ -283,6 +303,22 @@ describe('GuildSidebar', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete Category' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Category' }));
     await waitFor(() => expect(deleteCategory).toHaveBeenCalledWith(5, 2));
+  });
+
+  it("mutes a category from its menu, for as long as picked, and unmutes it", async () => {
+    let guildList = renderSidebar();
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Fun' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mute Category' }));
+    fireEvent.click(within(screen.getByRole('menu', { name: 'Mute Category' })).getByRole('menuitem', { name: 'For 8 hours' }));
+    await waitFor(() => expect(muteCategory).toHaveBeenCalledWith(5, 2, 8 * 3600));
+    await waitFor(() => expect(guildList.applyCategoryMute).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 2, muted: true })));
+    cleanup();
+
+    guildList = renderSidebar({ categoryMutes: { 2: { guildId: 5, until: null } } });
+    fireEvent.contextMenu(screen.getByRole('button', { name: /^Fun/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Unmute Category/ }));
+    await waitFor(() => expect(unmuteCategory).toHaveBeenCalledWith(5, 2));
+    await waitFor(() => expect(guildList.applyCategoryMute).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 2, muted: false })));
   });
 
   it("right-clicking the list's empty space offers creating and inviting, as allowed", async () => {

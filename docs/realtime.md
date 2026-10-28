@@ -21,7 +21,7 @@ webhook's edit also carries `embeds`, `attachments`, `flags`),
 `guild_reaction_add` / `_remove` (the removal with who and which emoji, for bots), `guild_member_update` (roles), `guild_emojis_update`,
 `guild_order` (your guild rail order, to your other devices), `guild_channel_mute` (you muted or
 unmuted a channel, to your other devices; see Mentions), `guild_mute` (the same for a whole
-guild), `guild_channel_notify` (you set a
+guild), `guild_category_mute` (the same for a category), `guild_channel_notify` (you set a
 channel's notification level, to your other devices), `conversation_settings` (you pinned or
 muted a DM or group, to your other devices; see `docs/client.md`), `preferences` (you changed
 an account preference, to your other devices; see `docs/client.md`), `friends` (your friends

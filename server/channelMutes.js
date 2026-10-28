@@ -86,6 +86,51 @@ async function guildMutedUserIds(guildId) {
   return new Set(rows.map((r) => r.user_id));
 }
 
+// Muted categories (Discord's Mute Category), each member's own: the same as muting every
+// channel in the category (threads too) for as long as it's in there, for `duration` seconds or
+// until unmuted. Mentions still get through.
+
+// `userId`'s category mutes that are still on: [{ category_id, guild_id, until }].
+async function listCategoryMutes(userId) {
+  await db.run('DELETE FROM guild_category_mutes WHERE user_id = ? AND until <= ?', [userId, now()]);
+  return db.all(
+    `SELECT m.category_id, c.guild_id, m.until FROM guild_category_mutes m
+     JOIN guild_categories c ON c.id = m.category_id WHERE m.user_id = ? ORDER BY m.category_id`,
+    [userId]
+  );
+}
+
+// Mutes (duration: seconds or null) or unmutes (`muted` false) the category for `userId`.
+// Returns the mute ({ until }) or null.
+async function setCategoryMute(userId, categoryId, { muted, duration = null }) {
+  if (!muted) {
+    await db.run('DELETE FROM guild_category_mutes WHERE user_id = ? AND category_id = ?', [userId, categoryId]);
+    return null;
+  }
+  const until = duration == null ? null : now() + duration;
+  await db.run(
+    `INSERT INTO guild_category_mutes (user_id, category_id, until) VALUES (?, ?, ?)
+     ON CONFLICT(user_id, category_id) DO UPDATE SET until = excluded.until`,
+    [userId, categoryId, until]
+  );
+  return { until };
+}
+
+// The ids of the users who have the category of `channel` muted right now (a thread: its
+// channel's category). None for a channel outside any category.
+async function categoryMutedUserIds(channel) {
+  const row = await db.get(
+    'SELECT category_id FROM guild_channels WHERE id = ?',
+    [channel.type === 'thread' ? channel.parent_id : channel.id]
+  );
+  if (row?.category_id == null) return new Set();
+  const rows = await db.all(
+    'SELECT user_id FROM guild_category_mutes WHERE category_id = ? AND (until IS NULL OR until > ?)',
+    [row.category_id, now()]
+  );
+  return new Set(rows.map((r) => r.user_id));
+}
+
 // Each member's own notification level for a channel ('all', 'mentions', 'none'), overriding
 // their guild's (guild_members.notify_level) for that channel's messages, like Discord's
 // per-channel Notification Settings. Muting still wins over 'all' (mentions get through).
@@ -128,6 +173,9 @@ module.exports = {
   listGuildMutes,
   setGuildMute,
   guildMutedUserIds,
+  listCategoryMutes,
+  setCategoryMute,
+  categoryMutedUserIds,
   CHANNEL_NOTIFY_LEVELS,
   listChannelLevels,
   setChannelLevel,

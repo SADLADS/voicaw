@@ -15,7 +15,7 @@ const MARGIN = 8;
 // rect: the channel header's bell button; `align` 'end' lines its right edge up with the
 // anchor's; the channel list's menu, ChannelMenu, has the same choices), kept on screen; closes on a pick, a click
 // elsewhere or Escape. A muted channel isn't marked unread and doesn't notify, except when
-// someone mentions you.
+// someone mentions you. A channel muted with its category says so (its own mute can still be set).
 export default function ChannelMuteMenu({ channel, anchor, align = 'start', onClose }) {
   useDateFormat();
   const { guildList } = useContext(LayoutContext);
@@ -68,6 +68,7 @@ export default function ChannelMuteMenu({ channel, anchor, align = 'start', onCl
       ) : (
         <>
           <p className="channel-mute-title"><Icon icon={faBellSlash} /> {t('guildAdmin.channelMenu.mute')}</p>
+          {guildList.isMuted(channel.id) && <p className="channel-mute-until">{t('guildAdmin.channelMenu.categoryMuted')}</p>}
           {MUTE_DURATIONS.map(([label, duration]) => (
             <button
               key={label}

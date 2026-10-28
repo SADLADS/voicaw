@@ -453,6 +453,21 @@ in a DM, everyone in a group's log, a guild's members; anyone else `@unknown-use
   Leaving or deleting the guild deletes the mute. Assignment pushes and events starting
   (things you're told about directly) aren't muted. Client: the guild's menu on the rail, Mute
   Guild ▸ / Unmute Guild (with when it ends).
+- **Muted categories** (Discord's Mute Category; `channelMutes.js`, `guild_category_mutes`:
+  member, category, `until` unix s or NULL): the same choices and rules as a muted channel, for
+  every channel in the category and their threads, whichever channels it holds at the time (a
+  channel moved out isn't muted any more, one moved in is). `PUT
+  /guilds/:id/categories/:categoryId/mute { duration: s | null }`, `DELETE` unmutes, `GET
+  /category-mutes`; members only; `guild_category_mute` to your other devices. Pushes and
+  reactions' pushes are muted as by a channel mute (`categoryMutedUserIds`, by the channel's or a
+  thread's channel's category). `/guild-unread` rows carry `category_id` (a thread's: its
+  channel's) so the client can tell for guilds it hasn't opened (`useGuildList` `categoryMutes`,
+  `isCategoryMuted`; `isMuted` is true for a channel muted itself or by its category, `mutes`
+  holds only its own). The channel list dims its channels (the crossed-out bell is on the
+  category, not each channel), and a channel's Mute Channel says its category is muted (its own
+  mute can still be set, and outlasts the category's). Deleting the category, leaving or deleting
+  the guild deletes the mute. Client: the category's menu, Mute Category ▸ / Unmute Category
+  (with when it ends).
 - **Channel notification levels** (Discord's per-channel Notification Settings;
   `guild_channel_notify`: member, channel, level): your own 'all' / 'mentions' / 'none' for one
   channel, overriding your guild level for its messages (`notifyNewMessage`); no row means the

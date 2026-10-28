@@ -263,7 +263,9 @@ export default function GuildSidebar({ guild, user }) {
     const unread = unreadChannels.has(channel.id) && !reading;
     const mentions = reading ? 0 : channelMentions.get(channel.id) ?? 0;
     const connected = channel.id === inVoice;
+    // Muted itself or with its category (only its own mute gets the bell; the category has one).
     const muted = guildList.isMuted(channel.id);
+    const ownMute = Boolean(guildList.mutes[channel.id]);
     const moving = dragged('channel', channel.id);
     return (
       <React.Fragment key={channel.id}>
@@ -294,7 +296,7 @@ export default function GuildSidebar({ guild, user }) {
               {String(channel.voice?.length ?? 0).padStart(2, '0')}/{String(channel.user_limit).padStart(2, '0')}
             </span>
           )}
-          {muted && <Icon icon={faBellSlash} className="guild-channel-muted" title={t('guilds.sidebar.muted')} aria-label={t('guilds.sidebar.muted')} />}
+          {ownMute && <Icon icon={faBellSlash} className="guild-channel-muted" title={t('guilds.sidebar.muted')} aria-label={t('guilds.sidebar.muted')} />}
           {mentions > 0 && ' '}
           {mentions > 0 && (
             <span className="mention-badge" aria-label={t('guilds.sidebar.mentionCount', { count: mentions })}>{mentions > 99 ? '99+' : mentions}</span>
@@ -477,7 +479,7 @@ export default function GuildSidebar({ guild, user }) {
               data-category-block=""
               data-id={category.id}
             >
-              <div className="guild-category-header" data-drag-row="category" data-id={category.id} {...dragProps('category', category.id)}>
+              <div className={`guild-category-header${guildList.isCategoryMuted(category.id) ? ' muted' : ''}`} data-drag-row="category" data-id={category.id} {...dragProps('category', category.id)}>
                 <button
                   type="button"
                   className="guild-category-toggle"
@@ -486,6 +488,9 @@ export default function GuildSidebar({ guild, user }) {
                 >
                   <Icon icon={isCollapsed ? faChevronRight : faChevronDown} className="guild-category-chevron" />
                   <span>{category.name}</span>
+                  {guildList.isCategoryMuted(category.id) && (
+                    <Icon icon={faBellSlash} className="guild-channel-muted" title={t('guilds.sidebar.muted')} aria-label={t('guilds.sidebar.muted')} />
+                  )}
                 </button>
                 {managesChannels && !isMobile && (
                   <>

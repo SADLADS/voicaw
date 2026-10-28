@@ -414,7 +414,8 @@ img.guild-icon {
   background-color: var(--vc-unread);
 }
 
-/* A muted channel (ChannelMuteMenu): dimmed, never bold, a crossed-out bell after the name. */
+/* A muted channel (ChannelMuteMenu), or one in a muted category: dimmed, never bold; its own
+   mute has a crossed-out bell after the name, a muted category one after the category's. */
 .guild-channel.muted:not(.active) .guild-channel-link > :not(.mention-badge) {
   opacity: 0.45;
 }
@@ -428,6 +429,10 @@ img.guild-icon {
 .guild-channel-muted {
   flex-shrink: 0;
   font-size: 11px;
+}
+
+.guild-category-header.muted .guild-category-toggle {
+  opacity: 0.6;
 }
 
 /* A voice channel's "02/05" (user limit). */

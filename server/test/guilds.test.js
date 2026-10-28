@@ -552,7 +552,7 @@ describe('guild messages', () => {
 
     const one = (await api.post(owner, `/channels/${general.id}/messages`, { content: 'one' })).body;
     const two = (await api.post(owner, `/channels/${general.id}/messages`, { content: 'two' })).body;
-    expect((await api.get(late, '/guild-unread')).body).toEqual([{ channel_id: general.id, guild_id: guild.id, count: 2, mentions: 0 }]);
+    expect((await api.get(late, '/guild-unread')).body).toEqual([{ channel_id: general.id, guild_id: guild.id, category_id: general.category_id, count: 2, mentions: 0 }]);
     // Your own messages don't count, and sending marks the channel read.
     expect((await api.get(owner, '/guild-unread')).body).toEqual([]);
     const mine = (await api.post(member, `/channels/${general.id}/messages`, { content: 'mine' })).body;
@@ -562,7 +562,7 @@ describe('guild messages', () => {
     const read = await api.post(late, `/channels/${general.id}/read`, { messageId: two.id });
     expect(read.status).toBe(200);
     expect(read.body.first_unread_id).toBe(one.id);
-    expect((await api.get(late, '/guild-unread')).body).toEqual([{ channel_id: general.id, guild_id: guild.id, count: 1, mentions: 0 }]);
+    expect((await api.get(late, '/guild-unread')).body).toEqual([{ channel_id: general.id, guild_id: guild.id, category_id: general.category_id, count: 1, mentions: 0 }]);
     // The marker never moves backwards.
     expect((await api.post(late, `/channels/${general.id}/read`, { messageId: 1 })).body.first_unread_id).toBe(mine.id);
     expect((await api.get(late, '/guild-unread')).body[0].count).toBe(1);
