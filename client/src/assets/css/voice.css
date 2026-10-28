@@ -501,6 +501,28 @@ button.user-panel-button {
   object-fit: contain;
 }
 
+/* Zoomed (hooks/useStreamZoom.js): the video is moved and scaled; dragging looks around, and
+   fingers pinch rather than scroll the page. */
+.stream-view:not(.corner) .stream-video {
+  touch-action: none;
+}
+
+.stream-video.animate {
+  transition: transform 0.15s ease-out;
+}
+
+.stream-view.zoomed {
+  cursor: grab;
+}
+
+.stream-view.zoomed:active {
+  cursor: grabbing;
+}
+
+.stream-view.zoomed .stream-bar {
+  cursor: default;
+}
+
 .stream-loading {
   position: absolute;
   inset: 0;
@@ -710,6 +732,55 @@ button.user-panel-button {
   margin: 4px 0 0;
   padding: 4px 6px 0;
   border-top: 1px solid var(--vc-border);
+}
+
+/* Zoom out, its slider (shown like the volume's, below) and zoom in; the percentage, while
+   zoomed, goes back to fitted. */
+.stream-zoom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stream-zoom-slider {
+  width: 90px;
+  accent-color: var(--vc-accent);
+}
+
+@media (hover: hover) {
+  .stream-zoom-slider {
+    width: 0;
+    opacity: 0;
+    transition: width 0.15s, opacity 0.15s;
+  }
+
+  .stream-zoom:hover .stream-zoom-slider,
+  .stream-zoom:focus-within .stream-zoom-slider {
+    width: 90px;
+    opacity: 1;
+  }
+}
+
+.stream-zoom-reset {
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 14px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stream-zoom-reset:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* A phone's: above the bar's right end, out of the bar's way. */
+.stream-zoom-reset.floating {
+  position: absolute;
+  right: 10px;
+  bottom: 100%;
 }
 
 /* The stream's volume: the slider shows while the pointer is over it (always on a phone). */

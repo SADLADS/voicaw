@@ -51,12 +51,12 @@ describe('StreamView volume', () => {
     voice.state = { watchingReady: false, selfDeaf: true };
     render(<StreamView userId={7} name="alice" />);
     expect(screen.getByRole('button', { name: 'Unmute the stream' }).disabled).toBe(true);
-    expect(screen.getByRole('slider').disabled).toBe(true);
+    expect(screen.getByRole('slider', { name: 'Stream volume (just for you)' }).disabled).toBe(true);
   });
 
   it('isn’t offered for our own stream', () => {
     render(<StreamView userId={7} name="alice" own />);
-    expect(screen.queryByRole('slider')).toBeNull();
+    expect(screen.queryByRole('slider', { name: 'Stream volume (just for you)' })).toBeNull();
   });
 });
 
@@ -107,5 +107,71 @@ describe('StreamView quality', () => {
     cleanup();
     render(<StreamView userId={7} name="alice" corner />);
     expect(screen.queryByRole('button', { name: 'Stream quality' })).toBeNull();
+  });
+});
+
+describe('StreamView zoom', () => {
+  // jsdom lays nothing out: an 800 × 450 stage, and a video with no size of its own (so the
+  // picture fills the stage).
+  function sized() {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(450);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 800, height: 450 });
+  }
+  const video = () => screen.getByLabelText("alice's screen");
+  const slider = () => screen.getByRole('slider', { name: 'Zoom' });
+  const offsetX = () => Number(video().style.transform.match(/translate\((-?[\d.]+)px/)[1]);
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('zooms in and out with the buttons, and the percentage fits it again', () => {
+    sized();
+    render(<StreamView userId={7} name="alice" />);
+    expect(screen.getByRole('button', { name: 'Zoom out' }).disabled).toBe(true);
+    expect(slider().getAttribute('aria-valuetext')).toBe('100%');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(slider().getAttribute('aria-valuetext')).toBe('150%');
+    expect(video().style.transform).toBe('translate(0px, 0px) scale(1.5)');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+    expect(slider().getAttribute('aria-valuetext')).toBe('100%');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fit the stream (back to 100%)' }));
+    expect(video().style.transform).toBe('');
+    expect(screen.queryByRole('button', { name: 'Fit the stream (back to 100%)' })).toBeNull();
+  });
+
+  it('moves in powers of two along the slider, up to 800%', () => {
+    sized();
+    render(<StreamView userId={7} name="alice" />);
+    expect(slider().max).toBe('300');
+    fireEvent.change(slider(), { target: { value: '100' } });
+    expect(slider().getAttribute('aria-valuetext')).toBe('200%');
+    fireEvent.change(slider(), { target: { value: '300' } });
+    expect(slider().getAttribute('aria-valuetext')).toBe('800%');
+    expect(screen.getByRole('button', { name: 'Zoom in' }).disabled).toBe(true);
+  });
+
+  it('zooms on the point under the wheel, and drags around inside the picture', () => {
+    sized();
+    const { container } = render(<StreamView userId={7} name="alice" />);
+    const stage = container.querySelector('.stream-view');
+    // Scrolling up over the right edge's middle keeps that point where it is.
+    fireEvent.wheel(stage, { deltaY: -347, clientX: 800, clientY: 225 });
+    const scale = Math.exp(347 * 0.002);
+    expect(slider().getAttribute('aria-valuetext')).toBe(`${Math.round(scale * 100)}%`);
+    expect(offsetX()).toBeCloseTo(-(400 * scale - 400), 0);
+    // Dragging right shows more of the left, but never past the picture's edge.
+    fireEvent.pointerDown(stage, { pointerId: 1, button: 0, pointerType: 'mouse', clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(stage, { pointerId: 1, pointerType: 'mouse', clientX: 5000, clientY: 100 });
+    fireEvent.pointerUp(stage, { pointerId: 1, pointerType: 'mouse' });
+    expect(offsetX()).toBeCloseTo(400 * scale - 400, 0);
+  });
+
+  it('isn’t in the corner', () => {
+    sized();
+    const { container } = render(<StreamView userId={7} name="alice" corner />);
+    expect(screen.queryByRole('button', { name: 'Zoom in' })).toBeNull();
+    fireEvent.wheel(container.querySelector('.stream-view'), { deltaY: -500, clientX: 10, clientY: 10 });
+    expect(video().style.transform).toBe('');
   });
 });

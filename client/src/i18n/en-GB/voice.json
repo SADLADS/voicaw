@@ -52,6 +52,11 @@
       "deafened": "You're deafened",
       "volume": "Stream volume (just for you)",
       "percent": "{{percent}}%",
+      "zoom": "Zoom",
+      "zoomPercent": "Zoom: {{percent}}%",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomReset": "Fit the stream (back to 100%)",
       "quality": "Stream quality",
       "qualities": {
         "auto": "Auto",

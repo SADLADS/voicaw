@@ -2,12 +2,14 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import '../../assets/css/voice.css';
 import { Icon } from '../Icon';
 import {
-  faArrowRight, faCheck, faDownLeftAndUpRightToCenter, faExpand, faEye, faSliders, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
+  faArrowRight, faCheck, faDownLeftAndUpRightToCenter, faExpand, faEye, faMagnifyingGlassMinus, faMagnifyingGlassPlus, faSliders, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import UserAvatar from './UserAvatar';
 import { InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useShowsStreamOnPage } from '../../hooks/useStreamOnPage';
+import { useStreamZoom } from '../../hooks/useStreamZoom';
+import { MAX_ZOOM, ZOOM_STEP } from '../../utils/imageZoom';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { attachStream, setStreamError, watchStream } from '../../voice/voiceClient';
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
@@ -19,8 +21,9 @@ import { t } from '../../i18n';
 // popped out) or small in a corner (`corner`, StreamCorner, while no page shows it; `onOpen`
 // goes to its channel or call, `openLabel` saying which): the video, whose it is, who else is
 // watching it (like Discord's viewers; never you), its volume, its quality (which copy this
-// device downloads; not in the corner, no room), pop out (or bring back), full screen and stop
-// watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
+// device downloads; not in the corner, no room), zoom (the wheel, a pinch, dragging to look
+// around, and the bar's buttons and slider; not in the corner either), pop out (or bring back),
+// full screen and stop watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
 // on this device (like Discord's Stream Volume, userVolumes.js); not for our own, which we don't
 // hear.
 export default function StreamView({ userId, name, own, popout = false, corner = false, onOpen, openLabel }) {
@@ -31,6 +34,11 @@ export default function StreamView({ userId, name, own, popout = false, corner =
   // The size of what's arriving (the copy LiveKit sends, see StreamQuality).
   const [size, setSize] = useState(null);
   useShowsStreamOnPage(!popout && !corner);
+  const zoom = useStreamZoom(stageRef, size, !corner);
+  const { reset: resetZoom } = zoom;
+
+  // Another stream starts fitted.
+  useEffect(() => resetZoom(), [userId, resetZoom]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -62,15 +70,29 @@ export default function StreamView({ userId, name, own, popout = false, corner =
   }
 
   return (
-    <div className={`stream-view${popout ? ' popped-out' : ''}${corner ? ' corner' : ''}`} ref={stageRef} onDoubleClick={fullScreen}>
+    <div
+      className={`stream-view${popout ? ' popped-out' : ''}${corner ? ' corner' : ''}${zoom.zoomed ? ' zoomed' : ''}`}
+      ref={stageRef}
+      onDoubleClick={fullScreen}
+      {...(corner ? {} : zoom.handlers)}
+    >
       {/* Muted: a screen share's sound plays through voice's own audio (see voiceClient). */}
-      <video ref={videoRef} className="stream-video" autoPlay playsInline muted aria-label={t('voice.stream.screenOf', { name })} />
+      <video
+        ref={videoRef}
+        className={`stream-video${zoom.animate ? ' animate' : ''}`}
+        style={zoom.zoomed ? { transform: `translate(${zoom.view.x}px, ${zoom.view.y}px) scale(${zoom.view.scale})` } : undefined}
+        autoPlay
+        playsInline
+        muted
+        aria-label={t('voice.stream.screenOf', { name })}
+      />
       {!watchingReady && <p className="stream-loading">{t('voice.stream.loading')}</p>}
       <div className="stream-bar">
         {!corner && <span className="voice-live-badge">{t('voice.stream.live')}</span>}
         <span className="stream-name" title={corner ? name : undefined}>{own ? t('voice.stream.yourStream') : name}</span>
         <StreamWatchers watchers={watchers?.[userId] ?? []} compact={corner || isMobile} />
         {!own && <StreamVolume userId={userId} deafened={selfDeaf} />}
+        {!corner && <StreamZoom zoom={zoom} compact={isMobile} />}
         {!own && !corner && <StreamQuality size={size} />}
         {corner && onOpen && (
           <button type="button" className="stream-button" aria-label={openLabel} title={openLabel} onClick={onOpen}>
@@ -141,6 +163,69 @@ function StreamWatchers({ watchers, compact }) {
           ))}
         </ul>
       )}
+    </span>
+  );
+}
+
+// Zoom out, a slider and zoom in, then (while zoomed) the percentage, which fits it again. The
+// slider moves in powers of two, so 100% to 200% takes as much of it as 400% to 800%. A phone's
+// bar has no room (`compact`), and fingers pinch: only the percentage, above the bar.
+const SLIDER_STEPS = 100;
+
+function StreamZoom({ zoom, compact }) {
+  const percent = Math.round(zoom.view.scale * 100);
+  const stop = (e) => e.stopPropagation();
+  const fit = zoom.zoomed && (
+    <button
+      type="button"
+      className={`stream-zoom-reset${compact ? ' floating' : ''}`}
+      aria-label={t('voice.stream.zoomReset')}
+      title={t('voice.stream.zoomReset')}
+      onClick={zoom.reset}
+      onDoubleClick={stop}
+    >
+      {t('voice.stream.percent', { percent })}
+    </button>
+  );
+  if (compact) return fit || null;
+  return (
+    <span className="stream-zoom">
+      <button
+        type="button"
+        className="stream-button"
+        aria-label={t('voice.stream.zoomOut')}
+        title={t('voice.stream.zoomOut')}
+        disabled={!zoom.zoomed}
+        onClick={() => zoom.zoomBy(1 / ZOOM_STEP)}
+        onDoubleClick={stop}
+      >
+        <Icon icon={faMagnifyingGlassMinus} fixedWidth />
+      </button>
+      <input
+        type="range"
+        className="stream-zoom-slider"
+        min={0}
+        max={Math.round(Math.log2(MAX_ZOOM) * SLIDER_STEPS)}
+        step={1}
+        value={Math.round(Math.log2(zoom.view.scale) * SLIDER_STEPS)}
+        aria-label={t('voice.stream.zoom')}
+        aria-valuetext={t('voice.stream.percent', { percent })}
+        title={t('voice.stream.zoomPercent', { percent })}
+        onChange={(e) => zoom.setScale(2 ** (Number(e.target.value) / SLIDER_STEPS))}
+        onDoubleClick={stop}
+      />
+      <button
+        type="button"
+        className="stream-button"
+        aria-label={t('voice.stream.zoomIn')}
+        title={t('voice.stream.zoomIn')}
+        disabled={zoom.view.scale >= MAX_ZOOM * 0.999}
+        onClick={() => zoom.zoomBy(ZOOM_STEP)}
+        onDoubleClick={stop}
+      >
+        <Icon icon={faMagnifyingGlassPlus} fixedWidth />
+      </button>
+      {fit}
     </span>
   );
 }

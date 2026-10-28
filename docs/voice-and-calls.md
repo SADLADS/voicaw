@@ -140,6 +140,15 @@ LiveKit carries the audio.
   channel page. Not offered where the browser has no `getDisplayMedia` (phones, which can
   still watch). The desktop app shows our own picker first (`voice/ScreenPicker.jsx`, see
   Desktop app).
+  **Zoom** (on this device only, to read small text on a shared screen): the wheel zooms on
+  the point under the pointer (never scrolling the page), two fingers pinch, a drag looks
+  around a zoomed stream (never past the picture's edge; a side still shorter than the stage
+  may move inside it, so the wheel's point stays put), and the stream bar has zoom out, a
+  slider (100%–800% in powers of two, shown on hover like the volume's) and zoom in, then the
+  percentage while zoomed, which fits it again. A phone's bar has no room: there only the
+  percentage, floating above the bar. Popped out too; not in the corner (it's dragged there);
+  every stream starts fitted. `hooks/useStreamZoom.js` (a view is the image viewer's `{ scale,
+  x, y }`, `utils/imageZoom.js`, against the video's fitted size); `e2e/streamzoom.mjs`.
   **The corner** (like Watch Together's player, and Discord's): someone else's stream you're
   watching, once no page shows it (you went to another channel, conversation or page), plays
   small in a corner (`voice/StreamCorner.jsx`, drawn from Layout; bottom right, on a phone top
