@@ -29,6 +29,8 @@ unexpected errors. The rest:
 - `channelMutes.js`: each member's muted channels and guilds, and own channel notification levels (see Mentions).
 - `conversationSettings.js`: each person's pinned and muted DMs and group DMs (see
   `docs/client.md`); `routes/conversationSettings.js`.
+- `inbox.js`: the desktop app's inbox, what notified you lately, worked out from the message
+  tables with nothing stored for it (see Inbox in `docs/desktop-and-site.md`); `routes/inbox.js`.
 - `preferences.js`: each person's account preferences, e.g. blurring NSFW channels' media (see
   Account preferences in `docs/client.md`); `routes/preferences.js`.
 - `dictionary.js`: each person's spellcheck dictionary, one encrypted envelope with a version

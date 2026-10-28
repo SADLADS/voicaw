@@ -185,6 +185,20 @@
         "testersWaiting_one": "{{count}} request waiting to be added",
         "testersWaiting_other": "{{count}} requests waiting to be added"
       }
+    },
+    "titleBar": {
+      "back": "Back",
+      "forward": "Forward",
+      "minimise": "Minimise",
+      "maximise": "Maximise",
+      "restore": "Restore",
+      "close": "Close"
+    },
+    "inbox": {
+      "title": "Inbox",
+      "loading": "Loading…",
+      "empty": "Nothing in the last 30 days.",
+      "failed": "Couldn't load your inbox."
     }
   }
 }

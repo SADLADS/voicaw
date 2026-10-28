@@ -118,6 +118,11 @@ function createWindow(hidden, onShown = () => {}) {
         ...savedBounds(),
         show: false,
         backgroundColor: '#18161e',
+        // The page draws the title bar (client components/DesktopTitleBar.jsx): back and forward,
+        // the page's title, the inbox and, but on macOS (which keeps its own buttons, moved
+        // into the bar), minimise, maximise and close.
+        titleBarStyle: 'hidden',
+        ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 12, y: 10 } } : {}),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -136,6 +141,14 @@ function createWindow(hidden, onShown = () => {}) {
         Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
     } else {
         win.removeMenu();
+    }
+
+    // The title bar's maximise button and its look while the window is in the background.
+    const sendWindowState = () => {
+        if (!win.isDestroyed()) win.webContents.send('desktop:window-state', windowState(win));
+    };
+    for (const name of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'focus', 'blur']) {
+        win.on(name, sendWindowState);
     }
 
     win.once('ready-to-show', () => {
@@ -351,7 +364,24 @@ function setUpOverlay() {
     return look;
 }
 
+const windowState = (window) => ({
+    maximized: window.isMaximized(),
+    fullScreen: window.isFullScreen(),
+    focused: window.isFocused(),
+});
+
 function setUpIpc() {
+    // The title bar's buttons (client components/DesktopTitleBar.jsx).
+    ipcMain.handle('desktop:window-state', (event) => (fromApp(event) && win ? windowState(win) : null));
+    ipcMain.on('desktop:window', (event, action) => {
+        if (!fromApp(event) || !win) return;
+        if (action === 'minimize') win.minimize();
+        else if (action === 'maximize') {
+            if (win.isFullScreen()) win.setFullScreen(false);
+            else if (win.isMaximized()) win.unmaximize();
+            else win.maximize();
+        } else if (action === 'close') win.close();
+    });
     ipcMain.handle('desktop:info', (event) => (fromApp(event) ? { version: app.getVersion(), packaged: app.isPackaged } : null));
     ipcMain.handle('desktop:settings', (event) => (fromApp(event) ? settings.get() : null));
     ipcMain.handle('desktop:update-settings', (event, changes) => {

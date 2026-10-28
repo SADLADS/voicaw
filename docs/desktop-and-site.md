@@ -25,6 +25,35 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   both drawn into by the page itself: the app's icon, no menu, never navigate, open nothing,
   and may only go full screen. They stay open while the main window is in the tray. The app's
   own other window is the in-game overlay (below).
+- **Title bar** (2026-10-28, Discord's): the main window has no frame of its own
+  (`titleBarStyle: 'hidden'`; macOS keeps its own buttons, moved into the bar with
+  `trafficLightPosition`), and the page draws one on every page, the login screen too
+  (`components/DesktopTitleBar.jsx`, `assets/css/titleBar.css`), in the rail's colour of the
+  current theme: back and forward at the left (`history.back()`/`forward()`, as the mouse's side
+  buttons; greyed out with nowhere to go, from the Navigation API), the page's title in the
+  middle (what the window title says, `usePageTitle`'s `useShownTitle`) with the guild's icon in a
+  guild, then the inbox (below) and, but on macOS, minimise, maximise/restore and close at the
+  right. Close is the window's own (to the tray if that's on). The bar drags the window
+  (`-webkit-app-region`). Bridge: `getWindowState`/`onWindowState` (`{ maximized, fullScreen,
+  focused }`; the title dims while the window is in the background) and `windowAction`. It shows
+  only when the bridge has `windowAction`: never in a browser or on a phone. The page starts
+  below it (`html.has-title-bar` shortens `--vc-app-height` by `--vc-title-bar-height`, 32px), and
+  what covers the whole window (dialogs, the image viewer, the file drop) starts below it too, so
+  the bar stays usable. Checked by `e2e/titlebar.mjs` (stand-in bridge); maximise and minimise
+  need a window manager, so they couldn't be checked under Xvfb.
+- **Inbox** (2026-10-28): the title bar's inbox lists what notified you over the last 30 days
+  (at most 50), newest first, unread ones dotted; clicking one opens it as its notification
+  would. Nothing new is stored for it: `GET /api/inbox` (`server/inbox.js`) works it out from
+  the existing tables (as the user asked, server-side but no less private): a DM, group or bot
+  DM's newest message from someone else (one per conversation, as their pushes replace each
+  other), unless the conversation is muted now; in guilds every message mentioning you
+  (`guild_mentions`) or replying to you, in channels you can still see, unless your level there
+  is None; never from someone (or a webhook) you blocked; deleted messages go with their rows.
+  Each entry carries the payload its push carried (`buildDmPushPayload`, `buildGroupPushPayload`,
+  `channelPushPayload`), so the app words it with `notificationFromPush` (`hooks/useInbox.js`),
+  decrypting DM and group previews on the device: the server sends only the ciphertext it
+  already holds. Since it's worked out now, it follows today's mutes and levels, not those of the
+  time; reactions, calls and pins aren't in it (yet).
 - **YouTube players** (`youtube.js`): YouTube refuses to play an embed without a Referer
   ("Error 153: Video player configuration error"), and Chromium sends none from `voicaw://`
   pages, so requests for youtube(-nocookie).com `/embed/` pages get `https://app.voicaw.com/`,

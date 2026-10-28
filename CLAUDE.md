@@ -467,6 +467,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   in the rail, per person and kept on the server with the rail order (so they follow you to
   every device); open or closed is per device, as in Discord. Folder ids are made by the app so
   a new folder saves in the same request as the order.
+- **Desktop title bar and inbox** (built 2026-10-28, see Title bar and Inbox in
+  `docs/desktop-and-site.md`): Discord's, desktop app only (frameless window; macOS keeps its
+  own buttons). The user asked for the inbox to be server-side for DMs and guilds without losing
+  privacy: `GET /inbox` works it out from the existing message tables (nothing stored for it)
+  and sends each entry as its push's payload, DM and group previews decrypted on the device.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

@@ -59,6 +59,13 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // (client voice/pushToTalkKeys.js; null stops), resolving whether it can; then
     // onPushToTalk(down) as it goes down and up.
     setPushToTalk: (key) => ipcRenderer.invoke('desktop:push-to-talk', key),
+    // The page's own title bar (client components/DesktopTitleBar.jsx): the window's
+    // { maximized, fullScreen, focused }, now and whenever it changes, and its buttons
+    // ('minimize', 'maximize' (or back again), 'close': as the window's own close, so to the
+    // tray if that's on).
+    getWindowState: () => ipcRenderer.invoke('desktop:window-state'),
+    windowAction: (action) => ipcRenderer.send('desktop:window', action),
+    onWindowState: listen('desktop:window-state'),
     onActivities: listen('desktop:activities'),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),

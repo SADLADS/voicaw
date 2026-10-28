@@ -38,6 +38,7 @@ import { t } from './i18n';
 import { watchKeyboardViewport } from './utils/keyboardViewport';
 import TermsGate from './components/TermsGate';
 import ImageLinkAccount from './components/ImageLinkAccount';
+import DesktopTitleBar from './components/DesktopTitleBar';
 
 
 
@@ -193,6 +194,7 @@ export default function App() {
         <ImageViewerProvider>
         <Router {...routerProps}>
           <SWMessageHandler />
+          <DesktopTitleBar loggedIn={Boolean(user && !user.pending)} />
           <PageMenus />
           <SafetyDialogs />
           <UpdateBanner />

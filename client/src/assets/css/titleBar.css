@@ -1,0 +1,293 @@
+/* The desktop app's title bar (DesktopTitleBar.jsx) and its inbox (Inbox.jsx). The window has
+   no frame of its own (electron/main.js), so the page draws one, in the rail's colour like the
+   rail beside it, and starts below it: html.has-title-bar is set only in the desktop app. */
+:root {
+  --vc-title-bar-height: 32px;
+}
+
+html.has-title-bar {
+  --vc-app-height: calc(100svh - var(--vc-title-bar-height));
+}
+
+html.has-title-bar,
+html.has-title-bar body {
+  height: 100svh;
+}
+
+html.has-title-bar #root {
+  padding-top: var(--vc-title-bar-height);
+}
+
+/* What covers the whole window starts below the bar, so the bar (and dragging the window, and
+   its buttons) stays there and nothing at their top hides under it. */
+html.has-title-bar :is(.image-viewer, .vc-dialog-backdrop, .file-drop-overlay, .safety-number-backdrop, .action-sheet-backdrop, .modal, .modal-backdrop) {
+  top: var(--vc-title-bar-height);
+}
+
+html.has-title-bar .update-banner {
+  top: calc(var(--vc-title-bar-height) + 10px);
+}
+
+html.has-title-bar .incoming-call {
+  top: calc(var(--vc-title-bar-height) + 12px);
+}
+
+.title-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5000;
+  height: var(--vc-title-bar-height);
+  display: grid;
+  grid-template-columns: 1fr minmax(0, auto) 1fr;
+  align-items: center;
+  background-color: var(--vc-bg-rail);
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-sm);
+  /* Drags the window; its buttons don't. */
+  -webkit-app-region: drag;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.title-bar.blurred .title-bar-title {
+  opacity: 0.6;
+}
+
+.title-bar-side {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+}
+
+.title-bar-start {
+  gap: 2px;
+  padding-left: 8px;
+}
+
+/* macOS's own buttons sit at the left (trafficLightPosition, electron/main.js). */
+.title-bar.mac .title-bar-start {
+  padding-left: 76px;
+}
+
+.title-bar.mac.full-screen .title-bar-start {
+  padding-left: 8px;
+}
+
+.title-bar-end {
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.title-bar.mac .title-bar-end {
+  padding-right: 8px;
+}
+
+.title-bar-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--vc-fg);
+  font-weight: 600;
+}
+
+.title-bar-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.title-bar-guild-icon.guild-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--vc-radius-sm);
+  font-size: 8px;
+  line-height: 18px;
+}
+
+.title-bar-button,
+.title-bar-window-button {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--vc-fg-muted);
+  padding: 0;
+}
+
+.title-bar-button {
+  width: 26px;
+  height: 24px;
+  border-radius: var(--vc-radius-sm);
+  font-size: 13px;
+}
+
+.title-bar-button:hover:not(:disabled),
+.title-bar-button.active {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.title-bar-button:disabled {
+  opacity: 0.35;
+}
+
+.title-bar-window-buttons {
+  display: flex;
+  height: 100%;
+}
+
+.title-bar-window-button {
+  width: 44px;
+  height: 100%;
+}
+
+.title-bar-window-button svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.title-bar-window-button:hover {
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.title-bar-window-button.close:hover {
+  background-color: var(--vc-danger);
+  color: var(--vc-on-accent);
+}
+
+/* The inbox: a panel hanging from its button. */
+.inbox {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.inbox-panel {
+  -webkit-app-region: no-drag;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: min(420px, calc(100vw - 16px));
+  max-height: min(560px, calc(var(--vc-app-height) - 24px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: var(--vc-radius-lg);
+  background-color: var(--vc-popup);
+  box-shadow: var(--vc-popup-shadow);
+  color: var(--vc-fg);
+  font-size: var(--vc-text-md);
+  overflow: hidden;
+}
+
+.inbox-heading {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  font-size: var(--vc-text-lg);
+  font-weight: 700;
+}
+
+.inbox-empty {
+  margin: 0;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--vc-fg-muted);
+}
+
+.inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.inbox-entry {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px 8px 14px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.inbox-entry:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+/* Unread: a dot at its left, as unread chats are marked. */
+.inbox-entry.unread::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: var(--vc-radius-full);
+  background-color: var(--vc-action);
+}
+
+.inbox-entry-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--vc-radius-full);
+  object-fit: cover;
+}
+
+.inbox-entry-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.inbox-entry-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.inbox-entry-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.inbox-entry-time {
+  flex-shrink: 0;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-xs);
+}
+
+.inbox-entry-body {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-sm);
+  overflow-wrap: anywhere;
+}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { t } from '../i18n';
 import { desktop } from '../utils/desktop';
 import { displayName, useProfiles } from '../utils/profiles';
@@ -11,8 +11,9 @@ import { groupTitle } from '../utils/groupDisplay';
 export const APP_TITLE = 'Voicaw';
 const SEPARATOR = ' | ';
 
-// An in-app page's title (Layout's routes): { desktop, web }. `desktop` is a string (null: none
-// known yet), `web` the parts after "Voicaw". `data`: { guilds, layouts, groups, botDms, me }.
+// An in-app page's title (Layout's routes): { desktop, web, guild }. `desktop` is a string (null:
+// none known yet), `web` the parts after "Voicaw", `guild` the guild it's in (the desktop app's
+// title bar shows its icon). `data`: { guilds, layouts, groups, botDms, me }.
 export function pageTitle(pathname, data = {}) {
   const { guilds = [], layouts = {}, groups = [], botDms = [], me = null } = data;
   const area = (title, web = [title]) => ({ desktop: title, web });
@@ -34,12 +35,13 @@ export function pageTitle(pathname, data = {}) {
 
   const [, guildId, channelId] = /^\/guild\/(\d+)(?:\/(\d+))?/.exec(pathname) ?? [];
   if (guildId) {
-    const name = guilds.find((g) => String(g.id) === guildId)?.name;
+    const guild = guilds.find((g) => String(g.id) === guildId);
+    const name = guild?.name;
     if (!name) return area(null, []);
     const layout = layouts[guildId];
     const channel = channelId && [...(layout?.channels ?? []), ...(layout?.threads ?? [])]
       .find((c) => String(c.id) === channelId);
-    return area(name, channel ? [`#${channel.name}`, name] : [name]);
+    return { ...area(name, channel ? [`#${channel.name}`, name] : [name]), guild };
   }
   return area(null, []);
 }
@@ -50,15 +52,38 @@ export function titleText({ desktop: desktopTitle, web }, isDesktop = Boolean(de
   return [APP_TITLE, ...web].join(SEPARATOR);
 }
 
-// Sets the title; `title` is pageTitle's { desktop, web }, or one string for both.
+// What the desktop app's title bar shows (components/DesktopTitleBar.jsx): { text, guild }, the
+// window's title and the guild it's in, if any.
+const NO_TITLE = { text: APP_TITLE, guild: null };
+let shown = NO_TITLE;
+const listeners = new Set();
+function showTitle(next) {
+  if (next.text === shown.text && next.guild === shown.guild) return;
+  shown = next;
+  listeners.forEach((listener) => listener());
+}
+const subscribe = (listener) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+export const useShownTitle = () => useSyncExternalStore(subscribe, () => shown);
+
+// Sets the title; `title` is pageTitle's { desktop, web, guild }, or one string for both.
 export function usePageTitle(title) {
   const text = titleText(typeof title === 'string' || title == null
     ? { desktop: title, web: title ? [title] : [] }
     : title);
+  const guild = (typeof title === 'object' && title?.guild) || null;
   useEffect(() => {
     document.title = text;
   }, [text]);
-  useEffect(() => () => { document.title = APP_TITLE; }, []);
+  useEffect(() => {
+    showTitle({ text: desktop ? text : APP_TITLE, guild });
+  }, [text, guild]);
+  useEffect(() => () => {
+    document.title = APP_TITLE;
+    showTitle(NO_TITLE);
+  }, []);
 }
 
 // Layout's: the title of whichever page is open. Redrawn when a profile changes (a DM's name).
