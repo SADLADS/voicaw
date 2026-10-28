@@ -2747,12 +2747,16 @@ body.mobile-mode .each-dm-message-wrapper textarea {
   padding-bottom: 4px;
 }
 
+/* In the avatar's column (.message-avatar), ending at its right edge, so the text is as far from
+   the time as from a picture (12px) however long the time or big the text. Flex, so a time
+   wider than the column ("12:05 PM") spills to the left (text-align would spill it right). */
 .message-hover-time {
   position: absolute;
   left: 10px;
   top: 0;
-  width: 50px;
-  text-align: center;
+  width: 44px;
+  display: flex;
+  justify-content: flex-end;
   font-size: var(--vc-text-xs);
   font-variant-numeric: tabular-nums;
   line-height: 24px;
