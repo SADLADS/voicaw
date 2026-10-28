@@ -191,7 +191,7 @@ export default function CommandComposer({ entry, channelId, people, roleInfo, ch
   return (
     <form className="command-composer" onSubmit={run} onKeyDown={onKeyDown} aria-label={t('commands.mode.label', { name: entry.name })}>
       <div className="command-composer-head">
-        <Avatar userId={entry.command.bot?.id} className="mention-suggestion-avatar" />
+        <Avatar userId={entry.command.bot?.id} className="command-composer-avatar" />
         <strong className="command-composer-name">/{entry.name}</strong>
         <span className="command-composer-bot">{displayName(entry.command.bot?.id, entry.command.bot?.name)}</span>
         <button type="button" className="reply-close command-composer-close" aria-label={t('commands.mode.leave')} onClick={onClose}>

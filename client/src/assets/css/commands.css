@@ -37,6 +37,15 @@
   min-width: 0;
 }
 
+/* The bot's picture beside the command's name (the mention list's size). */
+.command-composer-head .command-composer-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .command-composer-name {
   color: var(--vc-fg);
   white-space: nowrap;

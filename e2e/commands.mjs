@@ -87,6 +87,8 @@ await page.keyboard.type('wea');
 ok((await page.locator('.command-suggestion').count()) === 1, 'filtered by what is typed');
 await page.keyboard.press('Enter');
 await page.waitForSelector('.command-composer');
+const botPicture = await page.locator('.command-composer-avatar').boundingBox();
+ok(botPicture && botPicture.width <= 24 && botPicture.height <= 24, `bot's picture small beside the command (${botPicture?.width}x${botPicture?.height})`);
 const city = page.locator('#command-option-city');
 await city.fill('L');
 await page.waitForSelector('.command-option-choice:has-text("Lisbon")');
