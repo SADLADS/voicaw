@@ -39,8 +39,9 @@ export async function decryptedFileStream(meta, onProgress) {
 
 async function saveInAndroidApp(meta, name, onProgress) {
   try {
-    const { opened } = await saveToDownloads(await decryptedFileStream(meta, onProgress), name, { type: meta.type });
-    if (!opened) showAndroidToast(t('media.save.saved', { name }));
+    const notify = { title: name, body: t('media.save.notificationBody') };
+    const { notified } = await saveToDownloads(await decryptedFileStream(meta, onProgress), name, { type: meta.type, notify });
+    if (!notified) showAndroidToast(t('media.save.saved', { name }));
   } catch (err) {
     console.warn('Could not save the file', err);
     showAndroidToast(t('media.save.failed'));

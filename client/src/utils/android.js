@@ -87,9 +87,10 @@ function toBase64(bytes) {
 // Saves `source` to the phone's Downloads folder as `name` (VoicawPlugin `saveFile*`): the
 // WebView ignores <a download>, and only the page can read its blob: URLs. `source` is a Blob,
 // or a ReadableStream of Uint8Arrays (a big file decrypted as it downloads, never whole; then
-// `type` is its type). With `open`, then opens it in the app that handles its type. Resolves
-// { opened }.
-export async function saveToDownloads(source, name, { open = false, type = '' } = {}, plugin = android) {
+// `type` is its type). With `open`, then opens it in the app that handles its type; else with
+// `notify` ({ title, body }), posts a "Download complete" notification that opens it. Resolves
+// { opened, notified }.
+export async function saveToDownloads(source, name, { open = false, type = '', notify = null } = {}, plugin = android) {
   const stream = source instanceof Blob ? source.stream() : source;
   const { id } = await plugin.saveFileStart({ name, type: (source instanceof Blob ? source.type : type) || '' });
   const reader = stream.getReader();
@@ -117,7 +118,7 @@ export async function saveToDownloads(source, name, { open = false, type = '' } 
     plugin.saveFileCancel({ id }).catch(() => {});
     throw err;
   }
-  return plugin.saveFileFinish({ id, open });
+  return plugin.saveFileFinish(notify ? { id, open, notify } : { id, open });
 }
 
 // The phone's photos and videos, for the message box's + panel (VoicawPlugin `*Media*`, Media.java).

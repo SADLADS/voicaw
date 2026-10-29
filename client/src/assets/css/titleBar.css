@@ -24,7 +24,7 @@ html.has-title-bar :is(.image-viewer, .vc-dialog-backdrop, .file-drop-overlay, .
   top: var(--vc-title-bar-height);
 }
 
-html.has-title-bar .update-banner {
+html.has-title-bar :is(.update-banner, .downloads-popup) {
   top: calc(var(--vc-title-bar-height) + 10px);
 }
 

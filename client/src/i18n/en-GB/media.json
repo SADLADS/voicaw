@@ -16,7 +16,17 @@
     "save": {
       "saved": "Saved {{name}} to Downloads",
       "failed": "Couldn't save the file",
-      "defaultName": "file"
+      "defaultName": "file",
+      "done": "Download complete",
+      "savedIn": "Saved in {{folder}}",
+      "open": "Open file",
+      "showInFolder": "Show in folder",
+      "delete": "Delete",
+      "missing": "The file isn't there any more",
+      "noApp": "Couldn't open the file",
+      "deleteFailed": "Couldn't delete the file",
+      "notificationBody": "Download complete. Tap to open it.",
+      "list": "Downloads"
     },
     "attachment": {
       "defaultName": "attachment",

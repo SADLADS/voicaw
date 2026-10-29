@@ -85,6 +85,12 @@
         <intent>
             <action android:name="android.media.action.VIDEO_CAPTURE" />
         </intent>
+        <!-- A saved file's "Download complete" notification opens it in the app for its type,
+             or the phone's Downloads when none is seen (Notifications.showDownload). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
+        </intent>
     </queries>
 
     <!-- Permissions -->

@@ -16,7 +16,17 @@
     "save": {
       "saved": "{{name}} をダウンロードに保存しました",
       "failed": "ファイルを保存できませんでした",
-      "defaultName": "ファイル"
+      "defaultName": "ファイル",
+      "done": "ダウンロード完了",
+      "savedIn": "{{folder}} に保存しました",
+      "open": "ファイルを開く",
+      "showInFolder": "フォルダーに表示",
+      "delete": "削除",
+      "missing": "ファイルが見つかりません",
+      "noApp": "ファイルを開けませんでした",
+      "deleteFailed": "ファイルを削除できませんでした",
+      "notificationBody": "ダウンロードが完了しました。タップして開きます。",
+      "list": "ダウンロード"
     },
     "attachment": {
       "defaultName": "添付ファイル",

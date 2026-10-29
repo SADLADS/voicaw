@@ -41,6 +41,7 @@ final class Notifications {
     static final String CALLS = "calls";
     static final String MISSED_CALLS = "missed_calls";
     static final String ONGOING = "ongoing";
+    static final String DOWNLOADS = "downloads";
 
     static final String EXTRA_URL = "voicaw.url";
     static final String EXTRA_ANSWER = "voicaw.answer";
@@ -81,7 +82,12 @@ final class Notifications {
         NotificationChannel ongoing = new NotificationChannel(ONGOING, context.getString(R.string.channel_ongoing), NotificationManager.IMPORTANCE_LOW);
         ongoing.setDescription(context.getString(R.string.channel_ongoing_description));
         ongoing.setShowBadge(false);
-        manager.createNotificationChannels(java.util.Arrays.asList(messages, mentions, calls, missed, ongoing));
+        // A file just saved: in the shade and the status bar, without a sound (it was asked for).
+        NotificationChannel downloads = new NotificationChannel(DOWNLOADS, context.getString(R.string.channel_downloads), NotificationManager.IMPORTANCE_DEFAULT);
+        downloads.setDescription(context.getString(R.string.channel_downloads_description));
+        downloads.setSound(null, null);
+        downloads.setShowBadge(false);
+        manager.createNotificationChannels(java.util.Arrays.asList(messages, mentions, calls, missed, ongoing, downloads));
     }
 
     /** A push has arrived (on PushService's thread: may block). What became of it goes in PushLog. */
@@ -251,6 +257,30 @@ final class Notifications {
         NotificationManagerCompat.from(context).cancel("call-" + callId, 0);
         callerPictures.remove(callId);
         IncomingCallActivity.finishFor(callId);
+    }
+
+    /**
+     * "Download complete" for a file just saved to Downloads (Downloads.finish's `uri`), the
+     * page's words (`title` the file's name); tapping it opens the file in the app for its type,
+     * or the phone's Downloads if none takes it. Returns whether it went up.
+     */
+    static boolean showDownload(Context context, Uri uri, String mime, String title, String body) {
+        Intent view = new Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, mime)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (view.resolveActivity(context.getPackageManager()) == null) {
+            view = new Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
+        String tag = "download-" + uri;
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DOWNLOADS)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(context.getColor(R.color.notification))
+            .setContentTitle(title)
+            .setContentText(body)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(PendingIntent.getActivity(context, tag.hashCode(), view, flags()));
+        return post(context, tag, DOWNLOADS, builder.build()) == null;
     }
 
     /** Shows it; null if it went up, else why it couldn't (for PushLog). */

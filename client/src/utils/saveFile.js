@@ -2,12 +2,14 @@ import { isAndroidApp, saveToDownloads, showAndroidToast } from './android';
 import { t } from '../i18n';
 
 // The Android app's WebView can't save files itself: they go into Downloads (and with `open`
-// are opened from there), with a toast saying how it went.
+// are opened from there), with a notification that opens the file when tapped (a toast if
+// notifications are off, or if it couldn't be opened).
 async function saveInAndroidApp(objectUrl, name, open) {
   try {
     const blob = await (await fetch(objectUrl)).blob();
-    const { opened } = await saveToDownloads(blob, name, { open });
-    if (!opened) showAndroidToast(t('media.save.saved', { name }));
+    const notify = open ? null : { title: name, body: t('media.save.notificationBody') };
+    const { opened, notified } = await saveToDownloads(blob, name, { open, notify });
+    if (!opened && !notified) showAndroidToast(t('media.save.saved', { name }));
   } catch (err) {
     console.warn('Could not save the file', err);
     showAndroidToast(t('media.save.failed'));

@@ -72,11 +72,22 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `spelling` / `setSpellingWords`, `fetchPage` (a linked page for an encrypted chat's link
   preview, `pageFetch.js`; see Link previews in `docs/messages.md`), `saveFile` (start / append /
   finish / cancel: a big attachment written to where the Save dialog says as it's decrypted,
-  `fileSave.js`; see Big files in `docs/uploads.md`), `getActivities` / `onActivities` (Rich
+  `fileSave.js`; see Big files in `docs/uploads.md`), `downloads` / `onDownload` (the download
+  popup, below), `getActivities` / `onActivities` (Rich
   Presence, below), `setOverlayVoice` (the in-game overlay, below), `onNavigate`, `onShortcut`,
   `onUpdateReady`. The main process only answers the app's own frames (`fromApp`: the main
   page's, never the overlay's, which shares its origin) and checks what it's given
   (`cleanNotification`, `cleanChanges`, `cleanVoiceState`).
+- **Download popup** (`downloads.js`, client `DownloadsPopup.jsx` and `hooks/useDesktopDownloads.js`;
+  2026-10-29, as a browser's download bubble): every file the app saves shows "Download
+  complete" under the title bar's right-hand corner, with the file's name and folder and Open
+  file, Show in folder and Delete (to the bin, else for good). Both ways of saving end there:
+  `<a download>` (files the page has whole: Electron's own download after its Save dialog, the
+  session's `will-download`) and big attachments written piece by piece (`fileSave.js` finish).
+  The page only hears an id, the name and the folder's name; the main process keeps the paths
+  (the last 50), so the page can't open or delete anything else. It goes 8 s after the last
+  file, not while the pointer or focus is on it; Open closes that file's entry. Browsers show
+  their own, and the Android app a notification (below).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
   websocket (see Push notifications); `hooks/useDesktopApp.js` (in `Layout`) turns it into
   text with the service worker's `notificationFromPush` (DM previews decrypted on the device,
@@ -411,9 +422,14 @@ native bridge. Check real behaviour on a phone.
   (decrypted attachments, pictures, the recovery code) are `blob:` URLs no other app can read,
   so Download / Save sends the bytes to the app in 512 KB base64 pieces, written straight into
   the phone's Downloads folder (MediaStore on Android 10+, no permission; on 8 and 9 the folder
-  itself, asking for `WRITE_EXTERNAL_STORAGE`, `maxSdkVersion` 28), then a toast says so.
-  "Open in new tab" on a `blob:` saves the file the same way and opens it in the app for its
-  type. Guilds' plain file links (https) still open in the phone's browser, which downloads them.
+  itself, asking for `WRITE_EXTERNAL_STORAGE`, `maxSdkVersion` 28). Then (2026-10-29) a
+  "Download complete" notification (channel Downloads, silent; `Notifications.showDownload`,
+  its words from the page's translations: the file's name, "Tap to open it") opens the file in
+  the app for its type when tapped, or the phone's Downloads if none takes it (the manifest
+  `<queries>` VIEW `*/*`, so Android 11+ lets the app see them). A toast says so instead when
+  notifications are off (or from an older APK, which ignores `notify`). "Open in new tab" on a
+  `blob:` saves the file the same way and opens it in the app for its type, without a
+  notification. Guilds' plain file links (https) still open in the phone's browser, which downloads them.
 - **Notifications** (`PushService.java`, `Notifications.java`): Firebase Cloud Messaging, the
   only way to wake a closed Android app. The phone registers its FCM token with a 256-bit key
   it made (`PushCrypto.deviceKey`) as a push subscription (`{ endpoint: 'fcm:<token>', fcm:

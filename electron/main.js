@@ -27,6 +27,7 @@ const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
 const { setUpYouTubeReferer } = require('./youtube');
 const { fetchPage } = require('./pageFetch');
 const { createFileSaver } = require('./fileSave');
+const { createDownloads } = require('./downloads');
 const { createRichPresenceServer } = require('./richPresence');
 const { createGameActivities, pictureFrom } = require('./gameActivities');
 const { identifyGame, steamApps, steamPicture, steamRoots } = require('./gameLookup');
@@ -58,6 +59,7 @@ let notifier;
 let updater;
 let screenShare;
 let fileSaver;
+let downloads;
 let richPresence;
 let pushToTalk;
 let gameActivities;
@@ -211,6 +213,12 @@ function setUpPermissions() {
         const ours = (details.requestingUrl ?? '').startsWith(`${ORIGIN}/`);
         // 'media': the microphone and the camera (screen capture goes through the handler below).
         callback(ours && ALLOWED_PERMISSIONS.has(permission));
+    });
+    // `<a download>` (files the page has whole): Electron's own Save dialog, then the popup.
+    ses.on('will-download', (event, item) => {
+        item.once('done', (_, state) => {
+            if (state === 'completed' && item.getSavePath()) downloads.add(item.getSavePath());
+        });
     });
     ses.setDisplayMediaRequestHandler((request, callback) => screenShare.handleRequest(request, callback));
     setUpYouTubeReferer(ses);
@@ -435,9 +443,13 @@ function setUpIpc() {
         return fileSaver.append(id, bytes);
     });
     ipcMain.handle('desktop:save-finish', async (event, id) => {
-        if (fromApp(event)) await fileSaver.finish(id);
+        if (fromApp(event)) downloads.add(await fileSaver.finish(id));
     });
     ipcMain.handle('desktop:save-cancel', (event, id) => (fromApp(event) ? fileSaver.cancel(id) : null));
+    // The download popup's buttons (downloads.js).
+    ipcMain.handle('desktop:download-open', (event, id) => (fromApp(event) ? downloads.open(id) : null));
+    ipcMain.handle('desktop:download-show', (event, id) => (fromApp(event) ? downloads.showInFolder(id) : null));
+    ipcMain.handle('desktop:download-delete', (event, id) => (fromApp(event) ? downloads.remove(id) : null));
     ipcMain.handle('desktop:check-updates', (event) => (fromApp(event) ? updater.check() : null));
     // Resolves to false if there was nothing to install; otherwise the app restarts onto it.
     ipcMain.handle('desktop:install-update', (event) => {
@@ -461,6 +473,7 @@ function start() {
         fs,
         downloadsDir: () => app.getPath('downloads'),
     });
+    downloads = createDownloads({ shell, fs, send: (download) => { if (win && !win.isDestroyed()) win.webContents.send('desktop:download-done', download); } });
     notifier = createNotifier({
         onClick(url) {
             showWindow();

@@ -314,15 +314,22 @@ public class VoicawPlugin extends Plugin {
         }
     }
 
-    /** Ends a file being saved ({ id, open: open it afterwards }); resolves { opened }. */
+    /**
+     * Ends a file being saved ({ id, open: open it afterwards, notify: { title, body } for a
+     * "Download complete" notification that opens it, when not opened }); resolves
+     * { opened, notified }.
+     */
     @PluginMethod
     public void saveFileFinish(PluginCall call) {
         String id = call.getString("id");
         try {
             Uri uri = Downloads.finish(getContext(), id);
-            boolean opened = Boolean.TRUE.equals(call.getBoolean("open", false))
-                && Downloads.open(getContext(), uri, Downloads.mimeOf(getContext(), uri));
-            call.resolve(new JSObject().put("opened", opened));
+            String mime = Downloads.mimeOf(getContext(), uri);
+            boolean opened = Boolean.TRUE.equals(call.getBoolean("open", false)) && Downloads.open(getContext(), uri, mime);
+            JSObject notify = call.getObject("notify");
+            boolean notified = !opened && notify != null
+                && Notifications.showDownload(getContext(), uri, mime, notify.getString("title", ""), notify.getString("body", ""));
+            call.resolve(new JSObject().put("opened", opened).put("notified", notified));
         } catch (Exception e) {
             Downloads.cancel(getContext(), id);
             call.reject("Couldn't save the file", e);

@@ -27,6 +27,7 @@ import { onLoggedOutElsewhere, onLoginReplaced } from './utils/ws-client';
 import { forgetLogin, logOut } from './services/logout';
 import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
+import DownloadsPopup from './components/DownloadsPopup';
 import OfflineBanner from './components/OfflineBanner';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import PageMenus from './components/PageMenus';
@@ -198,6 +199,7 @@ export default function App() {
           <PageMenus />
           <SafetyDialogs />
           <UpdateBanner />
+          <DownloadsPopup />
           <OfflineBanner />
           {user && !user.pending && <ImageLinkAccount user={user} onLogout={handleLogout} />}
           {/* Waiting for an admin's approval (server/signups.js): only that, whatever the address. */}

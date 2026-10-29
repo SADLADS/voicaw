@@ -52,6 +52,13 @@ describe('the Android app bridge', () => {
     expect(plugin.calls[3][1]).toEqual({ id: 'f1', open: true });
   });
 
+  it('asks for a "Download complete" notification with the words given', async () => {
+    const plugin = fakePlugin();
+    const notify = { title: 'cat.png', body: 'Download complete. Tap to open it.' };
+    await saveToDownloads(new Blob(['x']), 'cat.png', { notify }, plugin);
+    expect(plugin.calls.at(-1)).toEqual(['saveFileFinish', { id: 'f1', open: false, notify }]);
+  });
+
   it('throws away a file it could not finish sending', async () => {
     const plugin = fakePlugin({ failAppend: true });
     await expect(saveToDownloads(new Blob(['hello']), 'a.txt', {}, plugin)).rejects.toThrow('disk full');

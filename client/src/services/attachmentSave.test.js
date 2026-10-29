@@ -92,7 +92,10 @@ describe('saveAttachment', () => {
     } finally {
       isAndroidApp.mockReturnValue(false);
     }
-    expect(saveToDownloads).toHaveBeenCalledWith(expect.any(ReadableStream), 'film.mp4', { type: 'video/mp4' });
+    expect(saveToDownloads).toHaveBeenCalledWith(expect.any(ReadableStream), 'film.mp4', {
+      type: 'video/mp4',
+      notify: { title: 'film.mp4', body: 'Download complete. Tap to open it.' },
+    });
     expect(loadDecryptedAttachment).not.toHaveBeenCalled();
   });
 

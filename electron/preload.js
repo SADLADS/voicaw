@@ -49,6 +49,13 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
         finish: (id) => ipcRenderer.invoke('desktop:save-finish', id),
         cancel: (id) => ipcRenderer.invoke('desktop:save-cancel', id),
     },
+    // Files the app saved, for the download popup (electron/downloads.js): onDownload({ id,
+    // name, folder }) as each one finishes; open(id) resolves to '' or why it couldn't.
+    downloads: {
+        open: (id) => ipcRenderer.invoke('desktop:download-open', id),
+        showInFolder: (id) => ipcRenderer.invoke('desktop:download-show', id),
+        remove: (id) => ipcRenderer.invoke('desktop:download-delete', id),
+    },
     // Rich Presence: what the games on this computer say you're doing (electron/gameActivities.js),
     // now and whenever it changes.
     getActivities: () => ipcRenderer.invoke('desktop:activities'),
@@ -67,6 +74,7 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     windowAction: (action) => ipcRenderer.send('desktop:window', action),
     onWindowState: listen('desktop:window-state'),
     onActivities: listen('desktop:activities'),
+    onDownload: listen('desktop:download-done'),
     onNavigate: listen('desktop:navigate'),
     onShortcut: listen('desktop:shortcut'),
     onPushToTalk: listen('desktop:push-to-talk'),
