@@ -768,6 +768,9 @@ textarea,
 .sidebar{
   overflow-y: auto;
   scrollbar-width: none;
+  /* With the last item's own 8px under it, the room for the fade above the user card
+     (.sidebar-columns), so nothing is under it once scrolled to the end. */
+  padding-bottom: 2px;
   /* The back tier: set apart from the sidebar by its shade, not a line. */
   background-color: var(--vc-bg-rail);
 }
@@ -2190,9 +2193,28 @@ body.sidebar-resizing * {
 }
 
 .sidebar-columns {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+/* The bottom of the rail and the list beside it fade out just above the user card, as the
+   message list does above the message box (dms.css), so a guild icon or a row scrolling under it
+   isn't cut off in a hard line against the card's rounded corners. Each column's own colour: the
+   rail's over its 72px, the list's after. */
+.sidebar-columns::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 10px;
+  background:
+    linear-gradient(to top, var(--vc-bg-rail), transparent) 0 0 / 72px 100% no-repeat,
+    linear-gradient(to top, var(--vc-bg-base), transparent);
+  pointer-events: none;
 }
 
 /* You (UserPanel): a card docked in the corner, like the composer on the other side: inset from

@@ -200,6 +200,9 @@ small {
   overflow-y: auto;
   flex-grow: 1;
   min-height: 0;
+  /* Room for the fade above the user card (.sidebar-columns, voicaw.css), so the last row isn't
+     under it once scrolled to the end. */
+  padding-bottom: 10px;
 }
 
 @media (max-width: 768px) {

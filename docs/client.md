@@ -379,6 +379,10 @@
     channel categories, form labels, panel headings) are sentence case, 12px, grey, never
     tracked capitals; capitals are kept for tags only (NEW, LIVE, SPOILER, weekday headers).
     On a computer the user panel is a card docked in the bottom corner, like the composer.
+    Like the message list above the composer, the rail and the list beside it fade out over
+    their last 10px above the card (`.sidebar-columns::after`, each column's colour), so
+    icons and rows aren't cut off in a hard line against its rounded corners; the lists keep
+    10px of room at their ends so nothing is under the fade at rest.
     Dialogs: 16px corners, an edge, `--vc-elevation-2`, fields a step darker than the dialog,
     and they settle in from 97%. The login screen is one card with the bird above the title.
     Anything you can tab to gets a purple focus ring by default (a `:where` rule, so a
