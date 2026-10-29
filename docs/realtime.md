@@ -129,10 +129,11 @@ guilds", a custom status; gateway Presence Update). Built 2026-10-09.
   someone's activities are their most recently set socket's (an invisible bot's don't show).
   Changes go to every logged-in socket as `user_activities { userId, activities }`, and
   `presence_snapshot` carries `activities: { id: [...] }`. One activity: `{ name, type, details,
-  state, start, end, partySize, partyMax, imageText, image, smallIcon, smallText }`: `name` null
+  state, start, end, partySize, partyMax, imageText, image, smallIcon, smallText, statusShows }`: `name` null
   for a game the app couldn't name, start/end unix ms, `image` a picture's id, `smallIcon`
   'playing' | 'paused' | null (a music player's state: a play or pause badge on the picture's
-  corner on the card) with its hover text.
+  corner on the card) with its hover text, `statusShows` 'state' | 'details' | null (the text the
+  short line under names uses instead of the name; bots see it as `status_display_type`).
 - Pictures: the app sends a game's picture (JPEG or PNG, at most 48 KB; the app makes them 128
   px) as base64 in the activity the first time on each connection, then only its id; the server
   keeps the last 500 in memory by the SHA-256 of their bytes and serves them at

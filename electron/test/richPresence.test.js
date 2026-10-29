@@ -198,8 +198,13 @@ describe('activities for the page (gameActivities.js)', () => {
             party: { size: [2, 4] }, assets: { large_image: 'map_1', large_text: 'Dust' }, buttons: [{ label: 'Join', url: 'https://x' }],
         }, 'Game')).toEqual({
             name: 'Game', type: 0, details: 'In a match', state: 'x'.repeat(128), start: 1700000000000, end: null,
-            partySize: 2, partyMax: 4, imageText: 'Dust', smallIcon: null, smallText: null,
+            partySize: 2, partyMax: 4, imageText: 'Dust', smallIcon: null, smallText: null, statusShows: null,
         });
+        // Feishin's "Discord presence display type": the artists (state) or the song (details).
+        expect(cleanActivity({ type: 2, state: 'Butthole Surfers', status_display_type: 1 }, 'Feishin').statusShows).toBe('state');
+        expect(cleanActivity({ type: 2, details: 'Pepper', status_display_type: 2 }, 'Feishin').statusShows).toBe('details');
+        expect(cleanActivity({ type: 2, status_display_type: 0 }, 'Feishin').statusShows).toBeNull();
+        expect(cleanActivity({ type: 2, status_display_type: 'state' }, 'Feishin').statusShows).toBeNull();
         expect(cleanActivity({ assets: { small_image: 'paused', small_text: 'Paused' } }, 'Feishin')).toMatchObject({ smallIcon: 'paused', smallText: 'Paused' });
         expect(cleanActivity({ assets: { small_image: 'pl_icon', small_text: 'Playing' } }, 'X').smallIcon).toBe('playing');
         expect(cleanActivity({ assets: { small_image: 'rank_gold', small_text: 'Gold' } }, 'X').smallIcon).toBeNull();

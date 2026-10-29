@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 import { faTowerBroadcast } from '@fortawesome/free-solid-svg-icons';
 import { useActivities } from '../hooks/useActivities';
 import { useVoiceStreams } from '../hooks/useVoiceStreams';
-import { activityIcon, activityLineKey, activityName } from '../utils/activities';
+import { activityIcon, activityLineKey, activityLineName } from '../utils/activities';
 import { t } from '../i18n';
 
 const BOLD = { b: <strong /> };
@@ -32,7 +32,7 @@ export default function ActivityLine({ userId, className = '' }) {
   return (
     <span className={`activity-line ${className}`.trim()}>
       {icon && <Icon icon={icon} className="activity-line-icon" aria-hidden="true" />}
-      {key ? <Trans i18nKey={key} values={{ name: activityName(activity) }} components={BOLD} /> : activity.state}
+      {key ? <Trans i18nKey={key} values={{ name: activityLineName(activity) }} components={BOLD} /> : activity.state}
     </span>
   );
 }

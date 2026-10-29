@@ -1,7 +1,7 @@
 // Turns what Rich Presence games send (richPresence.js) into the activities the page shares
 // (client/src/services/activityService.js): named and pictured by gameLookup.js, cleaned,
 // each game looked up once. The page gets
-// [{ key, name, type, details, state, start, end, partySize, partyMax, imageText, image }],
+// [{ key, name, type, details, state, start, end, partySize, partyMax, imageText, image, statusShows }],
 // `image` being { id, data } (a small JPEG or PNG, base64; id its hash) or null.
 // A game whose big picture is a web address (a music player's album cover on the person's own
 // server, as Feishin sends with Navidrome) gets that picture instead: fetched by this computer
@@ -42,6 +42,11 @@ function smallIconOf(assets) {
     return null;
 }
 
+// Which text the short line under names shows instead of the program's name: Discord's
+// `status_display_type` (0 the name, 1 the state, 2 the details), which music players offer as
+// a setting (Feishin's "Discord presence display type": its name, the song or the artists).
+const STATUS_SHOWS = { 1: 'state', 2: 'details' };
+
 function cleanActivity(activity, name) {
     const size = Array.isArray(activity.party?.size) ? activity.party.size.map(Number) : [];
     const [partySize, partyMax] = size.length === 2 && size.every((n) => Number.isInteger(n) && n >= 0 && n < 1e6) ? size : [null, null];
@@ -60,6 +65,7 @@ function cleanActivity(activity, name) {
         // 'playing' | 'paused' | null (smallIconOf), with the small picture's hover text.
         smallIcon: smallIconOf(activity.assets),
         smallText: text(activity.assets?.small_text),
+        statusShows: STATUS_SHOWS[activity.status_display_type] ?? null,
     };
 }
 

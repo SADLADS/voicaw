@@ -60,8 +60,12 @@ describe('activities (Rich Presence)', () => {
     }]);
     expect(a).toEqual({
       name: 'Hades', type: 0, details: 'x'.repeat(128), state: 'Tartarus', start: 1700000000000, end: null,
-      partySize: null, partyMax: null, imageText: 'Zagreus', image: null, smallIcon: null, smallText: null,
+      partySize: null, partyMax: null, imageText: 'Zagreus', image: null, smallIcon: null, smallText: null, statusShows: null,
     });
+    expect(cleanActivities([{ name: 'Feishin', statusShows: 'state' }, { name: 'X', statusShows: 'name' }]).map((a) => a.statusShows))
+      .toEqual(['state', null]);
+    expect(discordActivity(cleanActivities([{ name: 'Feishin', type: 2, state: 'Butthole Surfers', statusShows: 'state' }])[0]))
+      .toMatchObject({ name: 'Feishin', state: 'Butthole Surfers', status_display_type: 1 });
     expect(cleanActivities([{ name: 'Feishin', smallIcon: 'paused', smallText: 'Paused' }, { name: 'X', smallIcon: 'evil' }]).map((a) => a.smallIcon))
       .toEqual(['paused', null]);
     expect(cleanActivities('nope')).toEqual([]);
