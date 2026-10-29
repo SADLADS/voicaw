@@ -50,7 +50,22 @@
       "unmute": "配信のミュートを解除",
       "deafened": "スピーカーミュート中です",
       "volume": "配信の音量（自分だけ）",
-      "percent": "{{percent}}%"
+      "percent": "{{percent}}%",
+      "zoom": "ズーム",
+      "zoomPercent": "ズーム: {{percent}}%",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomReset": "配信を画面に合わせる（100% に戻す）",
+      "quality": "配信の画質",
+      "qualities": {
+        "auto": "自動",
+        "low": "データ節約"
+      },
+      "qualityHints": {
+        "auto": "フルサイズ。回線が追いつかないときだけ小さくなります",
+        "low": "幅と高さが半分になり、データ量は約 4 分の 1 です"
+      },
+      "receiving": "{{width}} × {{height}} で受信中"
     },
     "userVolume": {
       "title": "ユーザー音量",
@@ -186,6 +201,7 @@
     "camera": {
       "start": "カメラをオン",
       "stop": "カメラをオフ",
+      "switch": "カメラを切り替え",
       "cameraOf": "{{name}} さんのカメラ",
       "yourCamera": "あなたのカメラ"
     },
@@ -200,6 +216,12 @@
       "emptyManage": "このギルドにはまだサウンドがありません。「ギルド設定」→「サウンドボード」で追加できます。",
       "noPermission": "このチャンネルではサウンドを再生できません。",
       "deafened": "サウンドを再生するにはスピーカーミュートを解除してください。"
+    },
+    "pushToTalk": {
+      "hold": "押して話す",
+      "talking": "話しています",
+      "short": "プッシュトゥトーク",
+      "muted": "ミュート中です"
     }
   }
 }

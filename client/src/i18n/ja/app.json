@@ -2,6 +2,12 @@
   "app": {
     "unreachable": "Voicaw に接続できません。再試行しています…",
     "unreachableLogOut": "このデバイスでログアウト",
+    "imageLink": {
+      "title": "別のアカウントの画像",
+      "text": "この画像は {{name}} のチャットにありますが、現在 {{current}} としてログインしています。表示するには、ログアウトして {{name}} としてログインしてください。",
+      "logOut": "ログアウト",
+      "unknown": "別のアカウント"
+    },
     "offline": {
       "title": "オフラインです",
       "text": "このデバイスに保存されたメッセージを表示しています。読むことはできますが、送信はできません。",
@@ -14,6 +20,7 @@
     "sidebar": {
       "directMessages": "ダイレクトメッセージ",
       "unreadFrom": "ダイレクトメッセージ: {{name}} さんから新しいメッセージ",
+      "unreadInGroup": "ダイレクトメッセージ: {{group}} で {{name}} さんから新しいメッセージ",
       "unreadCount_other": "未読メッセージ {{count}} 件",
       "guilds": "ギルド",
       "mentions_other": "{{count}} 件のメンション",
@@ -22,6 +29,15 @@
       "othersInVoice": "誰かがこのギルドのボイスに参加しています",
       "resize": "サイドバーのサイズを変更",
       "dragToResize": "ドラッグしてサイズを変更",
+      "folder": {
+        "markAsRead": "フォルダを既読にする",
+        "settings": "フォルダ設定",
+        "ungroup": "フォルダを解除",
+        "name": "フォルダ名",
+        "colour": "フォルダの色",
+        "defaultColour": "デフォルト",
+        "customColour": "カスタムカラー"
+      },
       "leaveGuild": {
         "title": "「{{name}}」から退出",
         "message": "本当に {{name}} から退出しますか？再度招待されない限り、再参加できません。",
@@ -57,7 +73,15 @@
       "addFriend": "フレンドに追加",
       "acceptRequest": "フレンドリクエストを承認",
       "cancelRequest": "フレンドリクエストを取り消す",
-      "removeFriend": "フレンドから削除"
+      "removeFriend": "フレンドから削除",
+      "makeAdmin": "管理者にする",
+      "removeAdmin": "管理者から外す",
+      "suspend": "アカウントを停止",
+      "liftSuspension": "停止を解除",
+      "makeAdminTitle": "{{name}} さんを管理者にしますか？",
+      "makeAdminMessage": "管理者はアプリの設定の変更、登録の承認、報告の閲覧、アカウントの停止、他の人を管理者にすることができます。",
+      "removeAdminTitle": "{{name}} さんを管理者から外しますか？",
+      "removeAdminMessage": "「設定 → 管理」と「報告」が使えなくなります。"
     },
     "pageMenus": {
       "text": "テキスト",
@@ -83,6 +107,11 @@
       "picture": "{{name}} のプロフィール画像",
       "banner": "バナー",
       "memberSince": "Voicaw の利用開始日",
+      "joinSound": "参加サウンド",
+      "joinSoundHint": "どのギルドでも、あなたがボイスチャンネルに参加すると、そこにいる全員に再生されます。",
+      "joinSoundNone": "あなたのギルドにはまだサウンドボードのサウンドがありません。",
+      "noJoinSound": "なし",
+      "previewJoinSound": "{{name}} を試聴",
       "tabs": "プロフィールのセクション",
       "tabAbout": "自己紹介",
       "tabActivity": "アクティビティ",
@@ -131,6 +160,16 @@
       "reactedTo": "あなたのメッセージに {{emoji}} でリアクションしました: {{text}}",
       "nameReacted": "{{name}} さんがあなたのメッセージに {{emoji}} でリアクションしました",
       "nameReactedTo": "{{name}} さんがあなたのメッセージに {{emoji}} でリアクションしました: {{text}}",
+      "pinned": "メッセージをピン留めしました",
+      "pinnedText": "メッセージをピン留めしました: {{text}}",
+      "namePinned": "{{name}} さんがメッセージをピン留めしました",
+      "namePinnedText": "{{name}} さんがメッセージをピン留めしました: {{text}}",
+      "pollClosed": "{{name}} さんの投票が締め切られました",
+      "pollClosedQuestion": "{{name}} さんの投票「{{question}}」が締め切られました",
+      "ownPollClosed": "あなたの投票が締め切られました",
+      "ownPollClosedQuestion": "あなたの投票「{{question}}」が締め切られました",
+      "friendRequest": "フレンドリクエストが届きました",
+      "friendAccepted": "フレンドリクエストが承認されました",
       "admin": {
         "report": "新しい報告",
         "signup": "新しい登録申請",
@@ -140,6 +179,20 @@
         "signupsWaiting_other": "承認待ちのアカウント {{count}} 件",
         "testersWaiting_other": "追加待ちの申請 {{count}} 件"
       }
+    },
+    "titleBar": {
+      "back": "戻る",
+      "forward": "進む",
+      "minimise": "最小化",
+      "maximise": "最大化",
+      "restore": "元に戻す",
+      "close": "閉じる"
+    },
+    "inbox": {
+      "title": "受信箱",
+      "loading": "読み込み中…",
+      "empty": "過去 30 日間には何もありません。",
+      "failed": "受信箱を読み込めませんでした。"
     }
   }
 }

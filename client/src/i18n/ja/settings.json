@@ -97,6 +97,10 @@
         "title": "テーマ",
         "keywords": "テーマ ダークモード ライトモード 夜 色 システム キーボード theme dark light"
       },
+      "seasonalThemes": {
+        "title": "季節のテーマ",
+        "keywords": "季節 テーマ ハロウィン クリスマス 10月 12月 祝日 自動 切り替え"
+      },
       "messageDisplay": {
         "title": "メッセージの表示",
         "keywords": "コンパクト 標準 メッセージ 画像 アバター 詰める レイアウト 間隔 compact cozy"
@@ -124,6 +128,10 @@
       "noiseSuppression": {
         "title": "ノイズ抑制",
         "keywords": "ノイズ抑制 ノイズ 雑音 背景 rnnoise deepfilternet 強 標準 キーボード ファン noise"
+      },
+      "inputMode": {
+        "title": "入力モード",
+        "keywords": "入力モード プッシュトゥトーク ptt 音声検出 キー ショートカット 押す 離す 遅延"
       },
       "inputSensitivity": {
         "title": "入力感度",
@@ -495,7 +503,7 @@
       "recordingHint": "Ctrl、Alt、Shift のいずれかを押しながらキーを押してください。Esc でキャンセルします。",
       "activity": "アクティビティ",
       "shareActivity": "プレイ中のゲームを共有",
-      "shareActivityHint": "プレイ中のゲームとその中でしていることを、ここにいる全員に表示します（それを知らせるゲームの場合）。名前と画像は、このコンピューター上の Steam やゲーム自体のファイル、またはゲームが示すウェブアドレス（音楽プレーヤーのアルバムアートなど）から取得し、このコンピューターがダウンロードします。画像の小さなコピーがサーバーに送られます。",
+      "shareActivityHint": "プレイ中のゲームとその中でしていることを、ここにいる全員に表示します（Steam のゲームと、それを知らせるゲームの場合）。名前と画像は、このコンピューター上の Steam やゲーム自体のファイル、またはゲームが示すウェブアドレス（音楽プレーヤーのアルバムアートなど）から取得し、このコンピューターがダウンロードします。画像の小さなコピーがサーバーに送られます。",
       "overlay": "ゲーム内オーバーレイ",
       "overlayOn": "ゲーム中にオーバーレイを表示",
       "overlayHint": "ボイスチャンネルや通話中にゲームをしているとき、誰がいて誰が話しているか、そして通知をゲームの上に表示します。対象は、プレイ中のゲームを知らせるゲームと Steam のゲームです。ウィンドウモードやボーダーレスウィンドウのゲームの上に表示されます。排他的フルスクリーンのゲームでは隠れることがあります。",
@@ -658,6 +666,14 @@
       "undeafen": {
         "label": "スピーカーミュート解除"
       },
+      "pushToTalkOn": {
+        "label": "プッシュトゥトーク開始",
+        "description": "プッシュトゥトークで話し始めたとき"
+      },
+      "pushToTalkOff": {
+        "label": "プッシュトゥトーク終了",
+        "description": "プッシュトゥトークで話し終えたとき"
+      },
       "userJoin": {
         "label": "ユーザー参加",
         "description": "あなたまたは他の人がボイスチャンネルや通話に参加したとき"
@@ -707,11 +723,17 @@
       "light": "ライト",
       "familiar": "Ol’ Familiar",
       "halloween": "ハロウィン",
+      "christmas": "クリスマス",
       "slack": "Slack",
       "system": "システムに合わせる",
       "hint": "この端末にのみ保存されます。",
       "hintSystemDark": "システムは現在ダークモードです。この端末にのみ保存されます。",
       "hintSystemLight": "システムは現在ライトモードです。この端末にのみ保存されます。"
+    },
+    "seasonalThemes": {
+      "title": "季節のテーマ",
+      "toggle": "10 月はハロウィン、12 月はクリスマスに切り替える",
+      "hint": "その月の間に別のテーマを選ぶと、そのテーマのままになります。そうでなければ、月が終わるといつものテーマに戻ります。この端末にのみ保存されます。"
     },
     "messageDisplay": {
       "title": "メッセージの表示",
@@ -771,6 +793,71 @@
       "micLevel": "マイクのレベル",
       "noiseSuppression": "ノイズ抑制",
       "inputSensitivity": "入力感度",
+      "inputMode": {
+        "title": "入力モード",
+        "voice": {
+          "label": "音声検出",
+          "hint": "話しているときはいつでも声を送信します。"
+        },
+        "pushToTalk": {
+          "label": "プッシュトゥトーク",
+          "hint": "キーまたはマウスボタンを押している間だけ声を送信します。"
+        }
+      },
+      "pushToTalk": {
+        "shortcut": "プッシュトゥトークのキー",
+        "pressKey": "キーを押してください…",
+        "notSet": "未設定",
+        "clear": "クリア",
+        "recordingHint": "キーまたはマウスボタン（中、戻る、進む）を押してください。Escape でキャンセル、Backspace でクリアします。",
+        "browserHint": "Voicaw が前面に開いている間に使えます。デスクトップアプリでは、他のアプリを使っている間も使えます。ボイスバーのプッシュトゥトークボタンを押し続けることもできます。",
+        "desktopHint": "ボイスに参加している間は、ゲームなど他のアプリでも使えます。ボイスバーのプッシュトゥトークボタンを押し続けることもできます。",
+        "outsideFailed": "このコンピューターでは他のアプリでのキー入力を Voicaw が受け取れないため、Voicaw が前面にあるときだけ使えます。Linux では、Wayland で動作しているアプリのキー入力は受け取れません。",
+        "outsideFailedMac": "他のアプリでもキーを使うには、システム設定 → プライバシーとセキュリティ → アクセシビリティで Voicaw を許可してから、ボイスに参加し直してください。",
+        "releaseDelay": "リリース遅延",
+        "releaseDelayHint": "キーを離した後も声を送り続ける時間です。最後の言葉が途切れないようにします。",
+        "ms": "{{ms}} ミリ秒",
+        "noSensitivity": "プッシュトゥトークがオンです。キーを押している間は、声の大きさに関係なく送信されます。",
+        "keys": {
+          "numpad": "テンキー {{key}}",
+          "ControlLeft": "左 Ctrl",
+          "ControlRight": "右 Ctrl",
+          "AltLeft": "左 Alt",
+          "AltRight": "右 Alt",
+          "ShiftLeft": "左 Shift",
+          "ShiftRight": "右 Shift",
+          "MetaLeft": "左 Windows",
+          "MetaRight": "右 Windows",
+          "CapsLock": "Caps Lock",
+          "Space": "スペース",
+          "Insert": "Insert",
+          "Delete": "Delete",
+          "Home": "Home",
+          "End": "End",
+          "PageUp": "Page Up",
+          "PageDown": "Page Down",
+          "ArrowUp": "上矢印",
+          "ArrowDown": "下矢印",
+          "ArrowLeft": "左矢印",
+          "ArrowRight": "右矢印",
+          "NumLock": "Num Lock",
+          "ScrollLock": "Scroll Lock",
+          "PrintScreen": "Print Screen",
+          "Mouse3": "マウスの中ボタン",
+          "Mouse4": "マウスの戻るボタン",
+          "Mouse5": "マウスの進むボタン",
+          "mac": {
+            "MetaLeft": "左 Command",
+            "MetaRight": "右 Command",
+            "AltLeft": "左 Option",
+            "AltRight": "右 Option"
+          },
+          "linux": {
+            "MetaLeft": "左 Super",
+            "MetaRight": "右 Super"
+          }
+        }
+      },
       "autoSensitivity": {
         "label": "自動",
         "hint": "話している間だけ声を送信するため、合間のタイピングやクリック音は聞こえません。"

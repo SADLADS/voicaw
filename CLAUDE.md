@@ -197,8 +197,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   message parts take only stable props. New settings are a subsection of a page in `Settings.jsx` (see Settings in `docs/client.md`). The app's
   text is British English, and every string shown goes through `t('area.key')` with its
   English in `i18n/en-GB/<area>.json` (see Translations in `docs/client.md`; lint fails on
-  text written straight into JSX). Write new text in English only: Russian (`i18n/ru/`) and Japanese
-  (`i18n/ja/`) are translated in batches when the user asks, and show English until then.
+  text written straight into JSX). Translate as you go: any change that adds or changes English text adds
+  or updates the Russian (`i18n/ru/`, with `_few`/`_many` plurals) and Japanese (`i18n/ja/`,
+  `_other` only) in the same branch, with the same `{{placeholders}}` and tags.
 
 ## Decisions, plans and known issues
 

@@ -62,10 +62,12 @@
       "noMember": "{{name}} というメンバーはいません",
       "noChannel": "#{{name}} というチャンネルはありません",
       "hasValues": "has: に指定できる値: {{values}}",
+      "badDate": "{{key}}: 日付が必要です（例: {{example}}、{{value}} ではありません）",
       "hint": {
         "user": "ユーザー",
         "channel": "チャンネル",
-        "has": "{{values}}、{{last}}"
+        "has": "{{values}}、{{last}}",
+        "date": "日付（例: {{example}}）"
       },
       "unknownChannel": "不明",
       "failed": "現在検索できません。",
@@ -76,13 +78,17 @@
       "options": "検索オプション",
       "channels": "チャンネル",
       "messageContains": "メッセージに含まれる語句",
+      "datePicker": {
+        "before": "この日より前",
+        "after": "この日より後"
+      },
       "results": "検索結果",
       "close": "検索を閉じる",
       "resultCount_other": "{{count}} 件の結果",
       "sort": "並べ替え",
       "newest": "新しい順",
       "oldest": "古い順",
-      "intro": "単語で検索するか、from:、mentions:、in:、has: で絞り込みましょう。",
+      "intro": "単語で検索するか、from:、mentions:、in:、has:、before:、after: で絞り込みましょう。",
       "noResults": "結果はありません。",
       "noResultsHint": "別の単語を試すか、フィルターを減らしてください。",
       "jump": "移動",

@@ -10,12 +10,12 @@
   Contexts live in `contexts.js` (`ConfigContext`, `InteractionContext`, `LayoutContext`) and
   `hooks/useAuth.js`; logic lives in `hooks/` and `services/`.
 - **Translations** (`i18n/`, i18next): every string the app shows comes from `t('area.key')`,
-  so components don't change per language. British English (`en-GB/`) and Russian (`ru/`,
-  a quick machine-made first pass from 2026-10-03, translated in batches from then on: new
-  text is written in English only and shows in English until the next batch) and Japanese
-  (`ja/`, a full machine-made translation from 2026-10-06, likewise translated in batches,
-  the latest on 2026-10-26 for both;
-  Japanese has a single plural form, so its files only have `_other` keys). The text is in
+  so components don't change per language. British English (`en-GB/`), Russian (`ru/`,
+  a quick machine-made first pass from 2026-10-03) and Japanese (`ja/`, a full machine-made
+  translation from 2026-10-06). Both were translated in batches until 2026-10-29; since then
+  they're translated as we go: a change that adds or changes English text adds the Russian
+  and Japanese in the same branch (Japanese has a single plural form, so its files only have
+  `_other` keys; Russian has `_one`, `_few`, `_many` and `_other`). The text is in
   `i18n/<language>/<area>.json`, one file per area of the app (`settings`, `chat`, `guilds`,
   `guildAdmin`, `voice`...), each holding one top-level key named after the file; `common.json`
   has the everyday words (Cancel, Save, Close...). Files there are picked up automatically;

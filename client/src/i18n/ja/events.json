@@ -37,6 +37,28 @@
       "end": "イベントを終了",
       "more": "その他"
     },
+    "rsvp": {
+      "button": "出欠",
+      "going": "参加",
+      "maybe": "未定",
+      "declined": "不参加",
+      "waitlisted": "キャンセル待ち",
+      "clear": "出欠の回答を取り消す",
+      "yours": "出欠: {{answer}}",
+      "thisDate": "このイベント（{{date}}）",
+      "allDates": "すべてのイベント",
+      "goingCount_other": "{{count}} 人が参加",
+      "goingOf_other": "{{limit}} 人中 {{count}} 人が参加",
+      "maybeCount_other": "{{count}} 人が未定",
+      "waitlistCount_other": "{{count}} 人がキャンセル待ち",
+      "groupGoingOf_other": "参加: {{count}} / {{limit}}",
+      "group": {
+        "going_other": "参加: {{count}}",
+        "waitlisted_other": "キャンセル待ち: {{count}}",
+        "maybe_other": "未定: {{count}}",
+        "declined_other": "不参加: {{count}}"
+      }
+    },
     "menu": {
       "edit": "イベントを編集",
       "copyLink": "リンクをコピー",
@@ -67,8 +89,11 @@
     "detail": {
       "info": "イベント情報",
       "interestedTab_other": "{{count}} 人が興味あり",
+      "rsvps": "出欠",
+      "rsvpTab": "出欠（{{count}}）",
       "createdBy": "作成者: {{name}}",
       "loading": "読み込み中…",
+      "nobodyAnswered": "まだ誰も回答していません。",
       "pastCount_other": "{{count}} 人が興味ありでした",
       "nextDates": "今後の日程",
       "showNext": "次回: {{date}}",
@@ -143,6 +168,9 @@
       "repeatHint": "この端末のタイムゾーンに基づきます。時計が変わってもこの時刻のままです。",
       "description": "説明",
       "descriptionPlaceholder": "イベントについてもう少し詳しく教えてください。Markdown、改行、リンクが使えます。",
+      "limit": "参加人数を制限する",
+      "spots": "定員",
+      "limitHint": "定員に達すると、参加と答えた人はキャンセル待ちになり、空きが出ると順に繰り上がります。",
       "cover": "カバー画像",
       "coverFile": "カバー画像ファイル",
       "addCover": "カバー画像を追加",
@@ -158,7 +186,7 @@
       "customColour": "自分で選んだ色",
       "uploading": "アップロード中…",
       "coverFailed": "画像をアップロードできませんでした: {{error}}",
-      "reviewHint": "イベントはこのように表示されます。表示できる人は全員「イベント」で見ることができ、興味ありにした人には開始時に通知が届きます。",
+      "reviewHint": "イベントはこのように表示されます。表示できる人は全員「イベント」で見ることができ、参加（または未定）と答えた人には開始時に通知が届きます。",
       "errors": {
         "channel": "ボイスチャンネルを選んでください。",
         "name": "イベントにトピックを付けてください。",
@@ -168,7 +196,8 @@
         "endBeforeDay": "最終日を初日より前にはできません。",
         "endNeeded": "別の場所で行うイベントには終了日時が必要です。",
         "endBefore": "終了は開始より後にしてください。",
-        "repeat": "この日付からはその繰り返しになりません。別のものを選んでください。"
+        "repeat": "この日付からはその繰り返しになりません。別のものを選んでください。",
+        "limit": "定員は 1 から {{max}} までの数で指定してください。"
       }
     },
     "embed": {

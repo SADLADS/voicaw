@@ -68,10 +68,12 @@
       "noMember": "Нет участника с именем {{name}}",
       "noChannel": "Нет канала с названием #{{name}}",
       "hasValues": "has: может быть {{values}}",
+      "badDate": "{{key}}: нужна дата, например {{example}} (а не {{value}})",
       "hint": {
         "user": "пользователь",
         "channel": "канал",
-        "has": "{{values}} или {{last}}"
+        "has": "{{values}} или {{last}}",
+        "date": "дата, например {{example}}"
       },
       "unknownChannel": "неизвестно",
       "failed": "Сейчас не удаётся выполнить поиск.",
@@ -82,6 +84,10 @@
       "options": "Параметры поиска",
       "channels": "Каналы",
       "messageContains": "Сообщение содержит",
+      "datePicker": {
+        "before": "До этого дня",
+        "after": "После этого дня"
+      },
       "results": "Результаты поиска",
       "close": "Закрыть поиск",
       "resultCount_one": "{{count}} результат",
@@ -91,7 +97,7 @@
       "sort": "Сортировка",
       "newest": "Сначала новые",
       "oldest": "Сначала старые",
-      "intro": "Ищите слова или уточните поиск с помощью from:, mentions:, in: и has:.",
+      "intro": "Ищите слова или уточните поиск с помощью from:, mentions:, in:, has:, before: и after:.",
       "noResults": "Ничего не найдено.",
       "noResultsHint": "Попробуйте другие слова или меньше фильтров.",
       "jump": "Перейти",

@@ -52,7 +52,9 @@
       "messagePlaceholder": "{{name}} へメッセージを送信...",
       "showKeyboard": "キーボードを表示",
       "emoji": "絵文字",
-      "send": "送信"
+      "send": "送信",
+      "forwarding": "メッセージを転送中:",
+      "cancelForward": "転送しない"
     },
     "attachPanel": {
       "label": "メッセージに追加",
@@ -187,11 +189,13 @@
       "createThreadSheet": "スレッドを作成",
       "copyTextSheet": "テキストをコピー",
       "removePreviewsSheet": "プレビューを削除",
-      "confirmDelete": "このメッセージを削除しますか？この操作は取り消せません。"
+      "confirmDelete": "このメッセージを削除しますか？この操作は取り消せません。",
+      "forward": "転送",
+      "forwardSheet": "転送"
     },
     "search": {
       "placeholder": "{{name}} を検索",
-      "intro": "単語で検索するか、from:、mentions:、has: で絞り込めます。このチャットを読めるのはあなたのデバイスだけなので、検索はここで行われます。最初の検索では履歴全体を読み込みます。",
+      "intro": "単語で検索するか、from:、mentions:、has:、before:、after: で絞り込めます。このチャットを読めるのはあなたのデバイスだけなので、検索はここで行われます。最初の検索では履歴全体を読み込みます。",
       "reading_other": "履歴を読み込み中… これまでに {{count}} 件"
     },
     "pins": {
@@ -358,6 +362,10 @@
       "lastSeparator": "、",
       "view": "投票を表示"
     },
+    "pinNotice": {
+      "pinned": "<b>{{name}}</b> さんがこのチャットに<message>メッセージ</message>をピン留めしました。",
+      "seeAll": "ピン留めされたメッセージをすべて表示。"
+    },
     "pollVoters": {
       "votedFor": "{{answer}} に投票",
       "none": "この回答に投票した人はいません。",
@@ -421,6 +429,16 @@
       "alsoBlock": "{{name}} さんもブロックする",
       "send": "報告を送信",
       "thanks": "お知らせいただきありがとうございます。モデレーターが確認します。"
+    },
+    "forward": {
+      "title": "転送先",
+      "search": "検索",
+      "empty": "一致するものがありません。",
+      "label": "転送されたメッセージ",
+      "summary": "転送: {{text}}",
+      "tooLong": "このメッセージは長すぎて転送できません。",
+      "notEncrypted": "暗号化されていません",
+      "notEncryptedTitle": "ギルドのチャンネルはエンドツーエンド暗号化されていません。そこに転送したものは、ファイルも含めてサーバーが読むことができます。"
     }
   }
 }
