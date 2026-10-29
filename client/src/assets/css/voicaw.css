@@ -483,13 +483,22 @@
   --vc-mention-badge: #e01e5a;
   --vc-on-mention-badge: #ffffff;
 
+  /* Live editing's carets: Light's, made for a white page. */
+  --vc-collab-1: #c4342c;
+  --vc-collab-2: #b86a10;
+  --vc-collab-3: #1d7f48;
+  --vc-collab-4: #1f6fbf;
+  --vc-collab-5: #6a52c9;
+  --vc-collab-6: #b8338a;
+
   color-scheme: light;
 }
 
-/* Slack's aubergine side: the rail, the column beside it and the user card (and the same parts
-   of its Appearance picture). Dark, white text; the open row a lighter aubergine; white unread
-   markers, as Slack's bold white names. Menus opened from here (the guild menu) take it too. */
-:root[data-theme="slack"] .sidebar-wrapper,
+/* Slack's aubergine side: the rail, the column beside it and the user card, and the desktop
+   app's title bar across the top, as Slack's (and the same parts of its Appearance picture).
+   Dark, white text; the open row a lighter aubergine; white unread markers, as Slack's bold
+   white names. Menus opened from here (the guild menu, the inbox) take it too. */
+:root[data-theme="slack"] :is(.sidebar-wrapper, .title-bar),
 [data-theme-preview="slack"] :is(.theme-preview-rail, .theme-preview-side) {
   --vc-accent-text: #f2d4f2;
   --vc-accent-soft: rgba(255, 255, 255, 0.18);
@@ -2482,8 +2491,10 @@ body.sidebar-resizing * {
   color: var(--vc-fg);
 }
 
+/* The page it opens is showing (Settings' gear): the selected tint, as the open channel's row.
+   (A mix of the accent itself was a muddy green on Slack's aubergine.) */
 .user-panel-button.active {
-  background-color: color-mix(in srgb, var(--vc-accent) 30%, transparent);
+  background-color: var(--vc-accent-soft);
   color: var(--vc-fg);
 }
 

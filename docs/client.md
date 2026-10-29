@@ -328,7 +328,13 @@
   light page never starts dark. Colours are the `--vc-*` tokens on `:root` in `voicaw.css`
   (COLOURS there), set again in full under `:root[data-theme="light"]` (THEMES): **use tokens,
   not literal colours**, in new CSS (literal black/white is only for scrims and controls over
-  images and video). The scheme
+  images and video). **Every theme sets every colour token** (the ones Light's block sets;
+  Dark's `:root` also holds the shared sizes and motion): a token left out falls back to Dark's
+  without a sound, wrong on Light and Slack. `utils/themeTokens.test.js` checks it. A new colour
+  token is added to every theme's block, with a value chosen for that theme. Slack's aubergine
+  side (the rail, the sidebar, the user card and the desktop app's title bar) is a second
+  block setting the same tokens again inside those parts, so a new part that should be
+  aubergine there joins its selector. The scheme
   (2026-10-02) has two brand colours and fixed meanings:
   - **Purple (`--vc-accent`) marks what you can do:** primary buttons, selection, focus rings,
     toggles and checkboxes, links (one link colour, `--vc-accent-text`, everywhere), your own

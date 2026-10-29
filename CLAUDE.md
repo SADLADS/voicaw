@@ -189,8 +189,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   `hooks/` and `services/`). Draw names with `displayName(id, fallback)` / `nameOf(user)` and
   pictures with `Avatar`, never `user.username` or a hand-built URL. Icons are `Icon`
   (`components/Icon.jsx`), not Font Awesome's `FontAwesomeIcon` (slow on phones). Dates and times through
-  `utils/dateFormat.js`, never `toLocaleString`. CSS uses the `--vc-*` colour tokens (both
-  themes), not literal colours; scrollbars are styled only in `voicaw.css`; desktop and phone
+  `utils/dateFormat.js`, never `toLocaleString`. CSS uses the `--vc-*` colour tokens (every
+  theme), not literal colours. **Themes** (Dark, Light, Ol' Familiar, Halloween, Christmas,
+  Slack; `voicaw.css`, see Themes in `docs/client.md`): a feature that needs a new colour token
+  adds it to every theme's block, with a value that suits that theme (`themeTokens.test.js`
+  fails otherwise), and new UI is looked at in each theme, light ones especially. A new part of
+  the left side or the top bar joins Slack's aubergine block's selector; scrollbars are styled only in `voicaw.css`; desktop and phone
   layouts are `desktop.css` / `mobile.css`; new sidebar/header UI uses `--vc-sidebar-width` and
   `--vc-header-height`, and anything screen-high `--vc-app-height` (never 100vh/svh: it
   ends at a phone's keyboard). react-markdown's `components` must be a stable object, and memoised
