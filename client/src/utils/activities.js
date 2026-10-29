@@ -65,9 +65,9 @@ const VERBS = { 0: 'activities.playing', 1: 'activities.streaming', 2: 'activiti
 // The activity's name: a game's, or "a game".
 export const activityName = (activity) => activity.name || t('activities.unknownGame');
 
-// What the short line under names calls it: the name, or the text the player chose to show
-// instead (`statusShows`, Feishin's artists: "Listening to Butthole Surfers"), when it has any.
-export const activityLineName = (activity) => (activity.statusShows && activity[activity.statusShows]) || activityName(activity);
+// The text the player chose for the short line under names instead of "Listening to <name>"
+// (`statusShows`, Feishin's artists: just "Butthole Surfers"), or null to use the usual line.
+export const activityStatusText = (activity) => (activity.statusShows && activity[activity.statusShows]) || null;
 
 // The i18n key for one line about it ("Playing {{name}}"), or null for a bot's custom status
 // (which is just its text).
