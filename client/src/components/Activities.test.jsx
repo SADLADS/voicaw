@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import Activities from './Activities';
 import ActivityLine from './ActivityLine';
 import {
-  activityHeading, activityLineKey, activityName, activityParty, activityTime, activityImageUrl,
+  activityHeading, activityLineKey, activityLineName, activityName, activityParty, activityTime, activityImageUrl,
   applyActivitiesSnapshot, applyUserActivities, resetActivities, activitiesOf,
 } from '../utils/activities';
 import i18n from '../i18n';
@@ -39,6 +39,10 @@ describe('activities (utils/activities.js)', () => {
     }
     expect(activityLineKey({ type: 4 })).toBeNull();
     expect(activityName({ name: null })).toBe('a game');
+    expect(activityLineName({ name: 'Feishin', state: 'Butthole Surfers', statusShows: 'state' })).toBe('Butthole Surfers');
+    expect(activityLineName({ name: 'Feishin', details: 'Pepper', statusShows: 'details' })).toBe('Pepper');
+    expect(activityLineName({ name: 'Feishin', state: null, statusShows: 'state' })).toBe('Feishin');
+    expect(activityLineName({ name: 'Feishin', state: 'Butthole Surfers' })).toBe('Feishin');
     expect(activityTime({ start: 0 + 1000 }, 1000 + 3723000)).toBe('1:02:03 elapsed');
     expect(activityTime({ start: 1000, end: 61000 }, 1000)).toBe('1:00 left');
     expect(activityTime({}, 5)).toBeNull();

@@ -12,13 +12,17 @@ const crypto = require('crypto');
 // (0 Playing, 1 Streaming, 2 Listening to, 3 Watching, 4 a bot's custom status, 5 Competing in);
 // start/end are unix ms; `image` is a picture's id (see storeImage) or null; `smallIcon`
 // 'playing' | 'paused' | null (a music player's state, drawn on the picture's corner) with
-// `smallText`, its hover text.
+// `smallText`, its hover text; `statusShows` 'state' | 'details' | null: what the short line
+// under names shows instead of the name ("Listening to Butthole Surfers" rather than "Listening
+// to Feishin"; Discord's status_display_type, chosen in the music player).
 
 const MAX_ACTIVITIES = 3;
 const MAX_TEXT = 128;
 const PERSON_TYPES = new Set([0, 2, 3, 5]);
 const BOT_TYPES = new Set([0, 1, 2, 3, 4, 5]);
 const SMALL_ICONS = new Set(['playing', 'paused']);
+const STATUS_SHOWS = new Set(['state', 'details']);
+const STATUS_DISPLAY_TYPES = { state: 1, details: 2 };
 
 // Pictures: a game's cover or icon, made small on the player's computer (at most 128 px), kept
 // here by the hash of their bytes and served at /api/activity-images/:id. In memory, the most
@@ -93,6 +97,7 @@ function cleanActivities(list) {
       image: imageId(a.image),
       smallIcon: SMALL_ICONS.has(a.smallIcon) ? a.smallIcon : null,
       smallText: text(a.smallText),
+      statusShows: STATUS_SHOWS.has(a.statusShows) ? a.statusShows : null,
     };
   });
 }
@@ -116,6 +121,7 @@ function cleanBotActivities(list) {
       image: null,
       smallIcon: null,
       smallText: null,
+      statusShows: null,
     };
   }).filter((a) => a.name || a.state);
 }
@@ -154,6 +160,7 @@ function discordActivity(a) {
     ...(a.details ? { details: a.details } : {}),
     ...(a.state ? { state: a.state } : {}),
     ...(a.start || a.end ? { timestamps: { ...(a.start ? { start: a.start } : {}), ...(a.end ? { end: a.end } : {}) } } : {}),
+    ...(STATUS_DISPLAY_TYPES[a.statusShows] ? { status_display_type: STATUS_DISPLAY_TYPES[a.statusShows] } : {}),
     ...(a.partyMax != null ? { party: { size: [a.partySize, a.partyMax] } } : {}),
     ...(a.imageText || a.smallText ? { assets: { ...(a.imageText ? { large_text: a.imageText } : {}), ...(a.smallText ? { small_text: a.smallText } : {}) } } : {}),
   };

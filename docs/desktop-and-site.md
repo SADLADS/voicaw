@@ -174,6 +174,11 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   becomes `smallIcon` 'playing' | 'paused' (2026-10-09), drawn by the page as its own play or
   pause badge on the picture's corner with `smallText` as the hover text. Games' asset-key
   pictures (only Discord can resolve them), other small pictures and buttons aren't shown.
+  Discord's `status_display_type` (1 the state, 2 the details; 2026-10-29: Feishin's "Discord
+  presence display type" set to the artists still read "Listening to Feishin") becomes
+  `statusShows`: the short line under names (`ActivityLine`, `activityLineName`) then reads
+  "Listening to <the artists>", falling back to the name when that text is empty; the card
+  keeps the program's name as its title, as Discord's does.
   **Steam games without Rich Presence** (2026-10-27: FTL showed nothing, as most games don't
   use it): the running Steam games (`runningGames.js` `runningSteamGames`, as the overlay finds
   them, below) are looked for every 15 s while it's on, and each is shared as a plain "Playing
