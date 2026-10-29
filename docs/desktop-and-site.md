@@ -187,8 +187,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   pictures (only Discord can resolve them), other small pictures and buttons aren't shown.
   Discord's `status_display_type` (1 the state, 2 the details; 2026-10-29: Feishin's "Discord
   presence display type" set to the artists still read "Listening to Feishin") becomes
-  `statusShows`: the short line under names (`ActivityLine`, `activityLineName`) then reads
-  "Listening to <the artists>", falling back to the name when that text is empty; the card
+  `statusShows`: the short line under names (`ActivityLine`, `activityStatusText`) then shows
+  just that text (the artists, no "Listening to"; asked for the same day), falling back to
+  "Listening to <name>" when it's empty; the card
   keeps the program's name as its title, as Discord's does.
   **Steam games without Rich Presence** (2026-10-27: FTL showed nothing, as most games don't
   use it): the running Steam games (`runningGames.js` `runningSteamGames`, as the overlay finds
