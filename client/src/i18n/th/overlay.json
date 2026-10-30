@@ -1,0 +1,24 @@
+{
+  "overlay": {
+    "voice": "เสียง",
+    "muted": "ปิดไมค์อยู่",
+    "deafened": "ปิดหูฟังอยู่",
+    "mute": "ปิดไมค์",
+    "unmute": "เปิดไมค์",
+    "deafen": "ปิดหูฟัง",
+    "undeafen": "เปิดหูฟัง",
+    "disconnect": "ตัดการเชื่อมต่อ",
+    "unlockHint": "กด {{key}} เพื่อใช้โอเวอร์เลย์",
+    "settings": "โอเวอร์เลย์",
+    "position": "ตำแหน่ง",
+    "positions": {
+      "top-left": "ซ้ายบน",
+      "top-right": "ขวาบน",
+      "bottom-left": "ซ้ายล่าง",
+      "bottom-right": "ขวาล่าง"
+    },
+    "openApp": "เปิด Voicaw",
+    "lock": "ปิด",
+    "lockShortcutHint": "กด {{key}} หรือ Esc เพื่อกลับไปที่เกม"
+  }
+}

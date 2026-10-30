@@ -1,0 +1,343 @@
+{
+  "guilds": {
+    "sidebar": {
+      "calendar": "ปฏิทิน",
+      "happeningNow": "กำลังจัดอยู่",
+      "happeningNowEvent": "กำลังจัดอยู่: {{name}}",
+      "liveEvent": "สด: {{name}}",
+      "createEvent": "สร้างกิจกรรม",
+      "createChannel": "สร้างช่อง",
+      "createCategory": "สร้างหมวดหมู่",
+      "invitePeople": "เชิญผู้คน",
+      "mentionCount_other": "การกล่าวถึง {{count}} ครั้ง",
+      "muted": "ปิดเสียงอยู่",
+      "editChannelNamed": "แก้ไข {{name}}",
+      "editChannel": "แก้ไขช่อง",
+      "openChat": "เปิดแชท",
+      "openChatNamed": "เปิดแชทของ {{name}}",
+      "guildSettings": "การตั้งค่ากิลด์",
+      "auditLog": "บันทึกการตรวจสอบ",
+      "notificationSettings": "การตั้งค่าการแจ้งเตือน",
+      "leaveGuild": "ออกจากกิลด์",
+      "channels": "ช่อง",
+      "editCategoryNamed": "แก้ไขหมวดหมู่ {{name}}",
+      "editCategory": "แก้ไขหมวดหมู่",
+      "createChannelIn": "สร้างช่องใน {{name}}",
+      "createChannelShort": "สร้างช่อง",
+      "noChannels": "ยังไม่มีช่อง",
+      "deleteChannel": {
+        "title": "ลบ #{{name}}",
+        "messageText": "ลบ #{{name}} และข้อความทั้งหมดใช่ไหม ไม่สามารถย้อนกลับได้",
+        "messageList": "ลบ #{{name}} และงานทั้งหมดใช่ไหม ไม่สามารถย้อนกลับได้",
+        "messageDoc": "ลบ #{{name}} และเอกสารทั้งหมดใช่ไหม ไม่สามารถย้อนกลับได้",
+        "confirm": "ลบช่อง"
+      },
+      "deleteCategory": {
+        "title": "ลบ '{{name}}'",
+        "message": "ลบหมวดหมู่ {{name}} ใช่ไหม ช่องในหมวดหมู่จะยังอยู่โดยไม่มีหมวดหมู่",
+        "confirm": "ลบหมวดหมู่"
+      },
+      "leave": {
+        "title": "ออกจาก '{{name}}'",
+        "message": "คุณแน่ใจไหมว่าต้องการออกจาก {{name}}? คุณจะกลับเข้าร่วมไม่ได้จนกว่าจะได้รับเชิญอีกครั้ง"
+      },
+      "userLimit_other": "รองรับ {{count}} คน"
+    },
+    "view": {
+      "notFound": "ไม่มีกิลด์นี้ หรือคุณไม่ได้อยู่ในกิลด์นี้",
+      "noChannels": "กิลด์นี้ยังไม่มีช่อง",
+      "cantReply": "คุณไม่มีสิทธิ์ตอบกลับใน #{{name}}",
+      "cantSend": "คุณไม่มีสิทธิ์ส่งข้อความใน #{{name}}",
+      "nsfw": "NSFW",
+      "nsfwHint": "สื่อในช่องนี้จะเบลอจนกว่าจะคลิก",
+      "muteChannel": "ปิดเสียงช่อง",
+      "unmuteChannel": "เปิดเสียงช่อง",
+      "pinnedMessages": "ข้อความที่ปักหมุด",
+      "threads": "เธรด",
+      "hideMembers": "ซ่อนรายชื่อสมาชิก",
+      "showMembers": "แสดงรายชื่อสมาชิก",
+      "welcome": "ยินดีต้อนรับสู่ #{{name}}! นี่คือจุดเริ่มต้นของช่อง"
+    },
+    "search": {
+      "noMember": "ไม่มีสมาชิกชื่อ {{name}}",
+      "noChannel": "ไม่มีช่องชื่อ #{{name}}",
+      "hasValues": "has: ใช้ได้กับ {{values}}",
+      "badDate": "{{key}}: ต้องเป็นวันที่ เช่น {{example}} (ไม่ใช่ {{value}})",
+      "hint": {
+        "user": "ผู้ใช้",
+        "channel": "ช่อง",
+        "has": "{{values}} หรือ {{last}}",
+        "date": "วันที่ เช่น {{example}}"
+      },
+      "unknownChannel": "ไม่รู้จัก",
+      "failed": "ค้นหาไม่ได้ในขณะนี้",
+      "loadMoreFailed": "ไม่สามารถโหลดผลลัพธ์เพิ่มได้",
+      "placeholder": "ค้นหา {{name}}",
+      "label": "ค้นหาในกิลด์นี้",
+      "clear": "ล้างการค้นหา",
+      "options": "ตัวเลือกการค้นหา",
+      "channels": "ช่อง",
+      "messageContains": "ข้อความมีคำว่า",
+      "datePicker": {
+        "before": "ก่อนวันนี้",
+        "after": "หลังวันนี้"
+      },
+      "results": "ผลการค้นหา",
+      "close": "ปิดการค้นหา",
+      "resultCount_other": "{{count}} ผลลัพธ์",
+      "sort": "เรียงลำดับ",
+      "newest": "ใหม่ที่สุด",
+      "oldest": "เก่าที่สุด",
+      "intro": "ค้นหาคำ หรือจำกัดผลด้วย from:, mentions:, in:, has:, before: และ after:",
+      "noResults": "ไม่มีผลลัพธ์",
+      "noResultsHint": "ลองใช้คำอื่นหรือตัวกรองน้อยลง",
+      "jump": "ไปที่ข้อความ",
+      "searching": "กำลังค้นหา…",
+      "loadMore": "โหลดเพิ่ม",
+      "nsfwHidden_other": "ซ่อน {{count}} ผลลัพธ์จากช่อง NSFW อยู่ เปิดช่องเพื่อยืนยันว่าคุณอายุ 18 ปีขึ้นไป"
+    },
+    "somethingWentWrong": "เกิดข้อผิดพลาด",
+    "memberList": {
+      "online": "ออนไลน์",
+      "offline": "ออฟไลน์",
+      "memberSince": "เป็นสมาชิกตั้งแต่ {{date}}",
+      "roles": "บทบาท",
+      "noRoles": "ไม่มีบทบาท",
+      "removeRole": "นำ {{name}} ออก",
+      "addRole": "เพิ่มบทบาท",
+      "rolesToAdd": "บทบาทที่จะเพิ่ม",
+      "searchRoles": "ค้นหาบทบาท",
+      "noRolesMatch": "ไม่มีบทบาทที่ตรงกัน",
+      "makeOwner": "ตั้งเป็นเจ้าของ",
+      "transfer": {
+        "title": "โอนความเป็นเจ้าของให้ {{name}}",
+        "message": "{{name}} จะเป็นเจ้าของ {{guild}} และจัดการได้ทุกอย่าง รวมถึงนำคุณออก คุณจะย้อนกลับเองไม่ได้",
+        "confirm": "โอนความเป็นเจ้าของ"
+      },
+      "kick": {
+        "title": "เตะ {{name}}",
+        "message": "{{name}} จะถูกนำออกจาก {{guild}} และกลับเข้าร่วมได้ด้วยคำเชิญใหม่",
+        "button": "เตะ"
+      },
+      "ban": {
+        "title": "แบน {{name}}",
+        "message": "{{name}} จะถูกนำออกจาก {{guild}} และกลับเข้าร่วมไม่ได้จนกว่าจะถูกยกเลิกการแบน (การตั้งค่ากิลด์)",
+        "button": "แบน"
+      },
+      "owner": "เจ้าของกิลด์",
+      "close": "ปิดรายชื่อสมาชิก",
+      "groupHeading": "{{title}} — {{count}}"
+    },
+    "tasks": {
+      "filter": {
+        "all": "ทั้งหมด",
+        "open": "ยังไม่เสร็จ",
+        "mine": "มอบหมายให้ฉัน",
+        "label": "แสดง"
+      },
+      "unknownPerson": "ไม่รู้จัก",
+      "assignedTo": "มอบหมายให้ {{names}}",
+      "moreAssignees": "+{{count}}",
+      "openTask": "เปิดงาน {{title}}",
+      "hideSubtasks": "ซ่อนงานย่อยของ {{title}}",
+      "showSubtasks": "แสดงงานย่อยของ {{title}}",
+      "subtasksDone": "งานย่อยที่เสร็จแล้ว",
+      "commentCount_other": "{{count}} ความคิดเห็น",
+      "addSubtaskTo": "เพิ่มงานย่อยให้ {{title}}",
+      "addSubtask": "เพิ่มงานย่อย",
+      "subtaskTitle": "ชื่องานย่อย",
+      "newSubtaskOf": "งานย่อยใหม่ของ {{title}}",
+      "empty": {
+        "canAdd": "ยังไม่มีงาน เพิ่มงานแรกด้านบน",
+        "none": "ยังไม่มีงาน",
+        "mine": "ไม่มีงานค้างที่มอบหมายให้คุณ",
+        "allDone": "ทุกอย่างที่นี่เสร็จแล้ว"
+      },
+      "boardLabel": "งานใน {{name}}",
+      "summary": "เสร็จ {{done}} จาก {{total}}",
+      "addTask": "เพิ่มงาน",
+      "newTaskTitle": "ชื่องานใหม่",
+      "dragHint": "ลากงานเพื่อจัดลำดับใหม่ วางงานหนึ่งลงบนอีกงานเพื่อทำเป็นงานย่อย",
+      "due": {
+        "overdueOn": "เลยกำหนด: {{date}}",
+        "todayOn": "ครบกำหนดวันนี้: {{date}}",
+        "dueOn": "ครบกำหนด: {{date}}",
+        "today": "วันนี้",
+        "overdue": "เลยกำหนด",
+        "dueToday": "ครบกำหนดวันนี้",
+        "soon": "ใกล้ครบกำหนด"
+      },
+      "markNotDone": "ทำเครื่องหมาย \"{{title}}\" ว่ายังไม่เสร็จ",
+      "markDone": "ทำเครื่องหมาย \"{{title}}\" ว่าเสร็จแล้ว",
+      "deletedUser": "ผู้ใช้ที่ถูกลบ",
+      "comments": {
+        "title": "ความคิดเห็น",
+        "titleWithCount": "ความคิดเห็น ({{number}})",
+        "none": "ยังไม่มีความคิดเห็น",
+        "edited": "(แก้ไขแล้ว)",
+        "edit": "แก้ไขความคิดเห็น",
+        "delete": "ลบความคิดเห็น",
+        "write": "เขียนความคิดเห็น",
+        "send": "แสดงความคิดเห็น",
+        "noPermission": "คุณไม่มีสิทธิ์แสดงความคิดเห็นที่นี่"
+      },
+      "assign": {
+        "title": "มอบหมายผู้คน",
+        "search": "ค้นหาสมาชิก",
+        "nobodyFound": "ไม่พบใคร",
+        "atMost_other": "ไม่เกิน {{count}} คน"
+      },
+      "detail": {
+        "label": "งาน: {{title}}",
+        "close": "ปิดงาน",
+        "openParent": "เปิดงานหลัก",
+        "parent": "↑ {{title}}",
+        "delete": "ลบงาน",
+        "title": "ชื่องาน",
+        "completedBy": "{{name}} ทำเสร็จเมื่อ {{date}}",
+        "completed": "เสร็จเมื่อ {{date}}",
+        "assignees": "ผู้รับผิดชอบ",
+        "unassign": "ยกเลิกการมอบหมาย {{name}}",
+        "nobody": "ไม่มีใคร",
+        "assignMe": "มอบหมายให้ฉัน",
+        "assign": "มอบหมาย",
+        "dueDate": "วันครบกำหนด",
+        "clear": "ล้าง",
+        "none": "ไม่มี",
+        "description": "คำอธิบาย",
+        "descriptionPlaceholder": "รายละเอียด ลิงก์ รายการตรวจสอบ… (ใช้ Markdown ได้)",
+        "noDescription": "ไม่มีคำอธิบาย",
+        "subtasks": "งานย่อย",
+        "subtasksProgress": "งานย่อย ({{done}}/{{total}})",
+        "addSubtask": "เพิ่มงานย่อย",
+        "newSubtaskTitle": "ชื่องานย่อยใหม่",
+        "noneDot": "ไม่มี",
+        "addedBy": "เพิ่มโดย {{name}} เมื่อ {{date}}",
+        "deleteWithSubtasks_other": "ลบ \"{{title}}\" งานย่อย {{count}} งาน และความคิดเห็นทั้งหมดใช่ไหม",
+        "deleteMessage": "ลบ \"{{title}}\" และความคิดเห็นใช่ไหม"
+      }
+    },
+    "threads": {
+      "rename": "เปลี่ยนชื่อเธรด",
+      "create": "สร้างเธรด",
+      "dialogHintMessage": "บทสนทนาแยกเกี่ยวกับข้อความนี้ใน #{{name}} ทุกคนที่เห็นช่องจะเห็นเธรดนี้",
+      "dialogHint": "บทสนทนาแยกใน #{{name}} ทุกคนที่เห็นช่องจะเห็นเธรดนี้",
+      "nameLabel": "ชื่อเธรด",
+      "namePlaceholder": "เธรดใหม่",
+      "archived": "เก็บถาวรแล้ว",
+      "list": {
+        "meta_other": "{{name}} · {{count}} ข้อความ · {{date}}",
+        "metaJoined_other": "{{name}} · {{count}} ข้อความ · {{date}} · เข้าร่วมแล้ว",
+        "title": "เธรด",
+        "empty": "#{{name}} ยังไม่มีเธรด",
+        "emptyHintCreate": "เริ่มเธรดจากเมนูของข้อความ หรือด้วยปุ่มสร้าง",
+        "emptyHint": "เริ่มเธรดจากเมนูของข้อความ",
+        "active": "ใช้งานอยู่"
+      },
+      "summary": {
+        "noMessages": "ยังไม่มีข้อความ",
+        "messages_other": "{{count}} ข้อความ",
+        "started": "<b>{{name}}</b> เริ่มเธรด: <b>{{thread}}</b>",
+        "seeAll": "ดูเธรดทั้งหมด"
+      },
+      "pane": {
+        "leave": "ออกจากเธรด",
+        "leaveHint": "เธรดจะหายไปจากรายการช่องของคุณ",
+        "joinThread": "เข้าร่วมเธรด",
+        "joinHint": "เก็บไว้ในรายการช่องของคุณ",
+        "rename": "เปลี่ยนชื่อเธรด",
+        "unarchive": "เลิกเก็บถาวรเธรด",
+        "archive": "เก็บถาวรเธรด",
+        "copyLink": "คัดลอกลิงก์",
+        "deleteThread": "ลบเธรด",
+        "label": "เธรด",
+        "back": "กลับไปที่ #{{name}}",
+        "channel": "#{{name}}",
+        "channelArchived": "#{{name}} · เก็บถาวรแล้ว",
+        "join": "เข้าร่วม",
+        "options": "ตัวเลือกเธรด",
+        "close": "ปิดเธรด",
+        "fullView": "เปิดแบบเต็มหน้า",
+        "sideView": "แสดงข้างช่อง",
+        "startedBy": "เริ่มโดย",
+        "archived": "เธรดนี้ถูกเก็บถาวรแล้ว",
+        "archivedCanSend": "เธรดนี้ถูกเก็บถาวรแล้ว การส่งข้อความจะทำให้เธรดกลับมา",
+        "cantSend": "คุณไม่มีสิทธิ์ส่งข้อความในเธรดนี้",
+        "empty": "ยังไม่มีข้อความในเธรดนี้ พูดอะไรสักอย่างสิ!",
+        "deleteTitle": "ลบเธรด",
+        "deleteMessage": "ลบ \"{{name}}\" และข้อความทั้งหมดใช่ไหม ไม่สามารถย้อนกลับได้"
+      }
+    },
+    "voice": {
+      "inThisChannel": "ในช่องนี้",
+      "live": "สด",
+      "muted": "ปิดไมค์อยู่",
+      "deafened": "ปิดหูฟังอยู่",
+      "botListening": "บอตนี้ได้ยินช่องนี้",
+      "cantHear": "คุณไม่ได้ยินช่องนี้ เพราะคุณไม่มีสิทธิ์ฟังที่นี่",
+      "disconnect": "ตัดการเชื่อมต่อ",
+      "notSetUp": "ยังไม่ได้ตั้งค่าเสียง",
+      "noPermission": "คุณไม่มีสิทธิ์เข้าร่วมช่องนี้",
+      "join": "เข้าร่วมช่องเสียง",
+      "ownStreamPoppedOut": "สตรีมของคุณอยู่ในหน้าต่างแยก",
+      "streamPoppedOut": "สตรีมของ {{name}} อยู่ในหน้าต่างแยก",
+      "bringBack": "นำกลับมา",
+      "stopWatching": "หยุดดู",
+      "empty": "ยังไม่มีใครอยู่ที่นี่",
+      "inChannel": "ใน {{name}}",
+      "watchStream": "ดูสตรีม",
+      "connecting": "กำลังเชื่อมต่อ…",
+      "cameraOn": "เปิดกล้องอยู่",
+      "full": "ช่องเสียงนี้เต็มแล้ว"
+    },
+    "voiceChat": {
+      "label": "แชทของ {{name}}",
+      "subtitle": "แชทข้อความ",
+      "show": "แสดงแชท",
+      "hide": "ซ่อนแชท",
+      "close": "ปิดแชท",
+      "back": "กลับไปที่ {{name}}",
+      "empty": "ยินดีต้อนรับสู่ {{name}}! นี่คือจุดเริ่มต้นของช่อง"
+    },
+    "channelIcon": {
+      "privateChannel": "ช่องส่วนตัว",
+      "private": "ส่วนตัว"
+    },
+    "invite": {
+      "loading": "กำลังโหลดคำเชิญ…",
+      "memberCount_other": "สมาชิก {{count}} คน",
+      "embed": {
+        "title": "คำเชิญเข้ากิลด์",
+        "tapShow": "แตะแสดงเพื่อดูว่าเป็นกิลด์ไหน",
+        "show": "แสดง",
+        "invalid": "คำเชิญไม่ถูกต้อง",
+        "loadFailed": "ไม่สามารถโหลดคำเชิญได้",
+        "invalidHint": "คำเชิญนี้ไม่ถูกต้องหรือหมดอายุแล้ว",
+        "goTo": "ไปที่กิลด์",
+        "join": "เข้าร่วมกิลด์",
+        "label": "คุณได้รับเชิญให้เข้าร่วมกิลด์"
+      },
+      "page": {
+        "invalid": "คำเชิญไม่ถูกต้อง",
+        "back": "กลับไปที่ Voicaw",
+        "invitedBy": "{{name}} เชิญคุณเข้าร่วม",
+        "invited": "คุณได้รับเชิญให้เข้าร่วม",
+        "goTo": "ไปที่กิลด์",
+        "accept": "ยอมรับคำเชิญ"
+      }
+    },
+    "nsfwGate": {
+      "title": "#{{name}} เป็นช่อง NSFW",
+      "text": "ช่องนี้อาจมีเนื้อหาสำหรับผู้ใหญ่เท่านั้น ช่อง NSFW สำหรับผู้ที่มีอายุ 18 ปีขึ้นไป",
+      "confirm": "ฉันอายุ 18 ปีขึ้นไป",
+      "kept": "จะถามเพียงครั้งเดียว ระบบจะเก็บเฉพาะคำตอบของคุณไว้กับบัญชี ไม่เก็บวันเกิด คุณเปลี่ยนได้ในการตั้งค่า → เนื้อหา",
+      "back": "ย้อนกลับ",
+      "continue": "ดำเนินการต่อ",
+      "error": "บันทึกไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง"
+    },
+    "joinLog": {
+      "joined": "<b>{{name}}</b> เข้าร่วมกิลด์",
+      "left": "<b>{{name}}</b> ออกจากกิลด์"
+    }
+  }
+}

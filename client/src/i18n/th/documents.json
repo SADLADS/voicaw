@@ -1,0 +1,126 @@
+{
+  "documents": {
+    "deletedUser": "ผู้ใช้ที่ถูกลบ",
+    "byline": {
+      "edited": "· แก้ไขเมื่อ {{date}}",
+      "editedBy": "· แก้ไขเมื่อ {{date}} โดย {{name}}"
+    },
+    "card": {
+      "open": "เปิด {{title}}",
+      "replies_other": "{{count}} การตอบกลับ"
+    },
+    "feed": {
+      "newDocument": "เอกสารใหม่",
+      "empty": "ยังไม่มีเอกสาร",
+      "emptyCanCreate": "ยังไม่มีเอกสาร เขียนเอกสารแรกด้วยปุ่มเอกสารใหม่",
+      "noPermission": "คุณไม่มีสิทธิ์เขียนเอกสารที่นี่"
+    },
+    "reactions": {
+      "add": "เพิ่มรีแอคชัน",
+      "react": "รีแอคชัน"
+    },
+    "page": {
+      "missing": "เอกสารนี้ถูกลบแล้ว หรือคุณไม่สามารถเห็นได้",
+      "backToAll": "กลับไปยังเอกสารทั้งหมด",
+      "allDocuments": "เอกสารทั้งหมด",
+      "replies": "การตอบกลับ",
+      "repliesLabel": "ตอบกลับ {{title}}",
+      "repliesPlaceholder": "ตอบกลับ {{title}}...",
+      "repliesUpload": "อัปโหลดไปยังการตอบกลับของ {{title}}",
+      "noReplies": "ยังไม่มีการตอบกลับ บอกความคิดเห็นของคุณได้เลย!",
+      "documentTab": "เอกสาร",
+      "repliesTabCount": "การตอบกลับ ({{number}})",
+      "repliesTabCountMore": "การตอบกลับ ({{number}}+)",
+      "deleteDocument": "ลบเอกสาร",
+      "confirmDelete": "ลบ \"{{title}}\" และการตอบกลับทั้งหมดใช่ไหม ไม่สามารถย้อนกลับได้"
+    },
+    "cover": {
+      "imageName": "รูปปก"
+    },
+    "editor": {
+      "imageName": "รูปภาพ",
+      "startWriting": "เริ่มเขียน…",
+      "document": "เอกสาร",
+      "uploadFailed": "ไม่สามารถอัปโหลด {{name}}: {{error}}",
+      "coverUploadFailed": "ไม่สามารถอัปโหลดรูปปก: {{error}}",
+      "needTitle": "ตั้งชื่อให้เอกสาร",
+      "tooLong": "เอกสารยาวได้ไม่เกิน {{max}} ตัวอักษร (เอกสารนี้มี {{length}})",
+      "uploadingImage": "กำลังอัปโหลดรูปภาพ…",
+      "saving": "กำลังบันทึก…",
+      "publish": "เผยแพร่",
+      "formatting": "การจัดรูปแบบ",
+      "textStyle": "รูปแบบข้อความ",
+      "withShortcut": "{{label}} ({{keys}})",
+      "styles": {
+        "mixed": "หลายแบบ",
+        "paragraph": "ข้อความปกติ",
+        "heading": "หัวข้อ {{level}}",
+        "code": "บล็อกโค้ด"
+      },
+      "tools": {
+        "bold": "ตัวหนา",
+        "italic": "ตัวเอียง",
+        "underline": "ขีดเส้นใต้",
+        "strikethrough": "ขีดฆ่า",
+        "inlineCode": "โค้ดในบรรทัด",
+        "spoiler": "สปอยล์",
+        "link": "ลิงก์",
+        "removeLink": "ลบลิงก์",
+        "bulletedList": "รายการสัญลักษณ์",
+        "numberedList": "รายการตัวเลข",
+        "checklist": "รายการตรวจสอบ",
+        "quote": "อ้างอิง",
+        "insertImage": "แทรกรูปภาพ",
+        "insertTable": "แทรกตาราง",
+        "horizontalLine": "เส้นแนวนอน",
+        "undo": "เลิกทำ",
+        "redo": "ทำซ้ำ"
+      },
+      "table": {
+        "label": "ตาราง",
+        "addRow": "เพิ่มแถวด้านล่าง",
+        "addRowShort": "+ แถว",
+        "addColumn": "เพิ่มคอลัมน์ทางขวา",
+        "addColumnShort": "+ คอลัมน์",
+        "deleteRow": "ลบแถว",
+        "deleteRowShort": "− แถว",
+        "deleteColumn": "ลบคอลัมน์",
+        "deleteColumnShort": "− คอลัมน์",
+        "deleteTable": "ลบตาราง"
+      },
+      "link": {
+        "address": "ที่อยู่ลิงก์",
+        "placeholder": "วางหรือพิมพ์ลิงก์",
+        "add": "เพิ่มลิงก์"
+      },
+      "imageFile": "ไฟล์รูปภาพ",
+      "coverImageFile": "ไฟล์รูปปก",
+      "changeCover": "เปลี่ยนรูปปก",
+      "removeCover": "ลบรูปปก",
+      "addCover": "เพิ่มรูปปก",
+      "title": "ชื่อเรื่อง",
+      "untitled": "เอกสารไม่มีชื่อ",
+      "discard": {
+        "title": "ละทิ้งการเปลี่ยนแปลง",
+        "new": "ทิ้งเอกสารนี้ใช่ไหม",
+        "confirm": "ละทิ้ง"
+      },
+      "live": {
+        "connecting": "กำลังเชื่อมต่อ…",
+        "saved": "บันทึกการเปลี่ยนแปลงทั้งหมดแล้ว",
+        "offline": "ออฟไลน์: การเปลี่ยนแปลงของคุณจะถูกส่งเมื่อคุณกลับมาออนไลน์",
+        "done": "เสร็จสิ้น",
+        "editors_other": "อีก {{count}} คนกำลังแก้ไข",
+        "isEditing": "{{name}} กำลังแก้ไข",
+        "othersCanEdit": "คนอื่นแก้ไขได้",
+        "othersCanEditHint": "ทุกคนที่เขียนเอกสารในช่องนี้ได้ จะแก้ไขเอกสารนี้ได้ด้วย",
+        "lost": "การเปลี่ยนแปลงล่าสุดบางส่วนของคุณไม่สามารถเก็บไว้ได้ เพราะเอกสารถูกเปลี่ยนในระหว่างนั้น",
+        "refused": "การเปลี่ยนแปลงล่าสุดของคุณไม่สามารถเก็บไว้ได้: {{error}}",
+        "refusedUnknown": "ไม่เข้ากับเอกสาร",
+        "deleted": "เอกสารนี้ถูกลบแล้ว",
+        "forbidden": "คุณไม่สามารถแก้ไขเอกสารนี้ได้อีกต่อไป",
+        "dismiss": "ปิด"
+      }
+    }
+  }
+}

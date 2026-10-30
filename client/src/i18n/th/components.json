@@ -1,0 +1,27 @@
+{
+  "components": {
+    "failed": "การโต้ตอบนี้ล้มเหลว",
+    "notResponding": "แอปพลิเคชันไม่ตอบสนอง",
+    "working": "กำลังดำเนินการ…",
+    "selectPlaceholder": "เลือกตัวเลือก",
+    "selectDone": "เสร็จสิ้น",
+    "selectCount_other": "เลือกแล้ว {{count}} รายการ",
+    "noChoices": "ไม่มีตัวเลือก",
+    "usedCommand": "{{name}} ใช้ <cmd>/{{command}}</cmd>",
+    "usedApp": "{{name}} ใช้ <cmd>{{command}}</cmd>",
+    "thinking": "{{name}} กำลังคิด",
+    "ephemeral": "มีเพียงคุณที่เห็นข้อความนี้",
+    "dismiss": "ปิดข้อความ",
+    "linkTitle": "เปิด {{url}}",
+    "modal": {
+      "submit": "ส่ง",
+      "sending": "กำลังส่ง…",
+      "required": "ต้องกรอก {{label}}",
+      "tooShort_other": "{{label}} ต้องมีอย่างน้อย {{count}} ตัวอักษร",
+      "tooLong_other": "{{label}} มีได้ไม่เกิน {{count}} ตัวอักษร",
+      "choose_other": "เลือกอย่างน้อย {{count}} รายการสำหรับ {{label}}",
+      "tooMany_other": "เลือกได้ไม่เกิน {{count}} รายการสำหรับ {{label}}",
+      "from": "จาก {{name}}"
+    }
+  }
+}

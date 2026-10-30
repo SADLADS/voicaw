@@ -1,0 +1,182 @@
+{
+  "media": {
+    "size": {
+      "bytes": "{{size}} B",
+      "kilobytes": "{{size}} KB",
+      "megabytes": "{{size}} MB",
+      "gigabytes": "{{size}} GB",
+      "terabytes": "{{size}} TB"
+    },
+    "percent": "{{percent}}%",
+    "cover": {
+      "spoiler": "สปอยล์",
+      "nsfw": "NSFW",
+      "reveal": "{{label}}: {{name}} เลือกเพื่อแสดง"
+    },
+    "save": {
+      "saved": "บันทึก {{name}} ลงในดาวน์โหลดแล้ว",
+      "failed": "ไม่สามารถบันทึกไฟล์ได้",
+      "defaultName": "ไฟล์",
+      "done": "ดาวน์โหลดเสร็จสิ้น",
+      "savedIn": "บันทึกไว้ใน {{folder}}",
+      "open": "เปิดไฟล์",
+      "showInFolder": "แสดงในโฟลเดอร์",
+      "delete": "ลบ",
+      "missing": "ไม่มีไฟล์นี้อีกแล้ว",
+      "noApp": "ไม่สามารถเปิดไฟล์ได้",
+      "deleteFailed": "ไม่สามารถลบไฟล์ได้",
+      "notificationBody": "ดาวน์โหลดเสร็จสิ้น แตะเพื่อเปิด",
+      "list": "ดาวน์โหลด"
+    },
+    "attachment": {
+      "defaultName": "ไฟล์แนบ",
+      "decrypting": "กำลังถอดรหัส…",
+      "downloading": "กำลังดาวน์โหลด… {{percent}}%",
+      "downloadFailed": "ดาวน์โหลดไม่สำเร็จ",
+      "download": "ดาวน์โหลด {{name}}",
+      "loading": "กำลังโหลด {{name}}",
+      "gifFromKlipy": "GIF จาก KLIPY",
+      "showGif": "แสดง GIF",
+      "show": "แสดง"
+    },
+    "tray": {
+      "spoiler": "สปอยล์",
+      "removeSpoiler": "ยกเลิกสปอยล์",
+      "markSpoiler": "ทำเครื่องหมายเป็นสปอยล์",
+      "removeSpoilerFrom": "ยกเลิกสปอยล์จาก {{name}}",
+      "markNameSpoiler": "ทำเครื่องหมาย {{name}} เป็นสปอยล์",
+      "remove": "นำ {{name}} ออก",
+      "view": "ดู {{name}}"
+    },
+    "drafts": {
+      "defaultName": "ไฟล์",
+      "tooBig_other": "{{names}} เกินขีดจำกัด {{limit}}"
+    },
+    "upload": {
+      "failed": "อัปโหลดไม่สำเร็จ",
+      "failedStatus": "อัปโหลดไม่สำเร็จ ({{status}})",
+      "invalidUrl": "URL อัปโหลดไม่ถูกต้อง"
+    },
+    "fileDrop": {
+      "title": "อัปโหลดไปยัง {{name}}",
+      "hint": "คุณเพิ่มข้อความก่อนส่งได้"
+    },
+    "gifs": {
+      "loadFailed": "ไม่สามารถโหลด GIF ได้",
+      "untitled": "GIF",
+      "addFavourite": "เพิ่มในรายการโปรด",
+      "removeFavourite": "นำออกจากรายการโปรด",
+      "noFavourites": "ยังไม่มีรายการโปรด แตะดาวบน GIF เพื่อเก็บไว้ที่นี่",
+      "noMatches": "ไม่มี GIF ที่ตรงกับ \"{{query}}\"",
+      "none": "ไม่มี GIF",
+      "tabs": "GIF",
+      "trending": "กำลังฮิต",
+      "favourites": "รายการโปรด",
+      "favouritesNumber": "รายการโปรด ({{number}})",
+      "loading": "กำลังโหลด GIF…",
+      "attribution": "ขับเคลื่อนโดย KLIPY",
+      "privacyWarning": "ตัวอย่าง GIF โหลดจาก KLIPY ซึ่งจะเห็นที่อยู่ IP ของคุณและ GIF ที่คุณดู คุณปิด “แสดง GIF ทันที” ไว้ในการตั้งค่า → ความเป็นส่วนตัว",
+      "showAnyway": "แสดง GIF อยู่ดี"
+    },
+    "image": {
+      "defaultFileName": "รูปภาพ",
+      "menuTitle": "รูปภาพ",
+      "copyImage": "คัดลอกรูปภาพ",
+      "saveImage": "บันทึกรูปภาพ",
+      "copyLink": "คัดลอกลิงก์",
+      "openLink": "เปิดลิงก์",
+      "openImage": "เปิดรูปภาพ",
+      "loadFailedStatus": "ไม่สามารถโหลดรูปภาพได้ ({{status}})",
+      "copyFailed": "ไม่สามารถคัดลอกรูปภาพได้",
+      "browserCantCopy": "เบราว์เซอร์นี้คัดลอกรูปภาพไม่ได้",
+      "cantBeCopied": "คัดลอกรูปภาพนี้ไม่ได้ ลองใช้บันทึกรูปภาพ"
+    },
+    "viewer": {
+      "loadFailed": "ไม่สามารถโหลดรูปภาพนี้ได้",
+      "decrypting": "กำลังถอดรหัส…",
+      "zoomOut": "ซูมออก",
+      "zoomOutTitle": "ซูมออก (−)",
+      "fitToScreen": "พอดีหน้าจอ",
+      "fitToScreenTitle": "พอดีหน้าจอ (0)",
+      "zoomIn": "ซูมเข้า",
+      "zoomInTitle": "ซูมเข้า (+)",
+      "openInNewTab": "เปิดในแท็บใหม่",
+      "closeTitle": "ปิด (Esc)",
+      "previous": "รูปก่อนหน้า",
+      "previousTitle": "รูปก่อนหน้า (←)",
+      "next": "รูปถัดไป",
+      "nextTitle": "รูปถัดไป (→)",
+      "thumbnails": "รูปภาพในข้อความนี้",
+      "thumbnail": "รูปที่ {{number}}: {{name}}"
+    },
+    "video": {
+      "seek": "เลื่อนตำแหน่ง",
+      "timeOf": "{{time}} จาก {{duration}}",
+      "downloadFailedRetry": "ดาวน์โหลดไม่สำเร็จ ลองอีกครั้ง",
+      "downloadingTitle": "กำลังดาวน์โหลด…",
+      "download": "ดาวน์โหลด {{name}}",
+      "downloading": "กำลังดาวน์โหลด {{name}}",
+      "play": "เล่น",
+      "playName": "เล่น {{name}}",
+      "playTitle": "เล่น (k)",
+      "pause": "หยุดชั่วคราว",
+      "pauseTitle": "หยุดชั่วคราว (k)",
+      "loading": "กำลังโหลดวิดีโอ",
+      "loadFailed": "ไม่สามารถโหลดวิดีโอนี้ได้",
+      "cantPlay": "วิดีโอนี้เล่นในเบราว์เซอร์นี้ไม่ได้",
+      "retry": "ลองอีกครั้ง",
+      "unmuteTitle": "เปิดเสียง (m)",
+      "muteTitle": "ปิดเสียง (m)",
+      "volume": "ระดับเสียง",
+      "fullScreen": "เต็มหน้าจอ",
+      "fullScreenTitle": "เต็มหน้าจอ (f)",
+      "exitFullScreen": "ออกจากเต็มหน้าจอ",
+      "exitFullScreenTitle": "ออกจากเต็มหน้าจอ (f)"
+    },
+    "embeds": {
+      "image": "รูปภาพที่ฝังไว้",
+      "footerWithTime": "{{text}} • {{time}}"
+    },
+    "links": {
+      "pictureFrom": "รูปภาพจาก {{site}}",
+      "showPicture": "แสดงรูปภาพจาก {{site}}"
+    },
+    "youtube": {
+      "video": "วิดีโอ YouTube",
+      "play": "เล่นวิดีโอ YouTube",
+      "hint": "การเล่นจะโหลดวิดีโอจาก YouTube",
+      "openOnYouTube": "เปิดบน YouTube"
+    },
+    "cropper": {
+      "title": "แก้ไขรูปภาพ",
+      "frame": "ตำแหน่งรูปภาพ: ลากหรือใช้ปุ่มลูกศรเพื่อย้าย ใช้ + และ - เพื่อซูม",
+      "hint": "ลากเพื่อย้าย เลื่อน ใช้สองนิ้ว หรือใช้แถบเลื่อนเพื่อซูม",
+      "zoom": "ซูม",
+      "zoomOut": "ซูมออก",
+      "zoomIn": "ซูมเข้า",
+      "apply": "ใช้",
+      "loadFailed": "ไม่สามารถเปิดรูปภาพนั้นได้"
+    },
+    "voice": {
+      "menuItem": "ข้อความเสียง",
+      "summary": "ข้อความเสียง",
+      "record": "บันทึกข้อความเสียง",
+      "holdHint": "กดค้างเพื่อบันทึก ปล่อยเพื่อส่ง",
+      "recording": "กำลังบันทึกข้อความเสียง",
+      "slideToCancel": "เลื่อนเพื่อยกเลิก",
+      "delete": "ลบการบันทึก",
+      "stop": "หยุดบันทึก",
+      "send": "ส่งข้อความเสียง",
+      "micBlocked": "Voicaw ไม่ได้รับอนุญาตให้ใช้ไมโครโฟนของคุณ",
+      "micFailed": "ไม่สามารถเริ่มบันทึกจากไมโครโฟนของคุณได้",
+      "tooLong": "ข้อความเสียงนี้ยาวเกินกว่าจะส่งที่นี่ได้",
+      "play": "เล่นข้อความเสียง",
+      "pause": "หยุดข้อความเสียงชั่วคราว",
+      "seek": "ตำแหน่งข้อความเสียง",
+      "failed": "เล่นไม่ได้",
+      "rate": "{{rate}}×",
+      "speed": "ความเร็วในการเล่น {{rate}}×",
+      "speedTitle": "ความเร็วในการเล่น"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "commands": {
+    "picker": {
+      "label": "คำสั่งบอต",
+      "title": "คำสั่ง",
+      "matching": "คำสั่งที่ตรงกับ <b>{{query}}</b>"
+    },
+    "mode": {
+      "label": "ใช้ /{{name}}",
+      "leave": "หยุดใช้คำสั่งนี้",
+      "run": "ส่ง",
+      "sending": "กำลังส่ง…",
+      "required": "จำเป็น",
+      "missing": "กรอก: {{names}}",
+      "choose": "เลือก…",
+      "chooseMember": "เลือกสมาชิก…",
+      "chooseRole": "เลือกบทบาท…",
+      "chooseChannel": "เลือกช่อง…",
+      "chooseMentionable": "เลือกสมาชิกหรือบทบาท…",
+      "members": "สมาชิก",
+      "roles": "บทบาท",
+      "true": "จริง",
+      "false": "เท็จ",
+      "suggestions": "คำแนะนำ",
+      "loading": "กำลังโหลด…",
+      "notNumber": "ไม่ใช่ตัวเลข",
+      "notWhole": "ต้องเป็นจำนวนเต็ม",
+      "tooSmall": "อย่างน้อย {{min}}",
+      "tooBig": "ไม่เกิน {{max}}",
+      "tooShort": "อย่างน้อย {{min}} ตัวอักษร",
+      "tooLong": "ไม่เกิน {{max}} ตัวอักษร"
+    },
+    "apps": {
+      "label": "แอป"
+    },
+    "errors": {
+      "noResponse": "แอปพลิเคชันไม่ตอบสนอง",
+      "failed": "ไม่สำเร็จ"
+    }
+  }
+}

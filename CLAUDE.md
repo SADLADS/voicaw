@@ -202,8 +202,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   text is British English, and every string shown goes through `t('area.key')` with its
   English in `i18n/en-GB/<area>.json` (see Translations in `docs/client.md`; lint fails on
   text written straight into JSX). Translate as you go: any change that adds or changes English text adds
-  or updates the Russian (`i18n/ru/`, with `_few`/`_many` plurals) and Japanese (`i18n/ja/`,
-  `_other` only) in the same branch, with the same `{{placeholders}}` and tags.
+  or updates the Russian (`i18n/ru/`, with `_few`/`_many` plurals), Japanese (`i18n/ja/`,
+  `_other` only) and Thai (`i18n/th/`, `_other` only) in the same branch, with the same `{{placeholders}}` and tags.
 
 ## Decisions, plans and known issues
 

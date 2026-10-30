@@ -1,0 +1,23 @@
+{
+  "activities": {
+    "playing": "กำลังเล่น <b>{{name}}</b>",
+    "streaming": "กำลังสตรีม <b>{{name}}</b>",
+    "listening": "กำลังฟัง <b>{{name}}</b>",
+    "watching": "กำลังดู <b>{{name}}</b>",
+    "competing": "กำลังแข่งขันใน <b>{{name}}</b>",
+    "streamingIn": "กำลังสตรีมใน <b>{{channel}}</b>",
+    "goToChannel": "ไปที่ช่อง",
+    "unknownChannel": "ช่องเสียง",
+    "playingNow": "กำลังเล่น",
+    "paused": "หยุดชั่วคราว",
+    "headingPlaying": "กำลังเล่นเกม",
+    "headingStreaming": "กำลังสตรีม",
+    "headingListening": "กำลังฟัง",
+    "headingWatching": "กำลังดู",
+    "headingCompeting": "กำลังแข่งขัน",
+    "unknownGame": "เกม",
+    "elapsed": "ผ่านไป {{time}}",
+    "left": "เหลือ {{time}}",
+    "party": "({{size}} จาก {{max}})"
+  }
+}
