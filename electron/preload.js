@@ -25,10 +25,14 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // Looks once more for a newer version, downloads it if there is one, then restarts onto
     // it; resolves to false if there was nothing to install.
     installUpdate: () => ipcRenderer.invoke('desktop:install-update'),
-    // Screen sharing: { canShareSound, sources: [{ id, name, kind, thumbnail, icon }] }; then
+    // Screen sharing: { canShareSound, soundFrom, sources: [{ id, name, kind, thumbnail, icon }] }; then
     // chooseScreenSource(id, audio) before getDisplayMedia (electron/screenShare.js).
     getScreenSources: () => ipcRenderer.invoke('desktop:screen-sources'),
     chooseScreenSource: (id, audio) => ipcRenderer.invoke('desktop:choose-screen-source', id, audio),
+    // Linux (soundFrom 'device'): makes the microphone carrying the other programs' sound,
+    // resolving to { label } (to find it among the devices) or null; stop when the share ends.
+    startStreamSound: () => ipcRenderer.invoke('desktop:stream-sound-start'),
+    stopStreamSound: () => ipcRenderer.invoke('desktop:stream-sound-stop'),
     // The page's right-click menu: Electron's own paste, and its checker for what the page
     // has no dictionary for (electron/spellcheck.js), kept to the account's words.
     paste: () => ipcRenderer.send('desktop:paste'),

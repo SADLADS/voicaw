@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { ALWAYS_OPEN_DB } from './noise/gate';
 import { isPushToTalkKey } from './pushToTalkKeys';
+import { isStreamSoundDevice } from './deviceStreamSound';
 import { t } from '../i18n';
 import { isMobileDevice } from '../utils/presence';
 
@@ -168,7 +169,7 @@ export function inputGainStage(context) {
 // `labelled` is false until the page may use the microphone: browsers hide names until then,
 // listing one placeholder of each kind with no id, which is left out (it isn't a device to
 // choose). The browser's own "default" entry is left out too ('' stands for it); `defaults`
-// has its name.
+// has its name. The desktop app's screen-share sound (deviceStreamSound.js) is no microphone.
 export async function listAudioDevices() {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
     return { inputs: [], outputs: [], labelled: false, defaults: {} };
@@ -176,7 +177,7 @@ export async function listAudioDevices() {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const defaults = {};
   const pick = (kind) => devices
-    .filter((d) => d.kind === kind && d.deviceId)
+    .filter((d) => d.kind === kind && d.deviceId && !isStreamSoundDevice(d))
     .filter((d) => {
       if (d.deviceId !== 'default') return true;
       defaults[kind === 'audioinput' ? 'input' : 'output'] = d.label.replace(/^Default\s*-\s*/i, '') || null;

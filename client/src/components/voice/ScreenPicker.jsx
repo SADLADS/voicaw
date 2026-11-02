@@ -9,13 +9,14 @@ import { t } from '../../i18n';
 const REFRESH_MS = 4000;
 
 // The desktop app's screen picker (a browser has its own): your screens and windows with
-// live-ish thumbnails, the stream's quality, and, where the system can (Windows), whether to
-// share its sound. Go Live tells the app which one (electron/screenShare.js), then starts sharing as usual.
+// live-ish thumbnails, the stream's quality, and, where the system can (Windows; Linux with
+// PipeWire), whether to share its sound. Go Live tells the app which one (electron/screenShare.js), then starts sharing as usual.
 export default function ScreenPicker({ onClose }) {
   const voice = useVoice();
   const [tab, setTab] = useState('screen');
   const [sources, setSources] = useState(null);
   const [canShareSound, setCanShareSound] = useState(false);
+  const [soundFrom, setSoundFrom] = useState(null);
   const [selected, setSelected] = useState(null);
   const [audio, setAudio] = useState(true);
   const [listError, setListError] = useState(null);
@@ -28,6 +29,7 @@ export default function ScreenPicker({ onClose }) {
       if (!result) return;
       setSources(result.sources);
       setCanShareSound(result.canShareSound);
+      setSoundFrom(result.soundFrom ?? null);
       setListError(null);
       // With only windows to show (no screens listed), start there.
       if (!tabChosen.current && !result.sources.some((s) => s.kind === 'screen')) setTab('window');
@@ -56,7 +58,7 @@ export default function ScreenPicker({ onClose }) {
       return;
     }
     onClose();
-    startScreenShare({ audio: audio && canShareSound });
+    startScreenShare({ audio: audio && canShareSound, deviceSound: soundFrom === 'device' });
   };
 
   const pickTab = (next) => {

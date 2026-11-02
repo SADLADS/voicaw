@@ -10,7 +10,7 @@ const path = require('path');
 const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, screen, session, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 const nodeNet = require('net');
 const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
 const { ORIGIN, isAppOrigin, registerScheme, handleScheme } = require('./protocol');
@@ -23,6 +23,7 @@ const { createUpdater } = require('./updater');
 const { createSplash } = require('./splash');
 const { setStartAtLogin, startedHidden } = require('./autoStart');
 const { createScreenShare } = require('./screenShare');
+const { createStreamSound } = require('./streamSound');
 const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
 const { setUpYouTubeReferer } = require('./youtube');
 const { fetchPage } = require('./pageFetch');
@@ -58,6 +59,7 @@ let tray;
 let notifier;
 let updater;
 let screenShare;
+let streamSound;
 let fileSaver;
 let downloads;
 let richPresence;
@@ -159,9 +161,15 @@ function createWindow(hidden, onShown = () => {}) {
     });
     // A page loading afresh (or gone) hasn't asked for push to talk (yet).
     win.webContents.on('did-start-navigation', (details) => {
-        if (details.isMainFrame && !details.isSameDocument) pushToTalk.set(null);
+        if (details.isMainFrame && !details.isSameDocument) {
+            pushToTalk.set(null);
+            streamSound.stop();
+        }
     });
-    win.webContents.on('render-process-gone', () => pushToTalk.set(null));
+    win.webContents.on('render-process-gone', () => {
+        pushToTalk.set(null);
+        streamSound.stop();
+    });
     // An update that finished downloading before the page was there to hear it (or before a reload).
     win.webContents.on('did-finish-load', () => {
         const version = updater.readyVersion();
@@ -429,6 +437,9 @@ function setUpIpc() {
     ipcMain.handle('desktop:screen-sources', (event) => (fromApp(event) ? screenShare.listSources() : null));
     ipcMain.handle('desktop:choose-screen-source', (event, id, audio) =>
         (fromApp(event) && typeof id === 'string' ? screenShare.choose(id, audio === true) : false));
+    // A screen share's sound on Linux (streamSound.js): { label } of the microphone to record, or null.
+    ipcMain.handle('desktop:stream-sound-start', (event) => (fromApp(event) ? streamSound.start() : null));
+    ipcMain.handle('desktop:stream-sound-stop', (event) => (fromApp(event) ? streamSound.stop() : null));
     // The page's own right-click menu (client PageMenus): a real paste, and its dictionary.
     ipcMain.on('desktop:paste', (event) => { if (fromApp(event)) event.sender.paste(); });
     ipcMain.on('desktop:spelling-words', (event, words) => {
@@ -461,11 +472,21 @@ function setUpIpc() {
 function start() {
     settings = createSettingsStore(app.getPath('userData'));
     handleScheme(protocol, net, path.resolve(BUILD_DIR));
+    streamSound = createStreamSound({
+        platform: process.platform,
+        run: (command, args) => new Promise((resolve, reject) => {
+            execFile(command, args, { timeout: 5000, maxBuffer: 64 * 1024 * 1024 }, (err, stdout) => (err ? reject(err) : resolve(String(stdout))));
+        }),
+        runSync: (command, args) => execFileSync(command, args, { timeout: 1000, stdio: 'ignore' }),
+        // Every process of the app (the audio service plays our sound), so none of it is shared.
+        ownPids: () => [process.pid, ...app.getAppMetrics().map((metric) => metric.pid)],
+    });
     screenShare = createScreenShare({
         desktopCapturer,
         platform: process.platform,
         origin: ORIGIN,
         ownSourceId: () => (win && !win.isDestroyed() ? win.getMediaSourceId() : null),
+        deviceSound: () => streamSound.available(),
     });
     setUpPermissions();
     fileSaver = createFileSaver({
@@ -517,6 +538,7 @@ function start() {
     app.on('will-quit', () => {
         globalShortcut.unregisterAll();
         pushToTalk.stop();
+        streamSound.stopNow();
     });
 }
 

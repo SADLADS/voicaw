@@ -7,14 +7,16 @@
 //
 // Sound: Electron can only capture the whole system's sound ("loopback"), and only on Windows.
 // The page asks for it with restrictOwnAudio, and Electron then captures it without this app's
-// own sound (the call's voices), like Discord.
+// own sound (the call's voices), like Discord. On Linux with PipeWire the page records a virtual
+// microphone of ours instead (streamSound.js; `soundFrom: 'device'`), also without our own sound.
 
 const CHOICE_MS = 60 * 1000;
 const THUMBNAIL = { width: 384, height: 216 };
 
 const canShareSound = (platform) => platform === 'win32';
 
-function createScreenShare({ desktopCapturer, platform, origin, ownSourceId = () => null, now = Date.now }) {
+// `deviceSound()`: whether streamSound.js can make the sound here (resolves to a boolean).
+function createScreenShare({ desktopCapturer, platform, origin, ownSourceId = () => null, deviceSound = async () => false, now = Date.now }) {
     let listed = new Map(); // id → source, from the last listing
     let choice = null; // { source, audio, at }
 
@@ -28,8 +30,12 @@ function createScreenShare({ desktopCapturer, platform, origin, ownSourceId = ()
         const own = ownSourceId();
         const kept = sources.filter((source) => source.id !== own);
         listed = new Map(kept.map((source) => [source.id, source]));
+        const loopback = canShareSound(platform);
+        const device = !loopback && await deviceSound().catch(() => false);
         return {
-            canShareSound: canShareSound(platform),
+            canShareSound: loopback || device,
+            // How the page gets it: from getDisplayMedia, or from streamSound.js's microphone.
+            soundFrom: loopback ? 'system' : device ? 'device' : null,
             sources: kept.map((source) => ({
                 id: source.id,
                 name: source.name,

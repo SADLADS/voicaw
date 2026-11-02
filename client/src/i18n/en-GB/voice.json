@@ -112,6 +112,7 @@
       "connect": "Could not connect to voice.",
       "noScreenShare": "This browser can't share the screen.",
       "screenShareFailed": "Could not share your screen.",
+      "streamSoundFailed": "Your screen is shared, but its sound couldn't be.",
       "cameraBlocked": "Camera access is blocked. Allow it in your browser to turn your camera on.",
       "noCamera": "No camera found.",
       "cameraFailed": "Could not use the camera."

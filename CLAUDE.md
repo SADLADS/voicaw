@@ -477,6 +477,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   own buttons). The user asked for the inbox to be server-side for DMs and guilds without losing
   privacy: `GET /inbox` works it out from the existing message tables (nothing stored for it)
   and sends each entry as its push's payload, DM and group previews decrypted on the device.
+- **Screen share sound on Linux** (built 2026-11-02, see Screen sharing in
+  `docs/desktop-and-site.md`): the desktop app shares the whole system's sound minus its own
+  (the user's choice, as on Windows; per-program picking was offered and left for later) through
+  PipeWire: a virtual microphone with every other program's playback linked into it
+  (`pw-cli`/`pw-dump`/`pw-link`, no native module), recorded by the page as the share's sound.
+  No PipeWire, no "Share sound".
 - **Sharing to Voicaw** (built 2026-11-02, see Sharing to Voicaw in `docs/desktop-and-site.md`):
   Android's share sheet lists Voicaw. The user chose Discord's way: a share screen with a
   message box and Send, several chats at once, sent from there without opening them (one

@@ -19,6 +19,8 @@ import {
   joinRefused, REJOIN_FOR_MS, rejoinDelay, shouldRejoin, STALE_AFTER_HIDDEN_MS, TAKE_OVER_AFTER_MS,
 } from './rejoin';
 import { t } from '../i18n';
+import { desktop } from '../utils/desktop';
+import { captureStreamSound } from './deviceStreamSound';
 
 // This device's voice connection (one at a time, like Discord): a voice channel or a DM
 // call, the microphone, mute and deafen, and who's talking. The audio goes through a LiveKit
@@ -408,6 +410,7 @@ async function teardown() {
   clearTakeOver();
   const old = room;
   room = null;
+  endDeviceSound();
   const oldPlayback = playback;
   playback = null;
   if (old) {
@@ -630,7 +633,10 @@ function watch(newRoom, current) {
       if (!stale() && publication.source === Track.Source.Microphone) applyMicrophone();
     })
     // Also when the browser's own "Stop sharing" ended it.
-    .on(RoomEvent.LocalTrackUnpublished, updateTracks)
+    .on(RoomEvent.LocalTrackUnpublished, (publication) => {
+      if (publication.source === Track.Source.ScreenShare || publication.source === Track.Source.ScreenShareAudio) endDeviceSound(publication.track);
+      updateTracks();
+    })
     .on(RoomEvent.TrackMuted, updateTracks)
     .on(RoomEvent.TrackUnmuted, updateTracks)
     .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
@@ -1046,9 +1052,10 @@ const SCREEN_AUDIO = { restrictOwnAudio: true };
 
 // Shares your screen (a voice channel, with Video). Must be called from a click: the browser
 // asks which screen, window or tab, and whether to share its sound (in the desktop app, our
-// picker has asked already: `audio` is its answer). Your own stream is shown at once, like
-// Discord's preview. At this device's quality (streamSettings.js), within the server's cap.
-export async function startScreenShare({ audio = true } = {}) {
+// picker has asked already: `audio` is its answer, `deviceSound` that it comes from the app's
+// microphone, on Linux). Your own stream is shown at once, like Discord's preview. At this
+// device's quality (streamSettings.js), within the server's cap.
+export async function startScreenShare({ audio = true, deviceSound = false } = {}) {
   const current = room;
   if (!current || snapshot.status !== 'connected' || !snapshot.canStream) return;
   update({ streamError: null });
@@ -1056,7 +1063,7 @@ export async function startScreenShare({ audio = true } = {}) {
   try {
     await current.localParticipant.setScreenShareEnabled(true, {
       ...quality.capture,
-      audio: audio && SCREEN_AUDIO,
+      audio: audio && !deviceSound && SCREEN_AUDIO,
       systemAudio: 'include',
       selfBrowserSurface: 'exclude',
       surfaceSwitching: 'include',
@@ -1064,6 +1071,7 @@ export async function startScreenShare({ audio = true } = {}) {
     if (room !== current) return;
     update({ watching: current.localParticipant.identity });
     updateStreams();
+    if (audio && deviceSound) await shareDeviceSound(current, quality.publish);
   } catch (err) {
     if (room !== current) return;
     // Cancelling the browser's picker is a NotAllowedError too: nothing to say then.
@@ -1072,6 +1080,40 @@ export async function startScreenShare({ audio = true } = {}) {
     update({ streamError: cancelled ? null : screenErrorMessage(err) });
     updateStreams();
   }
+}
+
+// The share's sound on Linux (deviceStreamSound.js): the app's microphone of every other
+// program's sound, published beside the screen as its sound. Ends with the share (LiveKit
+// unpublishes both), when you leave, or if it fails (the screen stays shared, silent).
+let deviceSoundTrack = null; // the MediaStreamTrack while shared
+
+async function shareDeviceSound(current, publish) {
+  let track = null;
+  try {
+    const found = await desktop?.startStreamSound?.();
+    if (!found) throw new Error('No stream sound on this system');
+    track = await captureStreamSound({ label: found.label });
+    if (room !== current || !current.localParticipant.isScreenShareEnabled) throw new Error('The share ended');
+    deviceSoundTrack = track;
+    await current.localParticipant.publishTrack(track, { ...publish, source: livekit.Track.Source.ScreenShareAudio });
+  } catch (err) {
+    const ended = room !== current || !current.localParticipant.isScreenShareEnabled;
+    if (deviceSoundTrack === track) deviceSoundTrack = null;
+    track?.stop();
+    desktop?.stopStreamSound?.();
+    if (ended) return;
+    console.warn('Could not share the sound', err);
+    update({ streamError: t('voice.errors.streamSoundFailed') });
+  }
+}
+
+// `unpublished` (LiveKit's LocalAudioTrack, when that's what went): only ours ends it.
+function endDeviceSound(unpublished) {
+  if (!deviceSoundTrack) return;
+  if (unpublished && unpublished.kind === 'audio' && unpublished.mediaStreamTrack !== deviceSoundTrack) return;
+  deviceSoundTrack.stop();
+  deviceSoundTrack = null;
+  desktop?.stopStreamSound?.();
 }
 
 function screenErrorMessage(err) {
@@ -1083,6 +1125,7 @@ export async function stopScreenShare() {
   const current = room;
   if (!current) return;
   await current.localParticipant.setScreenShareEnabled(false).catch(() => {});
+  endDeviceSound();
   if (room === current) updateStreams();
 }
 
