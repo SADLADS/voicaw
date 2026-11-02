@@ -2074,6 +2074,56 @@ body.popout-window {
   width: min(220px, calc((100vw - 64px) / 2));
 }
 
+/* A camera's full screen button (CameraFullScreenButton), in its tile's top corner: on hover
+   or focus with a mouse, always on touch screens (nothing to hover). Over the video in every
+   theme, like the tile's name. */
+.camera-full-screen {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+
+.camera-full-screen:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+@media (hover: hover) {
+  .camera-full-screen {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .camera-tile:hover .camera-full-screen,
+  .camera-full-screen:focus-visible {
+    opacity: 1;
+  }
+}
+
+/* Full screen, the whole camera shows (not cropped to the tile's 16:9). */
+.camera-tile:fullscreen {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.camera-tile:fullscreen .camera-video {
+  object-fit: contain;
+}
+
 /* A screen share in a DM or group call (CallStream): the panel's width, at most 40% of
    the app's height, room left for the chat below. */
 .call-panel .stream-view {

@@ -15,6 +15,7 @@ import { attachStream, setStreamError, watchStream } from '../../voice/voiceClie
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
 import { DEFAULT_USER_VOLUME, maxUserVolume, setStreamVolume, useStreamVolume } from '../../voice/userVolumes';
 import { VIEW_QUALITIES, setStreamViewQuality, useStreamViewQuality } from '../../voice/streamViewSettings';
+import { toggleFullScreen } from '../../voice/fullScreen';
 import { t } from '../../i18n';
 
 // The screen share being watched, big (the voice channel view's stage, or its own window when
@@ -57,13 +58,7 @@ export default function StreamView({ userId, name, own, popout = false, corner =
     return attachStream(userId, videoRef.current);
   }, [userId, watchingReady]);
 
-  function fullScreen() {
-    // The document it's in: the pop-out window's, when it's there.
-    const stage = stageRef.current;
-    const doc = stage?.ownerDocument ?? document;
-    if (doc.fullscreenElement) doc.exitFullscreen?.();
-    else (stage?.requestFullscreen ?? stage?.webkitRequestFullscreen)?.call(stage)?.catch?.(() => {});
-  }
+  const fullScreen = () => toggleFullScreen(stageRef.current);
 
   function popOut() {
     if (!openStreamWindow()) setStreamError(t('voice.stream.popupBlocked'));

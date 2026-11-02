@@ -233,7 +233,14 @@ LiveKit carries the audio.
   pop-out window, so it isn't used. In a voice channel, a camera fills its tile (16:9, name and
   icons over it; tiles grow while any camera is on); in a call it replaces the person's picture
   in the panel. Your own is mirrored, as in a mirror (others see it the right way round),
-  except a phone's back camera. **Front and back** (2026-10-27): on a phone or tablet
+  except a phone's back camera. **Full screen** (2026-11-02, as a watched stream's): every
+  camera's tile has a full screen button in its top corner (`voice/CameraFullScreenButton.jsx`;
+  on hover with a mouse, always on touch screens), and a double click on the tile does the same
+  (`voice/fullScreen.js` `fullScreenCamera`, which also closes the volume menu its clicks
+  opened). The whole tile (`.camera-tile`) goes full screen, not the `<video>`, so the name
+  and the mirroring stay (browsers drop a full-screen video's transform); there the camera
+  shows uncropped (`object-fit: contain`), and the ResizeObserver above asks for the bigger
+  layer. **Front and back** (2026-10-27): on a phone or tablet
   (`isMobileDevice`), a Switch camera button sits next to the camera's while it's on;
   `switchCamera` restarts the same track (`restartTrack`, which lets the old camera go first:
   phones open one at a time) with `facingMode` the other way, so nothing is published again.

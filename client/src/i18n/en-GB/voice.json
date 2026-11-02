@@ -206,7 +206,9 @@
       "stop": "Turn off camera",
       "switch": "Switch camera",
       "cameraOf": "{{name}}'s camera",
-      "yourCamera": "Your camera"
+      "yourCamera": "Your camera",
+      "fullScreen": "Full screen ({{name}}'s camera)",
+      "exitFullScreen": "Exit full screen"
     },
     "soundboard": {
       "title": "Soundboard",

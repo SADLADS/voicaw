@@ -16,6 +16,8 @@ import ScreenShareButton from '../voice/ScreenShareButton';
 import CameraButton from '../voice/CameraButton';
 import SoundboardButton from '../voice/SoundboardButton';
 import CameraVideo from '../voice/CameraVideo';
+import CameraFullScreenButton from '../voice/CameraFullScreenButton';
+import { fullScreenCamera } from '../../voice/fullScreen';
 import StreamView from '../voice/StreamView';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import WatchPartyPanel from '../voice/WatchPartyPanel';
@@ -170,11 +172,15 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
             return (
               <li
                 key={m.user_id}
-                className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}${video ? ' video' : ''}`}
+                className={`voice-tile${talking ? ' speaking' : ''}${live ? ' live' : ''}${video ? ' video camera-tile' : ''}`}
                 {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}
+                onDoubleClick={video ? (e) => fullScreenCamera(e, volumeMenu.close) : undefined}
               >
                 {video ? (
-                  <CameraVideo userId={m.user_id} name={displayName(m.user_id, m.username)} own={String(m.user_id) === voice.identity} className="voice-tile-video" />
+                  <>
+                    <CameraVideo userId={m.user_id} name={displayName(m.user_id, m.username)} own={String(m.user_id) === voice.identity} className="voice-tile-video" />
+                    <CameraFullScreenButton name={displayName(m.user_id, m.username)} />
+                  </>
                 ) : (
                   <UserAvatar userId={m.user_id} className="voice-tile-avatar" />
                 )}

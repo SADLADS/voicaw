@@ -13,6 +13,8 @@ import VoiceControls from '../voice/VoiceControls';
 import PushToTalkButton from '../voice/PushToTalkButton';
 import CameraButton from '../voice/CameraButton';
 import CameraVideo from '../voice/CameraVideo';
+import CameraFullScreenButton from '../voice/CameraFullScreenButton';
+import { fullScreenCamera } from '../../voice/fullScreen';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import CallStream from './CallStream';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
@@ -72,8 +74,9 @@ export default function CallPanel({ user, peer }) {
           <div key={person.id} className="call-panel-person" {...volumeMenu.triggerProps(person.id, nameOf(person))}>
             {/* LiveKit's speaker list lags a moment behind a mute. */}
             {cameras.has(String(person.id)) ? (
-              <div className={`call-panel-video${!muted && speaking.has(String(person.id)) ? ' speaking' : ''}`}>
+              <div className={`call-panel-video camera-tile${!muted && speaking.has(String(person.id)) ? ' speaking' : ''}`} onDoubleClick={(e) => fullScreenCamera(e, volumeMenu.close)}>
                 <CameraVideo userId={person.id} name={nameOf(person)} own={person.id === user.id} />
+                <CameraFullScreenButton name={nameOf(person)} />
               </div>
             ) : (
               <UserAvatar userId={person.id} className="call-panel-avatar" speaking={!muted && speaking.has(String(person.id))} />

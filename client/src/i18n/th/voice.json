@@ -203,7 +203,9 @@
       "stop": "ปิดกล้อง",
       "switch": "สลับกล้อง",
       "cameraOf": "กล้องของ {{name}}",
-      "yourCamera": "กล้องของคุณ"
+      "yourCamera": "กล้องของคุณ",
+      "fullScreen": "กล้องของ {{name}} แบบเต็มหน้าจอ",
+      "exitFullScreen": "ออกจากโหมดเต็มหน้าจอ"
     },
     "soundboard": {
       "title": "ซาวด์บอร์ด",

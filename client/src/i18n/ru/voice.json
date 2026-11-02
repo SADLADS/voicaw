@@ -212,7 +212,9 @@
       "stop": "Выключить камеру",
       "switch": "Сменить камеру",
       "cameraOf": "Камера {{name}}",
-      "yourCamera": "Ваша камера"
+      "yourCamera": "Ваша камера",
+      "fullScreen": "Камера {{name}} во весь экран",
+      "exitFullScreen": "Выйти из полноэкранного режима"
     },
     "soundboard": {
       "title": "Звуковая панель",

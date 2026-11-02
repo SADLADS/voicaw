@@ -12,6 +12,8 @@ import VoiceControls from '../voice/VoiceControls';
 import PushToTalkButton from '../voice/PushToTalkButton';
 import CameraButton from '../voice/CameraButton';
 import CameraVideo from '../voice/CameraVideo';
+import CameraFullScreenButton from '../voice/CameraFullScreenButton';
+import { fullScreenCamera } from '../../voice/fullScreen';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import CallStream from '../call/CallStream';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
@@ -51,8 +53,9 @@ export default function GroupCallPanel({ groupId, names, user }) {
         {participants.map((id) => (
           <div key={id} className="call-panel-person" title={names.get(id)} {...volumeMenu.triggerProps(id, names.get(id) ?? t('calls.group.someone'))}>
             {cameras.has(String(id)) ? (
-              <div className={`call-panel-video${!isMuted(id) && speaking.has(String(id)) ? ' speaking' : ''}`}>
+              <div className={`call-panel-video camera-tile${!isMuted(id) && speaking.has(String(id)) ? ' speaking' : ''}`} onDoubleClick={(e) => fullScreenCamera(e, volumeMenu.close)}>
                 <CameraVideo userId={id} name={names.get(id) ?? t('calls.group.someone')} own={id === user.id} />
+                <CameraFullScreenButton name={names.get(id) ?? t('calls.group.someone')} />
               </div>
             ) : (
               <UserAvatar userId={id} className="call-panel-avatar small" speaking={connected && !isMuted(id) && speaking.has(String(id))} />
