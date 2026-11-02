@@ -806,6 +806,11 @@ the newest message whole, but used to count as scrolled away, so the message box
 typing (or a new message) didn't move the chat up. `e2e/composergrow.mjs` checks the box growing
 on a phone, with the keyboard up or not.
 
+A chat with too few messages to fill the view sits at the bottom, by the message box, like
+Discord's (2026-10-31): the scroller is a flex column and its content has `margin-top: auto`, which
+is 0 once the history overflows, so long chats scroll as before (`justify-content: flex-end` would
+make the top unreachable). `e2e/shortchat.mjs` checks both.
+
 **Speed on phones** (2026-10-19, measured with `e2e/mobileperf.mjs`: a Pixel 7 with a 4× slower
 CPU taps through a DM and a guild):
 - Rows (`MessageRow`) are memoised. `MessageList` gives each only what concerns it (`menuOpen`,

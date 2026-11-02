@@ -990,11 +990,17 @@ small {
   overflow-anchor: auto;
   /* Rows' offsetTop is measured relative to this (manual anchoring). */
   position: relative;
+  /* A short history sits at the bottom, by the message box, like Discord's (the content's auto
+     top margin; not justify-content: flex-end, which would cut off the top once it overflows). */
+  display: flex;
+  flex-direction: column;
 }
 
 /* Room above the first message's avatar and below the last one's reactions, plus the typing
    line's height. */
 .message-scroller-content {
+  margin-top: auto;
+  flex-shrink: 0;
   padding: 16px 0 calc(12px + var(--vc-typing-height));
 }
 
