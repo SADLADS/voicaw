@@ -141,6 +141,10 @@ export async function readMedia(item) {
   return new File([await res.blob()], item.name, { type: item.type || '' });
 }
 
+// The address the page shows a shared file at (the share screen's pictures: services/
+// shareService.js), served from the sharing app by Capacitor's server like readMedia's.
+export const sharedFileSrc = (file) => Capacitor.convertFileSrc(file.uri);
+
 export function showAndroidToast(message) {
   android?.showToast({ message }).catch(() => {});
 }

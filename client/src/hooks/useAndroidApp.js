@@ -7,6 +7,7 @@ import { useVoice } from './useVoice';
 import { useCall } from './useCall';
 import { voiceTitle } from '../utils/voiceTitle';
 import { showContent } from '../utils/mobilePanes';
+import { setShare } from '../services/shareService';
 import { t } from '../i18n';
 
 // How long an Answer tapped on a notification waits for the call to show up here (the app may
@@ -16,6 +17,7 @@ const ANSWER_WAIT_MS = 15000;
 // The Android app's side of the logged-in page (from Layout); does nothing elsewhere:
 // - its push registration (a Firebase token, see services/pushService.js)
 // - opening the chat a notification was for (`navigate`)
+// - what another app shared (`share`, for components/ShareDialog.jsx)
 // - the call notification's Answer, and the ongoing-call notification's Mute and Hang up
 // - keeping that ongoing-call notification up to date while in voice
 export function useAndroidApp({ navigate, user, guildList, groupList }) {
@@ -31,6 +33,9 @@ export function useAndroidApp({ navigate, user, guildList, groupList }) {
         navigate(url);
         showContent(); // the chat, even if the list was showing
       }),
+      // Shared from another app (Share.java): the share screen (ShareDialog). Kept by the app
+      // until this listens, so a share made while logged out waits for the login.
+      android.addListener('share', (share) => setShare(share)),
       android.addListener('callAction', ({ action, callId }) => {
         if (action === 'answer') answerWhenRinging(callId);
         else if (action === 'mute' || action === 'unmute') setSelfMute(action === 'mute');

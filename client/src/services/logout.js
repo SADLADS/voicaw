@@ -8,6 +8,7 @@ import { disableNotificationsOnThisDevice } from './pushService';
 import { clearDrafts } from './draftStore';
 import { clearUnsent } from './unsentStore';
 import { clearForwards } from './forwardStore';
+import { clearShare } from './shareService';
 import { clearSearchIndex } from './searchIndex';
 import { clearOfflineCopy } from './offlineCopy';
 
@@ -81,6 +82,7 @@ export async function forgetLogin() {
   clearDrafts();
   clearUnsent();
   clearForwards();
+  clearShare();
   closeWebSocket();
 }
 

@@ -439,6 +439,24 @@
       "tooLong": "このメッセージは長すぎて転送できません。",
       "notEncrypted": "暗号化されていません",
       "notEncryptedTitle": "ギルドのチャンネルはエンドツーエンド暗号化されていません。そこに転送したものは、ファイルも含めてサーバーが読むことができます。"
+    },
+    "share": {
+      "title": "共有",
+      "caption": "メッセージを追加",
+      "search": "検索",
+      "empty": "一致するものがありません。",
+      "files_other": "{{count}} 個のファイル",
+      "skipped_other": "{{count}} 個のファイルを共有できませんでした。",
+      "send": "送信",
+      "sendTo_other": "{{count}} 件のチャットに送信",
+      "uploading": "アップロード中… {{percent}}%",
+      "sending": "送信中…",
+      "sent_other": "{{count}} 件のチャットに送信しました。",
+      "failed": "{{name}} に送信できませんでした: {{error}}",
+      "readFailed": "{{name}} を読み込めませんでした。",
+      "keysChanged": "相手のセキュリティキーが変わりました。先にチャットを開いて確認してください。",
+      "notEncrypted": "暗号化されていません",
+      "notEncryptedTitle": "ギルドのチャンネルはエンドツーエンド暗号化されていません。そこで共有したものは、ファイルも含めてサーバーが読むことができます。"
     }
   }
 }

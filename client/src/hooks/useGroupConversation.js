@@ -7,7 +7,6 @@ import {
   fetchGroupMessages,
   markGroupRead,
   removeGroupReaction,
-  sendGroupMessage,
   fetchGroupPins,
   setGroupMessagePinned,
   setGroupLinkPreviews,
@@ -34,7 +33,8 @@ import {
 import { loadIdentityKey } from '../services/keyStore';
 import { groupPreviewsContext, groupPreviewsSignatureContext, openGroupPreviews, sealGroupPreviews } from '../services/linkPreviewCrypto';
 import { previewsFor } from '../services/linkPreviewService';
-import { currentEpoch, openGroup, renameGroup } from '../services/groupKeys';
+import { openGroup, renameGroup } from '../services/groupKeys';
+import { sendGroupText } from '../services/groupSend';
 import { nameOf } from '../utils/profiles';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
 import { t } from '../i18n';
@@ -345,25 +345,20 @@ export function useGroupConversation({ groupId, user, onRead }) {
     if (message.sender_id !== user.id) markRead(message.id);
   }
 
-  // Encrypts with the current epoch (making the next one first if the members changed) and
-  // sends. A 409 means the members changed meanwhile: once more with a fresh epoch.
+  // Encrypts with the current epoch and sends (services/groupSend.js), keeping the group it
+  // opened for that.
   async function encryptAndSend(text, replyToId, nonce) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const { epoch, key, group: opened } = await currentEpoch(user, groupId, groupRef.current);
-      groupRef.current = opened;
-      setGroup(opened);
-      const content = await encryptGroupMessage(
-        text, key, groupMessageContext(groupId, epoch, user.id), await loadIdentityKey(),
-        messageSignatureContext({ groupId, epoch, senderId: user.id, replyTo: replyToId })
-      );
-      try {
-        return await sendGroupMessage(groupId, epoch, content, replyToId, uploadNamesIn(text), nonce);
-      } catch (err) {
-        if (err.response?.status !== 409 || attempt === 1) throw err;
-        groupRef.current = await reload();
-      }
-    }
-    return null;
+    const { message } = await sendGroupText(user, groupId, text, {
+      replyToId,
+      nonce,
+      opened: groupRef.current,
+      onOpened: (opened) => {
+        groupRef.current = opened;
+        setGroup(opened);
+      },
+      reopen: async () => (groupRef.current = await reload()),
+    });
+    return message;
   }
 
   // Same contract as useConversation's sendMessage.

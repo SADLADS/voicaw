@@ -148,6 +148,9 @@ CREATE TABLE IF NOT EXISTS guild_messages (
 );
 `);
 sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_channel ON guild_messages (channel_id, id)');
+// Where each person last sent (recentChats.js, the share screen's order); the same for DMs and
+// group DMs below.
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_sender ON guild_messages (sender_id, channel_id)');
 
 // Plain emoji (a guild isn't encrypted), one of each per person per message.
 sqlite.exec(`
@@ -381,6 +384,7 @@ CREATE TABLE IF NOT EXISTS direct_messages (
   FOREIGN KEY (recipient_id) REFERENCES users(id)
 );
 `);
+sqlite.exec('CREATE INDEX IF NOT EXISTS direct_messages_sender ON direct_messages (sender_id, recipient_id)');
 // Link previews the sender's app made (the server never sees an encrypted chat's links):
 // encrypted like the message, set after it's sent and cleared by an edit. See Link previews in
 // docs/messages.md. Group DM messages have the same.
@@ -496,6 +500,7 @@ CREATE TABLE IF NOT EXISTS group_dm_messages (
 );
 `);
 sqlite.exec('CREATE INDEX IF NOT EXISTS group_dm_messages_group ON group_dm_messages (group_id, id)');
+sqlite.exec('CREATE INDEX IF NOT EXISTS group_dm_messages_sender ON group_dm_messages (sender_id, group_id)');
 addColumn('ALTER TABLE group_dm_messages ADD COLUMN link_previews TEXT');
 
 // Encrypted like DM reactions (same fixed size), with the message's epoch key.

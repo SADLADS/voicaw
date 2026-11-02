@@ -457,6 +457,28 @@
       "tooLong": "This message is too long to forward.",
       "notEncrypted": "Not encrypted",
       "notEncryptedTitle": "Guild channels aren't end-to-end encrypted: the server can read what's forwarded there, files included."
+    },
+    "share": {
+      "title": "Share",
+      "caption": "Add a message",
+      "search": "Search",
+      "empty": "Nothing matches.",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
+      "skipped_one": "{{count}} file couldn't be shared.",
+      "skipped_other": "{{count}} files couldn't be shared.",
+      "send": "Send",
+      "sendTo_one": "Send to {{count}} chat",
+      "sendTo_other": "Send to {{count}} chats",
+      "uploading": "Uploading… {{percent}}%",
+      "sending": "Sending…",
+      "sent_one": "Sent to {{count}} chat.",
+      "sent_other": "Sent to {{count}} chats.",
+      "failed": "Couldn't send to {{name}}: {{error}}",
+      "readFailed": "Couldn't read {{name}}.",
+      "keysChanged": "Their security key has changed: open the chat to check it first.",
+      "notEncrypted": "Not encrypted",
+      "notEncryptedTitle": "Guild channels aren't end-to-end encrypted: the server can read what's shared there, files included."
     }
   }
 }

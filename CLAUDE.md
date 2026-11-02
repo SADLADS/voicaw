@@ -477,6 +477,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   own buttons). The user asked for the inbox to be server-side for DMs and guilds without losing
   privacy: `GET /inbox` works it out from the existing message tables (nothing stored for it)
   and sends each entry as its push's payload, DM and group previews decrypted on the device.
+- **Sharing to Voicaw** (built 2026-11-02, see Sharing to Voicaw in `docs/desktop-and-site.md`):
+  Android's share sheet lists Voicaw. The user chose Discord's way: a share screen with a
+  message box and Send, several chats at once, sent from there without opening them (one
+  upload, the same links to each), the chats you last sent to first (`GET /recent-chats`, from
+  the message tables, nothing stored). Direct Share (people in Android's own sheet) deferred.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only
