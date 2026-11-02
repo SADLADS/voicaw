@@ -16,63 +16,63 @@ export const SOUNDS = {
   message: {
     labelKey: 'settings.sounds.message.label',
     descriptionKey: 'settings.sounds.message.description',
-    tone: { notes: [[0, 1046.5, 0.12], [0.08, 1568, 0.3]], volume: 0.12 },
+    tone: { notes: [[0, 1046.5, 0.12], [0.08, 1568, 0.3]], volume: 0.06 },
     minGap: 1000,
   },
   mute: {
     labelKey: 'settings.sounds.mute.label',
-    tone: { notes: [[0, 784, 0.09], [0.07, 523.3, 0.16]], volume: 0.12, wave: 'triangle' },
+    tone: { notes: [[0, 784, 0.09], [0.07, 523.3, 0.16]], volume: 0.06, wave: 'triangle' },
   },
   unmute: {
     labelKey: 'settings.sounds.unmute.label',
-    tone: { notes: [[0, 523.3, 0.09], [0.07, 784, 0.16]], volume: 0.12, wave: 'triangle' },
+    tone: { notes: [[0, 523.3, 0.09], [0.07, 784, 0.16]], volume: 0.06, wave: 'triangle' },
   },
   deafen: {
     labelKey: 'settings.sounds.deafen.label',
-    tone: { notes: [[0, 659.3, 0.08], [0.07, 493.9, 0.08], [0.14, 329.6, 0.2]], volume: 0.12, wave: 'triangle' },
+    tone: { notes: [[0, 659.3, 0.08], [0.07, 493.9, 0.08], [0.14, 329.6, 0.2]], volume: 0.06, wave: 'triangle' },
   },
   undeafen: {
     labelKey: 'settings.sounds.undeafen.label',
-    tone: { notes: [[0, 329.6, 0.08], [0.07, 493.9, 0.08], [0.14, 659.3, 0.2]], volume: 0.12, wave: 'triangle' },
+    tone: { notes: [[0, 329.6, 0.08], [0.07, 493.9, 0.08], [0.14, 659.3, 0.2]], volume: 0.06, wave: 'triangle' },
   },
   // Push to talk starting and stopping to send (short and quiet: it's every time you talk).
   pushToTalkOn: {
     labelKey: 'settings.sounds.pushToTalkOn.label',
     descriptionKey: 'settings.sounds.pushToTalkOn.description',
-    tone: { notes: [[0, 1318.5, 0.05]], volume: 0.06, wave: 'triangle' },
+    tone: { notes: [[0, 1318.5, 0.05]], volume: 0.03, wave: 'triangle' },
   },
   pushToTalkOff: {
     labelKey: 'settings.sounds.pushToTalkOff.label',
     descriptionKey: 'settings.sounds.pushToTalkOff.description',
-    tone: { notes: [[0, 987.8, 0.05]], volume: 0.06, wave: 'triangle' },
+    tone: { notes: [[0, 987.8, 0.05]], volume: 0.03, wave: 'triangle' },
   },
   userJoin: {
     labelKey: 'settings.sounds.userJoin.label',
     descriptionKey: 'settings.sounds.userJoin.description',
-    tone: { notes: [[0, 587.3, 0.18], [0.1, 880, 0.35]], volume: 0.14 },
+    tone: { notes: [[0, 587.3, 0.18], [0.1, 880, 0.35]], volume: 0.07 },
   },
   userLeave: {
     labelKey: 'settings.sounds.userLeave.label',
     descriptionKey: 'settings.sounds.userLeave.description',
-    tone: { notes: [[0, 880, 0.18], [0.1, 587.3, 0.35]], volume: 0.14 },
+    tone: { notes: [[0, 880, 0.18], [0.1, 587.3, 0.35]], volume: 0.07 },
   },
   disconnect: {
     labelKey: 'settings.sounds.disconnect.label',
     descriptionKey: 'settings.sounds.disconnect.description',
-    tone: { notes: [[0, 659.3, 0.14], [0.1, 440, 0.14], [0.2, 293.7, 0.4]], volume: 0.14 },
+    tone: { notes: [[0, 659.3, 0.14], [0.1, 440, 0.14], [0.2, 293.7, 0.4]], volume: 0.07 },
   },
   incomingRing: {
     labelKey: 'settings.sounds.incomingRing.label',
     descriptionKey: 'settings.sounds.incomingRing.description',
     // Two rising notes, twice, every 3 s.
-    tone: { notes: [[0, 660, 0.15], [0.18, 880, 0.15], [0.45, 660, 0.15], [0.63, 880, 0.2]], volume: 0.18, shape: 'flat' },
+    tone: { notes: [[0, 660, 0.15], [0.18, 880, 0.15], [0.45, 660, 0.15], [0.63, 880, 0.2]], volume: 0.09, shape: 'flat' },
     every: 3000,
   },
   outgoingRing: {
     labelKey: 'settings.sounds.outgoingRing.label',
     descriptionKey: 'settings.sounds.outgoingRing.description',
     // A soft 440+480 Hz tone for 1.5 s, every 4 s (the usual ringback).
-    tone: { notes: [[0, 440, 1.5], [0, 480, 1.5]], volume: 0.05, shape: 'flat' },
+    tone: { notes: [[0, 440, 1.5], [0, 480, 1.5]], volume: 0.025, shape: 'flat' },
     every: 4000,
   },
 };
