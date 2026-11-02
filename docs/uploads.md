@@ -224,6 +224,14 @@ message), nor has a picture on the device (a `blob:` copy: one being written or 
 it offers Open Image instead (the decrypted copy in a new tab). Videos keep their
 player's own download button.
 
+**Saving to Photos on iPhones and iPads** (2026-11-02, `utils/saveFile.js` `triggerDownload`):
+a download from Safari goes into Files, and a web page can't reach the photo library, so there
+a picture or video (anything saved whole, by Save Image, the viewer's Save or a file's download
+button) opens the share sheet with the file instead (`navigator.share`), whose Save Image /
+Save Video puts it in Photos. Other files, and big videos saved as they download (Big files),
+still go to Files. If the sheet can't open (an older iOS, or the tap was too long ago because a
+big file was still decrypting), it's the ordinary download.
+
 **Open Image in the desktop app** (2026-10-28, `utils/imageLink.js`): the app has no tabs, and
 Electron hands only `http(s)` links to the browser, so the decrypted `blob:` copy can't go there
 (Open Image used to do nothing). Nor can the picture's own URL: it carries its key, and the

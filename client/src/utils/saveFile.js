@@ -16,15 +16,42 @@ async function saveInAndroidApp(objectUrl, name, open) {
   }
 }
 
-// Saves an object (blob:) URL as a file called `name`.
-export function triggerDownload(objectUrl, name) {
-  if (isAndroidApp()) return saveInAndroidApp(objectUrl, name, false);
+// iPhones and iPads (iPadOS Safari says it's a Mac; a Mac has no touch screen).
+const isIOS = () => typeof navigator !== 'undefined'
+  && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+
+// iOS saves a download into Files, and a web page can't reach the photo library: only the share
+// sheet can, so pictures and videos go there (its Save Image / Save Video). Resolves to whether
+// the sheet opened; it can't on an older iOS, or once the tap that asked is too long ago (a big
+// file decrypting), and then it's an ordinary download after all.
+async function shareToPhotos(objectUrl, name) {
+  if (!isIOS() || !navigator.canShare) return false;
+  const blob = await (await fetch(objectUrl)).blob();
+  if (!/^(image|video)\//.test(blob.type)) return false;
+  const file = new File([blob], name, { type: blob.type });
+  if (!navigator.canShare({ files: [file] })) return false;
+  try {
+    await navigator.share({ files: [file] });
+  } catch (err) {
+    if (err?.name !== 'AbortError') return false; // AbortError: closed without saving
+  }
+  return true;
+}
+
+function downloadLink(objectUrl, name) {
   const a = document.createElement('a');
   a.href = objectUrl;
   a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+// Saves an object (blob:) URL as a file called `name`.
+export async function triggerDownload(objectUrl, name) {
+  if (isAndroidApp()) return saveInAndroidApp(objectUrl, name, false);
+  if (await shareToPhotos(objectUrl, name).catch(() => false)) return;
+  downloadLink(objectUrl, name);
 }
 
 // `name`: what a blob: URL is saved as in the Android app, which has no tabs, and where no other
