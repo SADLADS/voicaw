@@ -204,6 +204,97 @@
   font-size: 12px;
 }
 
+/* The share screen (ShareDialog): as tall as it may be, the list taking what's left. */
+.vc-dialog.share-dialog {
+  height: calc(var(--vc-app-height) - 32px);
+  max-height: 720px;
+}
+
+.share-dialog .vc-dialog-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-dialog-files {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.share-dialog-file {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 8px;
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg-muted);
+}
+
+.share-dialog-file img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.share-dialog-file-icon {
+  font-size: 22px;
+}
+
+.share-dialog-file-name {
+  max-width: 100%;
+  padding: 0 4px;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-dialog-caption {
+  flex: none;
+  resize: none;
+}
+
+.share-dialog-search {
+  flex: none;
+}
+
+.share-dialog-note,
+.share-dialog-error {
+  flex: none;
+  margin: 0;
+  font-size: 13px;
+}
+
+.share-dialog-note {
+  color: var(--vc-fg-muted);
+}
+
+.share-dialog-error {
+  color: var(--vc-danger-text);
+}
+
+/* The list fills the dialog rather than user-picker-list's own height. */
+.share-dialog-list.user-picker-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.share-dialog-list .user-picker-name {
+  flex: 1;
+  min-width: 0;
+}
+
 /* The group's picture, being changed */
 .group-picture-edit {
   display: flex;

@@ -398,7 +398,7 @@ native bridge. Check real behaviour on a phone.
   `mediaThumbnail` (the + panel's photos, `Media.java`, see The + panel in `docs/uploads.md`;
   `openSettings({ which: 'app' })` when photos were refused), `fetchPage` (a linked page for an
   encrypted chat's link preview, `PageFetch.java`; see Link previews in `docs/messages.md`); events `navigate` (a
-  tapped notification), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
+  tapped notification), `share` (Sharing to Voicaw), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
   `updateProgress` and `updateResult`, kept until the page listens, so a notification that
   started the app still counts (and `Layout`'s landing on /dm, opening the latest
   conversation, gives way to it; `e2e/notificationtap.mjs`). `hooks/useAndroidApp.js` (in
@@ -418,6 +418,31 @@ native bridge. Check real behaviour on a phone.
   `utils/theme.js` `applyTheme` calls `setSystemBars` (`android.js` `setAndroidSystemBars`), and
   `MainActivity` puts it back after every configuration change (Capacitor's SystemBars resets
   it to the system theme's, a rotation too).
+- **Sharing to Voicaw** (built 2026-11-02, as Discord's): "Share" in another app (photos,
+  videos, any file, text or a link) lists Voicaw (the manifest's `SEND` / `SEND_MULTIPLE`
+  filters, `*/*`). `Share.java` reads the intent in `VoicawPlugin.handleOnNewIntent` (the
+  intent that started the app too) and sends the page a `share` event, `{ files: [{ uri, name,
+  type, size }], text, skipped }`, kept until the page listens (`useAndroidApp`, logged in only,
+  so a share made logged out waits for the login). Files stay `content://` addresses (readable
+  while the activity lives), read by the page through Capacitor's server only when sent, like
+  the + panel's photos; `file://` and the app's own providers are refused (`Share.allowed`:
+  another app could otherwise hand back Voicaw's own files, decrypted attachments included),
+  as is anything past 10 files (one message's worth). The share screen
+  (`components/ShareDialog.jsx`, from `Layout`'s `ShareHost`; the share waits in
+  `services/shareService.js`, in memory, cleared by logging out) shows the pictures, a message
+  box (the shared text in it), a search box and the chats from `hooks/useChatDestinations.js`
+  (ForwardDialog's: notes, people and groups, guild text channels you may send in), the ones
+  you last sent to first (`GET /recent-chats`, server `recentChats.js`: the newest message you
+  sent in each DM, group you're still in and channel, worked out from the message tables with
+  their sender indexes, nothing stored; `utils/chatDestinations.js` `orderByRecent`), several
+  ticked at once. Send reads and uploads each file once (encrypted, as any attachment) and sends
+  the same message to every chat picked from there (`services/chatSend.js`, the chats' own
+  encryption and key checks: a contact whose key changed fails, to be checked in the chat;
+  group DMs through `services/groupSend.js`, shared with `useGroupConversation`; link previews
+  made as an open chat makes them). Guild channels say "Not encrypted". One that fails stays
+  ticked with why, and Send again sends only those (same nonces, files not uploaded again).
+  Sent to one chat, that chat opens; to several, a toast says so. `e2e/share.mjs` checks the
+  page side. Not done yet: Direct Share (people in Android's own share sheet).
 - **Saving files** (`Downloads.java`, `android.js` `saveToDownloads`, used by
   `utils/saveFile.js`): Android's WebView ignores `<a download>`, and the page's files
   (decrypted attachments, pictures, the recovery code) are `blob:` URLs no other app can read,

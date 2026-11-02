@@ -33,7 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * push registration, the ongoing-call notification, and the events notifications send the page
  * (`navigate` to a chat, `callAction` answer / mute / unmute / hangUp), and updating the app
  * (AppUpdater: `updateProgress` while downloading, `updateResult` if Android didn't install it),
- * saving files to Downloads (Downloads), and the phone's photos for the + panel (Media).
+ * saving files to Downloads (Downloads), the phone's photos for the + panel (Media), and
+ * what other apps share to Voicaw (`share`, Share).
  */
 @CapacitorPlugin(
     name = "Voicaw",
@@ -57,6 +58,8 @@ public class VoicawPlugin extends Plugin {
     private static final ExecutorService thumbnails = Executors.newFixedThreadPool(2);
     // Linked pages for link previews (PageFetch), a few at a time.
     private static final ExecutorService pages = Executors.newFixedThreadPool(3);
+    // Things shared to the app (Share), in the order they came.
+    private static final ExecutorService shares = Executors.newSingleThreadExecutor();
     private final AtomicBoolean updating = new AtomicBoolean();
 
     @Override
@@ -70,9 +73,20 @@ public class VoicawPlugin extends Plugin {
         if (instance == this) instance = null;
     }
 
-    /** A notification was tapped (also the intent that started the app). */
+    /** A notification was tapped, or something shared to the app (also the intent that started it). */
     @Override
     protected void handleOnNewIntent(Intent intent) {
+        if (Share.isShare(intent)) {
+            // Handled: not again when the activity is recreated.
+            Intent shared = new Intent(intent);
+            intent.setAction(Intent.ACTION_MAIN);
+            // Asking the sharing app for names and sizes can be slow (its own process).
+            shares.execute(() -> {
+                JSObject share = Share.read(getContext(), shared);
+                if (share != null) notifyListeners("share", share, true);
+            });
+            return;
+        }
         String answer = intent.getStringExtra(Notifications.EXTRA_ANSWER);
         String url = intent.getStringExtra(Notifications.EXTRA_URL);
         if (answer != null) {
