@@ -16,7 +16,7 @@ const SOURCES = [
     { id: 'window:12:0', name: 'Notes', thumbnail: image('w12'), appIcon: image('n') },
 ];
 
-function setUp({ platform = 'win32', clock = { t: 1000 } } = {}) {
+function setUp({ platform = 'win32', clock = { t: 1000 }, deviceSound } = {}) {
     const asked = [];
     const desktopCapturer = {
         getSources: async (options) => {
@@ -25,7 +25,7 @@ function setUp({ platform = 'win32', clock = { t: 1000 } } = {}) {
         },
     };
     const share = createScreenShare({
-        desktopCapturer, platform, origin: ORIGIN, ownSourceId: () => 'window:11:0', now: () => clock.t,
+        desktopCapturer, platform, origin: ORIGIN, ownSourceId: () => 'window:11:0', now: () => clock.t, deviceSound,
     });
     return { share, asked, clock };
 }
@@ -73,6 +73,17 @@ describe('screen sharing (screenShare.js)', () => {
         expect((await mac.share.listSources()).canShareSound).toBe(false);
         mac.share.choose('screen:0:0', true);
         expect(answer(mac.share, request())).toEqual({ video: { id: 'screen:0:0', name: 'Entire screen' } });
+    });
+
+    it('on Linux, offers sound when the app can make it (streamSound.js), never as loopback', async () => {
+        const linux = setUp({ platform: 'linux', deviceSound: async () => true });
+        expect(await linux.share.listSources()).toMatchObject({ canShareSound: true, soundFrom: 'device' });
+        linux.share.choose('screen:0:0', true);
+        expect(answer(linux.share, request())).toEqual({ video: { id: 'screen:0:0', name: 'Entire screen' } });
+
+        const plainPulse = setUp({ platform: 'linux', deviceSound: async () => false });
+        expect(await plainPulse.share.listSources()).toMatchObject({ canShareSound: false, soundFrom: null });
+        expect(await setUp().share.listSources()).toMatchObject({ soundFrom: 'system' });
     });
 
     it('refuses without a pick, a pick it never listed, our own window, or a stale pick', async () => {

@@ -40,9 +40,17 @@ describe('ScreenPicker', () => {
     fireEvent.click(screen.getByRole('option', { name: /Notes/ }));
     expect(screen.getByRole('checkbox', { name: /Share sound/ }).checked).toBe(true);
     fireEvent.click(goLive);
-    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true, deviceSound: false }));
     expect(bridge.chooseScreenSource).toHaveBeenCalledWith('window:12:0', true);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shares sound from the app\'s own microphone where that\'s how the system gives it (Linux)', async () => {
+    bridge.getScreenSources.mockResolvedValue({ canShareSound: true, soundFrom: 'device', sources: SOURCES });
+    render(<ScreenPicker onClose={vi.fn()} />);
+    fireEvent.doubleClick(await screen.findByRole('option', { name: /Entire screen/ }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true, deviceSound: true }));
+    expect(bridge.chooseScreenSource).toHaveBeenCalledWith('screen:0:0', true);
   });
 
   it('offers no sound where the system can\'t share it, and picks again if the source went', async () => {

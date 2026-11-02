@@ -104,10 +104,30 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   and calls `getDisplayMedia` as a browser would; the session's display media handler answers
   with that source, once, within a minute, only for a source just listed and only for the
   app's own page; anything else is refused (the page gets an AbortError, shown as nothing).
-  **Sound** ("Share sound", on by default) only on Windows: Electron's only option is the
-  whole system's sound (`loopback`); the page asks with `restrictOwnAudio` (see Screen
-  sharing in `voice-and-calls.md`) and Electron (44+) then captures it without the app's own
-  sound, so viewers don't hear themselves, like Discord.
+  **Sound** ("Share sound", on by default) on Windows and on Linux with PipeWire (not macOS).
+  Windows: Electron's only option is the whole system's sound (`loopback`); the page asks with
+  `restrictOwnAudio` (see Screen sharing in `voice-and-calls.md`) and Electron (44+) then
+  captures it without the app's own sound, so viewers don't hear themselves, like Discord.
+  **Linux** (`streamSound.js`, built 2026-11-02; the user chose the whole system's sound minus
+  Voicaw's, as on Windows, over picking one program): Electron's `loopback` is Windows only, so
+  while a share with sound is on, the app makes a virtual microphone, "Voicaw stream sound"
+  (`pw-cli create-node`: a null-audio-sink with `media.class=Audio/Source/Virtual`, priority 0 so
+  it's never anyone's default, named `voicaw-stream-sound-<pid>`), and links every program's
+  playback (`Stream/Output/Audio` nodes from `pw-dump`) into it with `pw-link`, besides the
+  speakers it already plays to. Never the app's own: nodes whose `application.process.id` is
+  one of the app's processes (`app.getAppMetrics()`: the audio service plays our sound).
+  Mono and centre channels go to both sides, left and right ones to their side, LFE nowhere;
+  a program's own volume carries over, the speakers' doesn't. Programs that start playing
+  during the share are linked within `POLL_MS` (2 s, a `pw-dump` each time; it can print
+  more than one JSON list, `parseDump` reads them all). The page records the microphone
+  (found by its name: `getUserMedia` with echo cancellation, noise suppression and gain off)
+  and publishes it (see Screen sharing in `voice-and-calls.md`); it's left out of Settings →
+  Voice & Video's microphones. The node goes when the share stops (the page's
+  `stopStreamSound`), when the page reloads or crashes, and when the app quits (synchronously,
+  in `will-quit`); one left by a crash is removed by the next share. Only PipeWire's own tools
+  (in every PipeWire install), no native module; without them (plain PulseAudio, which can't
+  play one program into two places) "Share sound" isn't offered. A Voicaw web app open on the
+  same computer and in the same call is another program, so its sound is shared too.
   macOS needs Screen Recording permission (the picker says where); Wayland goes through the
   system's portal picker.
 - **Tray and badge** (`tray.js`): Open / Quit menu, and what's unread the way Discord counts

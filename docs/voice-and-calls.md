@@ -116,7 +116,12 @@ LiveKit carries the audio.
   (Chromium 140+ and the desktop app, Windows and macOS; others ignore it). Chrome does it by
   leaving all of Chrome out of the system sound, so a whole-screen share also loses other
   tabs' sound (sharing that tab still carries it; Linux browsers have no system sound to
-  share); `stopScreenShare`, also noticed when the browser's own "Stop
+  share). The desktop app on Linux makes the sound itself (PipeWire; Screen sharing in
+  `desktop-and-site.md`): `startScreenShare({ deviceSound })` shares the screen without sound,
+  then records the app's virtual microphone (`deviceStreamSound.js`) and publishes it as
+  `screen_share_audio` beside it, so viewers get it like any stream's sound (volume, deafen, the
+  call's encryption); it ends with the share (LiveKit unpublishes both) or leaving, and if it
+  fails the screen stays shared, silent, with a message; `stopScreenShare`, also noticed when the browser's own "Stop
   sharing" ends it. **Nobody downloads a stream they aren't watching:** `voiceClient` connects
   with `autoSubscribe: false` and `syncSubscriptions` subscribes every microphone, and a screen
   share (and its sound) only for the one person `watching` (`watchStream(id)`; `attachStream`
