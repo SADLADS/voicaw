@@ -105,6 +105,25 @@ describe('ImageViewer', () => {
     await waitFor(() => expect(saveUrlAs).toHaveBeenCalledWith('blob:cat', 'cat.png'));
   });
 
+  it("closes on a tap beside the image, and that tap's click doesn't open the picture behind", async () => {
+    renderImage();
+    const thumbnail = screen.getByRole('button', { name: 'cat.png' });
+    fireEvent.click(thumbnail);
+    const stage = document.querySelector('.image-viewer-stage');
+    stage.setPointerCapture = () => {};
+
+    fireEvent.pointerDown(stage, { pointerId: 1, pointerType: 'touch', button: 0, clientX: 5, clientY: 5 });
+    fireEvent.pointerUp(stage, { pointerId: 1, pointerType: 'touch', button: 0, clientX: 5, clientY: 5 });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    // The browser's click for that tap lands on what's now under the finger.
+    fireEvent.click(thumbnail);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Only that one click: the next opens it again.
+    fireEvent.click(thumbnail);
+    expect(screen.getByRole('dialog', { name: 'cat.png' })).toBeInTheDocument();
+  });
+
   it('closes on Escape without the composer also seeing it', async () => {
     const composerEscape = vi.fn();
     renderImage(composerEscape);

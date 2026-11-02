@@ -13,6 +13,7 @@ import {
 import { formatBytes } from '../utils/formatBytes';
 import { saveUrlAs } from '../utils/saveFile';
 import { imageOpener } from '../utils/imageActions';
+import { swallowNextClick } from '../utils/swallowNextClick';
 import { useAuth } from '../hooks/useAuth';
 import { useImageSrc } from '../hooks/useImageSrc';
 import {
@@ -254,7 +255,11 @@ const ImageStage = forwardRef(function ImageStage(
       return;
     }
     lastTap.current = { time: now, x: e.clientX, y: e.clientY };
-    if (!g.onImage) onClose();
+    if (!g.onImage) {
+      // The tap's click comes after the viewer has gone: it mustn't open the picture behind.
+      swallowNextClick();
+      onClose();
+    }
   };
 
   return (
