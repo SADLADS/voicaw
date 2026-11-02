@@ -205,7 +205,9 @@ order. Pictures attached to a message still being written open in it too: clicki
 a thumbnail in the composer's tray (`AttachmentTray`) shows the local copy, stepping through
 the tray's other pictures. Its keys are caught at the window's capture phase, so Escape doesn't
 also cancel a reply. Opening it pushes a history entry (keeping the router's state), so the
-back button closes it.
+back button closes it. A tap (or click) beside the picture closes it on `pointerup`; the click the
+browser sends after it is swallowed (`utils/swallowNextClick.js`), or on a phone it would land on
+the picture behind in the chat and open the viewer again.
 
 **Image menu** (`components/ImageMenu.jsx`, actions in `utils/imageActions.js`), in place of
 the browser's: right-click a picture in a message (an attachment, a GIF, a webhook's embed or

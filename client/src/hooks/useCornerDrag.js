@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { swallowNextClick } from '../utils/swallowNextClick';
 
 // The corner players (Layout's .corner-players: a watched stream, Watch Together's mini
 // player) are dragged as one, from anywhere on them but their controls, and snap to the
@@ -34,16 +35,6 @@ export function cornerFor(rect, width, height) {
   const y = rect.top + rect.height / 2 < height / 2 ? 'top' : 'bottom';
   const x = rect.left + rect.width / 2 < width / 2 ? 'left' : 'right';
   return `${y}-${x}`;
-}
-
-// Swallows the click that ends a drag (it would press whatever it ends over).
-function swallowNextClick() {
-  const swallow = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-  };
-  window.addEventListener('click', swallow, { capture: true, once: true });
-  setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
 }
 
 // `ref` goes on the corner players' box, `onPointerDown` too. `corner` is where it sits
@@ -107,7 +98,7 @@ export function useCornerDrag(fallback, areaRef) {
       setStored(next);
       save(next);
       setDragging(false);
-      if (ev.type === 'pointerup') swallowNextClick();
+      if (ev.type === 'pointerup') swallowNextClick(0);
     };
     box.addEventListener('pointermove', move);
     box.addEventListener('pointerup', end);
