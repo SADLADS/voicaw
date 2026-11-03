@@ -256,8 +256,16 @@ LiveKit carries the audio.
   covers every track; `e2e/camera.mjs` asks LiveKit). Settings → Voice & video: the camera (a
   list, named once the page may use the camera) and Test camera, a mirrored preview captured
   only while testing (`CameraSettings.jsx`). The desktop app allows the camera for its own
-  pages; the Android app asks for it when first used, and Android stops it while the app is in
-  the background. Bandwidth: each viewer gets one copy per camera they show, at most 720p
+  pages; the Android app asks for it when first used. **Screen off** (2026-11-03): while your
+  camera is on and the page is shown, the screen is kept on (`utils/keepScreenOn.js`: the
+  Android app's window flag, else the browser's Screen Wake Lock), so a phone doesn't time out
+  mid-video. A phone still gets no frames while the page is hidden (screen turned off, another
+  app: Android stops the camera in the background, phone browsers too), so there
+  (`isMobileDevice`) your camera is paused instead of left frozen for the others
+  (`pauseCameraWhileHidden`): muted, so the camera is let go (its light goes off) and others see
+  your picture, but still published (`cameraOn` and `self_video` stay), and unmuted when the page
+  is back (LiveKit restarts it, on the side `switchCamera` chose); if it can't come back it's
+  turned off with the error. Computers keep sending while hidden. Bandwidth: each viewer gets one copy per camera they show, at most 720p
   (about 1.5 Mbit/s; 360p about 0.5).
 - **Microphone chain** (`voice/voiceChain.js`): the browser captures with echo cancellation and
   auto gain (its own noise suppression and `voiceIsolation` only when that's the one chosen:
