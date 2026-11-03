@@ -223,7 +223,7 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   game's or player's later updates (the next song) don't move it, so music started after a game
   doesn't take its place, and of two games the newer one shows.
   Turning it off closes the socket and stops sharing Steam games. Checked for real in `e2e/richpresence.mjs`.
-- **In-game overlay** (`overlay.js`, `overlayPreload.js`, `runningGames.js`; client
+- **In-game overlay** (`overlay.js`, `overlayPreload.js`, `runningGames.js`, `gameWindow.js`; client
   `overlay.html`, `src/overlay/`, `hooks/useGameOverlay.js`, `utils/overlay.js`; built
   2026-10-19, as Discord's): while you're in a voice channel or call **and** a game is running,
   a small window over the game lists who's there (you first, then in the order they joined;
@@ -242,14 +242,31 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
     can only say so through Rich Presence's socket, which is then closed).
   - **The window**: transparent, frameless, `focusable: false`, out of the taskbar, always on
     top at the `screen-saver` level (macOS: on every Space, over full-screen apps), the mouse
-    going through it (`setIgnoreMouseEvents`). It goes on the screen the pointer is on when it
-    appears, 16 px from the chosen corner (Settings or the overlay itself; default top left),
+    going through it (`setIgnoreMouseEvents`). It goes on **the game's screen** (2026-11-03: on
+    the pointer's alone it sometimes landed on the other monitor, wherever the mouse was when
+    you joined voice), 16 px from the chosen corner (Settings or the overlay itself; default top left),
     exactly the size of its content (the page reports it, `size`; 360×720 at most), so a
     Linux desktop without a compositor (no transparency) only gets a small dark box. Made when
     it's needed and destroyed when it isn't (a renderer costs memory). Never in Gaming Mode
     (gamescope shows one app at a time). It draws over windowed and borderless games; a
     Windows game in exclusive full screen keeps it out (Discord gets in by injecting into the
     game's drawing, which we don't), and so may a Wayland session's own windows.
+  - **The game's screen** (`gameWindow.js`): Electron can't see other programs' windows, so the
+    system is asked for the biggest visible window of the game's processes (Rich Presence's
+    pid; the Steam games' processes, `runningGames.js` keeping their ids): Windows through one
+    PowerShell call compiling a little Win32 code (`EnumWindows`, `GetWindowRect`, per-monitor
+    DPI aware; never opens the process, so anti-cheat doesn't stop it), Linux through X11's
+    `xprop` (`_NET_CLIENT_LIST`, else the root's children, and `_NET_WM_PID`) and `xwininfo`
+    (x11-utils), macOS through CoreGraphics' window list in `osascript` (pids and bounds need no
+    permission; untested on a Mac). Windows and X11 answer in physical pixels, turned into
+    Electron's with `screen.screenToDipPoint`. It appears on the pointer's screen and moves a
+    moment later; asked again on unlocking (the game may have moved), when the game's
+    processes change, and every 10 s until found (a game can run a while before its window
+    opens), never on voice changes (who's talking changes all the time, and a lookup can cost a
+    PowerShell). Not found (Wayland games without an X window, no x11-utils): it stays on the
+    pointer's screen. Xvfb can't show Electron two screens (RandR monitors are refused, Xinerama
+    is seen as one), so the move itself is only covered by `test/overlay.test.js`; the lookup
+    was checked against real X windows.
   - **Unlocking**: the overlay's shortcut (Settings → Desktop App → Keyboard shortcuts, "Use
     the overlay", default **Ctrl+Shift+O**, ⌘⇧O on macOS; Discord's is Shift+\`) is only taken
     while the overlay is up, so other apps have it the rest of the time (otherwise it's only

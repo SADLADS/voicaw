@@ -35,6 +35,7 @@ const { identifyGame, steamApps, steamPicture, steamRoots } = require('./gameLoo
 const { inGamingMode } = require('./gamingMode');
 const { createOverlay, OVERLAY_PRELOAD } = require('./overlay');
 const { runningSteamGames } = require('./runningGames');
+const { gameWindowCentre } = require('./gameWindow');
 
 const APP_ID = 'com.voicaw.app';
 const ICON = path.join(__dirname, 'assets', 'icon.png');
@@ -298,7 +299,15 @@ function setUpRichPresence() {
             overlay.setGames({ presence: activities.some(playing) });
         },
     });
-    richPresence = createRichPresenceServer({ net: nodeNet, fs, onChange: (games) => gameActivities.update(games) });
+    richPresence = createRichPresenceServer({
+        net: nodeNet,
+        fs,
+        onChange(games) {
+            // The games' processes, for the overlay to find the game's screen.
+            overlay.setGames({ presencePids: games.filter((g) => g.pid && playingRaw(g.activity)).map((g) => g.pid) });
+            gameActivities.update(games);
+        },
+    });
     applyRichPresence();
     app.on('will-quit', () => richPresence.stop());
 }
@@ -307,7 +316,7 @@ function applyRichPresence() {
     if (!settings.get().richPresence) {
         richPresence.stop();
         gameActivities.setSteamGames([]);
-        overlay.setGames({ presence: false });
+        overlay.setGames({ presence: false, presencePids: [] });
         return;
     }
     lookForGames?.();
@@ -318,6 +327,8 @@ function applyRichPresence() {
 
 // For the overlay, a game is something played or competed in (not music or a video).
 const playing = (activity) => activity.type === 0 || activity.type === 5;
+// The same for an activity as a game sent it (gameActivities.js counts any other type as 0).
+const playingRaw = (activity) => ![2, 3].includes(Number(activity?.type));
 
 // Steam's installed apps, listed again now and then (games get installed).
 const STEAM_APPS_TTL_MS = 10 * 60 * 1000;
@@ -355,19 +366,25 @@ function setUpOverlay() {
             overlay.settingsChanged();
         },
         onShownChange: () => applyDesktopShortcuts(),
+        // The screen the game's window is on (gameWindow.js). Windows and X11 answer in
+        // physical pixels, Electron places windows in its own (scaled) ones.
+        async findGameScreen(pids) {
+            const point = await gameWindowCentre({ platform: process.platform, run, pids });            if (!point) return null;
+            return process.platform === 'darwin' || !screen.screenToDipPoint ? point : screen.screenToDipPoint(point);
+        },
     });
     let polling = false;
     async function look() {
         if (polling) return;
         const forOverlay = overlay.lookingForGames();
         const share = settings.get().richPresence;
-        if (!forOverlay) overlay.setGames({ running: false });
+        if (!forOverlay) overlay.setGames({ running: false, runningPids: [] });
         if (!share) gameActivities.setSteamGames([]);
         if (!forOverlay && !share) return;
         polling = true;
         try {
             const games = await runningSteamGames({ platform: process.platform, fs, run, apps: await installedSteamApps() });
-            if (overlay.lookingForGames()) overlay.setGames({ running: games.length > 0 });
+            if (overlay.lookingForGames()) overlay.setGames({ running: games.length > 0, runningPids: games.flatMap((game) => game.pids) });
             if (settings.get().richPresence) {
                 gameActivities.setSteamGames(games.map((game) => ({ appId: game.appId, name: game.name, picture: steamPicture(fs, game.root, game.appId) })));
             }

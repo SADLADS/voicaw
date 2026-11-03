@@ -213,6 +213,134 @@ describe('the in-game overlay (overlay.js)', () => {
     });
 });
 
+describe("the overlay on the game's screen", () => {
+    const LEFT = { id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 } };
+    const RIGHT = { id: 2, bounds: { x: 1920, y: 0, width: 2560, height: 1440 } };
+    const screen = {
+        getCursorScreenPoint: () => ({ x: 100, y: 100 }), // on the left screen
+        getDisplayNearestPoint: (p) => (p.x >= 1920 ? RIGHT : LEFT),
+    };
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    function setUp(findGameScreen) {
+        const windows = [];
+        const overlay = createOverlay({
+            createWindow: (options) => {
+                const win = fakeWindow(options);
+                windows.push(win);
+                return win;
+            },
+            screen,
+            url: 'voicaw://app/overlay.html',
+            getSettings: () => ({ overlay: true, overlayPosition: 'top-left' }),
+            onAction() {},
+            onOpen() {},
+            onPosition() {},
+            findGameScreen,
+        });
+        return { overlay, windows };
+    }
+
+    it("moves from the pointer's screen to the game's, and covers the game's screen unlocked", async () => {
+        const find = vi.fn(async () => ({ x: 3000, y: 700 }));
+        const { overlay, windows } = setUp(find);
+        overlay.setVoice(VOICE);
+        overlay.setGames({ running: true, runningPids: [42, 7, 42, -1, 'x'] });
+        const [win] = windows;
+        expect(win.options.x).toBe(16); // the pointer's screen first
+        await flush();
+        expect(find).toHaveBeenCalledWith([7, 42]);
+        expect(win.bounds).toMatchObject({ x: 1920 + 16, y: 16 });
+
+        // Voice changes (who's talking) don't look again once found.
+        overlay.setVoice({ ...VOICE, members: [{ ...VOICE.members[0], speaking: false }] });
+        await flush();
+        expect(find).toHaveBeenCalledTimes(1);
+
+        // Unlocking looks again (the game may have moved) and covers that screen.
+        find.mockResolvedValueOnce({ x: 500, y: 500 });
+        overlay.toggleLock();
+        await flush();
+        expect(find).toHaveBeenCalledTimes(2);
+        expect(win.bounds).toEqual(LEFT.bounds);
+        overlay.toggleLock();
+        expect(win.bounds).toMatchObject({ x: 16, y: 16 });
+
+        // Another game (the processes changed): looked for again.
+        find.mockResolvedValueOnce({ x: 2000, y: 10 });
+        overlay.setGames({ presencePids: [99] });
+        await flush();
+        expect(find).toHaveBeenLastCalledWith([7, 42, 99]);
+        expect(win.bounds).toMatchObject({ x: 1920 + 16 });
+    });
+
+    it("stays on the pointer's screen while the window isn't found, looking again now and then", async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+            const find = vi.fn(async () => null);
+            const { overlay, windows } = setUp(find);
+            overlay.setVoice(VOICE);
+            overlay.setGames({ running: true, runningPids: [42] });
+            await flush();
+            const [win] = windows;
+            expect(win.bounds).toMatchObject({ x: 16, y: 16 });
+            // Not on every voice change...
+            overlay.setVoice(VOICE);
+            overlay.setVoice(VOICE);
+            await flush();
+            expect(find).toHaveBeenCalledTimes(1);
+            // ...but on the next check of the games after a while: found then.
+            vi.setSystemTime(Date.now() + 11 * 1000);
+            find.mockResolvedValueOnce({ x: 2500, y: 100 });
+            overlay.setGames({ running: true, runningPids: [42] });
+            await flush();
+            expect(find).toHaveBeenCalledTimes(2);
+            expect(win.bounds).toMatchObject({ x: 1920 + 16 });
+            // A lookup that fails outright changes nothing.
+            find.mockRejectedValueOnce(new Error('no PowerShell'));
+            overlay.toggleLock();
+            await flush();
+            expect(win.bounds).toEqual(RIGHT.bounds);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('ignores an answer that came after the overlay went, or after a newer lookup', async () => {
+        const answers = [];
+        const find = vi.fn(() => new Promise((resolve) => answers.push(resolve)));
+        const { overlay, windows } = setUp(find);
+        overlay.setVoice(VOICE);
+        overlay.setGames({ running: true, runningPids: [42] });
+        overlay.setVoice(null);
+        answers[0]({ x: 3000, y: 10 });
+        await flush();
+        expect(windows[0].bounds).toMatchObject({ x: 16 });
+
+        overlay.setVoice(VOICE); // a new window, a new lookup
+        overlay.setGames({ runningPids: [43] }); // and a newer one
+        expect(answers).toHaveLength(3);
+        answers[2]({ x: 100, y: 100 });
+        answers[1]({ x: 3000, y: 10 });
+        await flush();
+        expect(windows[1].bounds).toMatchObject({ x: 16 });
+    });
+
+    it('stays where it appeared without a way to look, or without a game process', async () => {
+        const { overlay, windows } = setUp(null);
+        overlay.setVoice(VOICE);
+        overlay.setGames({ presence: true });
+        await flush();
+        expect(windows[0].bounds).toMatchObject({ x: 16, y: 16 });
+        const find = vi.fn();
+        const other = setUp(find);
+        other.overlay.setVoice(VOICE);
+        other.overlay.setGames({ presence: true });
+        await flush();
+        expect(find).not.toHaveBeenCalled();
+    });
+});
+
 describe('running Steam games (runningGames.js)', () => {
     const apps = [
         { appId: '252490', name: 'Rust', installDir: 'Rust', library: '/games', root: '/steam' },
@@ -254,6 +382,8 @@ describe('running Steam games (runningGames.js)', () => {
         });
         const games = await runningSteamGames({ platform: 'linux', fs, run: vi.fn(), apps });
         expect(games.map((g) => g.appId).sort()).toEqual(['212680', '252490']);
+        // With their processes, for finding the game's window.
+        expect(Object.fromEntries(games.map((g) => [g.appId, g.pids]))).toEqual({ 252490: [7, 8], 212680: [9] });
     });
 
     it("finds a Windows game from WMI's paths, and copes with nothing found or a failure", async () => {
@@ -264,6 +394,9 @@ describe('running Steam games (runningGames.js)', () => {
         expect(run.mock.calls[0][0]).toBe('powershell.exe');
         out = JSON.stringify(['C:\\Games\\steamapps\\common\\Proton - Experimental\\x.exe', 'C:\\Games\\steamapps\\common\\Rust\\RustClient.exe']);
         expect(await runningSteamGame({ platform: 'win32', fs, run, apps })).toEqual({ appId: '252490', name: 'Rust' });
+        // WMI's objects, with process ids.
+        out = JSON.stringify({ path: 'C:\\Games\\steamapps\\common\\Rust\\RustClient.exe', pid: 4242 });
+        expect((await runningSteamGames({ platform: 'win32', fs, run, apps }))[0]).toMatchObject({ appId: '252490', pids: [4242] });
         out = '';
         expect(await runningSteamGame({ platform: 'win32', fs, run, apps })).toBeNull();
         run.mockRejectedValueOnce(new Error('no PowerShell'));
@@ -272,8 +405,9 @@ describe('running Steam games (runningGames.js)', () => {
     });
 
     it('finds a macOS game from ps', async () => {
-        const run = vi.fn(async () => '/sbin/launchd\n/Users/a/Library/Application Support/Steam/steamapps/common/Rust/Rust.app/Contents/MacOS/Rust\n');
+        const run = vi.fn(async () => '    1 /sbin/launchd\n  812 /Users/a/Library/Application Support/Steam/steamapps/common/Rust/Rust.app/Contents/MacOS/Rust\n');
         expect(await runningSteamGame({ platform: 'darwin', fs: {}, run, apps })).toEqual({ appId: '252490', name: 'Rust' });
+        expect((await runningSteamGames({ platform: 'darwin', fs: {}, run, apps }))[0].pids).toEqual([812]);
     });
 });
 
