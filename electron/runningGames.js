@@ -14,7 +14,8 @@ const read = (fs, file) => {
     }
 };
 
-// The programs' paths (and on Linux the Steam app ids) of the processes we can see.
+// The programs' paths (and on Linux the Steam app ids) of the processes we can see, with their
+// process ids (for the overlay to find the game's window, gameWindow.js; null if unknown).
 async function processes({ platform, fs, run }) {
     if (platform === 'linux') {
         let pids;
@@ -30,36 +31,44 @@ async function processes({ platform, fs, run }) {
             if (environ === null) continue;
             const appId = /(?:^|\0)(?:SteamAppId|SteamGameId)=(\d+)/.exec(environ)?.[1] ?? null;
             const argv = (read(fs, `/proc/${pid}/cmdline`) ?? '').split('\0').filter(Boolean).slice(0, 4);
-            if (appId || argv.some((a) => /steamapps[\\/]common/i.test(a))) list.push({ appId, paths: argv });
+            if (appId || argv.some((a) => /steamapps[\\/]common/i.test(a))) list.push({ pid: Number(pid), appId, paths: argv });
         }
         return list;
     }
     try {
         if (platform === 'win32') {
             // WMI has paths even for processes that refuse to be opened (anti-cheat), mostly.
-            const script = "Get-CimInstance Win32_Process -Filter \"ExecutablePath LIKE '%steamapps%common%'\" | ForEach-Object { $_.ExecutablePath } | ConvertTo-Json -Compress";
+            const script = "Get-CimInstance Win32_Process -Filter \"ExecutablePath LIKE '%steamapps%common%'\" | ForEach-Object { @{ path = $_.ExecutablePath; pid = $_.ProcessId } } | ConvertTo-Json -Compress";
             const out = (await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script])).trim();
             if (!out) return [];
-            const paths = [].concat(JSON.parse(out)).filter((p) => typeof p === 'string');
-            return paths.map((p) => ({ appId: null, paths: [p] }));
+            return [].concat(JSON.parse(out))
+                .map((p) => (typeof p === 'string' ? { path: p } : p))
+                .filter((p) => typeof p?.path === 'string')
+                .map((p) => ({ pid: Number.isInteger(p.pid) ? p.pid : null, appId: null, paths: [p.path] }));
         }
-        const out = await run('ps', ['-axo', 'comm=']);
-        return out.split('\n').filter((line) => /steamapps\/common/i.test(line)).map((line) => ({ appId: null, paths: [line.trim()] }));
+        const out = await run('ps', ['-axo', 'pid=,comm=']);
+        return out.split('\n').filter((line) => /steamapps\/common/i.test(line)).map((line) => {
+            const [, pid, path] = /^\s*(\d+)\s+(.*)$/.exec(line) ?? [null, null, line];
+            return { pid: pid ? Number(pid) : null, appId: null, paths: [path.trim()] };
+        });
     } catch {
         return [];
     }
 }
 
 // Every Steam game running now, once each, as listed in `apps` (installed Steam apps,
-// gameLookup.js steamApps: { appId, name, root... }).
+// gameLookup.js steamApps: { appId, name, root... }), with `pids`: its processes' ids.
 async function runningSteamGames({ platform, fs, run, apps }) {
     if (!apps.length) return [];
     const found = new Map();
-    for (const { appId, paths } of await processes({ platform, fs, run })) {
+    for (const { pid, appId, paths } of await processes({ platform, fs, run })) {
         let app = appId && appId !== '0' ? apps.find((a) => a.appId === appId) : null;
         if (app && STEAM_TOOL.test(app.name)) app = null;
         app ??= steamGameForPaths(apps, paths);
-        if (app) found.set(app.appId, app);
+        if (!app) continue;
+        const game = found.get(app.appId) ?? { ...app, pids: [] };
+        if (pid) game.pids.push(pid);
+        found.set(app.appId, game);
     }
     return [...found.values()];
 }

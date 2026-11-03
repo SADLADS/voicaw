@@ -9,7 +9,8 @@
 // keeps it away.
 //   node e2e/serve.mjs &   (the client built for the desktop app against it first: README,
 //   "The real desktop app")   then   node e2e/overlay.mjs [screenshot dir]
-// E2E_OVERLAY_DISPLAY (:87) and E2E_OVERLAY_CDP_PORT (9347) if those are taken. Needs libXtst.
+// E2E_OVERLAY_DISPLAY (:87) and E2E_OVERLAY_CDP_PORT (9347) if those are taken. Needs libXtst
+// and xterm.
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync } from 'fs';
 import { spawn, execFileSync } from 'child_process';
 import { tmpdir } from 'os';
@@ -67,10 +68,12 @@ const display = process.env.E2E_OVERLAY_DISPLAY || ':87';
 const cdpPort = process.env.E2E_OVERLAY_CDP_PORT || '9347';
 const press = (...keys) => execFileSync('python3', [pressKeys, display, ...keys]);
 
-// The game: any program Steam started (SteamAppId in its environment).
+// The game: any program Steam started (SteamAppId in its environment), with a window (xterm,
+// on the right, so the overlay finds the game's window: gameWindow.js; Xvfb has one screen
+// here, so it stays top left).
 let game = null;
 const startGame = () => {
-  game = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { env: { PATH: process.env.PATH, SteamAppId: '367520' }, stdio: 'ignore' });
+  game = spawn('xterm', ['-geometry', '60x10+900+500'], { env: { PATH: process.env.PATH, DISPLAY: display, SteamAppId: '367520' }, stdio: 'ignore' });
 };
 
 const xvfb = spawn('Xvfb', [display, '-screen', '0', `${SCREEN.width}x${SCREEN.height}x24`], { stdio: 'ignore' });

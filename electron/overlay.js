@@ -1,7 +1,8 @@
 // The in-game overlay (as Discord's): while you're in a voice channel or call and playing a
 // game, a small window over the game shows who's there and who's talking, and the app's
 // notifications as toasts. It's a transparent, frameless, always-on-top window the mouse goes
-// through ("locked"), on the screen the pointer was on when it appeared, in the corner chosen.
+// through ("locked"), on the game's screen (gameWindow.js; the pointer's when the game's window
+// can't be found), in the corner chosen.
 // Its shortcut (Settings → Desktop App, default Ctrl+Shift+O; only taken while it's up)
 // unlocks it: it then covers the screen, dims the game and takes the mouse and keyboard, with
 // mute, deafen, disconnect, the corner and Open Voicaw; the shortcut again, Escape or a click
@@ -18,6 +19,8 @@ const path = require('path');
 const MAX_LOCKED = { width: 360, height: 720 };
 const MARGIN = 16;
 const POSITIONS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+// How often a game's window that wasn't found is looked for again.
+const RETRY_MS = 10 * 1000;
 
 // Where the locked window goes: `area` the screen's bounds, `size` the content's.
 function lockedBounds(area, size, position) {
@@ -62,15 +65,20 @@ function cleanVoiceState(input) {
 // ('toggleMute', 'toggleDeafen', 'disconnect'), for the main page. `onOpen(url)`: Open Voicaw,
 // or a toast clicked (its chat). `onPosition(corner)`: a corner picked on it, to save.
 // `onShownChange(shown)`: it appeared or went (main.js takes or
-// frees the shortcut).
-function createOverlay({ createWindow, screen, url, preload, getSettings, onAction, onOpen, onPosition, onShownChange = () => {}, disabled = false }) {
+// frees the shortcut). `findGameScreen(pids)`: resolves to a point on the screen the game's
+// window is on (Electron's coordinates), or null.
+function createOverlay({ createWindow, screen, url, preload, getSettings, onAction, onOpen, onPosition, onShownChange = () => {}, findGameScreen = null, disabled = false }) {
     let voice = null;
-    let games = { presence: false, running: false };
+    // `presencePids`: Rich Presence games' processes; `runningPids`: running Steam games'.
+    let games = { presence: false, running: false, presencePids: [], runningPids: [] };
     let win = null;
     let shown = false;
     let unlocked = false;
     let contentSize = { width: 240, height: 120 };
     let display = null;
+    let located = null; // the processes the game's screen was found for
+    let lookup = 0; // the latest lookup's number (an older one's answer is dropped)
+    let tried = { key: null, at: 0 }; // the last lookup started (retried after RETRY_MS)
 
     const position = () => (POSITIONS.includes(getSettings().overlayPosition) ? getSettings().overlayPosition : 'top-left');
     const wanted = () => !disabled && getSettings().overlay !== false && voice !== null && (games.presence || games.running);
@@ -89,12 +97,41 @@ function createOverlay({ createWindow, screen, url, preload, getSettings, onActi
         win.setBounds(unlocked ? display.bounds : lockedBounds(display.bounds, contentSize, position()));
     }
 
+    const gamePids = () => [...new Set([...games.presencePids, ...games.runningPids])].sort((a, b) => a - b);
+
+    // Moves it onto the game's screen. Asked when it appears, when it's unlocked, when the game's
+    // processes change, and every RETRY_MS until the window is found (a game can be running a
+    // while before it opens one); otherwise it stays where it is. Voice changes call this often
+    // (who's talking), and a lookup can cost a PowerShell, so not every time.
+    async function locate({ again = false } = {}) {
+        if (!findGameScreen || !win || win.isDestroyed()) return;
+        const pids = gamePids();
+        const key = pids.join(',');
+        if (!pids.length || (!again && located === key)) return;
+        if (!again && tried.key === key && Date.now() - tried.at < RETRY_MS) return;
+        tried = { key, at: Date.now() };
+        const number = ++lookup;
+        const target = win;
+        const point = await Promise.resolve(findGameScreen(pids)).catch(() => null);
+        if (number !== lookup || win !== target || !win || win.isDestroyed()) return;
+        if (!point) {
+            located = null;
+            return;
+        }
+        located = key;
+        display = screen.getDisplayNearestPoint(point);
+        place();
+    }
+
     function send(channel, value) {
         if (win && !win.isDestroyed()) win.webContents.send(channel, value);
     }
 
     function open() {
+        // The pointer's screen until the game's is found (usually a moment later).
         display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+        located = null;
+        tried = { key: null, at: 0 };
         win = createWindow({
             ...lockedBounds(display.bounds, contentSize, position()),
             show: false,
@@ -134,6 +171,7 @@ function createOverlay({ createWindow, screen, url, preload, getSettings, onActi
             win = null;
         });
         win.loadURL(url);
+        locate();
     }
 
     function setUnlocked(on) {
@@ -142,6 +180,7 @@ function createOverlay({ createWindow, screen, url, preload, getSettings, onActi
         win.setIgnoreMouseEvents(!on, { forward: true });
         win.setFocusable(on);
         place();
+        if (on) locate({ again: true });
         if (on) win.focus();
         else win.blur();
         send('overlay:state', view());
@@ -163,6 +202,7 @@ function createOverlay({ createWindow, screen, url, preload, getSettings, onActi
         } else if (shown) {
             place();
             send('overlay:state', view());
+            locate();
         }
     }
 
@@ -171,9 +211,16 @@ function createOverlay({ createWindow, screen, url, preload, getSettings, onActi
             voice = cleanVoiceState(state);
             refresh();
         },
-        // `presence`: a Rich Presence game is playing; `running`: a Steam game is running.
+        // `presence`: a Rich Presence game is playing; `running`: a Steam game is running;
+        // `presencePids` / `runningPids`: their processes (for finding the game's screen).
         setGames(changes) {
-            games = { ...games, ...changes };
+            const pids = (list) => (Array.isArray(list) ? list.filter((p) => Number.isInteger(p) && p > 0).slice(0, 64) : []);
+            games = {
+                ...games,
+                ...changes,
+                presencePids: 'presencePids' in changes ? pids(changes.presencePids) : games.presencePids,
+                runningPids: 'runningPids' in changes ? pids(changes.runningPids) : games.runningPids,
+            };
             refresh();
         },
         settingsChanged: refresh,
