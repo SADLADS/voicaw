@@ -24,7 +24,7 @@ const { createSplash } = require('./splash');
 const { setStartAtLogin, startedHidden } = require('./autoStart');
 const { createScreenShare } = require('./screenShare');
 const { createStreamSound } = require('./streamSound');
-const { windowOpenAction, streamWindowPermission } = require('./windowOpen');
+const { windowOpenAction, popoutNavigationAllowed, streamWindowPermission } = require('./windowOpen');
 const { setUpYouTubeReferer } = require('./youtube');
 const { fetchPage } = require('./pageFetch');
 const { createFileSaver } = require('./fileSave');
@@ -184,7 +184,9 @@ function createWindow(hidden, onShown = () => {}) {
         child.removeMenu();
         streamWindows.add(child.webContents);
         child.webContents.setWindowOpenHandler(({ url }) => windowOpenAction({ url }, { icon, openExternal: (link) => shell.openExternal(link) }));
-        child.webContents.on('will-navigate', (event) => event.preventDefault());
+        child.webContents.on('will-navigate', (event, url) => {
+            if (!popoutNavigationAllowed(url)) event.preventDefault();
+        });
     });
     win.webContents.on('will-navigate', (event, url) => {
         if (url.startsWith(`${ORIGIN}/`)) return;

@@ -30,10 +30,18 @@ function windowOpenAction({ url, frameName }, { icon, openExternal }) {
     return { action: 'deny' };
 }
 
+// Whether a popped-out window may go to `url` (will-navigate). Electron reports a window's first
+// load as a navigation too, so Watch Together's must be let load its page (blocked, it stayed
+// a black about:blank, and the player never moved out of the app). Nothing else: a popped-out
+// window never leaves the page it opened on.
+function popoutNavigationAllowed(url) {
+    return url === POPOUT_PAGE;
+}
+
 // What a popped-out window may ask for: only full screen (the stream's page is about:blank, so
 // the app's own pages' check, by URL, doesn't cover it; neither may anything in a window).
 function streamWindowPermission(permission) {
     return permission === 'fullscreen';
 }
 
-module.exports = { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, windowOpenAction, streamWindowPermission };
+module.exports = { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, windowOpenAction, popoutNavigationAllowed, streamWindowPermission };

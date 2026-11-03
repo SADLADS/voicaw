@@ -12,7 +12,7 @@ const { paintDot, unreadLabel } = require('../tray.js');
 const { linuxAutostartEntry } = require('../autoStart.js');
 const { spellcheckLanguages, syncSpellingWords } = require('../spellcheck.js');
 const { REFERER, withYouTubeReferer } = require('../youtube.js');
-const { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, windowOpenAction, streamWindowPermission } = require('../windowOpen.js');
+const { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, windowOpenAction, popoutNavigationAllowed, streamWindowPermission } = require('../windowOpen.js');
 
 describe('serving the app (protocol.js)', () => {
     let root;
@@ -197,6 +197,13 @@ describe('windows the page opens (windowOpen.js)', () => {
         expect(open({ url: 'voicaw://app/', frameName: STREAM_WINDOW_NAME })).toEqual({ result: { action: 'deny' }, opened: [] });
         expect(open({ url: 'about:blank', frameName: 'other' })).toEqual({ result: { action: 'deny' }, opened: [] });
         expect(open({ url: 'file:///etc/passwd', frameName: '' }).opened).toEqual([]);
+    });
+
+    it('lets a popped-out window load the pop-out page (its first load is a navigation) and go nowhere else', () => {
+        expect(popoutNavigationAllowed('voicaw://app/popout.html')).toBe(true);
+        for (const url of ['voicaw://app/', 'voicaw://app/dm/5', 'https://www.youtube.com/', 'voicaw://other/popout.html', 'file:///etc/passwd']) {
+            expect(popoutNavigationAllowed(url)).toBe(false);
+        }
     });
 
     it('gives the stream window full screen and nothing else', () => {

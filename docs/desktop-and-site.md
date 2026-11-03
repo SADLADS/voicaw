@@ -22,8 +22,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   screen share (a blank window named `voicaw-stream`; see Screen sharing in
   `docs/voice-and-calls.md`) and Watch Together's player (`voicaw-watch-together`, only on
   `voicaw://app/popout.html`, which YouTube's player needs for its Referer; see Watch Together),
-  both drawn into by the page itself: the app's icon, no menu, never navigate, open nothing,
-  and may only go full screen. They stay open while the main window is in the tray. The app's
+  both drawn into by the page itself: the app's icon, no menu, never navigate (but to
+  `popout.html`: Electron reports a window's first load as `will-navigate` too, and blocking it
+  left Watch Together's window black), open nothing, and may only go full screen. They stay open while the main window is in the tray. The app's
   own other window is the in-game overlay (below).
 - **Title bar** (2026-10-28, Discord's): the main window has no frame of its own
   (`titleBarStyle: 'hidden'`; macOS keeps its own buttons, moved into the bar with
