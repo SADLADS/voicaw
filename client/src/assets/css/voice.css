@@ -1990,10 +1990,72 @@ body.popout-window {
   transform: scaleX(-1);
 }
 
-/* Tiles get bigger while someone's camera is on; a camera fills its tile, the name and icons
-   over it, like the stream bar. */
+/* While someone's camera is on, cameras fill the page (--camera-tile-width: hooks/useFittedTiles.js)
+   and everyone else goes small under them. A camera fills its tile, the name and icons over it,
+   like the stream bar. */
 .voice-view-tiles.with-video {
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.voice-view-cameras {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 16px;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: 12px;
+}
+
+.voice-view-cameras .voice-tile.video {
+  flex: none;
+  width: var(--camera-tile-width, 260px);
+}
+
+.voice-view-others {
+  flex-shrink: 0;
+  max-height: 30%;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 16px;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.voice-view-others .voice-tile {
+  flex-direction: row;
+  padding: 6px 12px 6px 8px;
+  gap: 8px;
+}
+
+.voice-view-others .voice-tile-avatar {
+  width: 28px;
+  height: 28px;
+}
+
+/* Clickable (a camera focuses, the rest set the volume). */
+.voice-tile[role='button'],
+.call-panel-person[role='button'] {
+  cursor: pointer;
+}
+
+/* In the row, the one shown big above: their picture. */
+.voice-tile.on-stage {
+  box-shadow: inset 0 0 0 2px var(--vc-accent);
+}
+
+.voice-tile.on-stage.speaking {
+  box-shadow: inset 0 0 0 2px var(--vc-online);
 }
 
 .voice-tile.video {
@@ -2038,7 +2100,8 @@ body.popout-window {
 
 /* Above everything in the tile, so a speaking camera is still outlined. */
 .voice-tile.video.speaking::after,
-.call-panel-video.speaking::after {
+.call-panel-video.speaking::after,
+.stream-view.camera.speaking::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -2074,10 +2137,87 @@ body.popout-window {
   width: min(220px, calc((100vw - 64px) / 2));
 }
 
-/* A camera's full screen button (CameraFullScreenButton), in its tile's top corner: on hover
-   or focus with a mouse, always on touch screens (nothing to hover). Over the video in every
-   theme, like the tile's name. */
-.camera-full-screen {
+/* Their picture shows through a tile's video until its first frame arrives. */
+.camera-tile .camera-video {
+  position: relative;
+  background-color: transparent;
+}
+
+.voice-tile.video .voice-tile-video {
+  position: absolute;
+}
+
+.camera-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+}
+
+/* A focused camera, on the stage (StreamView). */
+.stream-video.mirrored {
+  transform: scaleX(-1);
+}
+
+.stream-video.paused {
+  visibility: hidden;
+}
+
+.stream-camera-waiting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+}
+
+.stream-camera-waiting p {
+  margin: 0;
+}
+
+.stream-camera-picture {
+  width: 96px;
+  height: 96px;
+}
+
+.stream-view.corner .stream-camera-picture {
+  width: 56px;
+  height: 56px;
+}
+
+.stream-mic-off {
+  display: flex;
+  --slash-gap: #000;
+}
+
+/* The bar makes way while the pointer rests (not on the bar, nor with its focus inside). */
+.stream-bar {
+  transition: opacity 0.2s;
+}
+
+.stream-view.idle .stream-bar:not(:hover):not(:focus-within) {
+  opacity: 0;
+}
+
+.stream-view.idle:fullscreen {
+  cursor: none;
+}
+
+/* A stream being watched while a camera is focused, small among the people (StreamTile). */
+.voice-tile.video.stream-tile .voice-tile-name {
+  max-width: calc(100% - 62px);
+}
+
+.stream-tile-video {
+  object-fit: contain;
+}
+
+.stream-tile-stop {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -2085,43 +2225,39 @@ body.popout-window {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   border-radius: 4px;
   background-color: rgba(0, 0, 0, 0.6);
   color: #fff;
-  cursor: pointer;
 }
 
-.camera-full-screen:hover {
+.stream-tile-stop:hover {
   background-color: rgba(0, 0, 0, 0.8);
 }
 
 @media (hover: hover) {
-  .camera-full-screen {
+  .stream-tile-stop {
     opacity: 0;
     transition: opacity 0.15s;
   }
 
-  .camera-tile:hover .camera-full-screen,
-  .camera-full-screen:focus-visible {
+  .stream-tile:hover .stream-tile-stop,
+  .stream-tile-stop:focus-visible {
     opacity: 1;
   }
 }
 
-/* Full screen, the whole camera shows (not cropped to the tile's 16:9). */
-.camera-tile:fullscreen {
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  aspect-ratio: auto;
-  border-radius: 0;
+.call-stream-tile {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
 }
 
-.camera-tile:fullscreen .camera-video {
-  object-fit: contain;
+.call-stream-tile .voice-tile.video {
+  width: 200px;
 }
 
 /* A screen share in a DM or group call (CallStream): the panel's width, at most 40% of

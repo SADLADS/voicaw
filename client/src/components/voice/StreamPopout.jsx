@@ -5,25 +5,32 @@ import { useStreamWindow } from '../../hooks/useStreamWindow';
 import { closeStreamWindow, setStreamWindowTitle } from '../../voice/streamWindow';
 import { displayName, useProfiles } from '../../utils/profiles';
 import StreamView from './StreamView';
+import { stageOf } from '../../voice/stage';
+import { participantName } from '../../voice/voiceClient';
 import { t } from '../../i18n';
 
-// The watched screen share in its own window (voice/streamWindow.js), drawn from Layout so it
-// carries on whichever page you're on. The window goes once there's nothing to watch.
+// What's on the stage (the watched screen share or the focused camera) in its own window
+// (voice/streamWindow.js), drawn from Layout so it carries on whichever page you're on. The
+// window goes once there's nothing to show.
 export default function StreamPopout() {
   useProfiles();
   const container = useStreamWindow();
-  const { watching, identity } = useVoice();
-  const own = watching != null && watching === identity;
-  const name = watching == null ? '' : displayName(watching);
+  const voice = useVoice();
+  const stage = stageOf(voice);
+  const camera = stage?.kind === 'camera';
+  const own = stage != null && stage.id === voice.identity;
+  const name = stage == null ? '' : displayName(stage.id, participantName(stage.id));
 
   useEffect(() => {
-    if (container && watching == null) closeStreamWindow();
-  }, [container, watching]);
+    if (container && stage == null) closeStreamWindow();
+  }, [container, stage]);
 
   useEffect(() => {
-    if (container && watching != null) setStreamWindowTitle(own ? t('voice.stream.ownWindowTitle') : t('voice.stream.windowTitle', { name }));
-  }, [container, watching, own, name]);
+    if (!container || stage == null) return;
+    const kind = camera ? 'camera' : 'stream';
+    setStreamWindowTitle(own ? t(`voice.${kind}.ownWindowTitle`) : t(`voice.${kind}.windowTitle`, { name }));
+  }, [container, stage?.id, camera, own, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!container || watching == null) return null;
-  return createPortal(<StreamView key={watching} userId={watching} name={name} own={own} popout />, container);
+  if (!container || stage == null) return null;
+  return createPortal(<StreamView key={`${stage.kind}-${stage.id}`} userId={stage.id} name={name} own={own} camera={camera} popout />, container);
 }

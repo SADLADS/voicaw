@@ -18,6 +18,9 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
   const percent = Math.round(Math.min(volume, maxUserVolume()) * 100);
   const sliderId = useId();
   const rootRef = useRef(null);
+  // A click only counts from a touch that started on the sheet (not the finger lifting from the
+  // long press that opened it).
+  const touchedHere = useRef(false);
   const sliderRef = useRef(null);
   const [position, setPosition] = useState({ left: anchor?.left ?? 0, top: anchor?.bottom ?? 0, visibility: 'hidden' });
 
@@ -97,7 +100,18 @@ export default function UserVolumeMenu({ userId, name, anchor, sheet = false, on
 
   if (sheet) {
     return createPortal(
-      <div className="action-sheet-backdrop" onClick={onClose} onContextMenu={(e) => e.preventDefault()}>
+      <div
+        className="action-sheet-backdrop"
+        onPointerDown={() => { touchedHere.current = true; }}
+        onClickCapture={(e) => {
+          if (!touchedHere.current) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        onClick={onClose}
+        onContextMenu={(e) => e.preventDefault()}
+      >
         <div
           className="action-sheet context-sheet user-volume-sheet"
           role="dialog"

@@ -4,11 +4,21 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
 const voice = vi.hoisted(() => ({ state: { watchingReady: false, selfDeaf: false } }));
 vi.mock('../../hooks/useVoice', () => ({ useVoice: () => voice.state }));
-vi.mock('../../voice/voiceClient', () => ({ attachStream: () => () => {}, setStreamError() {}, watchStream() {} }));
+const camera = vi.hoisted(() => ({ shown: [], focus: vi.fn(), watch: vi.fn() }));
+vi.mock('../../voice/voiceClient', () => ({
+  attachStream: () => () => {},
+  setStreamError() {},
+  watchStream: camera.watch,
+  focusCamera: camera.focus,
+  showCamera: (id) => {
+    camera.shown.push(id);
+    return () => {};
+  },
+}));
 vi.mock('../../voice/streamWindow', () => ({ closeStreamWindow() {}, openStreamWindow() {} }));
 
 import StreamView from './StreamView';
-import { getStreamVolume, getUserVolume, setStreamVolume } from '../../voice/userVolumes';
+import { getStreamVolume, getUserVolume, setStreamVolume, setUserVolume } from '../../voice/userVolumes';
 
 afterEach(() => {
   cleanup();
@@ -57,6 +67,94 @@ describe('StreamView volume', () => {
   it('isn’t offered for our own stream', () => {
     render(<StreamView userId={7} name="alice" own />);
     expect(screen.queryByRole('slider', { name: 'Stream volume (just for you)' })).toBeNull();
+  });
+});
+
+describe('StreamView with a camera', () => {
+  const inRoom = { watchingReady: false, selfDeaf: false, cameras: ['7', '1'], muted: [], speaking: [] };
+
+  afterEach(() => {
+    setUserVolume(7, 1);
+    camera.shown.length = 0;
+    camera.focus.mockClear();
+    camera.watch.mockClear();
+  });
+
+  it('shows the camera, not a screen: no Live, nobody watching, no zoom buttons', () => {
+    voice.state = { ...inRoom, watchers: { 7: [{ id: '8', username: 'bob' }] } };
+    render(<StreamView userId={7} name="alice" camera />);
+    expect(camera.shown).toEqual([7]);
+    expect(screen.getByLabelText("alice's camera")).toBeTruthy();
+    expect(screen.queryByText('Live')).toBeNull();
+    expect(screen.queryByText('Loading stream…')).toBeNull();
+    expect(screen.queryByRole('button', { name: /watching/ })).toBeNull();
+    expect(screen.queryByRole('slider', { name: 'Zoom' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Video quality' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Pop out' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Full screen' })).toBeTruthy();
+  });
+
+  it('sets the person’s volume, not a stream’s, and mutes back to what it was', () => {
+    voice.state = inRoom;
+    setStreamVolume(7, 0.5);
+    render(<StreamView userId={7} name="alice" camera />);
+    const slider = screen.getByRole('slider', { name: 'Volume (just for you)' });
+    fireEvent.change(slider, { target: { value: '70' } });
+    expect(getUserVolume(7)).toBe(0.7);
+    expect(getStreamVolume(7)).toBe(0.5);
+    fireEvent.click(screen.getByRole('button', { name: 'Mute' }));
+    expect(getUserVolume(7)).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Unmute' }));
+    expect(getUserVolume(7)).toBe(0.7);
+  });
+
+  it('✕ goes back to everyone and leaves a watched stream alone', () => {
+    voice.state = { ...inRoom, watching: '9' };
+    render(<StreamView userId={7} name="alice" camera />);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to everyone' }));
+    expect(camera.focus).toHaveBeenCalledWith(null);
+    expect(camera.watch).not.toHaveBeenCalled();
+  });
+
+  it('is called Close where going back to everyone means nothing', () => {
+    voice.state = inRoom;
+    render(<StreamView userId={7} name="alice" camera corner />);
+    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy();
+  });
+
+  it('rings them while they talk, and says when their mic is off', () => {
+    voice.state = { ...inRoom, speaking: ['7'] };
+    const { container, unmount } = render(<StreamView userId={7} name="alice" camera />);
+    expect(container.querySelector('.stream-view.speaking')).not.toBeNull();
+    expect(screen.queryByLabelText('Microphone off')).toBeNull();
+    unmount();
+    voice.state = { ...inRoom, speaking: ['7'], muted: ['7'] };
+    const again = render(<StreamView userId={7} name="alice" camera />);
+    expect(again.container.querySelector('.stream-view.speaking')).toBeNull();
+    expect(screen.getByLabelText('Microphone off')).toBeTruthy();
+  });
+
+  it('says so while the camera is paused', () => {
+    voice.state = { ...inRoom, cameras: ['1'] };
+    const { container } = render(<StreamView userId={7} name="alice" camera />);
+    expect(screen.getByText('Camera paused')).toBeTruthy();
+    expect(container.querySelector('video.paused')).not.toBeNull();
+  });
+
+  it('has no volume or quality for your own, mirrored, also while zoomed', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(450);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 800, height: 450 });
+    voice.state = { ...inRoom, identity: '1' };
+    const { container } = render(<StreamView userId={1} name="me" own camera />);
+    expect(screen.getByText('Your camera')).toBeTruthy();
+    expect(screen.queryByRole('slider', { name: 'Volume (just for you)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Video quality' })).toBeNull();
+    const video = container.querySelector('video');
+    expect(video.className).toContain('mirrored');
+    fireEvent.wheel(container.querySelector('.stream-view'), { deltaY: -500, clientX: 400, clientY: 225 });
+    expect(video.style.transform).toContain('scaleX(-1)');
+    vi.restoreAllMocks();
   });
 });
 

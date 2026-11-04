@@ -80,8 +80,10 @@ LiveKit carries the audio.
   (which unmutes elements).
 - **Per-user volume** (like Discord's User Volume; `voice/userVolumes.js`, per device,
   `localStorage userVolumes`, by user id, 0–200%, the same for channels and calls): click (or
-  right-click, Enter) someone else in a voice channel's list in the sidebar, their tile, or the
-  DM/group call panel, once you're in that channel or call (`hooks/useVolumeMenu.js`), for
+  right-click, long press, Enter) someone else in a voice channel's list in the sidebar, their tile, or the
+  DM/group call panel, once you're in that channel or call (`hooks/useVolumeMenu.js`; on a
+  camera a click or Enter focuses it instead, so there it's the right click or long press, or the
+  stage's slider, see Focusing a camera), for
   `voice/UserVolumeMenu.jsx`: a slider, Reset and Copy User ID, floating on a computer (placed like
   `ContextMenu`, `utils/menuPlacement.js`), a sheet on a phone. Applied live.
 - **Stream volume** (like Discord's Stream Volume): a screen share's sound has its own volume per
@@ -235,17 +237,41 @@ LiveKit carries the audio.
   keeps it current), so LiveKit sends the smallest layer that fills it (a 500 px tile gets
   360p). LiveKit's own `adaptiveStream` does this too, but it pauses every video while the page
   is hidden or an element isn't in its viewport, which would freeze a stream watched in its
-  pop-out window, so it isn't used. In a voice channel, a camera fills its tile (16:9, name and
-  icons over it; tiles grow while any camera is on); in a call it replaces the person's picture
+  pop-out window, so it isn't used. On top of that, a tile scrolled out of a row or a long grid
+  isn't shown (`CameraVideo`'s IntersectionObserver), and a camera that stops being shown is let
+  go 300 ms later (`syncSubscriptionsSoon`), so moving between a tile, the stage and the corner
+  doesn't blink. In a voice channel, a camera fills its tile (16:9, cropped, name and
+  icons over it, their picture showing through until the first frame) and cameras fill the page:
+  `voice/tileFit.js` tries every number of columns for the biggest tile that fits without
+  scrolling (`hooks/useFittedTiles.js`), with everyone else small under them. In a call it replaces the person's picture
   in the panel. Your own is mirrored, as in a mirror (others see it the right way round),
-  except a phone's back camera. **Full screen** (2026-11-02, as a watched stream's): every
-  camera's tile has a full screen button in its top corner (`voice/CameraFullScreenButton.jsx`;
-  on hover with a mouse, always on touch screens), and a double click on the tile does the same
-  (`voice/fullScreen.js` `fullScreenCamera`, which also closes the volume menu its clicks
-  opened). The whole tile (`.camera-tile`) goes full screen, not the `<video>`, so the name
-  and the mirroring stay (browsers drop a full-screen video's transform); there the camera
-  shows uncropped (`object-fit: contain`), and the ResizeObserver above asks for the bigger
-  layer. **Front and back** (2026-10-27): on a phone or tablet
+  except a phone's back camera. **Focusing a camera** (2026-11-04; treated like a watched
+  stream): a click (or Enter, a tap) on a camera's tile shows it on the stage, uncropped, in
+  `StreamView` with `camera`, the people becoming a row, in voice channels and calls alike;
+  `voiceClient` `focusCamera`, `snapshot.focusedCamera`, this device's alone (nobody is told, and
+  no server change). What's big comes from `voice/stage.js` `stageOf`: the focused camera, else
+  the watched stream. Their tile then shows their picture, not a second copy, and a click on it
+  (or Escape, or ✕) goes back to everyone; the left and right arrows step through the cameras
+  (`hooks/useCameraFocus.js`; not while typing, on a slider or over a dialog). Your own can be
+  focused too. The bar is the stream's, but: the volume is **the person's** (`setUserVolume`, the
+  same value as their volume menu's, a camera having no sound), no Live or who's watching, zoom
+  only by wheel and fingers (at most 720p: no slider), Video quality for Stream quality (the
+  same device choice, `streamViewQuality`; Data saver asks for at most 640×360, `sizeCamera`),
+  their mic's state and the talking ring. A **stream being watched** while a camera is focused
+  stays watched, with its sound, small in the row (`voice/StreamTile.jsx`, its own ✕ stops
+  it); clicking it brings it back, as does Watch Stream on another. In a 1:1 call, a stream the
+  other person starts doesn't push a focused camera aside (Watch Stream instead). **The corner**
+  (`cornerOf`) shows the focused camera, or a watched stream if it's your own; only one, so a
+  stream under a focused camera keeps its sound but not its picture while you're on another page.
+  **Pop out** uses the stream's window, and that camera keeps downloading while the page is
+  hidden (`wants` looks at each element's own document); it follows the arrows and clicks on the
+  page. The focus ends when the camera goes (turned off, Video taken away, they leave) or you
+  do; a camera only paused (a phone in the background) keeps it, showing their picture and
+  "Camera paused". Watch Together makes way as for a stream. **Full screen:** a double click on a
+  tile (`fullScreen.js` `fullScreenStage`: its first click focused it, the second does nothing)
+  or the bar's button puts the stage in full screen. The stage's bar fades after 3 s
+  without the pointer moving, on streams too (with a mouse; not while it's hovered or has the
+  focus). `e2e/camerafocus.mjs`. layer. **Front and back** (2026-10-27): on a phone or tablet
   (`isMobileDevice`), a Switch camera button sits next to the camera's while it's on;
   `switchCamera` restarts the same track (`restartTrack`, which lets the old camera go first:
   phones open one at a time) with `facingMode` the other way, so nothing is published again.
@@ -573,7 +599,7 @@ LiveKit carries the audio.
 - **Not done yet:** a per-user local mute (Discord has one), output volume above 100%, server mute/move (Mute Members, Move Members), push to talk
   with a key combination or several keys, Discord's push to talk (priority), noise suppression and the gate on the other side (for people whose
   app doesn't, like Discord's "suppress others' noise"),
-  background blur, a camera spotlight (one camera big, like a watched stream); Watch Together: a party surviving an API restart, other sites than YouTube and the guild's
+  background blur, hiding someone's camera or your own tile on this device; Watch Together: a party surviving an API restart, other sites than YouTube and the guild's
   Jellyfin or Emby (Plex), choosing a media server video's subtitles or audio track (the
   account's settings on the server decide; not checked how subtitles come out),
   playlists, start times from links (`t=`). Phones: a PWA's audio stops when it's in the background (iOS also when locked; it

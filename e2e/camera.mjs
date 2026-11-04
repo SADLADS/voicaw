@@ -143,34 +143,24 @@ try {
   if (watching < 5000) throw new Error(`bob received too little video: ${watching}`);
   await shot(b, '02-bob-sees-alice-camera');
 
-  // Full screen, as a stream's: the button shows on hover, the whole tile goes full screen
-  // (uncropped, a bigger layer), the volume menu stays shut; out again; a double click too.
-  const fullButton = `${tile(alice.name)} button.camera-full-screen`;
-  const opacity = () => b.locator(fullButton).evaluate((el) => getComputedStyle(el).opacity);
-  if (await opacity() !== '0') throw new Error('full screen button shown without hovering');
-  await b.hover(tile(alice.name));
-  for (let i = 0; await opacity() !== '1'; i++) {
-    if (i > 20) throw new Error('full screen button not shown on hover');
-    await b.waitForTimeout(50);
-  }
-  await b.click(fullButton);
-  await b.waitForFunction(() => document.fullscreenElement?.matches('.voice-tile.camera-tile'));
-  if (await b.locator('.user-volume-head').count()) throw new Error('the button opened the volume menu');
-  const fit = await cameraVideo(b, tile(alice.name)).evaluate((v) => getComputedStyle(v).objectFit);
+  // Full screen (camerafocus.mjs has the rest of focusing): a double click focuses it and puts
+  // it in full screen, uncropped, at a bigger layer, with no volume menu; out again.
+  await b.dblclick(`${tile(alice.name)} .camera-video`);
+  await b.waitForFunction(() => document.fullscreenElement?.matches('.stream-view.camera'));
+  if (await b.locator('.user-volume-head').count()) throw new Error('double click left the volume menu open');
+  const stageVideo = b.locator('.stream-view.camera video');
+  const fit = await stageVideo.evaluate((v) => getComputedStyle(v).objectFit);
   if (fit !== 'contain') throw new Error(`full screen camera is cropped: ${fit}`);
   await b.waitForTimeout(3000); // the layer follows the size
-  const big = await videoSize(b, tile(alice.name));
-  console.log(`full screen: ${big.w}x${big.h} in a ${big.tile}px tile`);
+  const big = await stageVideo.evaluate((v) => ({ w: v.videoWidth, h: v.videoHeight, tile: v.clientWidth }));
+  console.log(`full screen: ${big.w}x${big.h} in a ${big.tile}px stage`);
   if (sent.w > 0 && big.w <= small.w) throw new Error('full screen kept the small layer');
   await shot(b, '02b-bob-full-screen');
-  await b.click(`${tile(alice.name)} button[aria-label="Exit full screen"]`);
-  await b.waitForFunction(() => !document.fullscreenElement);
-  await b.dblclick(`${tile(alice.name)} .camera-video`);
-  await b.waitForFunction(() => document.fullscreenElement?.matches('.voice-tile.camera-tile'));
-  if (await b.locator('.user-volume-head').count()) throw new Error('double click left the volume menu open');
   await b.evaluate(() => document.exitFullscreen());
   await b.waitForFunction(() => !document.fullscreenElement);
-  console.log('bob put alice\'s camera in full screen (button and double click) and back');
+  await b.click('.stream-view.camera button[aria-label="Back to everyone"]');
+  await b.waitForSelector('.stream-view', { state: 'detached' });
+  console.log('bob put alice\'s camera in full screen and back');
 
   // Bob goes to another page: the camera isn't downloaded there; back, it plays again.
   await b.click('.guild-channel-link:has-text("general")');
@@ -190,8 +180,6 @@ try {
   await c.waitForSelector('.voice-view-controls');
   await cameraPlaying(c, tile(alice.name));
   console.log('carol (phone) sees alice\'s camera');
-  const phoneButton = await c.locator(`${tile(alice.name)} button.camera-full-screen`).evaluate((el) => getComputedStyle(el).opacity);
-  if (phoneButton !== '1') throw new Error('no full screen button on a touch screen');
   await shot(c, '03-carol-phone');
 
   // Bob turns his on (the voice bar's button); Alice takes Video away from him: it goes off.
@@ -237,12 +225,13 @@ try {
   console.log('DM call: both cameras play, encrypted end to end');
   await shot(a, '06-dm-call-cameras');
   const bobsCamera = `.call-panel-person:has([aria-label="${bob.name}'s camera"])`;
-  await a.hover(bobsCamera);
-  await a.click(`${bobsCamera} button.camera-full-screen`);
-  await a.waitForFunction(() => document.fullscreenElement?.matches('.call-panel-video.camera-tile'));
+  await a.dblclick(bobsCamera);
+  await a.waitForFunction(() => document.fullscreenElement?.matches('.call-panel .stream-view.camera'));
   await shot(a, '06b-dm-call-full-screen');
-  await a.click(`${bobsCamera} button[aria-label="Exit full screen"]`);
+  await a.evaluate(() => document.exitFullscreen());
   await a.waitForFunction(() => !document.fullscreenElement);
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.call-panel .stream-view', { state: 'detached' });
   console.log('DM call: alice put bob\'s camera in full screen and back');
   await b.click('.call-panel button[aria-label="Hang up"]');
   await a.waitForSelector('.call-panel', { state: 'detached', timeout: 10000 });

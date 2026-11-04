@@ -61,7 +61,9 @@ import { keepScreenOn } from '../utils/keepScreenOn';
 // audio): yours goes out as LiveKit's camera track, in three sizes (simulcast). Someone's
 // camera is only downloaded while a tile on screen shows it (showCamera), at the size of the
 // biggest one (LiveKit's adaptiveStream would do this, but it also pauses every video while
-// the page is hidden, which would freeze a stream watched in its pop-out window).
+// the page is hidden, which would freeze a stream watched in its pop-out window). One camera
+// can be focused (focusCamera), shown big like a watched stream; that's this device's alone,
+// nobody is told.
 //
 // A voice channel connection that's lost (not left, removed or replaced) is joined again
 // (rejoin.js): the voice bar says "Reconnecting…" meanwhile. Phones wait until the app is
@@ -103,7 +105,8 @@ function loadPrefs() {
 // (the user ids, strings, whose camera is on in this room, you included; not yours while it's
 // paused, see pauseCameraWhileHidden), `cameraError`,
 // `cameraFacing` (null: the camera chosen in Settings; 'user' or 'environment' once a phone's
-// camera was switched, see switchCamera).
+// camera was switched, see switchCamera), `focusedCamera` (the user id, a string, of the camera
+// shown big on this device, or null; it stays while that camera is paused, see stage.js).
 const NOT_IN_VOICE = {
   status: 'idle',
   guildId: null,
@@ -124,6 +127,7 @@ const NOT_IN_VOICE = {
   cameras: [],
   cameraError: null,
   cameraFacing: null,
+  focusedCamera: null,
 };
 let snapshot = {
   ...NOT_IN_VOICE,
@@ -209,11 +213,12 @@ const isScreenSource = (source) =>
   source === livekit.Track.Source.ScreenShare || source === livekit.Track.Source.ScreenShareAudio;
 
 // Microphones always; a screen share and its sound only while we watch that person; a camera
-// only while it's shown on screen (and the page isn't hidden).
+// only while it's shown on screen, somewhere that isn't hidden (a pop-out window still shows
+// while the page is hidden).
 function wants(participant, publication) {
   if (isScreenSource(publication.source)) return snapshot.watching === participant.identity;
   if (publication.source === livekit.Track.Source.Camera) {
-    return cameraViews.has(participant.identity) && !(typeof document !== 'undefined' && document.hidden);
+    return [...(cameraViews.get(participant.identity) ?? [])].some(onVisiblePage);
   }
   return true;
 }
@@ -248,6 +253,8 @@ function applyStreamQuality() {
 const cameraViews = new Map();
 let cameraResizes = null;
 
+const onVisiblePage = (element) => !(element.ownerDocument ?? (typeof document !== 'undefined' ? document : null))?.hidden;
+
 const isLocal = (identity) => room != null && identity === room.localParticipant.identity;
 
 function cameraPublication(identity) {
@@ -255,6 +262,9 @@ function cameraPublication(identity) {
   const participant = isLocal(identity) ? room.localParticipant : room.remoteParticipants.get(identity);
   return participant?.getTrackPublication(livekit.Track.Source.Camera) ?? null;
 }
+
+// Data saver (streamViewSettings.js) never asks for more of a camera than its middle layer.
+const DATA_SAVER_CAMERA = { width: 640, height: 360 };
 
 // Asks LiveKit for the size of the biggest tile showing `identity`'s camera (it picks the
 // simulcast layer from it).
@@ -269,7 +279,10 @@ function sizeCamera(identity) {
     width = Math.max(width, Math.round(element.clientWidth * density));
     height = Math.max(height, Math.round(element.clientHeight * density));
   }
-  if (width > 0 && height > 0) publication.setVideoDimensions({ width, height });
+  if (width <= 0 || height <= 0) return;
+  publication.setVideoDimensions(getStreamViewQuality() === 'low'
+    ? { width: Math.min(width, DATA_SAVER_CAMERA.width), height: Math.min(height, DATA_SAVER_CAMERA.height) }
+    : { width, height });
 }
 
 // Plays the camera's track (when there is one) in every element showing it.
@@ -279,6 +292,16 @@ function attachCamera(identity) {
   for (const element of cameraViews.get(identity) ?? []) {
     if (!track.attachedElements.includes(element)) track.attach(element);
   }
+}
+
+// A camera that stops being shown is let go a moment later: it may only be moving (a tile to the
+// stage, the page to the corner), where it should carry on without a blink.
+const CAMERA_MOVE_MS = 300;
+let syncTimer = null;
+
+function syncSubscriptionsSoon() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncSubscriptions, CAMERA_MOVE_MS);
 }
 
 // Shows `identity`'s camera (yours too) in `element`, a <video>: it's downloaded while at least
@@ -294,18 +317,22 @@ export function showCamera(identity, element) {
     });
     cameraResizes.observe(element);
   }
+  // A pop-out window has its own visibility (the page's is listened to below).
+  const otherPage = typeof document !== 'undefined' && element.ownerDocument && element.ownerDocument !== document ? element.ownerDocument : null;
+  otherPage?.addEventListener('visibilitychange', syncSubscriptions);
   if (room) {
     attachCamera(key);
     syncSubscriptions();
     sizeCamera(key);
   }
   return () => {
+    otherPage?.removeEventListener('visibilitychange', syncSubscriptions);
     cameraResizes?.unobserve(element);
     if (room) cameraPublication(key)?.track?.detach(element);
     const elements = cameraViews.get(key);
     elements?.delete(element);
     if (elements?.size === 0) cameraViews.delete(key);
-    syncSubscriptions();
+    syncSubscriptionsSoon();
   };
 }
 
@@ -321,7 +348,10 @@ function updateCameras() {
     .map((p) => p.identity);
   // Yours is on while it's published, paused (muted while the page is hidden) or not.
   const cameraOn = Boolean(room.localParticipant.getTrackPublication(livekit.Track.Source.Camera)?.track);
-  update({ cameras, cameraOn });
+  // A focused camera that's gone (turned off, or they left) ends the focus; one that's only
+  // paused doesn't: it comes back.
+  const focusedCamera = cameraPublication(snapshot.focusedCamera) ? snapshot.focusedCamera : null;
+  update({ cameras, cameraOn, focusedCamera });
   for (const identity of cameraViews.keys()) attachCamera(identity);
   syncScreenOn();
 }
@@ -1155,12 +1185,30 @@ export function canShareScreen() {
 }
 
 // Shows `identity`'s stream on this device (null: stop watching). Only watched streams are
-// downloaded.
+// downloaded. Watching one brings it to the stage, over a focused camera.
 export function watchStream(identity) {
   const watching = identity == null ? null : String(identity);
-  if (watching === snapshot.watching) return;
-  update({ watching, watchingReady: Boolean(screenTrack(watching)) });
+  const focusedCamera = watching == null ? snapshot.focusedCamera : null;
+  if (watching === snapshot.watching && focusedCamera === snapshot.focusedCamera) return;
+  update({ watching, focusedCamera, watchingReady: Boolean(screenTrack(watching)) });
   syncSubscriptions();
+}
+
+// The name `identity` joined with (from their token), for places drawn without a member list
+// (the corner, a pop-out window): their profile may not have reached this device.
+export function participantName(identity) {
+  if (!room || identity == null) return '';
+  const participant = isLocal(identity) ? room.localParticipant : room.remoteParticipants.get(identity);
+  return participant?.name ?? '';
+}
+
+// Shows `identity`'s camera (yours too) big on this device (null: back to everyone). A stream
+// being watched stays watched, with its sound: it just moves off the stage (see stage.js).
+export function focusCamera(identity) {
+  const focusedCamera = identity == null ? null : String(identity);
+  if (focusedCamera === snapshot.focusedCamera) return;
+  if (focusedCamera != null && !cameraPublication(focusedCamera)) return;
+  update({ focusedCamera });
 }
 
 // Plays the watched stream in `element` (a <video>); returns a function that stops it.
@@ -1299,7 +1347,10 @@ onVideoSettingsChange(async (next, previous) => {
   });
 });
 
-onStreamViewQualityChange(() => applyStreamQuality());
+onStreamViewQualityChange(() => {
+  applyStreamQuality();
+  for (const identity of cameraViews.keys()) sizeCamera(identity);
+});
 
 // Back from the background: cameras shown on screen are downloaded again (and not while hidden),
 // your camera comes back on a phone and the screen is kept on again.

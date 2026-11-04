@@ -461,6 +461,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   the server checks every step against the schema and writes the markdown itself, which stays
   the stored format), sessions kept in memory. Editing others' documents needs the author's
   "Others can edit" (off by default), on top of Create Documents.
+- **Focusing a camera** (built 2026-11-04, see Focusing a camera in `docs/voice-and-calls.md`): the
+  user asked for cameras to be treated like streams: a click makes one big, in the stream's
+  stage, bar, corner and pop-out, but its volume is the person's, not a separate one. The user
+  chose: click focuses and right click or a long press sets the volume on a camera (the rest keep
+  click for volume); a stream being watched shrinks into the row still playing; following whoever
+  talks is left for later. Local to the device, so no server or privacy change.
 - **Soundboards** (built 2026-10-25, see Soundboard in `docs/voice-and-calls.md`): Discord's,
   per guild, unencrypted files like custom emoji, managed with Manage Emoji; playing needs Speak
   and the new Use Soundboard (the last bit `1 << n` can hold: the next permission needs a wider

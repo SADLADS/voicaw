@@ -65,7 +65,8 @@
         "auto": "フルサイズ。回線が追いつかないときだけ小さくなります",
         "low": "幅と高さが半分になり、データ量は約 4 分の 1 です"
       },
-      "receiving": "{{width}} × {{height}} で受信中"
+      "receiving": "{{width}} × {{height}} で受信中",
+      "bringToStage": "クリックで大きく表示"
     },
     "userVolume": {
       "title": "ユーザー音量",
@@ -205,8 +206,24 @@
       "switch": "カメラを切り替え",
       "cameraOf": "{{name}} さんのカメラ",
       "yourCamera": "あなたのカメラ",
-      "fullScreen": "{{name}} さんのカメラを全画面表示",
-      "exitFullScreen": "全画面表示を終了"
+      "focusHint": "{{name}}：クリックで大きく表示、右クリックで音量",
+      "focusOwnHint": "クリックで自分のカメラを大きく表示",
+      "backToEveryone": "全員の表示に戻る",
+      "close": "閉じる",
+      "paused": "カメラは一時停止中です",
+      "micOff": "マイクはオフです",
+      "mute": "ミュート",
+      "unmute": "ミュート解除",
+      "volume": "音量（自分にのみ適用）",
+      "quality": "映像の画質",
+      "qualityHints": {
+        "auto": "表示サイズに合わせた鮮明さ",
+        "low": "最大 360p、データ量は約 3 分の 1"
+      },
+      "poppedOut": "{{name}} さんのカメラは別ウィンドウで表示中です。",
+      "ownPoppedOut": "自分のカメラは別ウィンドウで表示中です。",
+      "windowTitle": "{{name}} さんのカメラ – Voicaw",
+      "ownWindowTitle": "自分のカメラ – Voicaw"
     },
     "soundboard": {
       "title": "サウンドボード",

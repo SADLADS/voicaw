@@ -12,8 +12,8 @@ import VoiceControls from '../voice/VoiceControls';
 import PushToTalkButton from '../voice/PushToTalkButton';
 import CameraButton from '../voice/CameraButton';
 import CameraVideo from '../voice/CameraVideo';
-import CameraFullScreenButton from '../voice/CameraFullScreenButton';
-import { fullScreenCamera } from '../../voice/fullScreen';
+import { fullScreenStage } from '../../voice/fullScreen';
+import { cameraFocusAction, useCameraFocusKeys } from '../../hooks/useCameraFocus';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import CallStream from '../call/CallStream';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
@@ -23,14 +23,17 @@ import { t } from '../../i18n';
 // A group's call, at the top of the group: who's in it, and Join; once you're in, ringed
 // while talking, the mic icon when muted, their camera when it's on, Live while sharing their
 // screen (Watch Stream to see it, CallStream), and the controls; clicking someone sets how
-// loud they are for you.
+// loud they are for you; on a camera a click focuses it (shown big, CallStream) and a right click
+// or a long press sets it.
 export default function GroupCallPanel({ groupId, names, user }) {
   const groupCall = useGroupCall(groupId);
   const call = useCall();
   const voice = useVoice();
   const { isMobile } = useContext(InteractionContext);
   const mine = call?.groupId === groupId ? call : null;
-  const volumeMenu = useVolumeMenu(mine != null && voice.callId === mine.id && voice.status !== 'idle');
+  const inThisCall = mine != null && voice.callId === mine.id && voice.status !== 'idle';
+  const volumeMenu = useVolumeMenu(inThisCall);
+  useCameraFocusKeys(inThisCall);
   if (!groupCall && !mine) return null;
 
   const participants = mine?.participants ?? groupCall?.participants ?? [];
@@ -51,11 +54,16 @@ export default function GroupCallPanel({ groupId, names, user }) {
     <div className={`call-panel group-call-panel${cameras.size > 0 ? ' with-video' : ''}`} aria-label={t('calls.group.label')}>
       <div className="call-panel-people">
         {participants.map((id) => (
-          <div key={id} className="call-panel-person" title={names.get(id)} {...volumeMenu.triggerProps(id, names.get(id) ?? t('calls.group.someone'))}>
-            {cameras.has(String(id)) ? (
-              <div className={`call-panel-video camera-tile${!isMuted(id) && speaking.has(String(id)) ? ' speaking' : ''}`} onDoubleClick={(e) => fullScreenCamera(e, volumeMenu.close)}>
+          <div
+            key={id}
+            className="call-panel-person"
+            title={names.get(id)}
+            onDoubleClick={cameras.has(String(id)) || voice.focusedCamera === String(id) ? fullScreenStage : undefined}
+            {...volumeMenu.triggerProps(id, names.get(id) ?? t('calls.group.someone'), cameraFocusAction({ id, name: names.get(id) ?? t('calls.group.someone'), own: id === user.id, hasCamera: cameras.has(String(id)), focusedCamera: voice.focusedCamera }))}
+          >
+            {cameras.has(String(id)) && voice.focusedCamera !== String(id) ? (
+              <div className={`call-panel-video camera-tile${!isMuted(id) && speaking.has(String(id)) ? ' speaking' : ''}`}>
                 <CameraVideo userId={id} name={names.get(id) ?? t('calls.group.someone')} own={id === user.id} />
-                <CameraFullScreenButton name={names.get(id) ?? t('calls.group.someone')} />
               </div>
             ) : (
               <UserAvatar userId={id} className="call-panel-avatar small" speaking={connected && !isMuted(id) && speaking.has(String(id))} />

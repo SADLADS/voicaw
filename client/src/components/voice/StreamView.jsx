@@ -5,15 +5,16 @@ import {
   faArrowRight, faCheck, faDownLeftAndUpRightToCenter, faExpand, faEye, faMagnifyingGlassMinus, faMagnifyingGlassPlus, faSliders, faUpRightFromSquare, faVolumeHigh, faVolumeXmark, faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import UserAvatar from './UserAvatar';
+import { MicIcon } from './VoiceIcons';
 import { InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useShowsStreamOnPage } from '../../hooks/useStreamOnPage';
 import { useStreamZoom } from '../../hooks/useStreamZoom';
 import { MAX_ZOOM, ZOOM_STEP } from '../../utils/imageZoom';
 import { displayName, useProfiles } from '../../utils/profiles';
-import { attachStream, setStreamError, watchStream } from '../../voice/voiceClient';
+import { attachStream, focusCamera, setStreamError, showCamera, watchStream } from '../../voice/voiceClient';
 import { closeStreamWindow, openStreamWindow } from '../../voice/streamWindow';
-import { DEFAULT_USER_VOLUME, maxUserVolume, setStreamVolume, useStreamVolume } from '../../voice/userVolumes';
+import { DEFAULT_USER_VOLUME, maxUserVolume, setStreamVolume, setUserVolume, useStreamVolume, useUserVolume } from '../../voice/userVolumes';
 import { VIEW_QUALITIES, setStreamViewQuality, useStreamViewQuality } from '../../voice/streamViewSettings';
 import { toggleFullScreen } from '../../voice/fullScreen';
 import { t } from '../../i18n';
@@ -27,8 +28,16 @@ import { t } from '../../i18n';
 // full screen and stop watching. Its sound plays with the rest of voice (deafen mutes it), at the stream's own volume
 // on this device (like Discord's Stream Volume, userVolumes.js); not for our own, which we don't
 // hear.
-export default function StreamView({ userId, name, own, popout = false, corner = false, onOpen, openLabel }) {
-  const { watchingReady, selfDeaf, watchers } = useVoice();
+//
+// `camera`: someone's focused camera instead (voiceClient's focusCamera), in the same places
+// with the same bar, but for: the volume is the person's own (the one in their volume menu, a
+// camera having no sound), no Live or who's watching (everyone sees a camera), zoom only with
+// the wheel and fingers (at most 720p: no need for the buttons), ✕ only goes back to everyone,
+// and it's ringed while they talk, with their mic's state. Uncropped, unlike its tile. Their
+// picture shows until it arrives and while it's paused (a phone's in the background).
+export default function StreamView({ userId, name, own, camera = false, popout = false, corner = false, onOpen, openLabel }) {
+  const voice = useVoice();
+  const { watchingReady, selfDeaf, watchers, cameraFacing } = voice;
   const { isMobile } = useContext(InteractionContext);
   const videoRef = useRef(null);
   const stageRef = useRef(null);
@@ -37,6 +46,13 @@ export default function StreamView({ userId, name, own, popout = false, corner =
   useShowsStreamOnPage(!popout && !corner);
   const zoom = useStreamZoom(stageRef, size, !corner);
   const { reset: resetZoom } = zoom;
+  const idle = useIdle(stageRef, !corner);
+  const person = String(userId);
+  const paused = camera && !(voice.cameras ?? []).includes(person);
+  const micOff = camera && (own ? voice.selfMute || voice.selfDeaf : (voice.muted ?? []).includes(person));
+  const speaking = camera && !micOff && (voice.speaking ?? []).includes(person);
+  const mirrored = camera && own && cameraFacing !== 'environment';
+  const zoomTransform = zoom.zoomed ? `translate(${zoom.view.x}px, ${zoom.view.y}px) scale(${zoom.view.scale})${mirrored ? ' scaleX(-1)' : ''}` : undefined;
 
   // Another stream starts fitted.
   useEffect(() => resetZoom(), [userId, resetZoom]);
@@ -54,9 +70,10 @@ export default function StreamView({ userId, name, own, popout = false, corner =
   }, []);
 
   useEffect(() => {
+    if (camera) return showCamera(userId, videoRef.current);
     if (!watchingReady) return undefined;
     return attachStream(userId, videoRef.current);
-  }, [userId, watchingReady]);
+  }, [userId, camera, watchingReady]);
 
   const fullScreen = () => toggleFullScreen(stageRef.current);
 
@@ -64,31 +81,42 @@ export default function StreamView({ userId, name, own, popout = false, corner =
     if (!openStreamWindow()) setStreamError(t('voice.stream.popupBlocked'));
   }
 
+  const closeLabel = !camera ? t('voice.stream.stopWatching') : corner || popout ? t('voice.camera.close') : t('voice.camera.backToEveryone');
+
   return (
     <div
-      className={`stream-view${popout ? ' popped-out' : ''}${corner ? ' corner' : ''}${zoom.zoomed ? ' zoomed' : ''}`}
+      className={`stream-view${camera ? ' camera' : ''}${popout ? ' popped-out' : ''}${corner ? ' corner' : ''}${zoom.zoomed ? ' zoomed' : ''}${idle ? ' idle' : ''}${speaking ? ' speaking' : ''}`}
       ref={stageRef}
       onDoubleClick={fullScreen}
       {...(corner ? {} : zoom.handlers)}
     >
+      {camera && (paused || !size) && (
+        <div className="stream-camera-waiting">
+          <UserAvatar userId={userId} className="stream-camera-picture" />
+          {paused && <p>{t('voice.camera.paused')}</p>}
+        </div>
+      )}
       {/* Muted: a screen share's sound plays through voice's own audio (see voiceClient). */}
       <video
         ref={videoRef}
-        className={`stream-video${zoom.animate ? ' animate' : ''}`}
-        style={zoom.zoomed ? { transform: `translate(${zoom.view.x}px, ${zoom.view.y}px) scale(${zoom.view.scale})` } : undefined}
+        className={`stream-video${zoom.animate ? ' animate' : ''}${mirrored ? ' mirrored' : ''}${paused ? ' paused' : ''}`}
+        style={zoomTransform ? { transform: zoomTransform } : undefined}
         autoPlay
         playsInline
         muted
-        aria-label={t('voice.stream.screenOf', { name })}
+        aria-label={camera ? (own ? t('voice.camera.yourCamera') : t('voice.camera.cameraOf', { name })) : t('voice.stream.screenOf', { name })}
       />
-      {!watchingReady && <p className="stream-loading">{t('voice.stream.loading')}</p>}
+      {!camera && !watchingReady && <p className="stream-loading">{t('voice.stream.loading')}</p>}
       <div className="stream-bar">
-        {!corner && <span className="voice-live-badge">{t('voice.stream.live')}</span>}
-        <span className="stream-name" title={corner ? name : undefined}>{own ? t('voice.stream.yourStream') : name}</span>
-        <StreamWatchers watchers={watchers?.[userId] ?? []} compact={corner || isMobile} />
-        {!own && <StreamVolume userId={userId} deafened={selfDeaf} />}
-        {!corner && <StreamZoom zoom={zoom} compact={isMobile} />}
-        {!own && !corner && <StreamQuality size={size} />}
+        {!camera && !corner && <span className="voice-live-badge">{t('voice.stream.live')}</span>}
+        <span className="stream-name" title={corner ? name : undefined}>
+          {own ? (camera ? t('voice.camera.yourCamera') : t('voice.stream.yourStream')) : name}
+        </span>
+        {micOff && <span className="stream-mic-off" title={t('voice.camera.micOff')} aria-label={t('voice.camera.micOff')}><MicIcon muted /></span>}
+        {!camera && <StreamWatchers watchers={watchers?.[userId] ?? []} compact={corner || isMobile} />}
+        {!own && (camera ? <PersonVolume userId={userId} deafened={selfDeaf} /> : <StreamVolume userId={userId} deafened={selfDeaf} />)}
+        {!corner && <StreamZoom zoom={zoom} compact={isMobile || camera} />}
+        {!own && !corner && <StreamQuality size={size} camera={camera} />}
         {corner && onOpen && (
           <button type="button" className="stream-button" aria-label={openLabel} title={openLabel} onClick={onOpen}>
             <Icon icon={faArrowRight} fixedWidth />
@@ -108,12 +136,38 @@ export default function StreamView({ userId, name, own, popout = false, corner =
             <Icon icon={faExpand} fixedWidth />
           </button>
         )}
-        <button type="button" className="stream-button" aria-label={t('voice.stream.stopWatching')} title={t('voice.stream.stopWatching')} onClick={() => watchStream(null)}>
+        <button type="button" className="stream-button" aria-label={closeLabel} title={closeLabel} onClick={() => (camera ? focusCamera(null) : watchStream(null))}>
           <Icon icon={faXmark} fixedWidth />
         </button>
       </div>
     </div>
   );
+}
+
+// The bar fades after a few seconds without the pointer moving over the stage (with a mouse:
+// fingers have no pointer to move), unless the pointer is on it or something in it has the focus.
+const IDLE_MS = 3000;
+
+function useIdle(stageRef, enabled) {
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    const stage = stageRef.current;
+    const hasMouse = stage?.ownerDocument?.defaultView?.matchMedia?.('(hover: hover)')?.matches;
+    if (!enabled || !hasMouse) return undefined;
+    let timer = null;
+    const wake = () => {
+      setIdle(false);
+      clearTimeout(timer);
+      timer = setTimeout(() => setIdle(true), IDLE_MS);
+    };
+    wake();
+    stage.addEventListener('pointermove', wake);
+    return () => {
+      clearTimeout(timer);
+      stage.removeEventListener('pointermove', wake);
+    };
+  }, [stageRef, enabled]);
+  return idle;
 }
 
 // How many others watch (`watchers`: [{ id, username }], voiceClient), with their pictures
@@ -226,11 +280,12 @@ function StreamZoom({ zoom, compact }) {
 }
 
 // Which copy of the stream this device downloads (voice/streamViewSettings.js: full size, or
-// the half-size one to save data), for every stream, and the size arriving now.
-function StreamQuality({ size }) {
+// the half-size one to save data), for every stream, and the size arriving now. The same choice
+// for cameras (`camera`), where Data saver means at most their 360p copy.
+function StreamQuality({ size, camera }) {
   const quality = useStreamViewQuality();
   const [open, setOpen] = useState(false);
-  const label = t('voice.stream.quality');
+  const label = camera ? t('voice.camera.quality') : t('voice.stream.quality');
   return (
     <span className="stream-view-quality-menu">
       <button
@@ -269,7 +324,7 @@ function StreamQuality({ size }) {
               <span className="stream-view-quality-check">{option === quality && <Icon icon={faCheck} />}</span>
               <span>
                 <span className="stream-view-quality-name">{t(`voice.stream.qualities.${option}`)}</span>
-                <span className="stream-view-quality-hint">{t(`voice.stream.qualityHints.${option}`)}</span>
+                <span className="stream-view-quality-hint">{t(`voice.${camera ? 'camera' : 'stream'}.qualityHints.${option}`)}</span>
               </span>
             </button>
           ))}
@@ -282,6 +337,30 @@ function StreamQuality({ size }) {
 
 function StreamVolume({ userId, deafened }) {
   const volume = useStreamVolume(userId);
+  return (
+    <VolumeControl
+      volume={volume}
+      setVolume={(next) => setStreamVolume(userId, next)}
+      deafened={deafened}
+      labels={{ mute: t('voice.stream.mute'), unmute: t('voice.stream.unmute'), volume: t('voice.stream.volume') }}
+    />
+  );
+}
+
+// A camera's: how loud the person is, the same volume as their volume menu's.
+function PersonVolume({ userId, deafened }) {
+  const volume = useUserVolume(userId);
+  return (
+    <VolumeControl
+      volume={volume}
+      setVolume={(next) => setUserVolume(userId, next)}
+      deafened={deafened}
+      labels={{ mute: t('voice.camera.mute'), unmute: t('voice.camera.unmute'), volume: t('voice.camera.volume') }}
+    />
+  );
+}
+
+function VolumeControl({ volume, setVolume, deafened, labels }) {
   // What unmuting goes back to.
   const unmutedRef = useRef(DEFAULT_USER_VOLUME);
   if (volume > 0) unmutedRef.current = volume;
@@ -294,11 +373,11 @@ function StreamVolume({ userId, deafened }) {
       <button
         type="button"
         className="stream-button"
-        aria-label={muted ? t('voice.stream.unmute') : t('voice.stream.mute')}
-        title={deafened ? t('voice.stream.deafened') : muted ? t('voice.stream.unmute') : t('voice.stream.mute')}
+        aria-label={muted ? labels.unmute : labels.mute}
+        title={deafened ? t('voice.stream.deafened') : muted ? labels.unmute : labels.mute}
         aria-pressed={volume === 0}
         disabled={deafened}
-        onClick={() => setStreamVolume(userId, volume === 0 ? unmutedRef.current : 0)}
+        onClick={() => setVolume(volume === 0 ? unmutedRef.current : 0)}
       >
         <Icon icon={muted ? faVolumeXmark : faVolumeHigh} fixedWidth />
       </button>
@@ -310,10 +389,10 @@ function StreamVolume({ userId, deafened }) {
         step={1}
         value={percent}
         disabled={deafened}
-        aria-label={t('voice.stream.volume')}
+        aria-label={labels.volume}
         aria-valuetext={t('voice.stream.percent', { percent })}
         title={t('voice.stream.percent', { percent })}
-        onChange={(e) => setStreamVolume(userId, Number(e.target.value) / 100)}
+        onChange={(e) => setVolume(Number(e.target.value) / 100)}
         onDoubleClick={(e) => e.stopPropagation()}
       />
     </span>

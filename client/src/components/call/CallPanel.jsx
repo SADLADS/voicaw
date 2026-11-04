@@ -13,8 +13,8 @@ import VoiceControls from '../voice/VoiceControls';
 import PushToTalkButton from '../voice/PushToTalkButton';
 import CameraButton from '../voice/CameraButton';
 import CameraVideo from '../voice/CameraVideo';
-import CameraFullScreenButton from '../voice/CameraFullScreenButton';
-import { fullScreenCamera } from '../../voice/fullScreen';
+import { fullScreenStage } from '../../voice/fullScreen';
+import { cameraFocusAction, useCameraFocusKeys } from '../../hooks/useCameraFocus';
 import ScreenShareButton from '../voice/ScreenShareButton';
 import CallStream from './CallStream';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
@@ -40,7 +40,8 @@ function useDuration(since) {
 // At the top of a DM while you're calling that person: both of you (ringed while talking,
 // the mic icon when muted, their camera instead of their picture when it's on, Live while
 // sharing their screen), the state or how long it's been going, a shared screen (CallStream)
-// and the controls. Clicking the other person once you're in sets how loud they are for you.
+// and the controls. Clicking the other person once you're in sets how loud they are for you;
+// on a camera a click focuses it (shown big, CallStream) and a right click or a long press sets it.
 // The other person's screen share opens on its own (you're its only viewer); Stop watching
 // keeps it closed until they share again.
 export default function CallPanel({ user, peer }) {
@@ -48,11 +49,13 @@ export default function CallPanel({ user, peer }) {
   const voice = useVoice();
   const { isMobile } = useContext(InteractionContext);
   const duration = useDuration(call?.state === 'active' ? call.answeredAt : null);
-  const volumeMenu = useVolumeMenu(call != null && voice.callId === call.id && voice.status !== 'idle');
+  const inThisCall = call != null && voice.callId === call.id && voice.status !== 'idle';
+  const volumeMenu = useVolumeMenu(inThisCall);
+  useCameraFocusKeys(inThisCall);
   const peerLive = call != null && voice.callId === call.id && voice.status === 'connected'
     && String(call.peerId) === String(peer?.id) && voice.streams.includes(String(peer.id));
   useEffect(() => {
-    if (peerLive && voice.watching == null) watchStream(peer.id);
+    if (peerLive && voice.watching == null && voice.focusedCamera == null) watchStream(peer.id);
   }, [peerLive]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!call || String(call.peerId) !== String(peer?.id)) return null;
 
@@ -71,12 +74,16 @@ export default function CallPanel({ user, peer }) {
     <div className={`call-panel${cameras.size > 0 ? ' with-video' : ''}`} aria-label={t('calls.panel.label', { name: nameOf(peer) })}>
       <div className="call-panel-people">
         {[[user, selfMuted], [peer, peerMuted]].map(([person, muted]) => (
-          <div key={person.id} className="call-panel-person" {...volumeMenu.triggerProps(person.id, nameOf(person))}>
+          <div
+            key={person.id}
+            className="call-panel-person"
+            onDoubleClick={cameras.has(String(person.id)) || voice.focusedCamera === String(person.id) ? fullScreenStage : undefined}
+            {...volumeMenu.triggerProps(person.id, nameOf(person), cameraFocusAction({ id: person.id, name: nameOf(person), own: person.id === user.id, hasCamera: cameras.has(String(person.id)), focusedCamera: voice.focusedCamera }))}
+          >
             {/* LiveKit's speaker list lags a moment behind a mute. */}
-            {cameras.has(String(person.id)) ? (
-              <div className={`call-panel-video camera-tile${!muted && speaking.has(String(person.id)) ? ' speaking' : ''}`} onDoubleClick={(e) => fullScreenCamera(e, volumeMenu.close)}>
+            {cameras.has(String(person.id)) && voice.focusedCamera !== String(person.id) ? (
+              <div className={`call-panel-video camera-tile${!muted && speaking.has(String(person.id)) ? ' speaking' : ''}`}>
                 <CameraVideo userId={person.id} name={nameOf(person)} own={person.id === user.id} />
-                <CameraFullScreenButton name={nameOf(person)} />
               </div>
             ) : (
               <UserAvatar userId={person.id} className="call-panel-avatar" speaking={!muted && speaking.has(String(person.id))} />

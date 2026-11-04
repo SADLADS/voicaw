@@ -66,7 +66,8 @@
         "auto": "Full size, smaller only while your connection can't keep up",
         "low": "Half the width and height, about a quarter of the data"
       },
-      "receiving": "Receiving {{width}} × {{height}}"
+      "receiving": "Receiving {{width}} × {{height}}",
+      "bringToStage": "Click to show it big"
     },
     "userVolume": {
       "title": "User Volume",
@@ -208,8 +209,24 @@
       "switch": "Switch camera",
       "cameraOf": "{{name}}'s camera",
       "yourCamera": "Your camera",
-      "fullScreen": "Full screen ({{name}}'s camera)",
-      "exitFullScreen": "Exit full screen"
+      "focusHint": "{{name}}: click to focus, right-click for volume",
+      "focusOwnHint": "Click to focus your camera",
+      "backToEveryone": "Back to everyone",
+      "close": "Close",
+      "paused": "Camera paused",
+      "micOff": "Microphone off",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "volume": "Volume (just for you)",
+      "quality": "Video quality",
+      "qualityHints": {
+        "auto": "As sharp as the size it's shown at",
+        "low": "At most 360p, about a third of the data"
+      },
+      "poppedOut": "{{name}}'s camera is in its own window.",
+      "ownPoppedOut": "Your camera is in its own window.",
+      "windowTitle": "{{name}}'s camera – Voicaw",
+      "ownWindowTitle": "Your camera – Voicaw"
     },
     "soundboard": {
       "title": "Soundboard",

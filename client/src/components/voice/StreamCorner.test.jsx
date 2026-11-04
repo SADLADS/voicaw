@@ -7,9 +7,9 @@ const state = vi.hoisted(() => ({ voice: {}, call: null, poppedOut: false }));
 vi.mock('../../hooks/useVoice', () => ({ useVoice: () => state.voice }));
 vi.mock('../../hooks/useCall', () => ({ useCall: () => state.call }));
 vi.mock('../../hooks/useStreamWindow', () => ({ useStreamWindow: () => (state.poppedOut ? {} : null) }));
-vi.mock('../../voice/voiceClient', () => ({ attachStream: () => () => {}, setStreamError() {}, watchStream() {} }));
+vi.mock('../../voice/voiceClient', () => ({ attachStream: () => () => {}, setStreamError() {}, watchStream() {}, focusCamera() {}, showCamera: () => () => {}, participantName: () => '' }));
 vi.mock('../../voice/streamWindow', () => ({ closeStreamWindow() {}, openStreamWindow() {} }));
-vi.mock('../../utils/profiles', () => ({ useProfiles() {}, displayName: (id) => `user ${id}` }));
+vi.mock('../../utils/profiles', async (importOriginal) => ({ ...(await importOriginal()), useProfiles() {}, displayName: (id) => `user ${id}` }));
 
 import StreamCorner from './StreamCorner';
 import StreamView from './StreamView';
@@ -53,6 +53,18 @@ describe('StreamCorner', () => {
     renderCorner();
     fireEvent.click(screen.getByRole('button', { name: 'Go to the call' }));
     expect(screen.getByTestId('where').textContent).toBe('/dm/g/9');
+  });
+
+  it('carries a focused camera on, over a stream you watch; never your own', () => {
+    state.voice = { ...inChannel, cameras: ['8'], focusedCamera: '8' };
+    const { container } = renderCorner();
+    expect(container.querySelector('.stream-view.corner.camera')).not.toBeNull();
+    expect(screen.getByLabelText("user 8's camera")).toBeTruthy();
+    cleanup();
+    state.voice = { ...inChannel, cameras: ['1'], focusedCamera: '1' };
+    const own = renderCorner();
+    expect(own.container.querySelector('.stream-view.corner.camera')).toBeNull();
+    expect(screen.getByLabelText("user 7's screen")).toBeTruthy();
   });
 
   it('steps aside while a page shows the stream', () => {

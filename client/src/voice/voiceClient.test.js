@@ -588,6 +588,129 @@ describe('voiceClient camera', () => {
     expect(again.camera.options).toMatchObject({ facingMode: 'user' });
   });
 
+  // Someone else whose camera is on (`publication.isMuted`: paused), who'll be asked for sizes.
+  function joinedBy(id, room = lk.state.room) {
+    const publication = { source: 'camera', isMuted: false, setSubscribed: vi.fn(), setVideoDimensions: vi.fn() };
+    const participant = {
+      identity: id,
+      trackPublications: new Map([['cam', publication]]),
+      getTrackPublication: (source) => (source === 'camera' ? participant.camera : undefined),
+      camera: publication,
+    };
+    room.remoteParticipants.set(id, participant);
+    room.emit('TrackPublished');
+    return participant;
+  }
+
+  it('focuses a camera until it is turned off, or its owner leaves, but not while it is paused', async () => {
+    await joinWithCamera();
+    const room = lk.state.room;
+    const bob = joinedBy('7');
+    voice.focusCamera(7);
+    expect(voice.getVoiceSnapshot().focusedCamera).toBe('7');
+    bob.camera.isMuted = true;
+    room.emit('TrackMuted');
+    expect(voice.getVoiceSnapshot()).toMatchObject({ focusedCamera: '7' });
+    expect(voice.getVoiceSnapshot().cameras).not.toContain('7');
+    bob.camera = undefined;
+    room.emit('TrackUnpublished');
+    expect(voice.getVoiceSnapshot().focusedCamera).toBe(null);
+
+    joinedBy('8');
+    voice.focusCamera('8');
+    room.remoteParticipants.delete('8');
+    room.emit('ParticipantDisconnected');
+    expect(voice.getVoiceSnapshot().focusedCamera).toBe(null);
+
+    voice.focusCamera('1');
+    expect(voice.getVoiceSnapshot().focusedCamera).toBe('1');
+    await voice.stopCamera();
+    expect(voice.getVoiceSnapshot().focusedCamera).toBe(null);
+  });
+
+  it('does not focus a camera that is not there, and forgets the focus on leaving', async () => {
+    await joinWithCamera();
+    voice.focusCamera('7');
+    expect(voice.getVoiceSnapshot().focusedCamera).toBe(null);
+    voice.focusCamera('1');
+    await voice.leaveVoice();
+    expect(voice.getVoiceSnapshot().focusedCamera).toBe(null);
+  });
+
+  it('keeps a watched stream through a focus, and watching one brings it back', async () => {
+    await joinWithCamera();
+    joinedBy('7');
+    voice.watchStream('9');
+    voice.focusCamera('7');
+    expect(voice.getVoiceSnapshot()).toMatchObject({ watching: '9', focusedCamera: '7' });
+    // Stopping the small one leaves the camera; watching it again takes the stage.
+    voice.watchStream(null);
+    expect(voice.getVoiceSnapshot()).toMatchObject({ watching: null, focusedCamera: '7' });
+    voice.watchStream('9');
+    expect(voice.getVoiceSnapshot()).toMatchObject({ watching: '9', focusedCamera: null });
+    // Clicking the one already watched, with a camera focused.
+    voice.focusCamera('7');
+    voice.watchStream('9');
+    expect(voice.getVoiceSnapshot()).toMatchObject({ watching: '9', focusedCamera: null });
+  });
+
+  it('keeps downloading a camera shown in a pop-out window while the page is hidden', async () => {
+    await joinWithCamera();
+    const bob = joinedBy('7');
+    const onPage = document.createElement('video');
+    const stop = voice.showCamera('7', onPage);
+    expect(bob.camera.setSubscribed).toHaveBeenLastCalledWith(true);
+    await setHidden(true);
+    expect(bob.camera.setSubscribed).toHaveBeenLastCalledWith(false);
+    const inWindow = {
+      clientWidth: 0,
+      clientHeight: 0,
+      ownerDocument: { hidden: false, addEventListener: vi.fn(), removeEventListener: vi.fn() },
+    };
+    const stopWindow = voice.showCamera('7', inWindow);
+    hidden = false;
+    expect(bob.camera.setSubscribed).toHaveBeenLastCalledWith(true);
+    expect(inWindow.ownerDocument.addEventListener).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+    hidden = true;
+    stopWindow();
+    await new Promise((resolve) => { setTimeout(resolve, 350); });
+    expect(bob.camera.setSubscribed).toHaveBeenLastCalledWith(false);
+    expect(inWindow.ownerDocument.removeEventListener).toHaveBeenCalled();
+    stop();
+    hidden = false;
+  });
+
+  it('keeps a camera moving from one place to another subscribed, and lets go of one no longer shown', async () => {
+    await joinWithCamera();
+    const bob = joinedBy('7');
+    const stopTile = voice.showCamera('7', document.createElement('video'));
+    expect(bob.camera.setSubscribed).toHaveBeenLastCalledWith(true);
+    bob.camera.setSubscribed.mockClear();
+    stopTile();
+    const stopStage = voice.showCamera('7', document.createElement('video'));
+    await new Promise((resolve) => { setTimeout(resolve, 350); });
+    expect(bob.camera.setSubscribed).not.toHaveBeenCalled();
+    stopStage();
+    await new Promise((resolve) => { setTimeout(resolve, 350); });
+    expect(bob.camera.setSubscribed).toHaveBeenLastCalledWith(false);
+  });
+
+  it('never asks for more of a camera than 360p on Data saver', async () => {
+    const { setStreamViewQuality } = await import('./streamViewSettings');
+    await joinWithCamera();
+    const bob = joinedBy('7');
+    const element = document.createElement('video');
+    Object.defineProperty(element, 'clientWidth', { value: 1280 });
+    Object.defineProperty(element, 'clientHeight', { value: 720 });
+    const stop = voice.showCamera('7', element);
+    expect(bob.camera.setVideoDimensions).toHaveBeenLastCalledWith({ width: 1280, height: 720 });
+    setStreamViewQuality('low');
+    expect(bob.camera.setVideoDimensions).toHaveBeenLastCalledWith({ width: 640, height: 360 });
+    setStreamViewQuality('auto');
+    expect(bob.camera.setVideoDimensions).toHaveBeenLastCalledWith({ width: 1280, height: 720 });
+    stop();
+  });
+
   let hidden = false;
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
   Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
