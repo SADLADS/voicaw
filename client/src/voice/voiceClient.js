@@ -21,6 +21,7 @@ import {
 import { t } from '../i18n';
 import { desktop } from '../utils/desktop';
 import { captureStreamSound } from './deviceStreamSound';
+import { keepScreenOn } from '../utils/keepScreenOn';
 
 // This device's voice connection (one at a time, like Discord): a voice channel or a DM
 // call, the microphone, mute and deafen, and who's talking. The audio goes through a LiveKit
@@ -99,7 +100,8 @@ function loadPrefs() {
 // the username from their token), `streamError`, `streamLimit` (the
 // server's cap on screen share quality, { resolution, frameRate }; null: none, see streamSettings.js).
 // Cameras: `canCamera` (Video in a channel; always in a call), `cameraOn` (yours), `cameras`
-// (the user ids, strings, whose camera is on in this room, you included), `cameraError`,
+// (the user ids, strings, whose camera is on in this room, you included; not yours while it's
+// paused, see pauseCameraWhileHidden), `cameraError`,
 // `cameraFacing` (null: the camera chosen in Settings; 'user' or 'environment' once a phone's
 // camera was switched, see switchCamera).
 const NOT_IN_VOICE = {
@@ -317,8 +319,25 @@ function updateCameras() {
       return publication && !publication.isMuted;
     })
     .map((p) => p.identity);
-  update({ cameras, cameraOn: cameras.includes(room.localParticipant.identity) });
+  // Yours is on while it's published, paused (muted while the page is hidden) or not.
+  const cameraOn = Boolean(room.localParticipant.getTrackPublication(livekit.Track.Source.Camera)?.track);
+  update({ cameras, cameraOn });
   for (const identity of cameraViews.keys()) attachCamera(identity);
+  syncScreenOn();
+}
+
+// While your camera is on and the page is shown, the screen is kept on (keepScreenOn), so a
+// phone doesn't time out and go to sleep in the middle of a video, as video calls do.
+let releaseScreen = null;
+
+function syncScreenOn() {
+  const keep = room != null && snapshot.cameraOn && !(typeof document !== 'undefined' && document.hidden);
+  if (keep && !releaseScreen) {
+    releaseScreen = keepScreenOn();
+  } else if (!keep && releaseScreen) {
+    releaseScreen();
+    releaseScreen = null;
+  }
 }
 
 // The video track of `identity`'s screen share, once there (yours is local).
@@ -429,6 +448,7 @@ async function teardown() {
   audioElementsByTrack = new Map();
   if (audioContainer) audioContainer.replaceChildren();
   oldPlayback?.close().catch(() => {});
+  syncScreenOn();
 }
 
 // Everything that changes the microphone runs one at a time, each reading the state when its
@@ -1232,6 +1252,34 @@ export async function switchCamera() {
   }
 }
 
+// A phone gets no frames from its camera while the page is hidden (the screen off, another app
+// in front: Android's WebView and phone browsers stop it), so others would see your last frame
+// frozen. There your camera is muted while hidden instead (others see your picture, the
+// camera's light goes off, and it stays published, so `self_video` stays) and unmuted when
+// you're back (LiveKit restarts it with the same constraints, the side switchCamera chose
+// included). Computers keep sending while hidden: their cameras don't stop.
+let cameraPause = Promise.resolve();
+
+function pauseCameraWhileHidden() {
+  const current = room;
+  if (!current || !isMobileDevice()) return;
+  cameraPause = cameraPause.then(async () => {
+    const track = current.localParticipant.getTrackPublication(livekit.Track.Source.Camera)?.track;
+    const pause = document.visibilityState === 'hidden';
+    if (room !== current || !track || track.isMuted === pause) return;
+    try {
+      if (pause) await track.mute();
+      else await track.unmute();
+    } catch (err) {
+      console.warn('Could not resume the camera', err);
+      if (room !== current) return;
+      await stopCamera();
+      update({ cameraError: cameraErrorMessage(err) });
+    }
+    if (room === current) updateCameras();
+  });
+}
+
 export function clearCameraError() {
   update({ cameraError: null });
 }
@@ -1253,7 +1301,12 @@ onVideoSettingsChange(async (next, previous) => {
 
 onStreamViewQualityChange(() => applyStreamQuality());
 
-// Back from the background: cameras shown on screen are downloaded again (and not while hidden).
+// Back from the background: cameras shown on screen are downloaded again (and not while hidden),
+// your camera comes back on a phone and the screen is kept on again.
 if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => syncSubscriptions());
+  document.addEventListener('visibilitychange', () => {
+    syncSubscriptions();
+    pauseCameraWhileHidden();
+    syncScreenOn();
+  });
 }

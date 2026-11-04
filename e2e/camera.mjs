@@ -292,6 +292,24 @@ try {
   await c.click('.group-call-panel button[aria-label="Switch camera"]');
   await c.waitForFunction(() => document.querySelector('.group-call-panel video[aria-label="Your camera"]').classList.contains('mirrored'));
   console.log('carol (phone) switched to the back camera and back; alice kept seeing it');
+
+  // Carol's screen goes off (the page hidden): her camera pauses (let go, so its light goes
+  // off) and Alice sees her picture rather than a frozen frame; back on, it plays again.
+  const setHidden = (hidden) => c.evaluate((value) => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (value ? 'hidden' : 'visible') });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => value });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+  const carolsTrack = await own.evaluateHandle((v) => v.srcObject?.getVideoTracks()[0]);
+  await setHidden(true);
+  await a.waitForSelector(carolsTile, { state: 'detached', timeout: 10000 });
+  await c.waitForFunction((track) => track.readyState === 'ended', carolsTrack);
+  await shot(a, '10-group-call-phone-paused');
+  await setHidden(false);
+  await cameraPlaying(a, carolsTile);
+  await cameraPlaying(c, '.call-panel-person:has(video[aria-label="Your camera"])');
+  if (!(await c.locator('.group-call-panel button[aria-label="Turn off camera"]').count())) throw new Error('carol\'s camera button went off');
+  console.log('carol\'s screen went off: alice saw her picture, then her camera again');
   await a.click('.group-call-panel button[aria-label="Leave call"]');
   console.log('OK');
 } finally {

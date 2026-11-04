@@ -527,8 +527,9 @@ native bridge. Check real behaviour on a phone.
   page sees the call stop ringing.
 - **Ongoing call** (`CallService.java`): while in a call or voice channel, a foreground service
   (microphone type, with a wake lock) keeps the app and its audio running with the screen off
-  (not the camera: Android stops a camera in the background, so others see yours freeze until
-  the app is back; the `CAMERA` permission is asked for by the WebView when you first turn
+  (not the camera: Android stops a camera in the background, so the page pauses yours while
+  hidden, others seeing your picture until the app is back, and keeps the screen on while it's
+  on, see Cameras in `docs/voice-and-calls.md`; the `CAMERA` permission is asked for by the WebView when you first turn
   yours on, and the camera isn't required to install);
   its notification shows what the voice bar shows (`utils/voiceTitle.js`) with Mute / Unmute and
   Hang up (Disconnect in a voice channel).

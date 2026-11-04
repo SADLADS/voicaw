@@ -49,6 +49,12 @@ const lk = vi.hoisted(() => {
     constructor(options) {
       this.options = options;
       this.restarts = [];
+      this.isMuted = false;
+    }
+    async mute() { this.isMuted = true; }
+    async unmute() {
+      if (state.cameraFails) throw Object.assign(new Error('busy'), { name: 'NotReadableError' });
+      this.isMuted = false;
     }
     get mediaStreamTrack() { return { getSettings: () => ({ facingMode: this.options.facingMode }) }; }
     async restartTrack(options) {
@@ -67,7 +73,7 @@ const lk = vi.hoisted(() => {
     }
     get isMicrophoneEnabled() { return Boolean(this.mic && !this.mic.isMuted); }
     getTrackPublication(source) {
-      if (source === 'camera') return this.camera ? { track: this.camera, isMuted: false } : undefined;
+      if (source === 'camera') return this.camera ? { track: this.camera, isMuted: this.camera.isMuted } : undefined;
       if (source !== 'microphone' || !this.mic) return undefined;
       const track = this.mic;
       return { track, audioTrack: track, get isMuted() { return track.isMuted; } };
@@ -177,6 +183,19 @@ vi.mock('../sounds/sounds', () => ({ playSound: vi.fn() }));
 const guildEvents = vi.hoisted(() => ({ listeners: [] }));
 vi.mock('../utils/ws-client', () => ({ onGuildEvent: (cb) => guildEvents.listeners.push(cb) }));
 const sendGuildEvent = (event) => guildEvents.listeners.forEach((cb) => cb(event));
+// A phone (isMobileDevice) while `device.mobile`; the screen kept on (keepScreenOn) while
+// `device.screenOn`.
+const device = vi.hoisted(() => ({ mobile: false, screenOn: false }));
+vi.mock('../utils/presence', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isMobileDevice: () => device.mobile,
+}));
+vi.mock('../utils/keepScreenOn', () => ({
+  keepScreenOn: () => {
+    device.screenOn = true;
+    return () => { device.screenOn = false; };
+  },
+}));
 vi.mock('./noise/noiseStages', () => ({ VOICE_SAMPLE_RATE: 48000, voiceProcessingStage: vi.fn() }));
 vi.mock('./speaking', () => ({
   createSpeakingMeters: () => ({ add() {}, remove() {}, destroy() {} }),
@@ -567,6 +586,77 @@ describe('voiceClient camera', () => {
     expect(voice.getVoiceSnapshot().cameraFacing).toBe(null);
     const again = await joinWithCamera();
     expect(again.camera.options).toMatchObject({ facingMode: 'user' });
+  });
+
+  let hidden = false;
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+  async function setHidden(value) {
+    hidden = value;
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+  }
+
+  it("keeps the screen on while the camera is on and shown", async () => {
+    device.mobile = true;
+    try {
+      await joinWithCamera();
+      expect(device.screenOn).toBe(true);
+      await setHidden(true);
+      expect(device.screenOn).toBe(false);
+      await setHidden(false);
+      expect(device.screenOn).toBe(true);
+      await voice.stopCamera();
+      expect(device.screenOn).toBe(false);
+      await voice.startCamera();
+      expect(device.screenOn).toBe(true);
+      await voice.leaveVoice();
+      expect(device.screenOn).toBe(false);
+    } finally {
+      device.mobile = false;
+      hidden = false;
+    }
+  });
+
+  it("pauses a phone's camera while the page is hidden, rather than leaving it frozen", async () => {
+    device.mobile = true;
+    try {
+      const me = await joinWithCamera();
+      const camera = me.camera;
+      await setHidden(true);
+      expect(camera.isMuted).toBe(true);
+      // Others see your picture; your camera is still on (published), only paused.
+      expect(voice.getVoiceSnapshot()).toMatchObject({ cameraOn: true, cameras: [] });
+      await setHidden(false);
+      expect(camera.isMuted).toBe(false);
+      expect(me.camera).toBe(camera);
+      expect(voice.getVoiceSnapshot()).toMatchObject({ cameraOn: true, cameras: ['1'] });
+    } finally {
+      device.mobile = false;
+      hidden = false;
+    }
+  });
+
+  it("turns a phone's camera off when it can't come back", async () => {
+    device.mobile = true;
+    try {
+      const me = await joinWithCamera();
+      await setHidden(true);
+      lk.state.cameraFails = true;
+      await setHidden(false);
+      expect(me.camera).toBe(null);
+      expect(voice.getVoiceSnapshot()).toMatchObject({ cameraOn: false, cameraError: expect.any(String) });
+    } finally {
+      device.mobile = false;
+      hidden = false;
+    }
+  });
+
+  it("keeps a computer's camera going while the page is hidden", async () => {
+    const me = await joinWithCamera();
+    await setHidden(true);
+    expect(me.camera.isMuted).toBe(false);
+    await setHidden(false);
   });
 
   it('goes back to the camera it had when the other one fails', async () => {
