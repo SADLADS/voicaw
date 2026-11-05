@@ -134,6 +134,8 @@
       "edited": "изменено",
       "notSent": "Не отправлено.",
       "retry": "Повторить",
+      "copyCode": "Копировать код",
+      "copyCodeFailed": "Не удалось скопировать код",
       "removePreviewsButton": "Убрать предпросмотры",
       "editedInline": "(изменено)",
       "unsigned": "без подписи",

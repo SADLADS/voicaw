@@ -132,6 +132,8 @@
       "edited": "edited",
       "notSent": "Not sent.",
       "retry": "Retry",
+      "copyCode": "Copy code",
+      "copyCodeFailed": "Couldn't copy the code",
       "removePreviewsButton": "Remove previews",
       "editedInline": "(edited)",
       "unsigned": "not signed",

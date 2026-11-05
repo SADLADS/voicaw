@@ -53,6 +53,7 @@ import { hasEditHistory } from '../utils/editHistory';
 import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
 import { ChannelMentionContext } from '../contexts';
 import ChannelIcon from './guild/ChannelIcon';
+import CodeBlock from './CodeBlock';
 import { showContent } from '../utils/mobilePanes';
 import { appPathOf, parseChannelLink } from '../utils/guildDisplay';
 import { pageMenuTarget } from '../utils/pageMenuTarget';
@@ -205,7 +206,7 @@ function InAppLink({ href, path, children, ...rest }) {
   return <a href={href} {...rest} target="_blank" rel="noopener noreferrer" onClick={onClick}>{children}</a>;
 }
 
-const markdownComponents = { a: MarkdownLink, img: MarkdownImage, span: MarkdownSpan };
+const markdownComponents = { a: MarkdownLink, img: MarkdownImage, span: MarkdownSpan, pre: CodeBlock };
 // Discord's flavour: GFM for strikethrough and bare links, then remarkDiscord.
 const remarkPlugins = [remarkGfm, remarkDiscord, remarkEmoji];
 

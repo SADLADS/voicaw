@@ -131,6 +131,8 @@
       "edited": "編集済み",
       "notSent": "送信されていません。",
       "retry": "再試行",
+      "copyCode": "コードをコピー",
+      "copyCodeFailed": "コードをコピーできませんでした",
       "removePreviewsButton": "プレビューを削除",
       "editedInline": "（編集済み）",
       "unsigned": "署名なし",
