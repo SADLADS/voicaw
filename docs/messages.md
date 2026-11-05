@@ -140,6 +140,8 @@ code doesn't turn into one), and what Discord doesn't have stays as typed (micro
 switched off: indented code, `---` rules, `===` headings, tables, task lists, footnotes,
 `[x]: url` definitions; `####` and deeper headings are turned back into text). Kept: bold,
 italic, strikethrough, code, code blocks, `#`–`###` headings, `>` quotes, lists, links.
+Code blocks (messages, embeds, forwards, documents) have a copy button in the corner (`CodeBlock`,
+shown on hover, always on phones), copying the code without the fence or the last newline.
 Links always open in a new tab (`MarkdownLink`; the desktop app sends them to the browser):
 following one in the app's own page would unload it, and LiveKit leaves voice on unload, even
 when the desktop app then cancels the navigation. Links to the app's own pages are the

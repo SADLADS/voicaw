@@ -2828,9 +2828,61 @@ body.mobile-mode .each-dm-message-wrapper textarea {
 
 .dm-message-content pre code {
   display: block;
-  padding: 8px;
+  padding: 8px 40px 8px 8px; /* the end of a long line scrolls clear of the copy button */
   white-space: pre;
   overflow-x: auto;
+}
+
+/* A code block's copy button (CodeBlock): on hover, always where nothing can hover. */
+.code-block {
+  position: relative;
+}
+
+.code-block-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 4px;
+  background-color: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-md);
+  cursor: pointer;
+  opacity: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.code-block:hover .code-block-copy,
+.code-block-copy:focus-visible,
+.code-block-copy.copied,
+.code-block-copy.failed {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .code-block-copy {
+    opacity: 1;
+  }
+}
+
+.code-block-copy:hover {
+  background-color: var(--vc-bg-elevated-hover);
+  color: var(--vc-fg);
+}
+
+.code-block-copy.copied {
+  color: var(--vc-online);
+}
+
+.code-block-copy.failed {
+  color: var(--vc-danger);
 }
 
 /* A spoiler: a dark block until clicked, then its text on a faint background. */

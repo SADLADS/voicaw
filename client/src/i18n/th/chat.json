@@ -131,6 +131,8 @@
       "edited": "แก้ไขแล้ว",
       "notSent": "ยังไม่ได้ส่ง",
       "retry": "ลองอีกครั้ง",
+      "copyCode": "คัดลอกโค้ด",
+      "copyCodeFailed": "คัดลอกโค้ดไม่สำเร็จ",
       "removePreviewsButton": "ลบตัวอย่าง",
       "editedInline": "(แก้ไขแล้ว)",
       "unsigned": "ไม่ได้ลงนาม",
