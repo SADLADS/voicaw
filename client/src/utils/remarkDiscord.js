@@ -6,6 +6,8 @@
 // - `||text||` is a spoiler (hidden until clicked; MessageList's span component draws it).
 // - Blank lines between blocks show, as many as were typed (markdown folds any number of them
 //   into one paragraph break): each is an empty `.blank-line` paragraph, a line high (dms.css).
+// - ``` makes a code block however it's typed: ```on one line```, in the middle of a line, or
+//   closed at the end of the last line of code (CommonMark wants the closing ``` on its own line).
 // Code, inline or in blocks, is left alone.
 
 import { t } from '../i18n';
@@ -54,6 +56,72 @@ function transform(node, source, { document = false } = {}) {
   });
   node.children.forEach((child) => transform(child, source, { document }));
   wrapSpoilers(node);
+  if (!document) {
+    closeCodeBlocks(node, source);
+    if (FLOW.has(node.type)) splitCodeBlocks(node, source);
+  }
+}
+
+// Where a code block can stand, so what a paragraph holds can be lifted out of it.
+const FLOW = new Set(['root', 'blockquote', 'listItem']);
+
+// A code block never closed on a line of its own, because its last line ends with ```: that's
+// its end, not code.
+function closeCodeBlocks(parent, source) {
+  for (const child of parent.children) {
+    if (child.type !== 'code' || !child.position) continue;
+    const lastLine = source.slice(child.position.start.offset, child.position.end.offset).split('\n').pop();
+    if (/^[\s>]*`{3,}\s*$/.test(lastLine)) continue;
+    child.value = child.value.replace(/\s*`{3,}\s*$/, '');
+  }
+}
+
+// To CommonMark, ``` on one line (or mid-line) is inline code. Each such span in a paragraph
+// becomes a code block between what's left of the paragraph. Spans inside other formatting,
+// such as a spoiler, stay inline.
+function splitCodeBlocks(parent, source) {
+  parent.children = parent.children.flatMap((child) => {
+    if (child.type !== 'paragraph' || !child.children.some((n) => isTripleCode(n, source))) return [child];
+    const blocks = [];
+    let inline = [];
+    const flush = () => {
+      trimInline(inline);
+      if (inline.length) blocks.push({ type: 'paragraph', children: inline });
+      inline = [];
+    };
+    for (const n of child.children) {
+      if (!isTripleCode(n, source)) {
+        inline.push(n);
+        continue;
+      }
+      flush();
+      blocks.push({ type: 'code', lang: null, meta: null, value: codeBlockText(n, parent, source), position: n.position });
+    }
+    flush();
+    return blocks;
+  });
+}
+
+const isTripleCode = (node, source) => node.type === 'inlineCode' && node.value.trim() !== ''
+  && source.startsWith('```', node.position?.start.offset);
+
+// The span's own text: CommonMark turns its newlines into spaces. In a quote or a list the
+// source's lines have prefixes, so there the spaces stay.
+function codeBlockText(node, parent, source) {
+  if (parent.type !== 'root') return node.value;
+  const raw = source.slice(node.position.start.offset, node.position.end.offset);
+  return raw.replace(/^`+/, '').replace(/`+$/, '').replace(/^\n|\n$/g, '');
+}
+
+// The whitespace left at the ends of a paragraph's pieces.
+function trimInline(inline) {
+  const first = inline[0];
+  if (first?.type === 'text') first.value = first.value.trimStart();
+  const last = inline[inline.length - 1];
+  if (last?.type === 'text') last.value = last.value.trimEnd();
+  for (const at of [inline.length - 1, 0]) {
+    if (inline[at]?.type === 'text' && !inline[at].value) inline.splice(at, 1);
+  }
 }
 
 // Between two blocks, every newline after the first is a blank line the sender typed.

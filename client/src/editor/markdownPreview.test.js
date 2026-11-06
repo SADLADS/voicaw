@@ -63,6 +63,23 @@ describe('markdownPreview', () => {
     expect(lines[5].spans.map((s) => s.className)).toEqual(['md-syntax', 'md-italic', 'md-syntax']);
   });
 
+  it('sees ``` on one line as a whole block, opening nothing', () => {
+    const lines = markdownPreview(['```aaa```', 'after *it*']);
+    expect(lines[0].block).toBe('md-code-block md-code-block-start md-code-block-end');
+    expect(lines[0].spans).toEqual([
+      { from: 0, to: 3, className: 'md-syntax' },
+      { from: 6, to: 9, className: 'md-syntax' },
+    ]);
+    expect(lines[1].block).toBeNull();
+    expect(lines[1].spans.map((s) => s.className)).toEqual(['md-syntax', 'md-italic', 'md-syntax']);
+  });
+
+  it('closes a code block at ``` ending a line', () => {
+    expect(markdownPreview(['```py', 'print(1)```', 'after']).map((l) => l.block)).toEqual([
+      'md-code-block md-code-block-start', 'md-code-block md-code-block-end', null,
+    ]);
+  });
+
   it('keeps an unfinished code block open to the end', () => {
     expect(markdownPreview(['```', 'still code']).map((l) => l.block)).toEqual([
       'md-code-block md-code-block-start', 'md-code-block',
