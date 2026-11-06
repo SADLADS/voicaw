@@ -140,6 +140,10 @@ code doesn't turn into one), and what Discord doesn't have stays as typed (micro
 switched off: indented code, `---` rules, `===` headings, tables, task lists, footnotes,
 `[x]: url` definitions; `####` and deeper headings are turned back into text). Kept: bold,
 italic, strikethrough, code, code blocks, `#`–`###` headings, `>` quotes, lists, links.
+As in Discord, ``` makes a code block however it's typed in messages: ```` ```on one line``` ````,
+in the middle of a line (the text around it becomes paragraphs) or closed at the end of the
+code's last line (`remarkDiscord`; the message box's preview agrees). Inside a spoiler it stays
+inline; documents keep CommonMark's rules.
 Code blocks (messages, embeds, forwards, documents) have a copy button in the corner (`CodeBlock`,
 shown on hover, always on phones), copying the code without the fence or the last newline.
 Links always open in a new tab (`MarkdownLink`; the desktop app sends them to the browser):

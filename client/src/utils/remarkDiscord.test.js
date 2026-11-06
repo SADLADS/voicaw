@@ -24,6 +24,28 @@ describe('remarkDiscord', () => {
     );
   });
 
+  it('makes a code block of ``` however it is typed', () => {
+    expect(render('```aaa```')).toBe('<pre><code>aaa\n</code></pre>');
+    expect(render('````aaa````')).toBe('<pre><code>aaa\n</code></pre>');
+    expect(render('before ```aaa``` after')).toBe('<p>before</p>\n<pre><code>aaa\n</code></pre>\n<p>after</p>');
+    expect(render('```a```\n```b```')).toBe('<pre><code>a\n</code></pre>\n<pre><code>b\n</code></pre>');
+    expect(render('x ```a\n  b``` y')).toContain('<pre><code>a\n  b\n</code></pre>');
+    expect(render('> ```aaa```')).toContain('<blockquote>\n<pre><code>aaa\n</code></pre>\n</blockquote>');
+    expect(render('- ```aaa```')).toContain('<pre><code>aaa\n</code></pre>');
+  });
+
+  it('ends a code block at ``` closing its last line', () => {
+    expect(render('```py\nprint(1)```')).toBe('<pre><code class="language-py">print(1)\n</code></pre>');
+    expect(render('```\na\nb```')).toBe('<pre><code>a\nb\n</code></pre>');
+  });
+
+  it('leaves the rest of the code alone', () => {
+    expect(render('`x` and ``y``')).toBe('<p><code>x</code> and <code>y</code></p>');
+    expect(render('```\nkept```\n```')).toContain('kept```');
+    expect(render('```\nnever closed')).toBe('<pre><code>never closed\n</code></pre>');
+    expect(render('||```hidden```||')).toBe('<p><span class="spoiler"><code>hidden</code></span></p>');
+  });
+
   it("leaves what Discord doesn't have as typed", () => {
     expect(render('#### Four')).toBe('<p>#### Four</p>');
     expect(render('text\n===')).toBe('<p>text\n===</p>');

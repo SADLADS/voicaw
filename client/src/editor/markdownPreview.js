@@ -16,6 +16,26 @@
 export function markdownPreview(lines) {
   let inFence = false;
   return lines.map((line) => {
+    // ```on one line``` is a whole block, which opens nothing.
+    if (!inFence && /^\s{0,3}```[^`]+```\s*$/.test(line)) {
+      const from = line.indexOf('```') + 3;
+      const to = line.lastIndexOf('```');
+      return {
+        block: 'md-code-block md-code-block-start md-code-block-end',
+        spans: [
+          { from: 0, to: from, className: 'md-syntax' },
+          { from: to, to: line.length, className: 'md-syntax' },
+        ],
+      };
+    }
+    // As in sent messages, ``` at the end of a line of code closes the block too.
+    if (inFence && /[^`\s]\s*```\s*$/.test(line)) {
+      inFence = false;
+      return {
+        block: 'md-code-block md-code-block-end',
+        spans: [{ from: line.lastIndexOf('```'), to: line.length, className: 'md-syntax' }],
+      };
+    }
     const fence = /^\s{0,3}```/.test(line);
     if (fence || inFence) {
       const opening = fence && !inFence;

@@ -2,7 +2,7 @@
 // stays in the corner while a long line scrolls and clears the line's end; every theme.
 //   node e2e/serve.mjs &   then   node e2e/codecopy.mjs [dir]
 import { mkdirSync } from 'node:fs';
-import { launchChrome, signUp, openChat, makeFriends, devices } from './helpers.mjs';
+import { launchChrome, signUp, openChat, makeFriends, send, devices } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -74,8 +74,22 @@ try {
   });
   check(!/copy/i.test(selected), "selecting the block doesn't pick up the button");
 
+  console.log('one line');
+  for (const [typed, expected] of [['```aaa```', 'aaa'], ['before ```bbb``` after', 'bbb']]) {
+    await send(alice.page, typed);
+    const oneLine = alice.page.locator('.dm-message-content pre.code-block', { hasText: expected }).last();
+    await oneLine.waitFor({ timeout: 10000 });
+    await oneLine.hover();
+    await oneLine.locator('.code-block-copy').click();
+    await oneLine.locator('button[aria-label="Copied"]').waitFor({ timeout: 2000 });
+    check(await clipboard(alice.page) === expected, `${typed} is a block and copies ${expected}`);
+  }
+  const midLine = alice.page.locator('.dm-message-content', { hasText: 'before' }).last();
+  check(await midLine.locator('p', { hasText: 'after' }).count() === 1, 'the text around it stays');
+  if (dir) await midLine.screenshot({ path: `${dir}/mid-line.png` });
+
   console.log('phone');
-  const phoneBlock = bob.page.locator('.dm-message-content pre.code-block').last();
+  const phoneBlock = bob.page.locator('.dm-message-content pre.code-block', { hasText: 'function hello' });
   await phoneBlock.waitFor({ timeout: 10000 });
   const phoneButton = phoneBlock.locator('.code-block-copy');
   check(await opacity(phoneButton) === '1', 'always shown');
