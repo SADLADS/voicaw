@@ -5,7 +5,7 @@ import data from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
 import MessageActionSheet from './MessageActionSheet';
-import { recordEmojiUse, resetEmojiUsage } from '../emoji/emojiUsage';
+import { recordEmojiReaction, resetEmojiUsage } from '../emoji/emojiUsage';
 
 const index = buildEmojiIndex(data);
 beforeEach(() => {
@@ -39,8 +39,8 @@ function renderSheet(props = {}) {
 }
 
 describe('MessageActionSheet', () => {
-  it('offers quick reactions, your most used first', () => {
-    for (let i = 0; i < 5; i += 1) recordEmojiUse('tada');
+  it('offers quick reactions, those you react with most first', () => {
+    for (let i = 0; i < 5; i += 1) recordEmojiReaction('tada');
     const { onReact, onClose } = renderSheet({ myReactions: new Set(['❤️']) });
     const row = screen.getByRole('group', { name: 'React' });
     const labels = within(row).getAllByRole('button').map((b) => b.getAttribute('aria-label'));

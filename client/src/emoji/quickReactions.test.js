@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import data from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from './emojiIndex';
 import { setCustomEmojiBase } from './customEmoji';
-import { recordEmojiUse, resetEmojiUsage, setSkinTone } from './emojiUsage';
+import { frequentEmojiIds, recordEmojiReaction, recordEmojiUse, resetEmojiUsage, setSkinTone } from './emojiUsage';
 import { quickReactions, recordReactionUse } from './quickReactions';
 
 vi.mock('../utils/api', () => ({ default: { get: vi.fn(), put: vi.fn() } }));
@@ -13,7 +13,7 @@ const index = buildEmojiIndex(data);
 const partyParrot = { id: '42', name: 'party_parrot', guild: { id: 1 } };
 const custom = { guilds: [], byId: new Map([['42', partyParrot]]) };
 const texts = (list) => list.map((r) => r.text);
-const use = (id, times) => { for (let i = 0; i < times; i += 1) recordEmojiUse(id); };
+const use = (id, times) => { for (let i = 0; i < times; i += 1) recordEmojiReaction(id); };
 
 beforeEach(() => {
   resetEmojiUsage();
@@ -21,8 +21,13 @@ beforeEach(() => {
 });
 
 describe('quickReactions', () => {
-  it('offers the defaults before anything has been used', () => {
+  it('offers the defaults before anything has been reacted with', () => {
     expect(texts(quickReactions(index))).toEqual(['👍', '❤️', '😂', '😮', '😢', '🙏']);
+  });
+
+  it('ignores emoji used anywhere but reactions', () => {
+    for (let i = 0; i < 5; i += 1) recordEmojiUse('fire');
+    expect(texts(quickReactions(index, 3))).toEqual(['👍', '❤️', '😂']);
   });
 
   it('puts the most used first, topping up with the defaults', () => {
@@ -59,5 +64,12 @@ describe('recordReactionUse', () => {
     recordReactionUse('<:party_parrot:42>', index);
     recordReactionUse('not an emoji', index);
     expect(texts(quickReactions(index, 2, custom))).toEqual(['<:party_parrot:42>', '👋']);
+  });
+
+  it('is also a use for Frequently Used, unless the picker already counted it', () => {
+    recordReactionUse('🔥', index);
+    recordReactionUse('👀', index, { fromPicker: true });
+    expect(frequentEmojiIds()).toEqual(['fire']);
+    expect(texts(quickReactions(index, 2))).toEqual(['🔥', '👀']);
   });
 });

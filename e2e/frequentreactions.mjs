@@ -1,7 +1,8 @@
-// Quick reactions are the ones you use (client/src/emoji/quickReactions.js): the right-click
-// menu starts with the defaults; adding someone's reaction by clicking it, and reacting from
-// the quick row, count as uses, so those move to the front; the same account on a phone (a
-// second login) gets them in the long-press sheet.
+// Quick reactions are the ones you react with (client/src/emoji/quickReactions.js): the
+// right-click menu starts with the defaults, and an emoji sent in a message leaves them there;
+// reacting from the picker, adding someone's reaction by clicking it, and reacting from the
+// quick row count, so those move to the front; the same account on a phone (a second login)
+// gets them in the long-press sheet.
 //   node e2e/serve.mjs &   then   node e2e/frequentreactions.mjs [screenshot dir]
 import { mkdirSync } from 'node:fs';
 import { BASE, launchChrome, signUp, openChat, send, devices } from './helpers.mjs';
@@ -45,9 +46,18 @@ try {
   await openChat(a, bob.id);
   await waitText(a, 'third');
 
+  // An emoji in a message isn't a reaction: it reaches Frequently Used, not the quick reactions.
+  await send(a, ':rocket:');
+  await a.waitForSelector('.dm-message-content img[alt="🚀"]', { timeout: 20000 });
+  await a.click('.emoji-button');
+  await a.waitForSelector('.emoji-picker');
+  check(await a.locator('.emoji-picker-item[aria-label="Rocket"]').first().isVisible(), 'an emoji sent in a message is in the picker\'s Frequently Used');
+  await a.keyboard.press('Escape');
+  await a.waitForSelector('.emoji-picker', { state: 'detached' });
+
   await menuOn(a, 'first');
   check(JSON.stringify(await quickRow(a, '.context-menu-reactions')) === JSON.stringify(['👍', '❤️', '😂', '😮', '😢']),
-    'nothing used yet: the default quick reactions');
+    'no reactions yet: the default quick reactions, despite the emoji sent');
   await closeMenu(a);
 
   // Bob reacts 😎 from the picker; Alice adds hers by clicking his.
@@ -55,6 +65,10 @@ try {
   await b.click('.context-menu [role="menuitem"]:has-text("Add Reaction")');
   await b.fill('.emoji-picker input[type="search"]', 'sunglasses');
   await b.click('.emoji-picker-item[aria-label="Smiling Face with Sunglasses"]');
+  await row(b, 'first').locator('.reaction-chip.mine').waitFor({ timeout: 10000 });
+  await menuOn(b, 'second');
+  check((await quickRow(b, '.context-menu-reactions'))[0] === '😎', 'a reaction from the picker counts');
+  await closeMenu(b);
   const chip = row(a, 'first').locator('.reaction-chip:not(.reaction-add)');
   await chip.waitFor({ timeout: 10000 });
   await chip.click();

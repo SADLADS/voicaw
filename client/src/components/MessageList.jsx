@@ -364,7 +364,7 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
 // One message (with its reply snippet, hover menu, right-click menu and inline editor). `grouped`: it follows
 // another of the same person's (continuesGroup), so no avatar, name or date, just the time
 // when hovered.
-// The hover menu's one-click reactions: your three most used emoji (quickReactions), left of
+// The hover menu's one-click reactions: the three emoji you react with most (quickReactions), left of
 // its buttons, as Discord's. One you've already reacted with is taken back off.
 const HOVER_QUICK_REACTIONS = 3;
 function HoverQuickReactions({ msg, userId, onToggle }) {

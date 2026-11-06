@@ -6,7 +6,7 @@ import { loadEncryptionKey, loadOwnPublicKeys } from '../services/keyStore';
 import {
   EMOJI_USAGE_BYTES, decryptEmojiUsage, deriveEmojiUsageKey, encryptEmojiUsage, generateUserKeys, importEncryptionPrivateKey,
 } from '../services/encryptionService';
-import { frequentEmojiIds, getSkinTone, recordEmojiUse, setSkinTone, startEmojiUsageSync } from './emojiUsage';
+import { frequentEmojiIds, frequentReactionIds, getSkinTone, recordEmojiReaction, recordEmojiUse, setSkinTone, startEmojiUsageSync } from './emojiUsage';
 
 vi.mock('../utils/api', () => ({ default: { get: vi.fn(), put: vi.fn() } }));
 vi.mock('../utils/ws-client', () => ({ onConnectionState: vi.fn(() => () => {}), onEmojiUsage: vi.fn(() => () => {}) }));
@@ -63,21 +63,57 @@ describe('emoji usage', () => {
     expect(api.put).toHaveBeenCalledTimes(1);
     expect(api.put).toHaveBeenCalledWith('/emoji-usage', expect.objectContaining({ version: 3 }));
     expect(server.emojiUsage).not.toContain('joy');
-    expect(await serverUsage()).toEqual({ counts: { joy: 3, tada: 2, 'custom:10': 1 }, tone: 4 });
+    expect(await serverUsage()).toEqual({ counts: { joy: 3, tada: 2, 'custom:10': 1 }, reactions: {}, tone: 4 });
 
     setSkinTone(1);
     await settle();
     expect((await serverUsage()).tone).toBe(1);
   });
 
+  it('counts reactions apart, saved encrypted and kept across another save', async () => {
+    server = { emojiUsage: await encryptEmojiUsage({ tada: 2 }, 1, key, USER, { fire: 2 }), version: 1 };
+    stop = start();
+    await settle();
+    expect(frequentReactionIds()).toEqual(['fire']);
+
+    recordEmojiReaction('eyes');
+    recordEmojiReaction('eyes');
+    recordEmojiReaction('eyes');
+    expect(frequentReactionIds()).toEqual(['eyes', 'fire']); // at once
+    expect(frequentEmojiIds()).toEqual(['tada']);
+    await settle();
+    expect(await serverUsage()).toEqual({ counts: { tada: 2 }, reactions: { eyes: 3, fire: 2 }, tone: 1 });
+
+    // Another device saved meanwhile: its counts, with this device's reaction on top.
+    server = { emojiUsage: await encryptEmojiUsage({ tada: 2 }, 1, key, USER, { fire: 9 }), version: 5 };
+    recordEmojiReaction('fire');
+    await settle();
+    expect((await serverUsage()).reactions).toEqual({ fire: 10 });
+  });
+
+  it('reads a copy saved before reactions were counted apart, and keeps reaction counts fitting', async () => {
+    server = { emojiUsage: await encryptEmojiUsage({ tada: 2 }, undefined, key, USER), version: 1 };
+    stop = start();
+    await settle();
+    expect(frequentReactionIds()).toEqual([]);
+
+    const many = (prefix) => Object.fromEntries(Array.from({ length: 1000 }, (_, i) => [`${prefix}_some_long_emoji_name_${i}`, i + 1]));
+    const fitted = await decryptEmojiUsage(await encryptEmojiUsage(many('a'), 0, key, USER, many('r')), key, USER);
+    expect(Object.keys(fitted.reactions)).toHaveLength(64);
+    expect(fitted.reactions.r_some_long_emoji_name_999).toBe(1000);
+    expect(fitted.counts.a_some_long_emoji_name_999).toBe(1000);
+  });
+
   it("is the account's, not the device's: forgotten on logging out", async () => {
     stop = start();
     await settle();
     recordEmojiUse('tada');
+    recordEmojiReaction('tada');
     setSkinTone(2);
     stop();
     stop = null;
     expect(frequentEmojiIds()).toEqual([]);
+    expect(frequentReactionIds()).toEqual([]);
     expect(getSkinTone()).toBe(0);
     expect(localStorage.length).toBe(0);
   });
@@ -106,7 +142,7 @@ describe('emoji usage', () => {
     recordEmojiUse('joy');
     await settle();
     expect(server.version).toBe(2);
-    expect(await serverUsage()).toEqual({ counts: { tada: 6, joy: 1 }, tone: 2 });
+    expect(await serverUsage()).toEqual({ counts: { tada: 6, joy: 1 }, reactions: {}, tone: 2 });
     expect(frequentEmojiIds()).toEqual(['tada', 'joy']);
 
     // And the event from another device's save.
@@ -144,7 +180,7 @@ describe('emoji usage', () => {
     server = { emojiUsage: await encryptEmojiUsage({ tada: 2 }, 1, key, USER), version: 1 };
     stop = start();
     await settle();
-    expect(await serverUsage()).toEqual({ counts: { joy: 4, tada: 3 }, tone: 1 });
+    expect(await serverUsage()).toEqual({ counts: { joy: 4, tada: 3 }, reactions: {}, tone: 1 });
     expect(getSkinTone()).toBe(1);
     expect(localStorage.getItem('emojiFrequent')).toBeNull();
     expect(localStorage.getItem('emojiSkinTone')).toBeNull();

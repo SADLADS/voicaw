@@ -60,6 +60,7 @@ import GuildView from '../guild/GuildView';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../../emoji/emojiIndex';
 import { EmojiContext } from '../../emoji/emojiContext';
+import { frequentReactionIds, resetEmojiUsage } from '../../emoji/emojiUsage';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import {
   addDocumentReaction,
@@ -166,10 +167,12 @@ describe('document channels', () => {
   it('reacts to a document from its card without opening it', async () => {
     fetchDocuments.mockResolvedValue([card(2, 'Second', { reactions: [{ id: 5, user_id: 2, emoji: '👍', timestamp: 1 }] }), card(1, 'First')]);
     addDocumentReaction.mockResolvedValue({ id: 6, document_id: 2, user_id: 1, emoji: '👍', timestamp: 2 });
+    resetEmojiUsage();
     renderView('/guild/5/20');
     fireEvent.click(await screen.findByRole('button', { name: /👍 1/ }));
     await waitFor(() => expect(addDocumentReaction).toHaveBeenCalledWith(2, '👍'));
     await waitFor(() => expect(screen.getByRole('button', { name: /👍 2/ })).toBeTruthy());
+    expect(frequentReactionIds()).toEqual(['+1']); // counts towards the quick reactions
     expect(where()).toBe('/guild/5/20');
     // A card without reactions still offers one, with Add Reactions.
     expect(screen.getAllByRole('button', { name: 'Add reaction' })).toHaveLength(2);

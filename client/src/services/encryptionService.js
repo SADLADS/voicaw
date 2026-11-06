@@ -389,29 +389,39 @@ export function emojiUsageContext(userId) {
 // (server/emojiUsage.js takes a little over its envelope).
 export const EMOJI_USAGE_BYTES = 8 * 1024;
 
-const emojiUsageJson = (counts, tone) => JSON.stringify({ v: 1, counts, ...(tone === undefined ? {} : { tone }) });
+// Reaction counts kept: more than the quick reactions look at, and few enough that they always fit.
+const EMOJI_USAGE_MAX_REACTIONS = 64;
 
-// `counts` ({ emoji id: uses }) and `tone` (0-5, or undefined if never chosen) -> "v1.<base64>".
-// The least used are left out until it fits.
-export function encryptEmojiUsage(counts, tone, key, userId) {
+const emojiUsageJson = (counts, reactions, tone) => JSON.stringify({ v: 1, counts, reactions, ...(tone === undefined ? {} : { tone }) });
+
+const validEmojiCounts = (uses) => Object.fromEntries(
+  Object.entries(uses && typeof uses === 'object' ? uses : {}).filter(([, n]) => Number.isInteger(n) && n > 0)
+);
+
+// `counts` ({ emoji id: uses }), `tone` (0-5, or undefined if never chosen) and `reactions`
+// ({ emoji id: reactions added }) -> "v1.<base64>". The least used are left out until it fits.
+export function encryptEmojiUsage(counts, tone, key, userId, reactions = {}) {
+  const kept = Object.fromEntries(
+    Object.entries(reactions).sort((a, b) => b[1] - a[1]).slice(0, EMOJI_USAGE_MAX_REACTIONS)
+  );
   let entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  let json = emojiUsageJson(Object.fromEntries(entries), tone);
+  let json = emojiUsageJson(Object.fromEntries(entries), kept, tone);
   while (te.encode(json).length > EMOJI_USAGE_BYTES) {
     entries = entries.slice(0, -Math.max(1, Math.floor(entries.length / 10)));
-    json = emojiUsageJson(Object.fromEntries(entries), tone);
+    json = emojiUsageJson(Object.fromEntries(entries), kept, tone);
   }
   // JSON allows trailing spaces.
   const padded = json + ' '.repeat(EMOJI_USAGE_BYTES - te.encode(json).length);
   return encryptMessage(padded, key, emojiUsageContext(userId));
 }
 
-// -> { counts, tone } (tone undefined if never chosen).
+// -> { counts, reactions, tone } (tone undefined if never chosen; no reactions from before they
+// were counted apart).
 export async function decryptEmojiUsage(envelope, key, userId) {
   const data = JSON.parse(await decryptMessage(envelope, key, emojiUsageContext(userId)));
   if (data?.v !== 1 || !data.counts || typeof data.counts !== 'object') throw new Error('Unsupported emoji usage format');
-  const counts = Object.fromEntries(Object.entries(data.counts).filter(([, n]) => Number.isInteger(n) && n > 0));
   const tone = Number.isInteger(data.tone) && data.tone >= 0 && data.tone <= 5 ? data.tone : undefined;
-  return { counts, tone };
+  return { counts: validEmojiCounts(data.counts), reactions: validEmojiCounts(data.reactions), tone };
 }
 
 // Decrypts a message's reactions into [{ id, user_id, emoji }], skipping any that fail.

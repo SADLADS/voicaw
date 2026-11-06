@@ -13,6 +13,8 @@ import DocumentCover from './DocumentCover';
 import ImageMenu from '../ImageMenu';
 import { useImageHold } from '../../hooks/useImageHold';
 import { ConfigContext } from '../../contexts';
+import { useEmojiIndex } from '../../emoji/emojiContext';
+import { recordReactionUse } from '../../emoji/quickReactions';
 import { useChannel } from '../../hooks/useChannel';
 import { toggleDocumentReaction, useDocument, useDocumentFeed } from '../../hooks/useDocuments';
 import { deleteDocument } from '../../services/guildService';
@@ -142,9 +144,15 @@ function DocumentReactions({ document, user, reactionNames, canReact, isMobile, 
   const [pickerRect, setPickerRect] = useState(null);
   const open = (anchor) => setPickerRect(anchor.getBoundingClientRect());
   const close = () => setPickerRect(null);
+  const emojiIndex = useEmojiIndex();
+  // Every reaction added counts towards the quick reactions (the picker counts its own use).
+  const toggle = (emoji, options) => {
+    if (!document.reactions.some((r) => r.user_id === user.id && r.emoji === emoji)) recordReactionUse(emoji, emojiIndex, options);
+    onToggle(emoji);
+  };
   const pick = (emoji) => {
     close();
-    onToggle(emoji);
+    toggle(emoji, { fromPicker: true });
   };
   const hasAny = document.reactions.length > 0;
   return (
@@ -153,7 +161,7 @@ function DocumentReactions({ document, user, reactionNames, canReact, isMobile, 
         reactions={document.reactions}
         userId={user.id}
         names={reactionNames}
-        onToggle={onToggle}
+        onToggle={toggle}
         onAdd={canReact ? open : undefined}
       />
       {!hasAny && canReact && (

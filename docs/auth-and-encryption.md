@@ -348,9 +348,14 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   The same scheme as the dictionary (`server/ownEnvelopes.js`): one envelope in
   `users.emoji_usage`, under `deriveEmojiUsageKey` (HKDF with `voicaw/emoji-usage-key/v1`) with
   `voicaw/emoji-usage/v1|<user id>` as additional data. The plaintext is
-  `{"v":1,"counts":{"<emoji id>":uses},"tone":0-5}` (custom emoji as `custom:<id>`; no `tone`
-  until one is chosen) padded to exactly 8 KiB, the least used left out to fit, so the server
-  learns nothing from its size. `GET /emoji-usage` → `{ emojiUsage, version }`, `PUT
+  `{"v":1,"counts":{"<emoji id>":uses},"reactions":{"<emoji id>":reactions added},"tone":0-5}`
+  (custom emoji as `custom:<id>`; no `tone` until one is chosen) padded to exactly 8 KiB, the
+  least used left out to fit (`reactions` keeps its top 64), so the server learns nothing from
+  its size. `counts` is every use (picker, `:shortcode:`s, reactions) for Frequently Used;
+  `reactions` is only reactions added (from anywhere, documents too) for the quick reactions, so
+  emoji put in messages never reach those, and the defaults fill in until you've reacted enough
+  (counting apart began 2026-11-06, with nothing carried over: `counts` can't tell which were
+  reactions). A save from an app older than that drops `reactions`. `GET /emoji-usage` → `{ emojiUsage, version }`, `PUT
   /emoji-usage { emojiUsage, version }` with the dictionary's 409 on a stale version, and the
   `emoji_usage` event to your devices. A use counts at once and is saved 2 s later (one save
   for a burst; also when the page is hidden), so the server sees a save soon after you've used

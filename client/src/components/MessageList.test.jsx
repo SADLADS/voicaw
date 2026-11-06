@@ -16,7 +16,7 @@ import { editorFor } from '../editor/editorRegistry';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
-import { recordEmojiUse, resetEmojiUsage } from '../emoji/emojiUsage';
+import { recordEmojiReaction, resetEmojiUsage } from '../emoji/emojiUsage';
 import { loadDecryptedAttachment } from '../services/attachmentCache';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
 import { setMessageDisplay } from '../utils/messageDisplay';
@@ -744,11 +744,11 @@ describe('MessageList reactions', () => {
     expect(screen.queryByRole('button', { name: 'Add reaction' })).not.toBeInTheDocument();
   });
 
-  it('offers your three most used emoji on hover, left of the buttons, reacting in one click', () => {
+  it('offers the three emoji you react with most on hover, left of the buttons, reacting in one click', () => {
     resetEmojiUsage();
-    recordEmojiUse('eyes');
-    recordEmojiUse('eyes');
-    recordEmojiUse('fire');
+    recordEmojiReaction('eyes');
+    recordEmojiReaction('eyes');
+    recordEmojiReaction('fire');
     const msg = {
       id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'nice', timestamp: 1000,
       reactions: [{ id: 1, user_id: 1, emoji: '🔥' }],
@@ -762,7 +762,7 @@ describe('MessageList reactions', () => {
 
     const menu = container.querySelector('.message-menu');
     const quick = [...menu.querySelectorAll('.quick-reaction-button')];
-    // Topped up with the defaults (👍) while fewer than three have been used.
+    // Topped up with the defaults (👍) while fewer than three have been reacted with.
     expect(quick.map((b) => b.querySelector('img').alt)).toEqual(['👀', '🔥', '👍']);
     expect(menu.firstElementChild).toBe(quick[0]);
     expect(quick[2].nextElementSibling).toHaveClass('message-menu-separator');

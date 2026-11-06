@@ -213,12 +213,17 @@ export default function ChatPane({
   });
   const emojiIndex = useEmojiIndex();
 
-  // A reaction added from the quick reactions or by clicking someone's counts as using that
-  // emoji, so the quick reactions become the ones you use (the picker counts its own).
+  // Every reaction added counts, so the quick reactions become the ones you react with.
+  const hasMyReaction = (msg, emoji) => (msg.reactions ?? []).some((r) => r.user_id === user.id && r.emoji === emoji);
   const toggleReaction = (msg, emoji) => {
     const current = conversation.messagesRef.current.find((m) => m.id === msg.id) ?? msg;
-    if (!(current.reactions ?? []).some((r) => r.user_id === user.id && r.emoji === emoji)) recordReactionUse(emoji, emojiIndex);
+    if (!hasMyReaction(current, emoji)) recordReactionUse(emoji, emojiIndex);
     reactions.toggleReaction(msg, emoji);
+  };
+  const pickReaction = (emoji) => {
+    const msg = conversation.messagesRef.current.find((m) => m.id === reactions.reactingTo?.msgId);
+    if (msg && !hasMyReaction(msg, emoji)) recordReactionUse(emoji, emojiIndex, { fromPicker: true });
+    reactions.pickReaction(emoji);
   };
 
   const setShowEmojiPicker = (open) => {
@@ -550,7 +555,7 @@ export default function ChatPane({
         const { below, style } = reactionPickerPosition(reactingTo.rect);
         return (
           <div className={`reaction-picker-anchor${below ? ' below' : ''}`} style={style}>
-            <EmojiPicker onSelect={reactions.pickReaction} onClose={reactions.closePicker} />
+            <EmojiPicker onSelect={pickReaction} onClose={reactions.closePicker} />
           </div>
         );
       })()}
@@ -755,7 +760,7 @@ export default function ChatPane({
         <EmojiPicker
           docked
           height={getKeyboardHeight()}
-          onSelect={(native) => { reactions.pickReaction(native); reactions.closePicker(); }}
+          onSelect={(native) => { pickReaction(native); reactions.closePicker(); }}
           onClose={reactions.closePicker}
         />
       )}

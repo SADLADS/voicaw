@@ -17,23 +17,25 @@ const LEGACY_FREQUENT_KEY = 'emojiFrequent';
 const LEGACY_SKIN_TONE_KEY = 'emojiSkinTone';
 const SAVE_DELAY = 2000;
 
-let counts = {}; // emoji id (custom: `custom:<id>`) -> uses
+let counts = {}; // emoji id (custom: `custom:<id>`) -> uses anywhere (the picker's Frequently Used)
+let reactions = {}; // the same, reactions only (the quick reactions)
 let tone; // 0-5, undefined if never chosen
 let account = null; // { userId, key: Promise<CryptoKey | null>, version, saveDelay }
-let unsaved = []; // [{ use: id, n } | { tone, legacy? }] not on the server yet, in order
+let unsaved = []; // [{ use: id, n } | { react: id } | { tone, legacy? }] not on the server yet, in order
 let saving = false;
 let saveTimer = null;
 
 function apply(state, op) {
   if (op.use) state.counts[op.use] = (state.counts[op.use] || 0) + op.n;
+  else if (op.react) state.reactions[op.react] = (state.reactions[op.react] || 0) + 1;
   // A tone chosen before tones followed the account doesn't override the account's.
   else if (!(op.legacy && state.tone !== undefined)) state.tone = op.tone;
 }
 
 function change(op) {
-  const state = { counts, tone };
+  const state = { counts, reactions, tone };
   apply(state, op);
-  ({ counts, tone } = state);
+  ({ counts, reactions, tone } = state);
   unsaved.push(op);
   scheduleSave();
 }
@@ -42,12 +44,26 @@ export function recordEmojiUse(id) {
   change({ use: id, n: 1 });
 }
 
-// Most used emoji ids, most used first.
-export function frequentEmojiIds(limit = 16) {
-  return Object.entries(counts)
+// One reaction added with this emoji (it counts for recordEmojiUse only if that's called too).
+export function recordEmojiReaction(id) {
+  change({ react: id });
+}
+
+function mostUsed(uses, limit) {
+  return Object.entries(uses)
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([id]) => id);
+}
+
+// Most used emoji ids, most used first.
+export function frequentEmojiIds(limit = 16) {
+  return mostUsed(counts, limit);
+}
+
+// The emoji ids most reacted with, most first.
+export function frequentReactionIds(limit = 16) {
+  return mostUsed(reactions, limit);
 }
 
 // 0 = default (yellow), 1-5 = light to dark.
@@ -94,7 +110,7 @@ function forgetLegacy() {
 async function takeRemote(current, { emojiUsage, version }) {
   const key = await current.key;
   if (!key || account !== current) return;
-  let remote = { counts: {}, tone: undefined };
+  let remote = { counts: {}, reactions: {}, tone: undefined };
   if (emojiUsage) {
     try {
       remote = await decryptEmojiUsage(emojiUsage, key, current.userId);
@@ -106,9 +122,9 @@ async function takeRemote(current, { emojiUsage, version }) {
   if (account !== current || version < current.version) return;
   current.version = version;
   current.loaded = true;
-  const state = { counts: { ...remote.counts }, tone: remote.tone };
+  const state = { counts: { ...remote.counts }, reactions: { ...remote.reactions }, tone: remote.tone };
   unsaved.forEach((op) => apply(state, op));
-  ({ counts, tone } = state);
+  ({ counts, reactions, tone } = state);
 }
 
 // The server's copy from a load or another device's save. While a save is in flight it waits:
@@ -139,7 +155,7 @@ async function save() {
     for (let tries = 0; key && account === current && unsaved.length && tries < 5; tries += 1) {
       const sending = unsaved.length;
       try {
-        const emojiUsage = await encryptEmojiUsage(counts, tone, key, current.userId);
+        const emojiUsage = await encryptEmojiUsage(counts, tone, key, current.userId, reactions);
         const res = await api.put('/emoji-usage', { emojiUsage, version: current.version });
         current.version = Math.max(current.version, res.data.version);
         unsaved = unsaved.slice(sending);
@@ -211,6 +227,7 @@ export function resetEmojiUsage() {
   saveTimer = null;
   account = null;
   counts = {};
+  reactions = {};
   tone = undefined;
   unsaved = [];
 }

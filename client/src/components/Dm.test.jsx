@@ -143,7 +143,7 @@ const setBoxText = (text) => act(() => { editorFor(box()).setText(text); });
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';
 import { buildEmojiIndex } from '../emoji/emojiIndex';
 import { EmojiContext } from '../emoji/emojiContext';
-import { resetEmojiUsage } from '../emoji/emojiUsage';
+import { frequentEmojiIds, frequentReactionIds, resetEmojiUsage } from '../emoji/emojiUsage';
 import { CustomEmojiContext } from '../emoji/customEmojiContext';
 import { ConfigContext, InteractionContext } from '../contexts';
 import { LayoutContext } from '../contexts';
@@ -1326,6 +1326,9 @@ describe('Dm reactions', () => {
     await waitFor(() => expect(screen.getByTestId('reactions-10')).toHaveTextContent('🎉:1'));
     expect(screen.queryByRole('dialog', { name: 'Emoji picker' })).not.toBeInTheDocument();
     expect(screen.getByTestId('message-list')).toHaveAttribute('data-focused', '');
+    // Counted for the quick reactions, and once for Frequently Used.
+    expect(frequentReactionIds()).toEqual(['tada']);
+    expect(frequentEmojiIds()).toEqual(['tada']);
   });
 
   it('reacts from the docked panel on mobile, which closes after the pick', async () => {
