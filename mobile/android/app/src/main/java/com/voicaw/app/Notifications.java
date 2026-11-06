@@ -45,10 +45,22 @@ final class Notifications {
 
     static final String EXTRA_URL = "voicaw.url";
     static final String EXTRA_ANSWER = "voicaw.answer";
+    static final String EXTRA_ANSWER_UNTIL = "voicaw.answerUntil";
     static final String EXTRA_CALL_ID = "voicaw.callId";
 
     // How long a call rings (server/calls.js RING_MS), in case its "missed" push never comes.
-    private static final long RING_MS = 45_000;
+    static final long RING_MS = 45_000;
+    // A push can arrive late, so its call may have little left to ring, but at least this long
+    // (the phone's clock can be off from the server's).
+    private static final long MIN_RING_MS = 10_000;
+    // How long an Answer button stays good. Android keeps the intent that started the app, and
+    // hands it over again if it recreates the app later: that isn't someone answering.
+    private static final long ANSWER_VALID_MS = RING_MS + 30_000;
+    // The caller's picture mustn't hold up the ringing for long.
+    private static final int PICTURE_MS = 3_000;
+    private static final int PICTURE_RINGING_MS = 1_500;
+    // How long a call that stopped ringing is remembered.
+    private static final long STOPPED_KEEP_MS = 2 * 60_000;
     // How long the page may take to word a notification (calls ring sooner, with the push's
     // own words if need be).
     private static final long RENDER_MS = 8_000;
@@ -56,6 +68,9 @@ final class Notifications {
 
     // The caller's picture for the ringing screen, by call id.
     static final Map<String, Bitmap> callerPictures = new ConcurrentHashMap<>();
+    // Calls that stopped ringing here, by id, with when: pushes aren't delivered in order, and
+    // the page can answer before the push even arrives, so one may turn up afterwards.
+    private static final Map<String, Long> stoppedCalls = new ConcurrentHashMap<>();
 
     private Notifications() {}
 
@@ -110,6 +125,10 @@ final class Notifications {
                 return;
             }
             boolean ringing = "call".equals(type) && payload.optBoolean("ringing") && callId != null;
+            if (ringing && hasStopped(callId)) {
+                PushLog.add(context, "call (ringing)", "dropped: it had already stopped");
+                return;
+            }
             if ("call".equals(type) && !ringing && callId != null) stopRinging(context, callId);
             JSONObject rendered = render(context, payload, ringing ? RENDER_CALL_MS : RENDER_MS);
             // A reaction the page says not to show (a poll vote, or one it can't open). One in an
@@ -189,7 +208,7 @@ final class Notifications {
         // (Settings → Notifications), which is there to show what a notification looks like.
         boolean silent = MainActivity.isInForeground() && !"test".equals(type);
         if (silent) builder.setSilent(true);
-        Bitmap picture = loadPicture(context, rendered != null ? rendered.optString("icon", null) : null);
+        Bitmap picture = loadPicture(context, rendered != null ? rendered.optString("icon", null) : null, PICTURE_MS);
         if (picture != null) builder.setLargeIcon(picture);
         String posted = post(context, tag, channel, builder.build());
         return posted == null ? (silent ? "shown silently (the app was open)" : "shown") : posted;
@@ -201,7 +220,9 @@ final class Notifications {
         String title = text(rendered, payload, "title", label(rendered, group ? "groupCall" : "incomingCall", "Voicaw"));
         String body = text(rendered, payload, "body", label(rendered, "incomingCall", ""));
         String url = text(rendered, payload, "url", "/");
-        Bitmap picture = loadPicture(context, rendered != null ? rendered.optString("icon", null) : null);
+        Bitmap picture = loadPicture(context, rendered != null ? rendered.optString("icon", null) : null, PICTURE_RINGING_MS);
+        // Answered in the page while the words and the picture were being fetched.
+        if (hasStopped(callId)) return "dropped: it had already stopped";
         if (picture != null) callerPictures.put(callId, picture);
 
         Intent screen = new Intent(context, IncomingCallActivity.class)
@@ -232,7 +253,7 @@ final class Notifications {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setTimeoutAfter(RING_MS)
+            .setTimeoutAfter(ringLeft(payload))
             .setContentIntent(fullScreen)
             .setFullScreenIntent(fullScreen, true)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller.build(), decline, answer));
@@ -247,13 +268,30 @@ final class Notifications {
         return fullScreenAllowed ? "ringing" : "ringing (as a notification: full screen not allowed)";
     }
 
+    /** How much of its ringing time a call has left, going by when the server sent its push. */
+    private static long ringLeft(JSONObject payload) {
+        long sent = payload.optLong("timestamp", 0) * 1000;
+        if (sent <= 0) return RING_MS;
+        return Math.max(MIN_RING_MS, Math.min(RING_MS, RING_MS - (System.currentTimeMillis() - sent)));
+    }
+
     /** Opens the app and answers `callId` (useAndroidApp's `callAction`). */
     static Intent answerIntent(Context context, String callId, String url) {
-        return openApp(context, url).putExtra(EXTRA_ANSWER, callId);
+        return openApp(context, url)
+            .putExtra(EXTRA_ANSWER, callId)
+            .putExtra(EXTRA_ANSWER_UNTIL, System.currentTimeMillis() + ANSWER_VALID_MS);
+    }
+
+    /** Whether the call has stopped ringing on this phone (so it mustn't start). */
+    static boolean hasStopped(String callId) {
+        return stoppedCalls.containsKey(callId);
     }
 
     /** The call stopped ringing on this phone: its notification and ringing screen go. */
     static void stopRinging(Context context, String callId) {
+        long now = System.currentTimeMillis();
+        stoppedCalls.values().removeIf((at) -> now - at > STOPPED_KEEP_MS);
+        stoppedCalls.put(callId, now);
         NotificationManagerCompat.from(context).cancel("call-" + callId, 0);
         callerPictures.remove(callId);
         IncomingCallActivity.finishFor(callId);
@@ -301,7 +339,7 @@ final class Notifications {
     }
 
     /** A picture for the notification (a profile picture), or null. */
-    private static Bitmap loadPicture(Context context, String url) {
+    private static Bitmap loadPicture(Context context, String url, int timeoutMs) {
         if (url == null || url.isEmpty()) return null;
         try {
             Uri uri = Uri.parse(url);
@@ -310,8 +348,8 @@ final class Notifications {
                 in = context.getAssets().open("public" + uri.getPath());
             } else if ("https".equals(uri.getScheme())) {
                 HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-                connection.setConnectTimeout(3000);
-                connection.setReadTimeout(3000);
+                connection.setConnectTimeout(timeoutMs);
+                connection.setReadTimeout(timeoutMs);
                 if (connection.getResponseCode() != 200 || connection.getContentLength() > 2_000_000) return null;
                 in = connection.getInputStream();
             } else {

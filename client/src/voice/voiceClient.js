@@ -846,6 +846,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     await teardown();
     if (rejoining) return { error: err };
     update({ ...NOT_IN_VOICE, error: errorMessage(err, err?.message === t('voice.errors.noEncryptedCalls') ? err.message : t('voice.errors.connect')) });
+    return false;
   }
 }
 
@@ -862,7 +863,7 @@ export async function joinVoice(guildId, channelId) {
 // Joins a DM call's room (callClient.js has the token, the server's screen share limit and the
 // call's key).
 export async function joinCall({ callId, url, token, streamLimit = null, key }) {
-  await connect({ callId }, async () => ({ url, token, streamLimit }), key);
+  return connect({ callId }, async () => ({ url, token, streamLimit }), key);
 }
 
 // The voice channel's bitrate changed: the microphone goes out at it from now on (its sender's

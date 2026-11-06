@@ -33,6 +33,9 @@ public class IncomingCallActivity extends AppCompatActivity {
 
     private static IncomingCallActivity current;
     private String callId;
+    // Goes when the ringing does, even if no push ever says so: it keeps the screen on.
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable rangOut = this::finish;
 
     /** The call stopped ringing: close its screen if it's showing. */
     static void finishFor(String callId) {
@@ -63,11 +66,14 @@ public class IncomingCallActivity extends AppCompatActivity {
 
     private void show(Intent intent) {
         callId = intent.getStringExtra(Notifications.EXTRA_CALL_ID);
-        if (callId == null) {
+        // It may have stopped between the notification going up and this opening.
+        if (callId == null || Notifications.hasStopped(callId)) {
             finish();
             return;
         }
         current = this;
+        handler.removeCallbacks(rangOut);
+        handler.postDelayed(rangOut, Notifications.RING_MS);
         String url = intent.getStringExtra(Notifications.EXTRA_URL);
 
         LinearLayout root = new LinearLayout(this);
@@ -163,6 +169,7 @@ public class IncomingCallActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacks(rangOut);
         if (current == this) current = null;
         super.onDestroy();
     }

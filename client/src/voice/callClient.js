@@ -1,4 +1,5 @@
 import { onCallEvent } from '../utils/ws-client';
+import { onCatchUp } from '../utils/catchUp';
 import { fetchUsersList } from '../services/dmService';
 import { checkContactKeys } from '../services/contactKeys';
 import { loadEncryptionKey, loadIdentityKey } from '../services/keyStore';
@@ -24,7 +25,7 @@ import {
   startCallRequest,
   startGroupCallRequest,
 } from '../services/callService';
-import { getVoiceSnapshot, joinCall, leaveVoice, setVoiceError } from './voiceClient';
+import { getVoiceSnapshot, joinCall, leaveVoice, onVoiceChange, setVoiceError } from './voiceClient';
 import { startLoop, stopLoop } from '../sounds/sounds';
 import { isAndroidApp } from '../utils/android';
 import { getPushStatus } from '../services/pushService';
@@ -56,6 +57,14 @@ const listeners = new Set();
 let inCall = false;
 // The incoming call as the server sent it (its encrypted key and caller).
 let incoming = null;
+// Calls this page is done with (declined, ended, failed): an answer from the server sent before
+// that doesn't bring one back.
+let finished = new Set();
+
+// How long Answer on a notification keeps trying while the server can't be reached (the phone
+// may be just waking up), and how often.
+const ANSWER_WAIT_MS = 15000;
+const ANSWER_RETRY_MS = 2000;
 
 function emit(changes) {
   snapshot = { ...snapshot, ...changes };
@@ -78,6 +87,7 @@ export function onCallChange(listener) {
 }
 
 function clear() {
+  if (snapshot.call) finished.add(snapshot.call.id);
   stopLoop();
   inCall = false;
   incoming = null;
@@ -167,24 +177,125 @@ function handleEvent(event) {
   }
 }
 
+const isRingingForMe = (call) => Boolean(call) && (call.group_id ? call.ringing.includes(me.id) : call.state === 'ringing' && call.callee_id === me.id);
+
+// The call this page shows, against what the server says now (`server`: the call the person is
+// in or being rung for, or null), for the events it may have missed.
+function reconcile(current, server) {
+  const same = server?.id === current.id;
+  if (!inCall) {
+    if (current.state === 'ringing' && !(same && isRingingForMe(server))) clear();
+    return;
+  }
+  if (current.state === 'connecting') return; // on its way to the server
+  if (same) {
+    handleEvent({ type: 'call_update', call: server });
+    return;
+  }
+  // The server doesn't have it. Over, unless it's a call whose room we're still in (an API
+  // restart forgets calls, and people keep talking) or one still being placed (ringing, not in
+  // its room yet).
+  const inRoom = getVoiceSnapshot().callId === current.id;
+  if (inRoom === (current.state === 'ringing')) handleEvent({ type: 'call_end', id: current.id, reason: 'ended' });
+}
+
+// Catches up with the server. Events only reach an open socket, and a phone's page is often
+// asleep with a dead one: a call can start, be answered or end without this page hearing of it.
+async function syncCall() {
+  const user = me;
+  if (!user) return;
+  const known = snapshot.call?.id ?? null;
+  const server = await fetchCurrentCall();
+  if (me !== user) return;
+  // A call that appeared after asking: the answer may not know it yet.
+  if (snapshot.call && snapshot.call.id === known) reconcile(snapshot.call, server);
+  if (!snapshot.call && isRingingForMe(server) && !finished.has(server.id)) {
+    handleEvent({ type: 'call_incoming', call: server });
+  }
+}
+
+const syncInBackground = () => syncCall().catch((err) => console.warn('Could not check for calls', err));
+
 let unsubscribe = null;
 
-// Called by Layout once logged in (and with null on logout): listens for calls, and picks up
-// one already ringing (the app was opened from the call's notification).
+// Called by Layout once logged in (and with null on logout): listens for calls, picks up one
+// already ringing (the app was opened from the call's notification), and checks again whenever
+// the socket opens or the app comes back (utils/catchUp.js).
 export function initCalls(user) {
   unsubscribe?.();
   unsubscribe = null;
   clear();
+  finished = new Set();
   emit({ groupCalls: {} });
   me = user;
   if (!user) return;
-  unsubscribe = onCallEvent(handleEvent);
-  fetchCurrentCall()
-    .then((call) => {
-      const ringingForMe = call && (call.group_id ? call.ringing.includes(me.id) : call.state === 'ringing' && call.callee_id === me.id);
-      if (ringingForMe && !snapshot.call) handleEvent({ type: 'call_incoming', call });
-    })
-    .catch((err) => console.warn('Could not check for calls', err));
+  const stopEvents = onCallEvent(handleEvent);
+  const stopCatchUp = onCatchUp(syncInBackground);
+  // Out of the call's room without hanging up (the others hung up and it closed, with the call's
+  // end not reaching a dead socket, or the connection went): is the call still on?
+  let room = null;
+  const stopVoice = onVoiceChange(() => {
+    const { callId } = getVoiceSnapshot();
+    if (room && callId !== room && snapshot.call?.id === room) syncInBackground();
+    room = callId ?? null;
+  });
+  unsubscribe = () => {
+    stopEvents();
+    stopCatchUp();
+    stopVoice();
+  };
+  syncInBackground();
+}
+
+// Resolves when the call changes, or after `ms`.
+function callChange(ms) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      stop();
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    const stop = onCallChange(done);
+  });
+}
+
+// Answer on the phone's notification, for `callId`. This page may not have heard of the call
+// (just started, or asleep with a dead socket when it began), so it asks the server. If the
+// server says the call isn't ringing any more, or can't be reached in time, the voice bar says so.
+export async function answerWhenRinging(callId) {
+  const deadline = Date.now() + ANSWER_WAIT_MS;
+  const answerIfHere = async () => {
+    const call = snapshot.call;
+    if (call?.id !== callId) return false;
+    if (call.state === 'ringing' && !call.outgoing) await acceptCall();
+    return true;
+  };
+  for (;;) {
+    if (await answerIfHere()) return;
+    let asked = false;
+    try {
+      await syncCall();
+      asked = me !== null;
+    } catch (err) {
+      console.warn('Could not check for calls', err);
+    }
+    if (await answerIfHere()) return;
+    if (asked || Date.now() >= deadline) {
+      setVoiceError(t(asked ? 'calls.errors.ended' : 'calls.errors.answer'));
+      return;
+    }
+    await callChange(ANSWER_RETRY_MS);
+  }
+}
+
+// Into the call's room. If that fails (voiceClient says why in the voice bar), this device
+// leaves the call rather than showing it going on with nothing connected and the others waiting.
+async function joinRoom(id, options) {
+  const joined = await joinCall({ callId: id, ...options });
+  if (joined !== false || snapshot.call?.id !== id) return;
+  clear();
+  hangUpRequest(id).catch(() => {});
 }
 
 // A group's call as the server gave it with the group (GET /group-dms/:id), so the group
@@ -205,7 +316,7 @@ export async function startCall(peer) {
     const envelope = await encryptCallKey(key, await conversationKey(peer), callKeyContext(id, me.id, peer.id));
     const { url, token, streamLimit } = await startCallRequest(peer.id, id, envelope);
     if (snapshot.call?.id !== id) return; // hung up meanwhile
-    await joinCall({ callId: id, url, token, streamLimit, key });
+    await joinRoom(id, { url, token, streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== id) return;
     console.warn('Could not start the call', err);
@@ -235,7 +346,7 @@ async function joinGroupCall(call) {
     const { url, token, streamLimit, call: joined } = await acceptCallRequest(call.id);
     if (snapshot.call?.id !== call.id) return;
     set(localCall(joined, { outgoing: joined.caller_id === me.id, state: 'active' }));
-    await joinCall({ callId: call.id, url, token, streamLimit, key });
+    await joinRoom(call.id, { url, token, streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== call.id) return;
     console.warn('Could not join the call', err);
@@ -277,7 +388,7 @@ export async function startGroupCall(groupId) {
     if (snapshot.call?.id !== id) return;
     setGroupCall(groupId, started.call);
     set(localCall(started.call, { outgoing: true, state: 'active' }));
-    await joinCall({ callId: id, url: started.url, token: started.token, streamLimit: started.streamLimit, key });
+    await joinRoom(id, { url: started.url, token: started.token, streamLimit: started.streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== id) return;
     console.warn('Could not start the call', err);
@@ -306,18 +417,22 @@ export async function acceptCall() {
   stopLoop();
   inCall = true;
   set({ ...call, state: 'connecting' });
+  let accepted = false;
   try {
     const peer = await findUser(offer.caller_id);
     const key = await decryptCallKey(offer.key_envelope, await conversationKey(peer), callKeyContext(offer.id, offer.caller_id, me.id));
     const { url, token, streamLimit, call: answered } = await acceptCallRequest(offer.id);
+    accepted = true;
     if (snapshot.call?.id !== offer.id) return;
     set({ ...snapshot.call, state: 'active', answeredAt: localTime(answered.answered_at, answered) });
-    await joinCall({ callId: offer.id, url, token, streamLimit, key });
+    await joinRoom(offer.id, { url, token, streamLimit, key });
   } catch (err) {
     if (snapshot.call?.id !== offer.id) return;
     console.warn('Could not answer the call', err);
     clear();
-    declineCallRequest(offer.id).catch(() => hangUpRequest(offer.id).catch(() => {}));
+    // Hanging up only if this device answered: the server may have refused because another of
+    // this person's devices did, and that call must go on.
+    (accepted ? hangUpRequest(offer.id) : declineCallRequest(offer.id)).catch(() => {});
     setVoiceError(errorText(err, t('calls.errors.answer')));
   }
 }

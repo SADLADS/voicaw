@@ -6,7 +6,9 @@
 // notification opens its chat, the hidden notification page
 // (notify.html) decrypts a real DM preview with the app's own storage, and a call: Answer from
 // the notification answers it, the ongoing-call
-// notification follows it (name, mute), and its Hang up ends the call.
+// notification follows it (name, mute), and its Hang up ends the call. Then with the page asleep
+// (a socket that hears no call events): Answer still answers, and coming back shows a call still
+// ringing and takes down one that ended.
 //   node e2e/serve.mjs &   then   node e2e/android.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
 import { launchChrome, signUp, openChat, send, devices, fakeMicArgs, BASE } from './helpers.mjs';
@@ -93,6 +95,16 @@ try {
     for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
   });
   await page.context().addInitScript(fakeAndroid);
+  // Her websocket goes through a stand-in that can drop call events (see the end).
+  let deafToCalls = false;
+  await page.context().routeWebSocket(/\/ws|:\d+\/?$/, (ws) => {
+    const server = ws.connectToServer();
+    ws.onMessage((message) => server.send(message));
+    server.onMessage((message) => {
+      if (deafToCalls && /"type":"call_/.test(String(message))) return;
+      ws.send(message);
+    });
+  });
   await page.goto(`${BASE}/dm`);
   await page.waitForSelector('#dm-main');
 
@@ -128,7 +140,8 @@ try {
   check(await page.isVisible('.android-push-log li:has-text("test: shown")'), 'lists what became of recent notifications');
   if (dir) await page.screenshot({ path: `${dir}/android-settings.png` });
 
-  await page.click('text=Notifications');
+  await page.goto(`${BASE}/settings`); // a phone's list of pages is behind the open one
+  await page.click('.settings-nav-item:text-is("Notifications")');
   const enable = page.locator('button:has-text("Turn on"), button:has-text("Enable")').first();
   await enable.click();
   await page.waitForFunction(() => window.__android.record.calls.some((c) => c.method === 'getPushToken'));
@@ -220,6 +233,61 @@ try {
   await bob.page.waitForSelector('.call-panel', { state: 'detached', timeout: 10000 });
   await page.waitForFunction(() => window.__android.record.calls.some((c) => c.method === 'clearOngoing'));
   check(true, 'Hang up on the notification ends the call for both, and the notification goes');
+
+  // The phone's page asleep with a socket that's gone without it knowing: no call events reach
+  // it, and the phone still rings from the push.
+  const apiFetch = (who, path, method = 'GET') => who.evaluate(async ([p, m]) => {
+    const res = await fetch(`/api${p}`, { method: m, headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    return res.json();
+  }, [path, method]);
+  const bobCalls = async () => {
+    await bob.page.click(`button[aria-label="Call ${alice.name}"]:not([disabled])`);
+    for (let i = 0; i < 50; i++) {
+      const current = await apiFetch(page, '/dm-calls/current');
+      if (current?.state === 'ringing') return current.id;
+      await page.waitForTimeout(100);
+    }
+    throw new Error("Bob's call never rang");
+  };
+  const setVisible = (visible) => page.evaluate((v) => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (v ? 'visible' : 'hidden') });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => !v });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, visible);
+  const awayAndBack = async () => {
+    await setVisible(false);
+    await page.waitForTimeout(5500);
+    await setVisible(true);
+  };
+  deafToCalls = true;
+
+  const asleepId = await bobCalls();
+  check(!(await page.$('.incoming-call')), 'asleep: the page heard nothing of the call');
+  await page.evaluate((id) => window.__android.emit('callAction', { action: 'answer', callId: id }), asleepId);
+  await bob.page.waitForSelector('.call-panel-status:has-text(":")', { timeout: 20000 });
+  check(true, 'asleep: Answer on the notification still answers (it asks the server)');
+  await apiFetch(bob.page, `/dm-calls/${asleepId}`, 'DELETE');
+  await bob.page.waitForSelector('.call-panel', { state: 'detached', timeout: 10000 });
+  await page.waitForSelector('.call-panel', { state: 'detached', timeout: 10000 });
+  check(true, "asleep: the other person hanging up ends it here too (the room closed)");
+
+  const missedId = await bobCalls();
+  await awayAndBack();
+  await page.waitForSelector('.incoming-call', { timeout: 10000 });
+  check(true, 'asleep: back on screen, a call still ringing shows');
+  await apiFetch(bob.page, `/dm-calls/${missedId}`, 'DELETE');
+  await bob.page.waitForSelector('.call-panel', { state: 'detached', timeout: 10000 });
+  await page.waitForTimeout(500);
+  check(await page.isVisible('.incoming-call'), "asleep: its end doesn't reach the page either");
+  await awayAndBack();
+  await page.waitForSelector('.incoming-call', { state: 'detached', timeout: 10000 });
+  check(true, 'asleep: back on screen, a call that ended goes');
+
+  await page.evaluate(() => window.__android.emit('callAction', { action: 'answer', callId: '00000000-0000-4000-8000-000000000000' }));
+  await page.waitForSelector('text=That call has already ended.', { timeout: 10000 });
+  check(true, "Answer on a call that's over says so");
+  if (dir) await page.screenshot({ path: `${dir}/android-call-ended.png` });
+  deafToCalls = false;
 } finally {
   await browser.close();
 }

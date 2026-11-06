@@ -52,6 +52,7 @@
       "start": "Could not start the call.",
       "join": "Could not join the call.",
       "answer": "Could not answer the call.",
+      "ended": "That call has already ended.",
       "joinedAfter": "You joined the group after this call started: you can join the next one.",
       "unverified": "This call couldn't be verified as coming from its caller, so it wasn't joined."
     }

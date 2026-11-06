@@ -73,6 +73,15 @@ public class VoicawPlugin extends Plugin {
         if (instance == this) instance = null;
     }
 
+    /**
+     * Back in front, also from Android's microphone question: the ongoing-call service, if it
+     * couldn't start when the page asked.
+     */
+    @Override
+    protected void handleOnResume() {
+        CallService.retry(getContext());
+    }
+
     /** A notification was tapped, or something shared to the app (also the intent that started it). */
     @Override
     protected void handleOnNewIntent(Intent intent) {
@@ -89,13 +98,14 @@ public class VoicawPlugin extends Plugin {
         }
         String answer = intent.getStringExtra(Notifications.EXTRA_ANSWER);
         String url = intent.getStringExtra(Notifications.EXTRA_URL);
-        if (answer != null) {
+        if (answer != null && System.currentTimeMillis() < intent.getLongExtra(Notifications.EXTRA_ANSWER_UNTIL, 0)) {
             Notifications.stopRinging(getContext(), answer);
             notifyListeners("callAction", new JSObject().put("action", "answer").put("callId", answer), true);
         }
         if (url != null) notifyListeners("navigate", new JSObject().put("url", url), true);
         // Handled: not again when the activity is recreated.
         intent.removeExtra(Notifications.EXTRA_ANSWER);
+        intent.removeExtra(Notifications.EXTRA_ANSWER_UNTIL);
         intent.removeExtra(Notifications.EXTRA_URL);
     }
 

@@ -1,11 +1,13 @@
 package com.voicaw.app;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
@@ -32,6 +34,8 @@ public class CallService extends Service {
     private static final int NOTIFICATION_ID = 1;
 
     private static CallService running;
+    // Asked Android to start it; it hasn't reached onStartCommand yet.
+    private static boolean starting;
     // What the notification shows (the page's ongoingNotification()).
     private static JSObject shown;
 
@@ -43,16 +47,36 @@ public class CallService extends Service {
             running.post();
             return;
         }
+        start(context);
+    }
+
+    /** The app is back in front: starts the service if it should be running but couldn't. */
+    static synchronized void retry(Context context) {
+        if (shown != null && running == null) start(context);
+    }
+
+    private static void start(Context context) {
+        if (starting) return;
+        // A microphone service needs the permission (Android 14+), and joining comes before
+        // Android's question about it: retry() starts it once that's answered.
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return;
         try {
             ContextCompat.startForegroundService(context, new Intent(context, CallService.class));
+            starting = true;
         } catch (Exception e) {
-            // Android 12+ won't start one from the background; the page is in front when it joins.
+            // Android 12+ won't start one from the background: retry() does when it's back.
             Log.w(TAG, "Couldn't start the call service", e);
         }
     }
 
     static synchronized void stop(Context context) {
         shown = null;
+        // Android crashes an app whose service stops before calling startForeground:
+        // onStartCommand stops it, having done that.
+        if (starting) return;
+        // Not waiting for onDestroy: a call starting right after must start the service again,
+        // not update the one on its way out.
+        running = null;
         context.stopService(new Intent(context, CallService.class));
     }
 
@@ -68,11 +92,7 @@ public class CallService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         synchronized (CallService.class) {
-            if (shown == null) {
-                stopSelf();
-                return START_NOT_STICKY;
-            }
-            running = this;
+            starting = false;
             try {
                 ServiceCompat.startForeground(
                     this, NOTIFICATION_ID, build(),
@@ -81,7 +101,13 @@ public class CallService extends Service {
             } catch (Exception e) {
                 Log.w(TAG, "Couldn't keep the call running", e);
                 stopSelf();
+                return START_NOT_STICKY;
             }
+            if (shown == null) {
+                stopSelf(); // the call ended while this was starting
+                return START_NOT_STICKY;
+            }
+            running = this;
         }
         // Not restarted if Android kills it: the call is gone with the page anyway.
         return START_NOT_STICKY;
@@ -97,7 +123,7 @@ public class CallService extends Service {
 
     private Notification build() {
         Notifications.createChannels(this);
-        JSObject ongoing = shown;
+        JSObject ongoing = shown != null ? shown : new JSObject();
         JSONObject labels = ongoing.optJSONObject("labels");
         if (labels == null) labels = new JSONObject();
         boolean muted = ongoing.optBoolean("muted");

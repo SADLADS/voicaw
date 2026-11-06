@@ -814,6 +814,13 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   other's mute, the duration, controls, "End-to-end encrypted"), the voice bar ("Call with …",
   hang up; why a call ended: declined, didn't answer, missed call). Ring and ringback sounds are
   the Incoming/Outgoing ring loops (see Sounds). Reloading or leaving the page leaves the call.
+  **Catching up:** call events only reach an open socket, and a phone's page often sleeps with a
+  dead one, so `callClient` `syncCall` asks `GET /dm-calls/current` when the socket opens, when the
+  app comes back (`utils/catchUp.js`), and on leaving a call's room without hanging up: it shows a
+  call ringing, drops one that stopped, and moves a caller on to an answered call. A call
+  the server doesn't have is left alone while its room is still joined (an API restart forgets
+  calls) or while it's still being placed. A room that can't be joined leaves the call
+  (`joinCall` resolves `false`), rather than showing it going on with the others waiting.
 - **Group calls** (from a group DM's header): the call key is encrypted with the group's
   current epoch key (`groupCallKeyContext(callId, groupId, epoch, callerId)`, `key_epoch`), so
   only members of that epoch can open it; members added during a call join the next one. It's

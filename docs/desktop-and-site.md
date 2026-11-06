@@ -519,12 +519,18 @@ native bridge. Check real behaviour on a phone.
   CallStyle notification (Answer / Decline, the ringtone until it stops, 45 s at most) and a
   full-screen ringing screen over the lock screen (`IncomingCallActivity`: name, picture, two
   buttons; Answer asks to unlock first, so nothing of the app shows on the lock screen). Answer
-  opens the app, which answers once the call reaches it (`answerWhenRinging`); Decline is sent
+  opens the app, which answers (`callClient.js` `answerWhenRinging`: asks the server, since the
+  page may be just started or asleep with a dead socket; says so if the call is over); Decline is sent
   by the hidden page with the app's login, the app needn't open. The page itself doesn't ring
   when the phone does (`callClient.js`). Ringing stops on `call_stop` (the server sends it to
   Android apps only, `sendToAndroidApps`, when the call is answered or declined on another
   device, or they're out of it), on the "Missed call" push (which replaces it), or when the
-  page sees the call stop ringing.
+  page sees the call stop ringing. Pushes come in any order and sometimes late, so the phone
+  remembers calls that stopped (in `Notifications.java`, for two minutes) and a ringing push for one
+  is dropped; a late one rings only for what's left of the 45 s (at least 10, the phone's
+  clock may be off), and the ringing screen closes after 45 s even with no push. An Answer button is good for 75 s: Android
+  hands the app's starting intent over again if it recreates the app later, which isn't
+  someone answering.
 - **Ongoing call** (`CallService.java`): while in a call or voice channel, a foreground service
   (microphone type, with a wake lock) keeps the app and its audio running with the screen off
   (not the camera: Android stops a camera in the background, so the page pauses yours while
@@ -532,7 +538,12 @@ native bridge. Check real behaviour on a phone.
   on, see Cameras in `docs/voice-and-calls.md`; the `CAMERA` permission is asked for by the WebView when you first turn
   yours on, and the camera isn't required to install);
   its notification shows what the voice bar shows (`utils/voiceTitle.js`) with Mute / Unmute and
-  Hang up (Disconnect in a voice channel).
+  Hang up (Disconnect in a voice channel). Joining comes before Android's microphone question, and
+  a microphone service can't start without that permission (Android 14+), nor from the background
+  (12+): then it's started when the app is next resumed (`CallService.retry`), which the question closing also does. Refusing the
+  microphone means no service, so that call stops with the screen off. Android crashes an app whose
+  service stops before `startForeground`, so a call ending while it starts is stopped from
+  `onStartCommand`.
 - **Settings → Android App** (`AndroidAppSettings.jsx`): whether calls ring over the lock screen
   (a button to Android's setting when not), Android's notification settings, and Recent
   notifications: the last 20 pushes and what became of each (`PushLog.java`: shown, shown
