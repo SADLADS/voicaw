@@ -25,6 +25,11 @@ describe('voice settings (audioSettings.js)', () => {
     });
   });
 
+  it('starts soundboard and join sounds at 20%, keeping a volume someone chose', () => {
+    expect(cleanAudioSettings(null)).toMatchObject({ soundboardVolume: 0.2, joinSoundVolume: 0.2 });
+    expect(cleanAudioSettings({ soundboardVolume: 1, joinSoundVolume: 0 })).toMatchObject({ soundboardVolume: 1, joinSoundVolume: 0 });
+  });
+
   it('keeps push to talk to its modes, known keys and up to 2 s of delay', () => {
     expect(DEFAULT_AUDIO_SETTINGS).toMatchObject({ inputMode: 'voice', pushToTalkKey: null, pushToTalkDelay: 20 });
     expect(cleanAudioSettings({ inputMode: 'pushToTalk', pushToTalkKey: 'Backquote', pushToTalkDelay: 250.4 }))

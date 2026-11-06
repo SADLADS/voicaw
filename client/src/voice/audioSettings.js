@@ -33,9 +33,9 @@ export const DEFAULT_AUDIO_SETTINGS = {
   // Soundboards (voice/soundboard.js): the guild's sounds others play, and the join sounds
   // played when someone joins, each heard or not and at its own volume (0–1).
   soundboardOn: true,
-  soundboardVolume: 1,
+  soundboardVolume: 0.2,
   joinSoundsOn: true,
-  joinSoundVolume: 1,
+  joinSoundVolume: 0.2,
 };
 
 // Noise suppression: Standard is RNNoise (noise/rnnoise.js), Strong DeepFilterNet

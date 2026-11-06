@@ -665,7 +665,7 @@ everyone there to hear.
   the decoded file kept, the last 100), unless deafened, at Settings → Voice & video →
   Soundboard's volume for its kind × the sound's own × the output volume. Two kinds, each with
   its own switch and volume (`audioSettings` `soundboardOn`/`soundboardVolume`,
-  `joinSoundsOn`/`joinSoundVolume`, per device, on and 100% by default): sounds people play,
+  `joinSoundsOn`/`joinSoundVolume`, per device, on and 20% by default): sounds people play,
   and join sounds. Each person's sound stops when they play another (`playFor`, a sound per
   player; others' play on), even one this device doesn't play (that kind off). The emoji of
   each sound played pops up on its player's tile for 3 s
