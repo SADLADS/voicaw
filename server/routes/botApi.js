@@ -850,13 +850,14 @@ router.delete('/guilds/:guildId/soundboard-sounds/:soundId', auth, limit('sound-
   res.status(204).end();
 }));
 
-// Plays a sound in the voice channel the bot is in: { sound_id, source_guild_id? } (only the
-// channel's own guild's sounds).
+// Plays a sound in the voice channel the bot is in: { sound_id, source_guild_id? } (a sound of
+// any guild the bot is in; source_guild_id, when sent, must be its guild).
 router.post('/channels/:channelId/send-soundboard-sound', auth, inChannel, route(async (req, res) => {
   if (req.category || req.access.channel.type !== 'voice') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
   const source = req.body?.source_guild_id;
-  if (source != null && D.ourId(source) !== req.access.channel.guild_id) return fail(res, 404, 10097, 'Unknown Soundboard Sound');
-  await soundboard.playSound(req.bot.id, req.access.channel.id, D.ourId(req.body?.sound_id));
+  await soundboard.playSound(req.bot.id, req.access.channel.id, D.ourId(req.body?.sound_id), {
+    sourceGuildId: source == null ? null : D.ourId(source),
+  });
   res.status(204).end();
 }));
 

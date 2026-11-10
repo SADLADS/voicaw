@@ -10,7 +10,7 @@ import { t } from '../i18n';
 // sounds ({ id, guild_id, name, emoji, volume, creator_id, created_at }), from GET
 // (`useSoundboard`, whenever the picker or settings want them) and `guild_soundboard_update`;
 // and your join sound, one for every guild (`useJoinSound`, your profile), followed with
-// `guild_join_sound`.
+// `guild_join_sound`. Any guild's sound can be played in any guild you're in (`useSoundboards`).
 //
 // Playing: the server tells everyone in the channel (`guild_soundboard_play`), and this device
 // plays the file itself if it's the one in that channel, not deafened, and the kind (a sound
@@ -212,6 +212,12 @@ export function useJoinSound() {
     return () => { joinSoundWanted -= 1; };
   }, []);
   return value;
+}
+
+// Every guild you're in that has sounds, [{ id, name, sounds }] in your rail's order (the
+// soundboard panel plays any of them anywhere), undefined until loaded. The join sound's list.
+export function useSoundboards() {
+  return useJoinSound()?.guilds;
 }
 
 // Your join sound, the same in every guild (null for none).

@@ -202,13 +202,26 @@ describe('soundboard', () => {
     await leave(bob, other);
   });
 
-  it('needs Speak and Use Soundboard, and only plays the channel\'s guild\'s sounds', async () => {
+  it('needs Speak and Use Soundboard, and plays sounds of any guild you\'re in', async () => {
     const { owner, members: [alice], guild, lounge, everyone } = await setUp(1);
     const sound = (await addSound(owner, guild.id)).body;
     const elsewhere = await setUp(0);
-    const foreign = (await addSound(elsewhere.owner, elsewhere.guild.id)).body;
+    const foreign = (await addSound(elsewhere.owner, elsewhere.guild.id, { name: 'Bell', emoji: '🔔' })).body;
     await enter(alice, lounge);
+    const heard = listen(owner);
+    // Not a member of that guild: not hers to play.
     expect((await play(alice, guild, lounge, foreign.id)).status).toBe(404);
+
+    const invite = await api.post(elsewhere.owner, `/guilds/${elsewhere.guild.id}/invites`);
+    await api.post(alice, `/invites/${invite.body.code}`);
+    await enter(owner, lounge);
+    expect((await play(alice, guild, lounge, foreign.id)).status).toBe(200);
+    // The channel's guild, the sound's own.
+    expect(effects(heard)).toEqual([expect.objectContaining({
+      guildId: guild.id, channelId: lounge.id, userId: alice.id,
+      sound: expect.objectContaining({ id: foreign.id, guild_id: elsewhere.guild.id, name: 'Bell' }),
+    })]);
+    await leave(owner, lounge);
 
     await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.USE_SOUNDBOARD });
     expect((await play(alice, guild, lounge, sound.id)).status).toBe(403);
@@ -327,6 +340,11 @@ describe('soundboard', () => {
     const events = listen(owner);
     expect((await discord.post(bot, `/channels/${lounge.id}/send-soundboard-sound`, { sound_id: String(sound.id) })).status).toBe(204);
     expect(effects(events)).toEqual([expect.objectContaining({ userId: bot.id, sound: expect.objectContaining({ id: sound.id }) })]);
+    // source_guild_id, when sent, must be the sound's guild.
+    expect((await discord.post(bot, `/channels/${lounge.id}/send-soundboard-sound`, { sound_id: String(sound.id), source_guild_id: String(guild.id) })).status).toBe(204);
+    const wrong = await discord.post(bot, `/channels/${lounge.id}/send-soundboard-sound`, { sound_id: String(sound.id), source_guild_id: '999999' });
+    expect(wrong.status).toBe(404);
+    expect(wrong.body.code).toBe(10097);
 
     const cdn = await request(app).get(`/api/cdn/soundboard-sounds/${sound.id}`);
     expect(cdn.status).toBe(302);

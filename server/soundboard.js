@@ -21,7 +21,7 @@ const { createLimiter } = require('./rateLimit');
 // Playing one isn't mixed into anyone's microphone: the server tells everyone in the channel
 // (`guild_soundboard_play`), and each app plays the file itself, at its own soundboard volume
 // (or not at all), as Discord's do. That takes being in the channel's voice with Speak and Use
-// Soundboard, not deafened. Someone's join sound (one sound of any guild they're in, the same
+// Soundboard, not deafened, and the sound may be from any guild the player is in. Someone's join sound (one sound of any guild they're in, the same
 // for every guild) is played the same way when they join any guild's voice channel (voice.js
 // participantJoined).
 
@@ -266,14 +266,20 @@ async function deleteSound(guildId, userId, soundId) {
   for (const { id } of losing) sendToUserSockets(id, { type: 'guild_join_sound', soundId: null });
 }
 
+// A sound `userId` may use anywhere: an available one of any guild they're in, else null.
+async function usableSound(userId, soundId) {
+  if (!Number.isInteger(soundId)) return null;
+  const sound = await db.get(`SELECT ${SOUND_COLUMNS} FROM guild_sounds s
+    JOIN guild_members gm ON gm.guild_id = s.guild_id AND gm.user_id = ?
+    WHERE s.id = ? AND s.available = 1`, [userId, soundId]);
+  return sound ?? null;
+}
+
 // `userId`'s join sound, if it's still one they can use: a sound of a guild they're in.
 async function joinSoundOf(userId) {
   const row = await db.get('SELECT join_sound_id FROM users WHERE id = ?', [userId]);
   if (row?.join_sound_id == null) return null;
-  const sound = await db.get(`SELECT ${SOUND_COLUMNS} FROM guild_sounds s
-    JOIN guild_members gm ON gm.guild_id = s.guild_id AND gm.user_id = ?
-    WHERE s.id = ? AND s.available = 1`, [userId, row.join_sound_id]);
-  return sound ?? null;
+  return usableSound(userId, row.join_sound_id);
 }
 
 // What the join sound picker (your profile) shows: { join_sound_id, guilds: [{ id, name,
@@ -321,21 +327,23 @@ function broadcast({ guildId, channelId, userId, sound, join }) {
 
 const canPlay = (permissions) => has(permissions, PERMISSIONS.SPEAK | PERMISSIONS.USE_SOUNDBOARD);
 
-// `userId` plays one of the guild's sounds in the voice channel they're in (`channelId`; on
-// any device). -> the sound.
-async function playSound(userId, channelId, soundId) {
+// `userId` plays a sound in the voice channel they're in (`channelId`; on any device): one of
+// any guild they're in, not only the channel's (Discord sells that; here it's for everyone, the
+// channel's Use Soundboard still deciding). `sourceGuildId` (the bot API's source_guild_id),
+// when given, must be the sound's guild. -> the sound.
+async function playSound(userId, channelId, soundId, { sourceGuildId = null } = {}) {
   const state = require('./voice').states.get(userId);
   if (!state || state.channelId !== channelId) throw new ActionError(400, "You're not in that voice channel");
   if (state.selfDeaf) throw new ActionError(400, "You can't play sounds while deafened");
   const access = await getChannelAccess(channelId, userId);
   if (!access || !canPlay(access.permissions)) throw new ActionError(403, "You don't have permission to do that");
-  const sound = await findSound(access.channel.guild_id, soundId);
-  if (!sound?.available) throw new ActionError(404, 'Sound not found');
+  const sound = await usableSound(userId, soundId);
+  if (!sound || (sourceGuildId != null && sound.guild_id !== sourceGuildId)) throw new ActionError(404, 'Sound not found', 10097); // Unknown Soundboard Sound
   if (config.rateLimitsEnabled && !plays.hit(String(userId)).allowed) {
     throw new ActionError(429, 'Wait a moment before playing another sound');
   }
-  broadcast({ guildId: sound.guild_id, channelId, userId, sound: publicSound(sound), join: false });
-  return publicSound(sound);
+  broadcast({ guildId: access.channel.guild_id, channelId, userId, sound, join: false });
+  return sound;
 }
 
 // `state` (voice.js) just joined its channel: their join sound (from whichever guild) plays

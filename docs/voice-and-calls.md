@@ -641,8 +641,13 @@ everyone there to hear.
 - **Playing** (`POST /guilds/:g/channels/:c/soundboard/:soundId`): you must be in that channel's
   voice (any device), not deafened, with **Speak** and **Use Soundboard** there (`USE_SOUNDBOARD`,
   a new permission and channel override, Discord's bit 42, an @everyone default; migration 19
-  gave it to existing guilds), and only the channel's guild's sounds (no sounds from other
-  guilds, which Discord sells; join sounds are the exception, below). Three sounds in five
+  gave it to existing guilds). Since 2026-11-10 the sound may be from **any guild the player is
+  in**, not only the channel's (Discord sells that; here it's for everyone, as custom emoji
+  are): `usableSound` checks the player's membership of the sound's guild, so leaving that guild
+  takes its sounds away. There's no separate Use External Sounds permission (Discord has one):
+  Use Soundboard was the last bit the permission numbers hold, so a channel that allows the
+  soundboard allows other guilds' sounds too. The event's `guildId` is the channel's guild,
+  `sound.guild_id` the sound's. Three sounds in five
   seconds each (`plays`, off in tests); past that the server answers 429 and the panel just
   doesn't play it, saying nothing (2026-10-26). The
   sound isn't mixed into anyone's microphone: the server sends `guild_soundboard_play {
@@ -674,16 +679,20 @@ everyone there to hear.
   (`useSoundEffects`; a note where it has none), heard or not.
 - **UI:** the note button (`voice/SoundboardButton.jsx`) in the voice bar and the channel page
   while connected to a guild voice channel opens `voice/SoundboardPanel.jsx` (floating on a
-  computer, a sheet on a phone): the sounds as buttons (a click plays it for everyone; off,
+  computer, a sheet on a phone): that guild's sounds, then each other guild you're in that has
+  sounds under its name, in your rail's order (headings only when there are others;
+  `useSoundboards`, the join sound picker's list, `GET /soundboard/join-sound`), as buttons (a click plays it for everyone; off,
   with a note, without the permissions or deafened), a speaker on each playing it only to you
   (at your soundboard volume), and a link to the settings.
 - **Bots** see it as Discord's API (see Soundboard in `docs/bots.md`).
 - `e2e/soundboard.mjs` checks adding three files at once (as it is, cut after leading silence,
   an unreadable one refused), playing for both (cut at 5.2 s), the
   tile's emoji, preview, the setting, deafened, a phone's sheet, a second sound cutting off the
-  player's first, and a join sound picked in the profile playing in another guild.
+  player's first, a join sound picked in the profile playing in another guild, and a sound of
+  another guild played in the channel (grouped under its guild's name; not shown to someone
+  who isn't in that guild).
 - **Not done yet:** choosing which 5.2 s of a long file to keep (the trim slider went with
-  adding on pick; re-upload a cut file instead), Discord's default sounds, sounds from other guilds, favourites, a
+  adding on pick; re-upload a cut file instead), Discord's default sounds, favourites, searching the panel, a
   per-sound cooldown shown in the panel, playing a sound from a keyboard shortcut.
 
 ## TURN (networks that only allow the web)

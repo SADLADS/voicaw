@@ -265,6 +265,39 @@ try {
   await waitForClips(a, before.a + 1, 'alice hears carol\'s join sound');
   console.log('carol\'s join sound plays for alice and bob');
 
+  // Sounds of every guild you're in play in any of them: Bob makes Bell Tower with a "bell",
+  // and plays it in Sound Test's Lounge, where he still is. His panel shows Sound Test's sounds
+  // first, then Bell Tower's under its name; Alice (not in Bell Tower) sees only Sound Test's.
+  await b.click('button[aria-label="Add a guild"]');
+  await b.fill('#new-guild-name', 'Bell Tower');
+  await b.click('button:has-text("Create")');
+  await b.waitForSelector('#dm-input');
+  await b.click('.guild-header-button');
+  await b.click('text=Guild Settings');
+  await b.click('.settings-tab:has-text("Soundboard")');
+  await b.setInputFiles('input[aria-label="Sound file"]', [toneWav(path.join(dir, 'bell.wav'), 1.5, 880)]);
+  await b.waitForSelector('.soundboard-settings-row input[value="bell"]');
+  await b.keyboard.press('Escape');
+  if (!(await b.$('.voice-bar-status.connected'))) throw new Error('bob left voice');
+  await b.click('.voice-bar .soundboard-toggle');
+  await b.waitForSelector('.soundboard-panel .soundboard-group:has-text("Bell Tower") .soundboard-sound:has-text("bell")');
+  const order = await b.$$eval('.soundboard-panel .soundboard-group-name', (els) => els.map((el) => el.textContent));
+  if (JSON.stringify(order) !== '["Sound Test","Bell Tower"]') throw new Error(`panel groups: ${order}`);
+  await shot(b, '08-panel-other-guilds');
+  const beforeBell = { b: (await clips(b)).length, c: (await clips(c)).length };
+  await b.click('.soundboard-panel .soundboard-sound:has-text("bell")');
+  await waitForClips(b, beforeBell.b + 1, 'bob hears his bell');
+  await waitForClips(c, beforeBell.c + 1, 'carol hears bob\'s bell from another guild');
+  await b.keyboard.press('Escape');
+  await a.click('.voice-bar .soundboard-toggle');
+  await a.waitForSelector('.soundboard-panel .soundboard-sound:has-text("ding dong")');
+  await a.waitForTimeout(500);
+  if (await a.$('.soundboard-panel .soundboard-sound:has-text("bell"), .soundboard-panel .soundboard-group-name')) {
+    throw new Error('alice sees a guild she isn\'t in');
+  }
+  await a.keyboard.press('Escape');
+  console.log('bob plays bell tower\'s sound in sound test; alice, not in bell tower, doesn\'t see it');
+
   console.log('ok');
 } finally {
   await browser.close();

@@ -232,6 +232,7 @@
       "title": "Soundboard",
       "open": "Soundboard",
       "sounds": "Sounds",
+      "soundsOf": "Sounds from {{guild}}",
       "play": "Play {{name}} for everyone here",
       "preview": "Preview {{name}} (only you hear it)",
       "settings": "Soundboard settings",

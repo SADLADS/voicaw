@@ -473,7 +473,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   scheme). The server only relays a play to everyone in the channel; each app plays the file
   itself, so listeners each choose, per device, whether they hear soundboard sounds and join
   sounds (each member's one sound played when they join one of the guild's voice channels) and
-  how loud. 5.2 s at most, kept by the apps (they cut longer files when uploading).
+  how loud. 5.2 s at most, kept by the apps (they cut longer files when uploading). Since
+  2026-11-10 any guild's sounds play in every guild you're in (the user asked; no paid tier and
+  no separate permission, as with custom emoji): the panel lists the others under their names.
 - **Guild folders** (built 2026-10-27, see Guild folders in `docs/guilds.md`): Discord's folders
   in the rail, per person and kept on the server with the rail order (so they follow you to
   every device); open or closed is per device, as in Discord. Folder ids are made by the app so

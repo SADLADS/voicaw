@@ -2344,14 +2344,33 @@ body.popout-window {
   margin: 8px 0;
 }
 
+/* This guild's sounds, then each other guild's under its name; scrolls as one. */
+.soundboard-sections {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.soundboard-group + .soundboard-group {
+  margin-top: 10px;
+}
+
+.soundboard-group-name {
+  margin: 0 0 6px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vc-fg-muted);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .soundboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 6px;
-  min-height: 0;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
 

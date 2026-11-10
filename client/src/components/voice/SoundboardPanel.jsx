@@ -7,14 +7,15 @@ import { faGear, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
 import { ReactionEmoji } from '../MessageReactions';
 import { LayoutContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
-import { playSoundboardSound, previewSound, useSoundboard } from '../../voice/soundboard';
+import { playSoundboardSound, previewSound, useSoundboard, useSoundboards } from '../../voice/soundboard';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { placeMenu } from '../../utils/menuPlacement';
 import { errorMessage } from '../../utils/guildDisplay';
 import { t } from '../../i18n';
 
 // The soundboard (like Discord's), opened from the voice controls while you're in one of a
-// guild's voice channels: its sounds as buttons, a click playing one for everyone in the
+// guild's voice channels: its sounds as buttons, then every other guild you're in's sounds
+// under that guild's name (any of them plays here), a click playing one for everyone in the
 // channel (Speak and Use Soundboard, not deafened), the speaker beside each playing it to you
 // alone (your join sound is chosen in your profile). Floating by `anchor` (a rect) on a computer, a
 // sheet from the bottom on a phone (`sheet`). Escape, or a click outside (but on `trigger`, the
@@ -22,6 +23,7 @@ import { t } from '../../i18n';
 export default function SoundboardPanel({ guildId, channelId, anchor, trigger = null, sheet = false, onClose }) {
   const voice = useVoice();
   const board = useSoundboard(guildId);
+  const allBoards = useSoundboards();
   const { guildList } = useContext(LayoutContext);
   const layout = guildList?.layouts?.[guildId];
   const channel = layout?.channels?.find((c) => c.id === channelId);
@@ -71,40 +73,57 @@ export default function SoundboardPanel({ guildId, channelId, anchor, trigger = 
   }
 
   const sounds = board?.sounds ?? [];
+  const others = (allBoards ?? []).filter((g) => g.id !== Number(guildId) && g.sounds.length > 0);
+  const guildName = guildList?.guilds?.find((g) => g.id === Number(guildId))?.name ?? '';
   const note = !allowed ? t('voice.soundboard.noPermission') : voice.selfDeaf ? t('voice.soundboard.deafened') : null;
+  const grid = (list, label) => (
+    <ul className="soundboard-grid" aria-label={label}>
+      {list.map((sound) => (
+        <li key={sound.id} className="soundboard-item">
+          <button
+            type="button"
+            className="soundboard-sound"
+            disabled={!allowed || voice.selfDeaf}
+            title={t('voice.soundboard.play', { name: sound.name })}
+            onClick={() => play(sound)}
+          >
+            {sound.emoji && <span className="soundboard-emoji" aria-hidden="true"><ReactionEmoji native={sound.emoji} /></span>}
+            <span className="soundboard-name">{sound.name}</span>
+          </button>
+          <button
+            type="button"
+            className="soundboard-preview"
+            aria-label={t('voice.soundboard.preview', { name: sound.name })}
+            title={t('voice.soundboard.preview', { name: sound.name })}
+            onClick={() => previewSound(sound)}
+          >
+            <Icon icon={faVolumeHigh} />
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+  const emptyHere = <p className="vc-hint soundboard-empty">{canManage ? t('voice.soundboard.emptyManage') : t('voice.soundboard.empty')}</p>;
   const body = (
     <>
       {note && <p className="soundboard-note">{note}</p>}
       {board == null ? (
         <p className="vc-hint soundboard-empty">{t('common.loading')}</p>
-      ) : sounds.length === 0 ? (
-        <p className="vc-hint soundboard-empty">{canManage ? t('voice.soundboard.emptyManage') : t('voice.soundboard.empty')}</p>
+      ) : others.length === 0 ? (
+        sounds.length === 0 ? emptyHere : <div className="soundboard-sections">{grid(sounds, t('voice.soundboard.sounds'))}</div>
       ) : (
-        <ul className="soundboard-grid" aria-label={t('voice.soundboard.sounds')}>
-          {sounds.map((sound) => (
-            <li key={sound.id} className="soundboard-item">
-              <button
-                type="button"
-                className="soundboard-sound"
-                disabled={!allowed || voice.selfDeaf}
-                title={t('voice.soundboard.play', { name: sound.name })}
-                onClick={() => play(sound)}
-              >
-                {sound.emoji && <span className="soundboard-emoji" aria-hidden="true"><ReactionEmoji native={sound.emoji} /></span>}
-                <span className="soundboard-name">{sound.name}</span>
-              </button>
-              <button
-                type="button"
-                className="soundboard-preview"
-                aria-label={t('voice.soundboard.preview', { name: sound.name })}
-                title={t('voice.soundboard.preview', { name: sound.name })}
-                onClick={() => previewSound(sound)}
-              >
-                <Icon icon={faVolumeHigh} />
-              </button>
-            </li>
+        <div className="soundboard-sections">
+          <section className="soundboard-group">
+            <h3 className="soundboard-group-name">{guildName}</h3>
+            {sounds.length === 0 ? emptyHere : grid(sounds, t('voice.soundboard.soundsOf', { guild: guildName }))}
+          </section>
+          {others.map((g) => (
+            <section key={g.id} className="soundboard-group">
+              <h3 className="soundboard-group-name">{g.name}</h3>
+              {grid(g.sounds, t('voice.soundboard.soundsOf', { guild: g.name }))}
+            </section>
           ))}
-        </ul>
+        </div>
       )}
       {error && <p className="error-msg soundboard-error" role="alert">{error}</p>}
       <div className="soundboard-footer">

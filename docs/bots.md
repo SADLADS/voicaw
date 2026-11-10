@@ -272,8 +272,9 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
   /guilds/:id/soundboard-sounds` (`{ items }`; create takes `sound` as a data URI of an MP3,
   Ogg or WAV up to 512 KB, Manage Guild Expressions), `GET/PATCH/DELETE
   /guilds/:id/soundboard-sounds/:soundId`, and `POST /channels/:id/send-soundboard-sound {
-  sound_id, source_guild_id? }` (in that channel's voice, Speak + Use Soundboard, bit 42; only
-  the channel's guild's sounds). Sound objects are Discord's (`D.soundObject`: a custom emoji
+  sound_id, source_guild_id? }` (in that channel's voice, Speak + Use Soundboard, bit 42; a
+  sound of any guild the bot is in, since 2026-11-10, `source_guild_id` when sent being its
+  guild, else 10097 Unknown Soundboard Sound). Sound objects are Discord's (`D.soundObject`: a custom emoji
   as `emoji_id`, Unicode as `emoji_name`); the file is at `/api/cdn/soundboard-sounds/:id`.
   Gateway: GUILD_CREATE's `soundboard_sounds`, GUILD_SOUNDBOARD_SOUNDS_UPDATE (Guild
   Expressions) after any change, and VOICE_CHANNEL_EFFECT_SEND (Guild Voice States) for a sound
