@@ -1795,6 +1795,8 @@ body.popout-window {
   overflow: hidden;
   background-color: #000;
   color: #fff;
+  /* The controls fit its width (the queries after .watch-party-volume). */
+  container-type: inline-size;
 }
 
 /* In the corner players (Layout's .corner-players, which places it). */
@@ -1942,8 +1944,39 @@ body.popout-window {
 }
 
 .watch-party-volume {
-  width: 80px;
+  flex: 0 1 80px;
+  min-width: 40px;
   accent-color: var(--vc-accent);
+}
+
+/* A small player (a small window or pop-out, a phone's corner) drops what matters least first,
+   so its buttons are never cut off: the volume slider (mute stays) and Paused, then the
+   length, then (beside a seek bar) the clock. The corner player has no seek or volume slider,
+   so it keeps them until it's phone-sized. */
+@container (max-width: 420px) {
+  .watch-party-player:not(.mini) .watch-party-volume,
+  .watch-party-player:not(.mini) .watch-party-paused {
+    display: none;
+  }
+}
+
+@container (max-width: 340px) {
+  .watch-party-player:not(.mini) .watch-party-duration {
+    display: none;
+  }
+}
+
+@container (max-width: 280px) {
+  .watch-party-player:not(.mini) .watch-party-time {
+    display: none;
+  }
+}
+
+@container (max-width: 240px) {
+  .watch-party-paused,
+  .watch-party-duration {
+    display: none;
+  }
 }
 
 .watch-party-player.fullscreen {

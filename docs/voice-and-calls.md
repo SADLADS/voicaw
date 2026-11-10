@@ -489,7 +489,9 @@ LiveKit carries the audio.
     a seek bar, and for you alone volume (`localStorage watchPartyVolume`; deafened: muted) and
     full screen. A transparent shield covers the frame, so clicks never reach YouTube's own
     controls (which are hidden: `controls=0`, `disablekb=1`), which would put one person out
-    of step.
+    of step. The player is a CSS container: when it's narrow (a small window or pop-out) its
+    controls row drops the volume slider (mute stays) and Paused below 420 px, the length below
+    340 px and the clock below 280 px, so the buttons are never cut off.
   - **Driving YouTube without its script:** `voice/youtubeEmbed.js` talks to the
     youtube-nocookie.com embed over the messages its page understands (`listening`, then
     `infoDelivery` and the events; commands `{ event: 'command', func, args }`), which is all

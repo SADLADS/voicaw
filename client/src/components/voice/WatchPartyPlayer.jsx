@@ -308,7 +308,8 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
           </button>
         )}
         <span className="watch-party-time">
-          {formatClock(position)}{duration ? ` / ${formatClock(duration)}` : ''}
+          {formatClock(position)}
+          {duration ? <span className="watch-party-duration">{` / ${formatClock(duration)}`}</span> : null}
         </span>
         {docked && duration > 0 ? (
           <input
