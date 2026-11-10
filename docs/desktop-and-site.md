@@ -131,6 +131,57 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   same computer and in the same call is another program, so its sound is shared too.
   macOS needs Screen Recording permission (the picker says where); Wayland goes through the
   system's portal picker.
+- **Game capture** (Windows; `gameCapture.js`, `game-capture/`, client `voice/gameCapture.js`;
+  built 2026-11-10, as Discord's and OBS's game capture; the user chose OBS's hook): a game in
+  exclusive full screen never reaches the desktop, and Chromium's capturers (Windows Graphics
+  Capture, DXGI duplication, GDI; picked by Windows version, `desktop_capture_device.cc`, no
+  switch changes it) then show viewers one frozen frame until the game loses focus (reported with
+  Dota 2). So the picker has a **Games** tab (first, while a game runs: Rich Presence's
+  processes and the running Steam games, `gamePidsForCapture` in `main.js`; their windows from
+  `voicaw-capture.exe --list`, kept only when they're also among desktopCapturer's windows).
+  Going live on a game shares its window as before (`chooseScreenSource` with that window's
+  source: the sound, Windows' system sound, comes with it, and it's the fallback), then
+  `voiceClient` `shareGame` starts game capture and, once frames come, swaps them into the same
+  screen share (LiveKit `replaceTrack`, ours so LiveKit never stops or re-captures it; viewers
+  notice nothing but the picture moving) and stops the window's capture. The frames are scaled
+  down to the chosen resolution (LiveKit lays a screen share's layers out at the track's own size;
+  `scaledEncodings`, again when the game resizes) and come at the chosen frame rate.
+  **How**: OBS 33.0.1's graphics hook (`graphics-hook64/32.dll`), its inject helper and its
+  offsets program, unmodified and code-signed as OBS ships them, fetched by `game-capture/prepare.mjs` from OBS's
+  official Windows zip (pinned SHA-256) into `game-capture/dist/`, shipped as the app's
+  `resources/game-capture/` (`builder.config.js`, which refuses a Windows build without them).
+  Our helper `voicaw-capture.exe` (`game-capture/helper/`, C++, MSVC in the release workflow,
+  MinGW in Docker on Linux: `build-helper.sh`) speaks the hook's protocol (`hook-protocol.h`, our
+  own declaration of OBS's `graphics-hook-info.h` layout, size-checked): runs the offsets
+  program, holds the keepalive mutex, injects the hook the anti-cheat-friendly way (a Windows
+  message hook on the window's thread, OBS's default), fills in the hook's info, signals it to
+  start, then copies the hook's shared texture (a legacy D3D11 handle, opened on whichever GPU it
+  belongs to) into a ring of four textures shared as NT handles, duplicated into the app's main
+  process, and says which slot holds each new frame (JSON lines on stdout; commands on stdin:
+  free, retire, fps, stop). The hook's own log comes through its pipe as log lines. Main imports
+  each frame (`sharedTexture.importSharedTexture`, GPU to GPU: Electron duplicates the handle,
+  so our ring is reused) and sends it to the page (`sendSharedTexture`); the sandboxed preload's
+  receiver hands it to the page, which writes `getVideoFrame()` into a `MediaStreamTrackGenerator`
+  (dropping frames rather than queueing past two); a slot is freed when every reference is gone
+  (`allReferencesReleased`). After a resize the helper makes a new set (`gen`), and the app
+  retires the old one. Only a window just listed can be captured, and only by the app's own page.
+  **When it can't** (the share stays the window's, with the reason, `voice.errors.gameCapture*`):
+  a game run as administrator (Windows keeps a normal program's hook out), an anti-cheat that
+  blocks the hook, a game the hook gets no frames from within 20 s (Vulkan: OBS's Vulkan layer
+  isn't registered; it would load into every Vulkan program on the computer, so it's left for
+  the user to decide), 10-bit or 16-bit-integer pictures (only BGRA, RGBA and FP16 are copied;
+  HDR games would need a conversion shader), and a game drawn on another graphics card than
+  Electron's (laptops with two: the import fails, OBS has the same limit). A game closing ends
+  the share. Licence: OBS's files are GPL v2; `LICENSE-OBS.txt` and `SOURCE-OBS.txt` ship beside
+  them, the release workflow attaches OBS's source archive to every release, and Settings →
+  About → Credits says so in the Windows app. They're packed byte for byte (checked 2026-11-10,
+  OBS's signatures intact): if Windows code signing is ever set up, keep electron-builder from
+  re-signing them (they'd no longer be OBS's files, which anti-cheats recognise). Nothing new is stored or sent: the frames go out as
+  the screen share did. **Untested on Windows** when written (no Windows host here): the helper
+  was compiled and its argument and error paths run under Wine, the main process's side is unit
+  tested against a stand-in helper, and the page's side end to end in Chrome with stand-in frames
+  (`e2e/gamecapture.mjs`); the hook, the helper's capture and Electron's import need a real
+  Windows PC with a game (README "Desktop app" has the steps).
 - **Tray and badge** (`tray.js`): Open / Quit menu, and what's unread the way Discord counts
   it (`unreadSummary`: unread DMs and group messages plus guild mentions; guild messages that
   don't mention you don't count): a red dot on the tray icon, the count as the macOS dock

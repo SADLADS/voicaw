@@ -1,6 +1,6 @@
 // The page's window onto the desktop app: `window.voicawDesktop` (client/src/utils/desktop.js
 // wraps it). Only these calls, never Node or ipcRenderer itself.
-const { contextBridge, ipcRenderer, webFrame } = require('electron');
+const { contextBridge, ipcRenderer, sharedTexture, webFrame } = require('electron');
 
 function listen(channel) {
     return (callback) => {
@@ -33,6 +33,28 @@ contextBridge.exposeInMainWorld('voicawDesktop', {
     // resolving to { label } (to find it among the devices) or null; stop when the share ends.
     startStreamSound: () => ipcRenderer.invoke('desktop:stream-sound-start'),
     stopStreamSound: () => ipcRenderer.invoke('desktop:stream-sound-stop'),
+    // Game capture (Windows, electron/gameCapture.js): getScreenSources' `games` (the window
+    // handle `hwnd`), start(hwnd, fps) resolving to { id, width, height } or { error: { code,
+    // message } }, onState({ id, state: 'live' | 'error' | 'stopped', ... }), and onFrame(callback):
+    // callback(imported) for every frame, which calls imported.getVideoFrame() (and closes that
+    // frame when done with it); the texture is let go here once the callback returns.
+    gameCapture: process.platform === 'win32' && sharedTexture ? {
+        start: (hwnd, fps) => ipcRenderer.invoke('desktop:game-capture-start', String(hwnd), Number(fps)),
+        stop: () => ipcRenderer.invoke('desktop:game-capture-stop'),
+        setFrameRate: (fps) => ipcRenderer.send('desktop:game-capture-fps', Number(fps)),
+        onState: listen('desktop:game-capture'),
+        onFrame: (callback) => {
+            sharedTexture.setSharedTextureReceiver(async ({ importedSharedTexture }) => {
+                try {
+                    await callback(importedSharedTexture);
+                } finally {
+                    importedSharedTexture.release();
+                }
+            });
+            // Frames still arriving after that are let go unseen.
+            return () => sharedTexture.setSharedTextureReceiver(async ({ importedSharedTexture }) => importedSharedTexture.release());
+        },
+    } : null,
     // The page's right-click menu: Electron's own paste, and its checker for what the page
     // has no dictionary for (electron/spellcheck.js), kept to the account's words.
     paste: () => ipcRenderer.send('desktop:paste'),

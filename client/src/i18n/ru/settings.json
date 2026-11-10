@@ -231,6 +231,7 @@
     },
     "about": {
       "attribution": "Графика эмодзи — <twemoji>Twemoji</twemoji>, © Twitter, Inc и другие участники, лицензия <ccby>CC-BY 4.0</ccby>. Шрифт эмодзи изменён на основе <font>twemoji-color-font</font>, лицензия <ofl>SIL Open Font License 1.1</ofl>. GIF-анимации — <klipy>KLIPY</klipy>.",
+      "gameCaptureAttribution": "Захват игр использует графический перехватчик <obs>OBS Studio</obs> без изменений, лицензия <gpl>GNU GPL версии 2</gpl> (<source>его исходный код</source>).",
       "privacy": "Политика конфиденциальности",
       "terms": "Условия использования",
       "deleteAccount": "Удаление аккаунта"

@@ -7,10 +7,10 @@
 // (Its other windows are a popped-out screen share, which the page draws itself, windowOpen.js,
 // and the in-game overlay, overlay.js.)
 const path = require('path');
-const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, screen, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, protocol, screen, session, sharedTexture, shell } = require('electron');
 const fs = require('fs');
 const os = require('os');
-const { execFile, execFileSync } = require('child_process');
+const { execFile, execFileSync, spawn } = require('child_process');
 const nodeNet = require('net');
 const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
 const { ORIGIN, isAppOrigin, registerScheme, handleScheme } = require('./protocol');
@@ -36,10 +36,13 @@ const { inGamingMode } = require('./gamingMode');
 const { createOverlay, OVERLAY_PRELOAD } = require('./overlay');
 const { runningSteamGames } = require('./runningGames');
 const { gameWindowCentre } = require('./gameWindow');
+const { createGameCapture } = require('./gameCapture');
 
 const APP_ID = 'com.voicaw.app';
 const ICON = path.join(__dirname, 'assets', 'icon.png');
 const BUILD_DIR = app.isPackaged ? path.join(process.resourcesPath, 'app') : path.join(__dirname, '../build');
+// Game capture's helper and OBS's hook files (gameCapture.js; game-capture/prepare.mjs fetches them).
+const GAME_CAPTURE_DIR = app.isPackaged ? path.join(process.resourcesPath, 'game-capture') : path.join(__dirname, 'game-capture', 'dist');
 // Only the app's own pages get these (microphone, notifications, copying, full screen video,
 // and screen capture, which only ever gets what the person picked in our picker).
 const ALLOWED_PERMISSIONS = new Set(['media', 'notifications', 'clipboard-sanitized-write', 'fullscreen', 'display-capture']);
@@ -68,6 +71,9 @@ let pushToTalk;
 let gameActivities;
 let overlay;
 let lookForGames;
+let gameCapture;
+// Rich Presence games' processes (whatever the overlay does), for game capture's Games tab.
+let presencePids = [];
 
 // One app at a time: starting it again brings the running one forward.
 if (!app.requestSingleInstanceLock()) {
@@ -303,8 +309,9 @@ function setUpRichPresence() {
         net: nodeNet,
         fs,
         onChange(games) {
-            // The games' processes, for the overlay to find the game's screen.
-            overlay.setGames({ presencePids: games.filter((g) => g.pid && playingRaw(g.activity)).map((g) => g.pid) });
+            // The games' processes, for the overlay to find the game's screen (and game capture).
+            presencePids = games.filter((g) => g.pid && playingRaw(g.activity)).map((g) => g.pid);
+            overlay.setGames({ presencePids });
             gameActivities.update(games);
         },
     });
@@ -316,6 +323,7 @@ function applyRichPresence() {
     if (!settings.get().richPresence) {
         richPresence.stop();
         gameActivities.setSteamGames([]);
+        presencePids = [];
         overlay.setGames({ presence: false, presencePids: [] });
         return;
     }
@@ -399,6 +407,34 @@ function setUpOverlay() {
     return look;
 }
 
+// Game capture's Games tab (gameCapture.js): Rich Presence's games and the running Steam games,
+// looked up again at most every GAME_POLL_MS (the picker lists every few seconds).
+let runningForCapture = { at: 0, pids: [] };
+async function gamePidsForCapture() {
+    if (Date.now() - runningForCapture.at > GAME_POLL_MS) {
+        const games = await runningSteamGames({ platform: process.platform, fs, run, apps: await installedSteamApps() }).catch(() => []);
+        runningForCapture = { at: Date.now(), pids: games.flatMap((game) => game.pids) };
+    }
+    return [...presencePids, ...runningForCapture.pids];
+}
+
+function setUpGameCapture() {
+    gameCapture = createGameCapture({
+        platform: process.platform,
+        dir: GAME_CAPTURE_DIR,
+        fs,
+        spawn,
+        execFile,
+        sharedTexture,
+        parentPid: process.pid,
+        gamePids: gamePidsForCapture,
+        getFrame: () => (win && !win.isDestroyed() ? win.webContents.mainFrame : null),
+        send: (state) => { if (win && !win.isDestroyed()) win.webContents.send('desktop:game-capture', state); },
+        log: (message) => console.log('Game capture:', message),
+    });
+    app.on('will-quit', () => gameCapture.stop());
+}
+
 const windowState = (window) => ({
     maximized: window.isMaximized(),
     fullScreen: window.isFullScreen(),
@@ -456,6 +492,18 @@ function setUpIpc() {
     ipcMain.handle('desktop:screen-sources', (event) => (fromApp(event) ? screenShare.listSources() : null));
     ipcMain.handle('desktop:choose-screen-source', (event, id, audio) =>
         (fromApp(event) && typeof id === 'string' ? screenShare.choose(id, audio === true) : false));
+    // Game capture (gameCapture.js): start resolves to { id, width, height } or { error: { code,
+    // message } } (an invoke's rejection would lose the code); then 'desktop:game-capture' events.
+    ipcMain.handle('desktop:game-capture-start', async (event, hwnd, fps) => {
+        if (!fromApp(event)) return { error: { code: 'not_allowed', message: '' } };
+        try {
+            return await gameCapture.start(String(hwnd), Number(fps));
+        } catch (err) {
+            return { error: { code: String(err?.code ?? 'failed'), message: String(err?.message ?? '') } };
+        }
+    });
+    ipcMain.handle('desktop:game-capture-stop', (event) => { if (fromApp(event)) gameCapture.stop(); });
+    ipcMain.on('desktop:game-capture-fps', (event, fps) => { if (fromApp(event)) gameCapture.setFrameRate(Number(fps)); });
     // A screen share's sound on Linux (streamSound.js): { label } of the microphone to record, or null.
     ipcMain.handle('desktop:stream-sound-start', (event) => (fromApp(event) ? streamSound.start() : null));
     ipcMain.handle('desktop:stream-sound-stop', (event) => (fromApp(event) ? streamSound.stop() : null));
@@ -500,12 +548,14 @@ function start() {
         // Every process of the app (the audio service plays our sound), so none of it is shared.
         ownPids: () => [process.pid, ...app.getAppMetrics().map((metric) => metric.pid)],
     });
+    setUpGameCapture();
     screenShare = createScreenShare({
         desktopCapturer,
         platform: process.platform,
         origin: ORIGIN,
         ownSourceId: () => (win && !win.isDestroyed() ? win.getMediaSourceId() : null),
         deviceSound: () => streamSound.available(),
+        listGames: () => gameCapture.listGames(),
     });
     setUpPermissions();
     fileSaver = createFileSaver({

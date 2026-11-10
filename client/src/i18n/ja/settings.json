@@ -228,6 +228,7 @@
     },
     "about": {
       "attribution": "絵文字のグラフィックは <twemoji>Twemoji</twemoji>（© Twitter, Inc およびその他の貢献者、<ccby>CC-BY 4.0</ccby> ライセンス）を使用しています。絵文字フォントは <font>twemoji-color-font</font> を改変したもので、<ofl>SIL Open Font License 1.1</ofl> でライセンスされています。GIF は <klipy>KLIPY</klipy> 提供です。",
+      "gameCaptureAttribution": "ゲームキャプチャには <obs>OBS Studio</obs> のグラフィックフックを無改変で使用しています。<gpl>GNU GPL バージョン 2</gpl> でライセンスされています（<source>ソースコード</source>）。",
       "privacy": "プライバシーポリシー",
       "terms": "利用規約",
       "deleteAccount": "アカウントの削除について"

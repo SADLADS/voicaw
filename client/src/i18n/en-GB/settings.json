@@ -229,6 +229,7 @@
     },
     "about": {
       "attribution": "Emoji graphics by <twemoji>Twemoji</twemoji>, © Twitter, Inc and other contributors, licensed under <ccby>CC-BY 4.0</ccby>. Emoji font modified from <font>twemoji-color-font</font>, licensed under the <ofl>SIL Open Font License 1.1</ofl>. GIFs from <klipy>KLIPY</klipy>.",
+      "gameCaptureAttribution": "Game capture uses <obs>OBS Studio</obs>'s graphics hook, unmodified, licensed under the <gpl>GNU GPL version 2</gpl> (<source>its source code</source>).",
       "privacy": "Privacy policy",
       "terms": "Terms of use",
       "deleteAccount": "Deleting your account"

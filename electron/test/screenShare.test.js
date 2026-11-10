@@ -52,6 +52,27 @@ describe('screen sharing (screenShare.js)', () => {
         ]);
     });
 
+    it('lists running games among the windows, with their window\'s source (game capture)', async () => {
+        const desktopCapturer = { getSources: async () => SOURCES };
+        const share = createScreenShare({
+            desktopCapturer, platform: 'win32', origin: ORIGIN, ownSourceId: () => 'window:11:0',
+            listGames: async () => [
+                { hwnd: '12', pid: 7, title: 'Notes the game', width: 800, height: 600 },
+                { hwnd: '99', pid: 8, title: 'Not a listed window', width: 800, height: 600 },
+                { hwnd: '11', pid: 9, title: 'Our own window', width: 800, height: 600 },
+            ],
+        });
+        const { games, sources } = await share.listSources();
+        expect(games).toEqual([
+            { hwnd: '12', name: 'Notes the game', sourceId: 'window:12:0', thumbnail: 'data:image/png;base64,w12', icon: 'data:image/png;base64,n' },
+        ]);
+        expect(sources).toHaveLength(2);
+        // A failing game list still lists the screens and windows.
+        const failing = createScreenShare({ desktopCapturer, platform: 'win32', origin: ORIGIN, listGames: async () => { throw new Error('no helper'); } });
+        expect((await failing.listSources()).games).toEqual([]);
+        expect((await setUp().share.listSources()).games).toEqual([]);
+    });
+
     it('answers the next request with the source picked, and system sound on Windows', async () => {
         const { share } = setUp();
         await share.listSources();

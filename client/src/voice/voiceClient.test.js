@@ -63,6 +63,24 @@ const lk = vi.hoisted(() => {
       this.options = options;
     }
   }
+  // The screen share's video as LiveKit publishes it: a window's capture, then whatever
+  // replaceTrack swaps in; its sender holds LiveKit's two simulcast layers.
+  class LocalScreen {
+    constructor() {
+      this.mediaStreamTrack = { contentHint: 'motion', stopped: false, stop() { this.stopped = true; } };
+      this.windowTrack = this.mediaStreamTrack;
+      this.replaced = [];
+      this.parameters = { encodings: [{ rid: 'f', scaleResolutionDownBy: 1 }, { rid: 'h', scaleResolutionDownBy: 2 }] };
+      this.sender = {
+        getParameters: () => structuredClone(this.parameters),
+        setParameters: async (params) => { this.parameters = params; },
+      };
+    }
+    async replaceTrack(track, userProvided) {
+      this.replaced.push({ track, userProvided });
+      this.mediaStreamTrack = track;
+    }
+  }
   class LocalParticipant {
     constructor() {
       this.identity = '1';
@@ -74,6 +92,7 @@ const lk = vi.hoisted(() => {
     get isMicrophoneEnabled() { return Boolean(this.mic && !this.mic.isMuted); }
     getTrackPublication(source) {
       if (source === 'camera') return this.camera ? { track: this.camera, isMuted: this.camera.isMuted } : undefined;
+      if (source === 'screen_share') return this.screen ? { track: this.screen } : undefined;
       if (source !== 'microphone' || !this.mic) return undefined;
       const track = this.mic;
       return { track, audioTrack: track, get isMuted() { return track.isMuted; } };
@@ -102,6 +121,7 @@ const lk = vi.hoisted(() => {
     async setScreenShareEnabled(enabled, capture, publish) {
       state.screenShares.push({ enabled, capture, publish });
       this.isScreenShareEnabled = enabled;
+      this.screen = enabled ? new LocalScreen() : null;
     }
   }
   // LiveKit's remote audio: its volume is a gain it rebuilds now and then (a second element,
@@ -197,6 +217,12 @@ vi.mock('../utils/keepScreenOn', () => ({
   },
 }));
 vi.mock('./noise/noiseStages', () => ({ VOICE_SAMPLE_RATE: 48000, voiceProcessingStage: vi.fn() }));
+// Game capture's frames (gameCapture.js): what startGameFrames does is up to each test.
+const gameFrames = vi.hoisted(() => ({ start: null }));
+vi.mock('./gameCapture', async (importOriginal) => ({
+  ...(await importOriginal()),
+  startGameFrames: (...args) => gameFrames.start(...args),
+}));
 vi.mock('./speaking', () => ({
   createSpeakingMeters: () => ({ add() {}, remove() {}, destroy() {} }),
   whoIsSpeaking: () => [],
@@ -450,6 +476,95 @@ describe('voiceClient screen share quality', () => {
     } finally {
       lk.state.permissions = undefined;
       setStreamSettings({ resolution: '1080', frameRate: 15 });
+    }
+  });
+
+  it('shares a game: its window first, then its own frames swapped in at the chosen resolution', async () => {
+    const { setStreamSettings } = await import('./streamSettings');
+    lk.state.permissions = { canPublish: true, canPublishSources: [2, 3] };
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    const game = { track: { kind: 'video', contentHint: '' }, width: 3840, height: 2160, stop: vi.fn(), setFrameRate: vi.fn() };
+    let ends;
+    gameFrames.start = vi.fn(async (bridge, options) => {
+      ends = options;
+      return game;
+    });
+    try {
+      setStreamSettings({ resolution: '1080', frameRate: 60 });
+      await voice.joinVoice(1, 2);
+      await flush();
+      await voice.startScreenShare({ game: { hwnd: '4242' } });
+      await flush();
+      expect(gameFrames.start).toHaveBeenCalledWith(undefined, expect.objectContaining({ hwnd: '4242', fps: 60 }));
+      const screen = lk.state.room.localParticipant.screen;
+      expect(screen.replaced).toEqual([{ track: game.track, userProvided: true }]);
+      expect(screen.windowTrack.stopped).toBe(true);
+      expect(game.track.contentHint).toBe('motion');
+      // 2160p frames, 1080p chosen: both layers twice as small as LiveKit set them.
+      expect(screen.parameters.encodings.map((e) => e.scaleResolutionDownBy)).toEqual([2, 4]);
+      // The game resized to 1440p: scaled from LiveKit's layers again, not from the last ones.
+      await ends.onResize({ width: 2560, height: 1440 });
+      await flush();
+      expect(screen.parameters.encodings.map((e) => e.scaleResolutionDownBy)).toEqual([1440 / 1080, 2880 / 1080]);
+      // The game closing ends the share.
+      ends.onEnd({ reason: 'game_closed' });
+      await flush();
+      expect(lk.state.screenShares.at(-1).enabled).toBe(false);
+      expect(voice.getVoiceSnapshot().streamError).toBeNull();
+    } finally {
+      lk.state.permissions = undefined;
+      setStreamSettings({ resolution: '1080', frameRate: 15 });
+    }
+  });
+
+  it('keeps sharing the window, and says why, when the game can\'t be captured', async () => {
+    lk.state.permissions = { canPublish: true, canPublishSources: [2, 3] };
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    gameFrames.start = vi.fn(async () => { throw { code: 'hook_not_loaded', message: 'anti-cheat' }; });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await voice.joinVoice(1, 2);
+      await flush();
+      await voice.startScreenShare({ game: { hwnd: '4242' } });
+      await flush();
+      const screen = lk.state.room.localParticipant.screen;
+      expect(screen.replaced).toEqual([]);
+      expect(screen.windowTrack.stopped).toBe(false);
+      expect(lk.state.room.localParticipant.isScreenShareEnabled).toBe(true);
+      expect(voice.getVoiceSnapshot().streamError).toMatch(/anti-cheat/);
+    } finally {
+      warn.mockRestore();
+      lk.state.permissions = undefined;
+    }
+  });
+
+  it('stops the game capture with the share, and drops one that comes too late', async () => {
+    lk.state.permissions = { canPublish: true, canPublishSources: [2, 3] };
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    const game = { track: { kind: 'video' }, width: 1920, height: 1080, stop: vi.fn(), setFrameRate: vi.fn() };
+    const late = lk.deferred();
+    gameFrames.start = vi.fn(() => late.promise.then(() => game));
+    try {
+      await voice.joinVoice(1, 2);
+      await flush();
+      await voice.startScreenShare({ game: { hwnd: '4242' } });
+      await voice.stopScreenShare();
+      late.resolve();
+      await flush();
+      expect(game.stop).toHaveBeenCalled();
+
+      const live = { ...game, stop: vi.fn() };
+      gameFrames.start = vi.fn(async () => live);
+      await voice.startScreenShare({ game: { hwnd: '4242' } });
+      await flush();
+      expect(lk.state.room.localParticipant.screen.replaced).toHaveLength(1);
+      await voice.stopScreenShare();
+      expect(live.stop).toHaveBeenCalled();
+    } finally {
+      lk.state.permissions = undefined;
     }
   });
 

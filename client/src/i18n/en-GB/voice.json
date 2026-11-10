@@ -11,7 +11,10 @@
       "looking": "Looking for your screens and windows…",
       "noScreens": "No screens to share.",
       "noWindows": "No windows to share.",
-      "macNote": "Windows missing or blank? Allow Voicaw in System Settings → Privacy & Security → Screen & System Audio Recording, then restart it."
+      "macNote": "Windows missing or blank? Allow Voicaw in System Settings → Privacy & Security → Screen & System Audio Recording, then restart it.",
+      "games": "Games",
+      "noGames": "No games running.",
+      "gamesNote": "Games are captured from inside, so they keep moving even in full screen. If one can't be, its window is shared instead."
     },
     "screenShare": {
       "start": "Share your screen",
@@ -114,6 +117,11 @@
       "noScreenShare": "This browser can't share the screen.",
       "screenShareFailed": "Could not share your screen.",
       "streamSoundFailed": "Your screen is shared, but its sound couldn't be.",
+      "gameCaptureFailed": "Your game couldn't be captured, so its window is shared instead. If it looks frozen, set the game to borderless or windowed.",
+      "gameCaptureElevated": "Your game runs as administrator, so only its window could be shared. Run Voicaw as administrator to capture the game, or set it to borderless or windowed.",
+      "gameCaptureBlocked": "Your game (or its anti-cheat) didn't let Voicaw capture it, so its window is shared instead. If it looks frozen, set the game to borderless or windowed.",
+      "gameCaptureUnsupported": "Your game's picture can't be captured yet, so its window is shared instead. If it looks frozen, set the game to borderless or windowed.",
+      "gameCaptureLost": "Capturing your game stopped, so your stream ended.",
       "cameraBlocked": "Camera access is blocked. Allow it in your browser to turn your camera on.",
       "noCamera": "No camera found.",
       "cameraFailed": "Could not use the camera."

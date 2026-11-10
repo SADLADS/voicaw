@@ -124,7 +124,10 @@ LiveKit carries the audio.
   `screen_share_audio` beside it, so viewers get it like any stream's sound (volume, deafen, the
   call's encryption); it ends with the share (LiveKit unpublishes both) or leaving, and if it
   fails the screen stays shared, silent, with a message; `stopScreenShare`, also noticed when the browser's own "Stop
-  sharing" ends it. **Nobody downloads a stream they aren't watching:** `voiceClient` connects
+  sharing" ends it. **Games on Windows** (the desktop app, `startScreenShare({ game })`): the
+  game's window is shared, then the game's own frames, captured from inside it, replace that
+  window's video in the same stream (`shareGame`, `replaceTrack`; Game capture in
+  `desktop-and-site.md`), so a game in exclusive full screen doesn't freeze for viewers. **Nobody downloads a stream they aren't watching:** `voiceClient` connects
   with `autoSubscribe: false` and `syncSubscriptions` subscribes every microphone, and a screen
   share (and its sound) only for the one person `watching` (`watchStream(id)`; `attachStream`
   plays it in a `<video>`). The stream's sound plays like the others' (deafen mutes it), at its
