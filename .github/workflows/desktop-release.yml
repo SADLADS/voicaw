@@ -57,6 +57,17 @@ jobs:
         run: |
           printf '%s\n' 'VITE_API_BASE_URL=https://app.voicaw.com/api/' 'VITE_WS_URL=wss://api.voicaw.com' > client/.env.production
       - run: npm run build:electron --workspace=client
+      # Game capture (docs/desktop-and-site.md): OBS 33.0.1's hook files, checked against their
+      # SHA-256, and our helper, built here with MSVC; builder.config.js refuses a Windows build
+      # without them.
+      - name: Game capture files
+        if: matrix.name == 'windows'
+        shell: bash
+        run: |
+          node electron/game-capture/prepare.mjs
+          cmake -S electron/game-capture/helper -B build/capture -A x64
+          cmake --build build/capture --config Release
+          cp build/capture/Release/voicaw-capture.exe electron/game-capture/dist/
       - name: Installers
         working-directory: electron
         run: npx electron-builder ${{ matrix.target }} --config builder.config.js --publish never
@@ -156,6 +167,20 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # The source of the OBS files the Windows app ships for game capture (GPL v2: they travel
+      # with their source), checked against the SHA-256 in electron/game-capture/prepare.mjs.
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: repo
+          sparse-checkout: electron/game-capture
+      - name: OBS source for game capture
+        shell: bash
+        run: |
+          eval "$(node --input-type=module -e "import('./repo/electron/game-capture/prepare.mjs').then((m) => console.log('name=' + m.SOURCE_NAME + ' url=' + m.SOURCE_URL + ' sum=' + m.SOURCE_SHA256))")"
+          curl -fsSL -o "dist/$name" "$url"
+          echo "$sum  dist/$name" | sha256sum -c -
+          rm -rf repo
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -167,6 +192,8 @@ jobs:
             --notes-file - <<EOF
           Built by GitHub Actions from commit $GITHUB_SHA. Check any file built here with:
           \`gh attestation verify <file> --repo $GITHUB_REPOSITORY\`
+
+          The Windows app's game capture uses OBS Studio's graphics hook, unmodified (GPL v2); its source is attached here as OBS-Studio-*-Sources.tar.gz.
 
           The Android app is built here unsigned (voicaw-*-unsigned.apk) and signed by Voicaw, whose key never comes to GitHub: the signed voicaw-${GITHUB_REF_NAME#desktop-v}.apk is added to this release once it is. To check it is exactly the attested build plus a signature: \`apksigcopier compare voicaw-${GITHUB_REF_NAME#desktop-v}.apk --unsigned voicaw-${GITHUB_REF_NAME#desktop-v}-unsigned.apk\` (no output means it is), and \`apksigner verify --print-certs\` shows the signing certificate.
           EOF

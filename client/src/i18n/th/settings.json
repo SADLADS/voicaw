@@ -228,6 +228,7 @@
     },
     "about": {
       "attribution": "กราฟิกอีโมจิโดย <twemoji>Twemoji</twemoji>, © Twitter, Inc และผู้ร่วมพัฒนาอื่นๆ ใช้สัญญาอนุญาต <ccby>CC-BY 4.0</ccby> ฟอนต์อีโมจิดัดแปลงจาก <font>twemoji-color-font</font> ใช้สัญญาอนุญาต <ofl>SIL Open Font License 1.1</ofl> GIF จาก <klipy>KLIPY</klipy>",
+      "gameCaptureAttribution": "การจับภาพเกมใช้กราฟิกฮุกของ <obs>OBS Studio</obs> โดยไม่ได้ดัดแปลง ใช้สัญญาอนุญาต <gpl>GNU GPL เวอร์ชัน 2</gpl> (<source>ซอร์สโค้ด</source>)",
       "privacy": "นโยบายความเป็นส่วนตัว",
       "terms": "ข้อกำหนดการใช้งาน",
       "deleteAccount": "การลบบัญชีของคุณ"

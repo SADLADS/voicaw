@@ -50,7 +50,14 @@ The installers land in `dist-desktop/`, for the system you built on:
   (`sudo apt install ./dist-desktop/voicaw-desktop_*.deb`).
 - **Windows:** the installer `.exe`. It isn't signed, so SmartScreen warns the first time
   ("More info" → "Run anyway"). On Linux you can build it with `npm run dist:electron:win`
-  (in Docker).
+  (in Docker). On Windows, first fetch game capture's files and build its helper (Visual Studio's
+  C++ tools and CMake), or the build stops and says what's missing:
+  ```sh
+  node electron/game-capture/prepare.mjs
+  cmake -S electron/game-capture/helper -B build/capture -A x64
+  cmake --build build/capture --config Release
+  copy build\capture\Release\voicaw-capture.exe electron\game-capture\dist\
+  ```
 - **macOS:** a `.dmg`. It isn't signed either: the first time, right-click the app →
   Open. Building for macOS needs a Mac.
 
@@ -434,6 +441,22 @@ npm run dist:electron       # client build for the app (../build), then installe
 npm run dist:electron:win   # the same, then the Windows installer, via Docker (electron/dist-win.sh)
 ```
 
+The Windows app carries game capture (Game capture in `docs/desktop-and-site.md`): OBS Studio's
+graphics hook files, fetched and checked by `node electron/game-capture/prepare.mjs` (OBS's
+Windows zip, 224 MB, kept in `~/.cache/voicaw/`), and our helper, `voicaw-capture.exe`, which
+`electron/game-capture/build-helper.sh` cross-compiles with MinGW in Docker (it builds the
+`voicaw-mingw` image from `electron/game-capture/Dockerfile.mingw` the first time). `npm run
+dist:electron:win` runs both; GitHub's release workflow does the same with MSVC. A Windows build
+without them stops (`builder.config.js`).
+
+**Trying game capture on a Windows PC** (it can't be tried on the host: it needs Windows, a GPU
+and a game): install the build, join a voice channel, start a game (a Steam game, or one that
+reports what you're playing) in exclusive full screen, then Share your screen → Games → the game →
+Go Live, and have someone watch. The picture should keep moving while the game has focus. If it
+falls back to the window, the voice bar says why; the app's log (start it from a terminal:
+`"%LOCALAPPDATA%\Programs\voicaw-desktop\Voicaw.exe"`) has the helper's and the hook's lines,
+each starting `Game capture:`.
+
 The client build uses `client/.env.production`, unless there's a `client/.env.electron` with its
 own `VITE_API_BASE_URL` / `VITE_WS_URL`.
 
@@ -495,8 +518,14 @@ a commit that's on GitHub (usually `master`). Below, `X.Y.Z` is the new version 
    mv Voicaw.Setup.X.Y.Z.exe.blockmap "Voicaw Setup X.Y.Z.exe.blockmap"
    ```
 4. **Check every file was built by the workflow, from that tag and commit, on GitHub's machines**
-   (attestations go by content, so renamed files still check out). Publish nothing that fails:
+   (attestations go by content, so renamed files still check out). Publish nothing that fails.
+   The release also carries OBS Studio's source archive (the source of the Windows app's game
+   capture files, see Game capture in `docs/desktop-and-site.md`): not built here, so it has no
+   attestation; it's checked against OBS's SHA-256 (in `electron/game-capture/prepare.mjs`) and
+   set aside, and isn't published to updates.voicaw.com:
    ```bash
+   node --input-type=module -e "import('../../electron/game-capture/prepare.mjs').then((m) => console.log(m.SOURCE_SHA256 + '  ' + m.SOURCE_NAME))" | sha256sum -c -
+   mkdir -p ../obs-source && mv OBS-Studio-*-Sources.tar.gz ../obs-source/
    for f in *; do gh attestation verify "$f" --repo R \
      --signer-workflow R/.github/workflows/desktop-release.yml \
      --source-ref refs/tags/desktop-vX.Y.Z --source-digest "$(git rev-parse 'desktop-vX.Y.Z^{commit}')" \

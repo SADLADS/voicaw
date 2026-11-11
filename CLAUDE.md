@@ -491,6 +491,16 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   PipeWire: a virtual microphone with every other program's playback linked into it
   (`pw-cli`/`pw-dump`/`pw-link`, no native module), recorded by the page as the share's sound.
   No PipeWire, no "Share sound".
+- **Game capture** (built 2026-11-10, see Game capture in `docs/desktop-and-site.md`): after a
+  friend's Dota 2 stream froze in exclusive full screen (Windows' capture never sees such a game,
+  and no Chromium switch changes the capturer), the Windows desktop app captures games from
+  inside, as Discord and OBS do. The user chose OBS's graphics hook (GPL v2) over writing our
+  own: shipped unmodified and code-signed as OBS releases it (pinned SHA-256; its source attached
+  to every release, credited in Settings → About), driven by our own helper
+  (`voicaw-capture.exe`, C++). Frames go GPU to GPU through Electron's `sharedTexture` and are
+  swapped into the game window's screen share, which stays as the fallback (with the reason).
+  Windows desktop app only (the user's choice). Not yet: Vulkan games (OBS's layer would go into
+  every Vulkan program), HDR pictures, two-GPU laptops. Untested on Windows when built.
 - **Sharing to Voicaw** (built 2026-11-02, see Sharing to Voicaw in `docs/desktop-and-site.md`):
   Android's share sheet lists Voicaw. The user chose Discord's way: a share screen with a
   message box and Send, several chats at once, sent from there without opening them (one

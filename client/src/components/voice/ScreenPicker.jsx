@@ -8,9 +8,16 @@ import { t } from '../../i18n';
 
 const REFRESH_MS = 4000;
 
-// The desktop app's screen picker (a browser has its own): your screens and windows with
-// live-ish thumbnails, the stream's quality, and, where the system can (Windows; Linux with
-// PipeWire), whether to share its sound. Go Live tells the app which one (electron/screenShare.js), then starts sharing as usual.
+// Games (Windows: game capture, electron/gameCapture.js) as picker entries: shared through
+// their window's source, then captured from inside the game (voiceClient startScreenShare).
+const gameEntries = (games) => (games ?? []).map((game) => ({
+  id: `game:${game.hwnd}`, kind: 'game', name: game.name, thumbnail: game.thumbnail, icon: game.icon, hwnd: game.hwnd, sourceId: game.sourceId,
+}));
+
+// The desktop app's screen picker (a browser has its own): the games you're running (Windows),
+// your screens and windows with live-ish thumbnails, the stream's quality, and, where the system
+// can (Windows; Linux with PipeWire), whether to share its sound. Go Live tells the app which
+// one (electron/screenShare.js), then starts sharing as usual.
 export default function ScreenPicker({ onClose }) {
   const voice = useVoice();
   const [tab, setTab] = useState('screen');
@@ -27,12 +34,17 @@ export default function ScreenPicker({ onClose }) {
     try {
       const result = await desktop.getScreenSources();
       if (!result) return;
-      setSources(result.sources);
+      const games = gameEntries(result.games);
+      setSources([...games, ...result.sources]);
       setCanShareSound(result.canShareSound);
       setSoundFrom(result.soundFrom ?? null);
       setListError(null);
-      // With only windows to show (no screens listed), start there.
-      if (!tabChosen.current && !result.sources.some((s) => s.kind === 'screen')) setTab('window');
+      // A game running: start on it. With only windows to show (no screens listed), there.
+      if (!tabChosen.current) {
+        if (games.length > 0) setTab('game');
+        else if (!result.sources.some((s) => s.kind === 'screen')) setTab('window');
+        else setTab('screen');
+      }
     } catch (err) {
       console.warn('Could not list screens', err);
       setListError(t('voice.screenPicker.listError'));
@@ -48,9 +60,12 @@ export default function ScreenPicker({ onClose }) {
   const shown = (sources ?? []).filter((s) => s.kind === tab);
   const chosen = sources?.find((s) => s.id === selected) ?? null;
 
+  const hasGames = (sources ?? []).some((s) => s.kind === 'game');
+
   const goLive = async (source = chosen) => {
     if (!source) return;
-    const ok = await desktop.chooseScreenSource(source.id, audio && canShareSound);
+    const game = source.kind === 'game' ? { hwnd: source.hwnd } : null;
+    const ok = await desktop.chooseScreenSource(game ? source.sourceId : source.id, audio && canShareSound);
     if (!ok) {
       setPickError(t('voice.screenPicker.gone'));
       setSelected(null);
@@ -58,8 +73,16 @@ export default function ScreenPicker({ onClose }) {
       return;
     }
     onClose();
-    startScreenShare({ audio: audio && canShareSound, deviceSound: soundFrom === 'device' });
+    startScreenShare({ audio: audio && canShareSound, deviceSound: soundFrom === 'device', game });
   };
+
+  const tabs = [
+    ...(hasGames || tab === 'game' ? [['game', t('voice.screenPicker.games')]] : []),
+    ['screen', t('voice.screenPicker.screens')],
+    ['window', t('voice.screenPicker.windows')],
+  ];
+  const tabLabel = tabs.find(([key]) => key === tab)?.[1];
+  const emptyText = tab === 'game' ? t('voice.screenPicker.noGames') : tab === 'screen' ? t('voice.screenPicker.noScreens') : t('voice.screenPicker.noWindows');
 
   const pickTab = (next) => {
     tabChosen.current = true;
@@ -87,7 +110,7 @@ export default function ScreenPicker({ onClose }) {
       )}
     >
       <div className="settings-tabs" role="tablist">
-        {[['screen', t('voice.screenPicker.screens')], ['window', t('voice.screenPicker.windows')]].map(([key, label]) => (
+        {tabs.map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -104,9 +127,9 @@ export default function ScreenPicker({ onClose }) {
       {sources === null ? (
         <p className="vc-hint">{t('voice.screenPicker.looking')}</p>
       ) : shown.length === 0 ? (
-        <p className="vc-hint">{tab === 'screen' ? t('voice.screenPicker.noScreens') : t('voice.screenPicker.noWindows')}</p>
+        <p className="vc-hint">{emptyText}</p>
       ) : (
-        <ul className="screen-picker-grid" role="listbox" aria-label={tab === 'screen' ? t('voice.screenPicker.screens') : t('voice.screenPicker.windows')}>
+        <ul className="screen-picker-grid" role="listbox" aria-label={tabLabel}>
           {shown.map((source) => (
             <li key={source.id}>
               <button
@@ -132,6 +155,7 @@ export default function ScreenPicker({ onClose }) {
           ))}
         </ul>
       )}
+      {tab === 'game' && <p className="vc-hint screen-picker-note">{t('voice.screenPicker.gamesNote')}</p>}
       <StreamQualityPicker limit={voice.streamLimit} />
       {desktop?.platform === 'darwin' && (
         <p className="vc-hint screen-picker-note">

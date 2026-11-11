@@ -9,7 +9,8 @@ import {
   canBoostVolume, getStreamVolume, getUserVolume, onStreamVolumesChange, onUserVolumesChange, playbackVolume,
 } from './userVolumes';
 import { CAMERA_PUBLISH, cameraOptions, onVideoSettingsChange } from './videoSettings';
-import { getStreamSettings, screenShareOptions } from './streamSettings';
+import { clampStream, getStreamSettings, screenShareOptions } from './streamSettings';
+import { gameCaptureFailureKey, scaledEncodings, startGameFrames, targetHeight } from './gameCapture';
 import { getStreamViewQuality, onStreamViewQualityChange } from './streamViewSettings';
 import { createSpeakingMeters, whoIsSpeaking } from './speaking';
 import { onPushToTalkChange, pushToTalkStage, startPushToTalkKeys } from './pushToTalk';
@@ -460,6 +461,7 @@ async function teardown() {
   const old = room;
   room = null;
   endDeviceSound();
+  endGameCapture();
   const oldPlayback = playback;
   playback = null;
   if (old) {
@@ -685,6 +687,7 @@ function watch(newRoom, current) {
     // Also when the browser's own "Stop sharing" ended it.
     .on(RoomEvent.LocalTrackUnpublished, (publication) => {
       if (publication.source === Track.Source.ScreenShare || publication.source === Track.Source.ScreenShareAudio) endDeviceSound(publication.track);
+      if (publication.source === Track.Source.ScreenShare) endGameCapture();
       updateTracks();
     })
     .on(RoomEvent.TrackMuted, updateTracks)
@@ -1105,8 +1108,10 @@ const SCREEN_AUDIO = { restrictOwnAudio: true };
 // asks which screen, window or tab, and whether to share its sound (in the desktop app, our
 // picker has asked already: `audio` is its answer, `deviceSound` that it comes from the app's
 // microphone, on Linux). Your own stream is shown at once, like Discord's preview. At this
-// device's quality (streamSettings.js), within the server's cap.
-export async function startScreenShare({ audio = true, deviceSound = false } = {}) {
+// device's quality (streamSettings.js), within the server's cap. `game` (the desktop app on
+// Windows, a game picked in the Games tab: { hwnd }, its window having been chosen already):
+// the window's capture goes out first, then the game's own frames take its place (shareGame).
+export async function startScreenShare({ audio = true, deviceSound = false, game = null } = {}) {
   const current = room;
   if (!current || snapshot.status !== 'connected' || !snapshot.canStream) return;
   update({ streamError: null });
@@ -1122,6 +1127,7 @@ export async function startScreenShare({ audio = true, deviceSound = false } = {
     if (room !== current) return;
     update({ watching: current.localParticipant.identity });
     updateStreams();
+    if (game?.hwnd) shareGame(current, game.hwnd);
     if (audio && deviceSound) await shareDeviceSound(current, quality.publish);
   } catch (err) {
     if (room !== current) return;
@@ -1167,6 +1173,86 @@ function endDeviceSound(unpublished) {
   desktop?.stopStreamSound?.();
 }
 
+// Game capture (voice/gameCapture.js; Game capture in docs/desktop-and-site.md): a game in
+// exclusive full screen never reaches the desktop, so its window's capture shows a frozen
+// picture. The desktop app on Windows hooks the game instead and hands over its frames, which
+// replace the window's capture in the same screen share (replaceTrack: viewers keep watching,
+// the sound stays the window's). If the game can't be hooked, the window's capture carries on
+// and the sharer is told why. `gameShare` is { capture, track } while the game's frames go out.
+let gameShare = null;
+let gameShareStarting = null; // the room a game capture is starting in
+
+async function shareGame(current, hwnd) {
+  const { resolution, frameRate } = clampStream(getStreamSettings(), snapshot.streamLimit);
+  const height = targetHeight(resolution);
+  gameShareStarting = current;
+  let capture;
+  const sharing = () => room === current && gameShareStarting === current && current.localParticipant.isScreenShareEnabled;
+  try {
+    capture = await startGameFrames(desktop?.gameCapture, {
+      hwnd,
+      fps: frameRate,
+      onEnd: (end) => gameShareEnded(current, end),
+      onResize: ({ height: native }) => scaleGameShare(native, height),
+    });
+  } catch (err) {
+    const stillSharing = sharing();
+    if (gameShareStarting === current) gameShareStarting = null;
+    if (!stillSharing || err?.code === 'unavailable' || err?.code === 'stopped') return;
+    console.warn('Game capture failed; sharing the window instead', err?.code, err?.message);
+    update({ streamError: t(`voice.errors.${gameCaptureFailureKey(err?.code)}`) });
+    return;
+  }
+  const local = current.localParticipant.getTrackPublication(livekit.Track.Source.ScreenShare)?.track;
+  if (!sharing() || !local) {
+    capture.stop();
+    return;
+  }
+  gameShareStarting = null;
+  const windowTrack = local.mediaStreamTrack;
+  capture.track.contentHint = windowTrack?.contentHint || 'motion';
+  try {
+    // Ours, not LiveKit's (true): it won't stop it or try to capture it again itself.
+    await local.replaceTrack(capture.track, true);
+  } catch (err) {
+    capture.stop();
+    console.warn('Could not swap in the game capture', err);
+    if (room === current) update({ streamError: t('voice.errors.gameCaptureFailed') });
+    return;
+  }
+  windowTrack?.stop();
+  gameShare = { capture, track: local };
+  await scaleGameShare(capture.height, height);
+}
+
+// LiveKit set the encodings for the frames' own size: keep the chosen resolution instead.
+async function scaleGameShare(nativeHeight, height) {
+  const sender = gameShare?.track.sender;
+  if (!sender) return;
+  const params = sender.getParameters();
+  if (!params.encodings?.length) return;
+  const base = gameShare.baseEncodings ?? params.encodings.map((e) => ({ scaleResolutionDownBy: e.scaleResolutionDownBy }));
+  gameShare.baseEncodings = base;
+  const scaled = scaledEncodings(base, nativeHeight, height);
+  params.encodings = params.encodings.map((encoding, i) => ({ ...encoding, scaleResolutionDownBy: scaled[i]?.scaleResolutionDownBy ?? encoding.scaleResolutionDownBy }));
+  await sender.setParameters(params).catch((err) => console.warn('Could not scale the game capture', err));
+}
+
+// The game closed (the share ends with it), or its capture failed mid-stream.
+function gameShareEnded(current, end) {
+  if (room !== current || !gameShare) return;
+  gameShare = null;
+  stopScreenShare();
+  if (end?.code) update({ streamError: t('voice.errors.gameCaptureLost') });
+}
+
+function endGameCapture() {
+  gameShareStarting = null;
+  const share = gameShare;
+  gameShare = null;
+  share?.capture.stop();
+}
+
 function screenErrorMessage(err) {
   if (err?.name === 'NotSupportedError' || !canShareScreen()) return t('voice.errors.noScreenShare');
   return t('voice.errors.screenShareFailed');
@@ -1175,6 +1261,7 @@ function screenErrorMessage(err) {
 export async function stopScreenShare() {
   const current = room;
   if (!current) return;
+  endGameCapture();
   await current.localParticipant.setScreenShareEnabled(false).catch(() => {});
   endDeviceSound();
   if (room === current) updateStreams();

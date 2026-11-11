@@ -15,34 +15,50 @@ const THUMBNAIL = { width: 384, height: 216 };
 
 const canShareSound = (platform) => platform === 'win32';
 
+// Game capture (gameCapture.js, Windows): `listGames()` resolves to the games' windows; each one
+// that's also among the windows listed here comes back in `games` too, with its window's source
+// (the page starts sharing that window, for its sound and as the fallback, then swaps in the
+// game's own frames).
+const windowHandle = (id) => /^window:(\d+):/.exec(id)?.[1] ?? null;
+
 // `deviceSound()`: whether streamSound.js can make the sound here (resolves to a boolean).
-function createScreenShare({ desktopCapturer, platform, origin, ownSourceId = () => null, deviceSound = async () => false, now = Date.now }) {
+function createScreenShare({ desktopCapturer, platform, origin, ownSourceId = () => null, deviceSound = async () => false, listGames = async () => [], now = Date.now }) {
     let listed = new Map(); // id → source, from the last listing
     let choice = null; // { source, audio, at }
 
-    // Screens first, then windows (not our own), each { id, name, kind, thumbnail, icon }.
+    // Screens first, then windows (not our own), each { id, name, kind, thumbnail, icon }; and
+    // `games`, { hwnd, name, sourceId, thumbnail, icon } (see above).
     async function listSources() {
-        const sources = await desktopCapturer.getSources({
-            types: ['screen', 'window'],
-            thumbnailSize: THUMBNAIL,
-            fetchWindowIcons: true,
-        });
+        const [sources, gameWindows] = await Promise.all([
+            desktopCapturer.getSources({
+                types: ['screen', 'window'],
+                thumbnailSize: THUMBNAIL,
+                fetchWindowIcons: true,
+            }),
+            listGames().catch(() => []),
+        ]);
         const own = ownSourceId();
         const kept = sources.filter((source) => source.id !== own);
         listed = new Map(kept.map((source) => [source.id, source]));
         const loopback = canShareSound(platform);
         const device = !loopback && await deviceSound().catch(() => false);
+        const shown = kept.map((source) => ({
+            id: source.id,
+            name: source.name,
+            kind: source.id.startsWith('screen:') ? 'screen' : 'window',
+            thumbnail: source.thumbnail?.isEmpty?.() ? null : source.thumbnail?.toDataURL() ?? null,
+            icon: source.appIcon && !source.appIcon.isEmpty() ? source.appIcon.toDataURL() : null,
+        }));
+        const games = gameWindows.flatMap((game) => {
+            const source = shown.find((s) => s.kind === 'window' && windowHandle(s.id) === game.hwnd);
+            return source ? [{ hwnd: game.hwnd, name: game.title || source.name, sourceId: source.id, thumbnail: source.thumbnail, icon: source.icon }] : [];
+        });
         return {
             canShareSound: loopback || device,
             // How the page gets it: from getDisplayMedia, or from streamSound.js's microphone.
             soundFrom: loopback ? 'system' : device ? 'device' : null,
-            sources: kept.map((source) => ({
-                id: source.id,
-                name: source.name,
-                kind: source.id.startsWith('screen:') ? 'screen' : 'window',
-                thumbnail: source.thumbnail?.isEmpty?.() ? null : source.thumbnail?.toDataURL() ?? null,
-                icon: source.appIcon && !source.appIcon.isEmpty() ? source.appIcon.toDataURL() : null,
-            })),
+            sources: shown,
+            games,
         };
     }
 

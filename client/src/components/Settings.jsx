@@ -27,7 +27,7 @@ import LanguageSettings from "./LanguageSettings";
 import SoundSettings from "./SoundSettings";
 import VoiceSettings from "./VoiceSettings";
 import DesktopAppSettings from "./DesktopAppSettings";
-import { isDesktopApp } from '../utils/desktop';
+import { desktop, isDesktopApp } from '../utils/desktop';
 import AndroidAppSettings from './AndroidAppSettings';
 import { isAndroidApp } from '../utils/android';
 import { canShareScreen } from '../voice/voiceClient';
@@ -203,6 +203,19 @@ export default function Settings({ onLogout }) {
                   }}
                 />
               </p>
+              {/* The Windows app ships OBS's hook (electron/game-capture/prepare.mjs): GPL v2. */}
+              {desktop?.platform === 'win32' && (
+                <p className="settings-attribution">
+                  <Trans
+                    i18nKey="settings.about.gameCaptureAttribution"
+                    components={{
+                      obs: <a href="https://obsproject.com" target="_blank" rel="noreferrer" />,
+                      gpl: <a href="https://www.gnu.org/licenses/old-licenses/gpl-2.0.html" target="_blank" rel="noreferrer" />,
+                      source: <a href="https://github.com/obsproject/obs-studio/releases/tag/33.0.1" target="_blank" rel="noreferrer" />,
+                    }}
+                  />
+                </p>
+              )}
             </div>
           ),
         }),

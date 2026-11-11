@@ -40,7 +40,7 @@ describe('ScreenPicker', () => {
     fireEvent.click(screen.getByRole('option', { name: /Notes/ }));
     expect(screen.getByRole('checkbox', { name: /Share sound/ }).checked).toBe(true);
     fireEvent.click(goLive);
-    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true, deviceSound: false }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true, deviceSound: false, game: null }));
     expect(bridge.chooseScreenSource).toHaveBeenCalledWith('window:12:0', true);
     expect(onClose).toHaveBeenCalled();
   });
@@ -49,8 +49,33 @@ describe('ScreenPicker', () => {
     bridge.getScreenSources.mockResolvedValue({ canShareSound: true, soundFrom: 'device', sources: SOURCES });
     render(<ScreenPicker onClose={vi.fn()} />);
     fireEvent.doubleClick(await screen.findByRole('option', { name: /Entire screen/ }));
-    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true, deviceSound: true }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true, deviceSound: true, game: null }));
     expect(bridge.chooseScreenSource).toHaveBeenCalledWith('screen:0:0', true);
+  });
+
+  it('opens on the games running, shared through their window and then captured from inside', async () => {
+    bridge.getScreenSources.mockResolvedValue({
+      canShareSound: true,
+      sources: SOURCES,
+      games: [{ hwnd: '12', name: 'Notes the game', sourceId: 'window:12:0', thumbnail: 'data:image/png;base64,BB', icon: null }],
+    });
+    const onClose = vi.fn();
+    render(<ScreenPicker onClose={onClose} />);
+    const game = await screen.findByRole('option', { name: /Notes the game/ });
+    expect(screen.getByRole('tab', { name: 'Games' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText(/captured from inside/)).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /Entire screen/ })).toBeNull();
+    fireEvent.doubleClick(game);
+    await waitFor(() => expect(start).toHaveBeenCalledWith({ audio: true, deviceSound: false, game: { hwnd: '12' } }));
+    expect(bridge.chooseScreenSource).toHaveBeenCalledWith('window:12:0', true);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('has no Games tab while no game runs', async () => {
+    render(<ScreenPicker onClose={vi.fn()} />);
+    await screen.findByRole('option', { name: /Entire screen/ });
+    expect(screen.queryByRole('tab', { name: 'Games' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Screens' }).getAttribute('aria-selected')).toBe('true');
   });
 
   it('offers no sound where the system can\'t share it, and picks again if the source went', async () => {

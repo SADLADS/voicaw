@@ -15,7 +15,7 @@
     "start:electron": "npm run build:electron --workspace=client && electron electron/main.js",
     "test": "npm run test --workspace=server && npm run test --workspace=client && npm run test --workspace=electron && npm run test --workspace=mobile",
     "dist:electron": "npm run dist --workspace=electron",
-    "dist:electron:win": "npm run build:electron --workspace=client && sh electron/dist-win.sh",
+    "dist:electron:win": "npm run build:electron --workspace=client && node electron/game-capture/prepare.mjs && sh electron/game-capture/build-helper.sh && sh electron/dist-win.sh",
     "dist:android": "npm run dist --workspace=mobile"
   },
   "devDependencies": {
