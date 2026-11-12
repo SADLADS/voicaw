@@ -216,6 +216,18 @@ describe('Layout', () => {
     expect(document.querySelector('#dm-sidebar a[href="/dm/7"]')).not.toBeNull();
   });
 
+  it('moves a conversation to the top of the DM list when you send a message in it', async () => {
+    fetchUsersList.mockResolvedValue([
+      { id: 7, username: 'bob', status: 'offline', last_timestamp: 200 },
+      { id: 8, username: 'carol', status: 'online', last_timestamp: 100 },
+    ]);
+    renderLayout({ path: '/dm/8' });
+    expect(await screen.findByTestId('users')).toHaveTextContent('bob,carol');
+
+    act(() => newDmListeners.list.forEach((cb) => cb({ sender_id: 1, recipient_id: 8, timestamp: 300 })));
+    expect(screen.getByTestId('users')).toHaveTextContent('carol,bob');
+  });
+
   it('surfaces an error from fetchUsersList via errorUsers', async () => {
     fetchUsersList.mockRejectedValue(new Error('failed to load users'));
 

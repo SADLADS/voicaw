@@ -33,7 +33,7 @@ import { usePreferencesSync } from '../hooks/usePreferencesSync';
 import { useBlocksSync } from '../hooks/useBlocksSync';
 import { useAdminAlertsSync } from '../hooks/useAdminAlerts';
 import { useFriendsSync } from '../hooks/useFriendsSync';
-import { useFriends } from '../utils/friends';
+import { bumpConversation, useFriends } from '../utils/friends';
 import { useDictionarySync } from '../hooks/useDictionarySync';
 import { useEmojiUsageSync } from '../hooks/useEmojiUsageSync';
 import { useSwipePanes } from '../hooks/useSwipePanes';
@@ -296,13 +296,14 @@ export default function Layout({ user, onLogout }) {
       connectWebSocket(user.id);
 
       // Notifications come from web push (service-worker.js); here just refresh the badge, and
-      // mark the conversation as started, so someone who isn't a friend joins the DM list
+      // move the conversation to the top of the DM list (newest first, as the server orders it),
+      // sent or received; that also starts it, so someone who isn't a friend joins the list
       // (utils/friends.js visibleInDmList) with their first message.
       const unsubscribe = onNewDm((message) => {
         fetchUnreadMessages();
         const other = message && (message.sender_id === user?.id ? message.recipient_id : message.sender_id);
-        if (other != null) {
-          setUsers((list) => list.map((u) => (u.id === other && u.last_timestamp == null ? { ...u, last_timestamp: message.timestamp } : u)));
+        if (other != null && message.timestamp != null) {
+          setUsers((list) => bumpConversation(list, other, message.timestamp));
         }
       });
 

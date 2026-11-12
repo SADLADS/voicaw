@@ -58,6 +58,18 @@ export function visibleInDmList(friends, person, activeId) {
   return friends.friends.has(Number(person.id)) || person.last_timestamp != null || String(person.id) === String(activeId);
 }
 
+// /dms-list's rows after a DM with `otherId` at `timestamp` (sent or received): that person's
+// latest time moves on, and they move to the top, keeping the server's order (most recent
+// conversation first, no conversation last). Returns the same list when nothing changes.
+export function bumpConversation(list, otherId, timestamp) {
+  const index = list.findIndex((u) => u.id === otherId);
+  if (index < 0 || (list[index].last_timestamp ?? -Infinity) >= timestamp) return list;
+  const person = { ...list[index], last_timestamp: timestamp };
+  const rest = list.filter((_, i) => i !== index);
+  const at = rest.findIndex((u) => u.last_timestamp == null || u.last_timestamp <= timestamp);
+  return at < 0 ? [...rest, person] : [...rest.slice(0, at), person, ...rest.slice(at)];
+}
+
 function subscribe(listener) {
   listeners.add(listener);
   return () => listeners.delete(listener);
