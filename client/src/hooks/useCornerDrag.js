@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { swallowNextClick } from '../utils/swallowNextClick';
 
-// The corner players (Layout's .corner-players: a watched stream, Watch Together's mini
-// player) are dragged as one, from anywhere on them but their controls, and snap to the
+// The corner players (Layout's .corner-players: a watched stream, a message's video, Watch
+// Together's mini player) are dragged as one, from anywhere on them but their controls, and snap to the
 // nearest of the screen's four corners when let go, like Discord's picture in picture. The
 // corner is kept on this device (localStorage pipCorner).
 export const CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
@@ -10,7 +10,7 @@ const KEY = 'pipCorner';
 // Under this, it's a click, not a drag.
 const DRAG_FROM = 6;
 // What's dragged: the small players, not a docked or full-screen one, nor their controls.
-const HANDLES = '.stream-view.corner, .watch-party-player.mini';
+const HANDLES = '.stream-view.corner, .watch-party-player.mini:not(.waiting), .floating-video.corner';
 const NOT_HANDLES = 'button, input, select, textarea, a, [role="slider"]';
 
 function load() {
@@ -38,29 +38,13 @@ export function cornerFor(rect, width, height) {
 }
 
 // `ref` goes on the corner players' box, `onPointerDown` too. `corner` is where it sits
-// (`fallback` until someone drags it), `dragging` while it follows the pointer. `areaRef`: the
-// page's content pane, whose left edge the left corners keep to (--vc-pip-left), so they never
-// cover the rail, the channel list or the voice bar and user panel under it.
-export function useCornerDrag(fallback, areaRef) {
+// (`fallback` until someone drags it), `dragging` while it follows the pointer. The left corners
+// are the screen's own, over the rail and the channel list (as the person asked), not the
+// page's content.
+export function useCornerDrag(fallback) {
   const [stored, setStored] = useState(load);
   const [dragging, setDragging] = useState(false);
   const ref = useRef(null);
-
-  useEffect(() => {
-    const area = areaRef?.current;
-    if (!area) return undefined;
-    const follow = () => ref.current?.style.setProperty('--vc-pip-left', `${Math.max(0, area.getBoundingClientRect().left)}px`);
-    follow();
-    // Its left edge moves when the sidebar is resized or a page drops its column (the pane
-    // changes size), or the window does.
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(follow);
-    observer?.observe(area);
-    window.addEventListener('resize', follow);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', follow);
-    };
-  }, [areaRef]);
 
   const onPointerDown = useCallback((e) => {
     const box = ref.current;

@@ -4,8 +4,10 @@
 // (playing, no Live badge or full screen), "Go to the voice channel" takes him back (the corner
 // goes, the stream is on the page), Stop watching there stops it, Pop out moves it to its own
 // window (no corner) and closing that brings the corner back. Alice's own stream never shows
-// in a corner. With a Watch Together video on too, the stream sits above its mini player
-// without overlapping. Watch Together pops out into its own window (in step with Alice's), the
+// in a corner. With a Watch Together video on too, the corner shows one player at a time, first
+// come first served: the stream was there first, so Watch Together plays on unseen (in step)
+// until Bob stops watching; later Watch Together holds it and the stream waits (sound only),
+// moving in once Watch Together pops out. Watch Together pops out into its own window (in step with Alice's), the
 // channel page saying so; Bring back and closing the window put it back over the slot. A DM
 // call's stream goes to the corner too ("Go to the call"). Carol on a phone gets it top right
 // under the header. The corner players drag as one (from a picture or the mini player's bar,
@@ -77,11 +79,10 @@ async function checkPlaced(page, corner, what, phone = false) {
   const gap = phone ? 8 : 16;
   const [y, x] = corner.split('-');
   const okY = y === 'top' ? Math.abs(col.top - (header + gap)) < 1.5 : Math.abs(col.vh - gap - col.bottom) < 1.5;
-  // On a computer the left corners keep to the content pane (clear of the rail, channel list,
-  // voice bar and user panel).
-  const paneLeft = phone ? 0 : await page.$eval('.main-content-wrapper', (el) => el.getBoundingClientRect().left);
-  const okX = x === 'left' ? Math.abs(col.left - (paneLeft + gap)) < 1.5 : Math.abs(col.vw - gap - col.right) < 1.5;
-  const covers = phone ? [] : await page.evaluate(() => {
+  // The left corners are the screen's own, over the rail and the channel list (as asked,
+  // 2026-11-13); the right ones never reach the voice bar or the user panel.
+  const okX = x === 'left' ? Math.abs(col.left - gap) < 1.5 : Math.abs(col.vw - gap - col.right) < 1.5;
+  const covers = phone || x === 'left' ? [] : await page.evaluate(() => {
     const hidden = [];
     for (const el of document.querySelectorAll('.voice-bar button, .user-panel button, .user-panel a, .guild-channel-link, .sidebar-resizer')) {
       const r = el.getBoundingClientRect();
@@ -93,7 +94,7 @@ async function checkPlaced(page, corner, what, phone = false) {
   });
   if (covers.length) throw new Error(`FAILED: ${what}: the corner players cover ${covers.join(', ')}`);
   // Every player in it stacked, inside the viewport, aligned to the corner's side.
-  const kids = await page.$$eval(`${COLUMN} > *:not(.docked)`, (els) => els.map((e) => {
+  const kids = await page.$$eval(`${COLUMN} > *:not(.docked):not(.waiting)`, (els) => els.map((e) => {
     const r = e.getBoundingClientRect();
     return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, cls: e.className };
   }));
@@ -103,7 +104,7 @@ async function checkPlaced(page, corner, what, phone = false) {
   const stacked = kids.every((k, i) => i === 0 || kids[i - 1].bottom <= k.top + 0.5);
   const aligned = kids.every((k) => (x === 'left' ? Math.abs(k.left - col.left) < 1 : Math.abs(k.right - col.right) < 1));
   check(st.corner === corner && !st.dragging && okY && okX && inside && stacked && aligned,
-    `${what}: at-${corner}, column ${Math.round(col.left)},${Math.round(col.top)}–${Math.round(col.right)},${Math.round(col.bottom)} of ${vw}×${vh} (header ${header}${x === 'left' && !phone ? `, content pane from ${paneLeft}` : ''}); ${kids.length} player(s) stacked, inside, ${x}-aligned`);
+    `${what}: at-${corner}, column ${Math.round(col.left)},${Math.round(col.top)}–${Math.round(col.right)},${Math.round(col.bottom)} of ${vw}×${vh} (header ${header}); ${kids.length} player(s) stacked, inside, ${x}-aligned`);
 }
 
 // A mouse drag from (x, y) to (tx, ty) in `steps`; halfway, the column must be `dragging` and
@@ -354,7 +355,7 @@ try {
   await playing(b, CORNER);
   check(true, 'closing the window brings the corner back (still on #general)');
 
-  // Watch Together too: the stream above its mini player, not overlapping.
+  // Watch Together too: one player in the corner at a time, first come first served.
   const internet = await youtubeReachable();
   if (!internet) {
     console.log('SKIPPED: YouTube unreachable, no Watch Together checks');
@@ -366,37 +367,41 @@ try {
     await a.fill('.watch-party-add input', `https://www.youtube.com/watch?v=${RICK}`);
     await a.click('.watch-party-add button[type="submit"]');
     await a.waitForSelector('.watch-party-player.docked iframe', { timeout: 15000 });
-    await b.waitForSelector('.watch-party-player.mini iframe', { timeout: 15000 });
-    await waitYt(b, (v) => !v.paused && v.time > 1, 'bob plays Watch Together in the corner');
+    // The stream had the corner first: Watch Together plays on unseen, in step, out of sight.
+    await b.waitForSelector('.watch-party-player.mini.waiting iframe', { state: 'attached', timeout: 15000 });
+    await waitYt(b, (v) => !v.paused && v.time > 1, 'bob plays Watch Together unseen while the stream has the corner');
     await playing(b, CORNER);
-    const s = await rect(b, CORNER);
     const w = await rect(b, '.watch-party-player.mini');
-    console.log('stream:', JSON.stringify(s), '\nwatch together:', JSON.stringify(w));
-    check(s.bottom <= w.top + 0.5, `the stream sits above Watch Together, not overlapping (${s.bottom.toFixed(1)} ≤ ${w.top.toFixed(1)})`);
-    check(Math.abs(s.right - w.right) < 1, 'right edges line up');
-    for (const [name, q] of [['stream', s], ['watch together', w]]) {
-      check(q.top >= 0 && q.left >= 0 && q.right <= q.vw && q.bottom <= q.vh, `${name} inside the viewport`);
-    }
-    check(await b.isVisible('.watch-party-mini-bar button[aria-label="Pop out"]'), 'the mini player has Pop out');
-    await shot(b, '02-stream-and-watch-together');
+    check(w.right <= 0, `Watch Together waits out of sight (right edge ${w.right.toFixed(0)})`);
+    await shot(b, '02-stream-has-the-corner');
 
-    // Dragged from the mini player's bar, both move as one, stacked, in every corner.
+    // Stop watching the stream: Watch Together takes the corner.
+    await b.click(`${CORNER} button[aria-label="Stop watching"]`);
+    await b.waitForSelector('.watch-party-player.mini:not(.waiting) iframe', { timeout: 5000 });
+    check(!(await b.$(CORNER)), 'stream stopped: Watch Together takes the corner');
+    const w2 = await rect(b, '.watch-party-player.mini');
+    check(w2.top >= 0 && w2.left >= 0 && w2.right <= w2.vw && w2.bottom <= w2.vh, 'inside the viewport');
+    check(await b.isVisible('.watch-party-mini-bar button[aria-label="Pop out"]'), 'the mini player has Pop out');
+    await shot(b, '02a-watch-together-in-the-corner');
+
+    // Dragged from the mini player's bar, in every corner.
     for (const corner of ['top-right', 'top-left', 'bottom-left']) {
       await mouseDrag(b, await grabPoint(b, 'mini'), targetFor(corner, vp.width, vp.height));
-      await checkPlaced(b, corner, `both dragged by the mini player to ${corner}`);
-      if (corner === 'top-left') await shot(b, '02c-both-top-left');
+      await checkPlaced(b, corner, `dragged by the mini player to ${corner}`);
+      if (corner === 'top-left') await shot(b, '02c-top-left');
     }
     // From the mini player's picture too (its shield, over YouTube's frame).
     const shield = await rect(b, '.watch-party-player.mini .watch-party-shield');
     await mouseDrag(b, [shield.left + shield.width / 2, shield.top + shield.height / 2], targetFor('bottom-right', vp.width, vp.height));
-    await checkPlaced(b, 'bottom-right', "both dragged by the mini player's picture to bottom-right");
-    await mouseDrag(b, await grabPoint(b), targetFor('bottom-left', vp.width, vp.height));
-    await checkPlaced(b, 'bottom-left', 'both dragged by the stream to bottom-left');
-    await shot(b, '02d-both-bottom-left');
+    await checkPlaced(b, 'bottom-right', "dragged by the mini player's picture to bottom-right");
+    await mouseDrag(b, await grabPoint(b, 'mini'), targetFor('bottom-left', vp.width, vp.height));
+    await checkPlaced(b, 'bottom-left', 'dragged to bottom-left: the screen\'s own corner, over the sidebar');
+    await shot(b, '02d-bottom-left');
 
-    // Back on the channel page the stream takes the page and Watch Together stays in the corner.
+    // Back on the channel page, watching the stream again: it takes the page and Watch Together
+    // stays in the corner.
     await b.click('.guild-channel-link:has-text("lounge")');
-    await b.waitForSelector(CORNER, { state: 'detached', timeout: 5000 });
+    await b.click(`${tile(alice.name)} .voice-tile-watch`);
     await playing(b, ON_PAGE);
     await b.waitForSelector('.watch-party-player.mini iframe');
     check(true, 'channel page: the stream on the page, Watch Together in the corner');
@@ -486,12 +491,14 @@ try {
     await playing(b, ON_PAGE);
     await b.waitForSelector('.watch-party-player.mini iframe');
     // Stored bottom-left shows top left here, beside the channel list: #general is clickable.
-    await checkPlaced(b, 'top-left', 'channel page, stored bottom-left (left corner clear of the sidebar)');
-    await b.click('.guild-channel-link:has-text("general")', { timeout: 5000 });
-    check(true, '#general clicked with the column at top left');
-    await b.waitForSelector(CORNER);
-    await b.waitForSelector('.watch-party-player.mini');
-    await checkPlaced(b, 'bottom-left', 'on #general both at the stored bottom left');
+    await checkPlaced(b, 'top-left', 'channel page, stored bottom-left');
+    // The left corners cover the channel list now (the screen's own corner, as asked).
+    await b.locator('.guild-channel-link:has-text("general")').dispatchEvent('click');
+    check(true, '#general opened with the column at top left');
+    await b.waitForSelector('.watch-party-player.mini:not(.waiting)');
+    await sleep(300);
+    check(!(await b.$(CORNER)), 'Watch Together had the corner first: the stream waits (sound only)');
+    await checkPlaced(b, 'bottom-left', 'on #general at the stored bottom left');
 
     // It follows the sidebar's width (Shift+ArrowRight on its resizer: 40 px wider).
     const paneBefore = await b.$eval('.main-content-wrapper', (el) => el.getBoundingClientRect().left);
@@ -499,34 +506,36 @@ try {
     await b.keyboard.press('Shift+ArrowRight');
     await b.waitForFunction((x) => document.querySelector('.main-content-wrapper').getBoundingClientRect().left > x + 30, paneBefore);
     await sleep(200);
-    await checkPlaced(b, 'bottom-left', 'after widening the sidebar by 40 px, still beside it');
+    await checkPlaced(b, 'bottom-left', 'after widening the sidebar by 40 px, still at the screen\'s edge');
     await b.dblclick('.sidebar-resizer');
     await b.waitForFunction((x) => Math.abs(document.querySelector('.main-content-wrapper').getBoundingClientRect().left - x) < 1, paneBefore);
     await sleep(200);
     await checkPlaced(b, 'bottom-left', 'sidebar back to its default width');
 
-    // Settings (its own column beside the rail): still beside it.
-    await b.click('.user-panel-settings');
+    // Settings (its own column beside the rail): the same corner. (The column covers the user
+    // panel at bottom left now, so its button is clicked from code.)
+    await b.locator('.user-panel-settings').dispatchEvent('click');
     await b.waitForURL((u) => u.pathname.startsWith('/settings'));
     await sleep(500);
     await checkPlaced(b, 'bottom-left', 'on Settings');
     await shot(b, '02e-settings-bottom-left');
     await b.goBack();
     await b.waitForSelector('#dm-input');
-    await b.waitForSelector(CORNER);
+    await b.waitForSelector('.watch-party-player.mini:not(.waiting)');
 
     // To top right (stored, for the reload check later).
     await mouseDrag(b, await grabPoint(b, 'mini'), targetFor('top-right', vp.width, vp.height));
-    await b.waitForSelector(CORNER);
     await b.waitForSelector('.watch-party-player.mini');
-    await checkPlaced(b, 'top-right', 'on #general both at the stored top right');
+    await checkPlaced(b, 'top-right', 'on #general at the stored top right');
     const [ww3] = await Promise.all([
       b.context().waitForEvent('page'),
       b.click('.watch-party-mini-bar button[aria-label="Pop out"]'),
     ]);
     await ww3.waitForSelector('.watch-party-player.popped-out iframe', { timeout: 15000 });
     check(!(await b.$('.watch-party-player')), "Pop out from the mini player: it's in the window, not the corner");
-    check(Boolean(await b.$(CORNER)), 'the stream stays in the corner meanwhile');
+    await b.waitForSelector(CORNER, { timeout: 5000 });
+    await playing(b, CORNER);
+    check(true, 'the corner freed, the waiting stream moves in');
     await closesWindow(ww3, () => a.click('.watch-party-controls button[aria-label="Skip"]'), 10000);
     check(true, 'the party ending closes the window');
   }

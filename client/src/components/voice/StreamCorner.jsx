@@ -7,6 +7,7 @@ import { useStreamOnPage } from '../../hooks/useStreamOnPage';
 import { displayName, useProfiles } from '../../utils/profiles';
 import StreamView from './StreamView';
 import { cornerOf } from '../../voice/stage';
+import { useCornerClaim } from '../../services/cornerSlot';
 import { participantName } from '../../voice/voiceClient';
 import { t } from '../../i18n';
 
@@ -14,7 +15,8 @@ import { t } from '../../i18n';
 // no page shows it (you went to another channel or conversation), as Watch Together's player
 // does: it keeps playing,
 // with its volume, a way back to its channel or call, pop out and stop watching. Drawn from
-// Layout. Not your own stream, nor one popped out into its own window.
+// Layout. Not your own stream, nor one popped out into its own window, nor while another
+// player has the corner (services/cornerSlot.js; it comes once that's gone).
 export default function StreamCorner() {
   useProfiles();
   const navigate = useNavigate();
@@ -23,7 +25,10 @@ export default function StreamCorner() {
   const poppedOut = useStreamWindow() != null;
   const onPage = useStreamOnPage();
   const shown = cornerOf(voice);
-  if (shown == null || poppedOut || onPage) return null;
+  const wants = shown != null && !poppedOut && !onPage;
+  // One player in the corner at a time: while another has it, the stream keeps its sound only.
+  const granted = useCornerClaim('stream', wants);
+  if (!wants || !granted) return null;
 
   let to;
   if (voice.callId != null) to = call?.groupId ? `/dm/g/${call.groupId}` : call?.peerId ? `/dm/${call.peerId}` : null;

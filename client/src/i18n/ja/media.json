@@ -131,7 +131,17 @@
       "fullScreen": "全画面表示",
       "fullScreenTitle": "全画面表示（f）",
       "exitFullScreen": "全画面表示を終了",
-      "exitFullScreenTitle": "全画面表示を終了（f）"
+      "exitFullScreenTitle": "全画面表示を終了（f）",
+      "popOut": "ポップアウト",
+      "close": "閉じる",
+      "goToMessage": "メッセージへ移動",
+      "inCorner": "隅で再生中",
+      "inWindow": "別ウィンドウで再生中",
+      "bringBack": "元に戻す",
+      "popupBlocked": "ブラウザーがウィンドウをブロックしました。動画をポップアウトするには、このサイトのポップアップを許可してください。",
+      "windowTitle": "動画 – Voicaw",
+      "windowTitleOf": "{{name}} – Voicaw",
+      "floatingLabel": "動画: {{name}}"
     },
     "embeds": {
       "image": "埋め込み画像",

@@ -134,6 +134,7 @@ function LocalAttachment({ local, name }) {
     return (
       <VideoView
         src={local.previewUrl}
+        mediaKey={local.previewUrl}
         name={name}
         size={local.size}
         width={local.width}
@@ -176,8 +177,6 @@ function EncryptedVideo({ url, meta, name }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  useEffect(() => () => releaseStream(stream.current), []);
-
   const loadWhole = (onProgress) => loadDecryptedAttachment(url, meta, onProgress);
   const load = async (onProgress) => {
     const whole = getCachedAttachment(url); // e.g. downloaded to save it
@@ -200,6 +199,10 @@ function EncryptedVideo({ url, meta, name }) {
       src={getCachedAttachment(url)}
       load={load}
       recover={recover}
+      // The player lets go of a streaming URL once nothing plays it (it may play on in the
+      // corner after this message has gone).
+      release={releaseStream}
+      mediaKey={url}
       poster={poster}
       name={name}
       size={meta.size}

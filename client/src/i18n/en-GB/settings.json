@@ -106,6 +106,10 @@
         "title": "Message display",
         "keywords": "compact cosy cozy messages pictures avatars dense layout spacing"
       },
+      "pictureInPicture": {
+        "title": "Picture in picture",
+        "keywords": "pip picture in picture video corner mini player pop out floating keep playing scroll"
+      },
       "language": {
         "title": "Language",
         "keywords": "language translation english russian japanese thai русский язык 日本語 ไทย"
@@ -756,6 +760,13 @@
       "cozyHint": "Profile pictures, with the name and time above each group of messages.",
       "compact": "Compact",
       "compactHint": "No profile pictures: the time, name and message on one line, so more fit on screen."
+    },
+    "pip": {
+      "title": "Picture in picture",
+      "onLeave": "Keep videos playing in a corner when I leave the chat",
+      "onLeaveHint": "A video from a message that's playing when you go to another chat or page carries on small in a corner, with a way back to its message. Off, it stops.",
+      "onScroll": "Also when I scroll a playing video out of view",
+      "onScrollHint": "It goes to the corner once less than half of it shows, and back into its message when you scroll to it again."
     },
     "voice": {
       "title": "Voice",

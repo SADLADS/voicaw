@@ -23,6 +23,7 @@ import ProfileVisibilitySettings from './ProfileVisibilitySettings';
 import ContentSettings from "./ContentSettings";
 import ThemeSettings, { SeasonalThemeSettings } from "./ThemeSettings";
 import MessageDisplaySettings from "./MessageDisplaySettings";
+import PipSettings from "./PipSettings";
 import LanguageSettings from "./LanguageSettings";
 import SoundSettings from "./SoundSettings";
 import VoiceSettings from "./VoiceSettings";
@@ -120,6 +121,7 @@ export default function Settings({ onLogout }) {
         sub('theme', 'theme', { content: <ThemeSettings /> }),
         sub('seasonal-themes', 'seasonalThemes', { content: <SeasonalThemeSettings /> }),
         sub('message-display', 'messageDisplay', { content: <MessageDisplaySettings /> }),
+        sub('picture-in-picture', 'pictureInPicture', { aliases: ['pip'], content: <PipSettings /> }),
       ],
     },
     {

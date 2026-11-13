@@ -12,7 +12,7 @@ const { paintDot, unreadLabel } = require('../tray.js');
 const { linuxAutostartEntry } = require('../autoStart.js');
 const { spellcheckLanguages, syncSpellingWords } = require('../spellcheck.js');
 const { REFERER, withYouTubeReferer } = require('../youtube.js');
-const { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, windowOpenAction, popoutNavigationAllowed, streamWindowPermission } = require('../windowOpen.js');
+const { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, VIDEO_WINDOW_NAME, windowOpenAction, popoutNavigationAllowed, streamWindowPermission } = require('../windowOpen.js');
 
 describe('serving the app (protocol.js)', () => {
     let root;
@@ -178,6 +178,14 @@ describe('windows the page opens (windowOpen.js)', () => {
         expect(result.action).toBe('allow');
         expect(result.overrideBrowserWindowOptions.icon).toBe('/icon.png');
         expect(opened).toEqual([]);
+    });
+
+    it('lets a message\'s popped-out video open, as a blank window only', () => {
+        const { result, opened } = open({ url: 'about:blank', frameName: VIDEO_WINDOW_NAME });
+        expect(result.action).toBe('allow');
+        expect(result.overrideBrowserWindowOptions.icon).toBe('/icon.png');
+        expect(opened).toEqual([]);
+        expect(open({ url: 'voicaw://app/', frameName: VIDEO_WINDOW_NAME }).result).toEqual({ action: 'deny' });
     });
 
     it('lets Watch Together\'s popped-out player open, on the app\'s own pop-out page only', () => {

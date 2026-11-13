@@ -506,6 +506,16 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   message box and Send, several chats at once, sent from there without opening them (one
   upload, the same links to each), the chats you last sent to first (`GET /recent-chats`, from
   the message tables, nothing stored). Direct Share (people in Android's own sheet) deferred.
+- **Videos in the corner** (built 2026-11-13, see Videos in the corner in `docs/uploads.md`): a
+  message's video playing when you leave its chat (or, a setting off by default, scroll it away)
+  plays on in the corner, as streams and Watch Together do, with Go to message, Pop out and
+  Close; Settings → Appearance → Picture in picture can turn it off. The `<video>` element itself
+  moves (in the same task, so it never pauses or reloads); the pop-out shows a `captureStream()`
+  copy for the same reason. The user chose: one corner player at a time, first come first
+  served (streams and Watch Together no longer stack); YouTube players in messages left out (an
+  iframe can't move without restarting, and the user wanted none unless seamless); no native
+  always-on-top picture in picture yet; paused videos don't go. Left corners now cover the
+  rail and channel list.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

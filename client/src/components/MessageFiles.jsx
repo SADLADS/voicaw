@@ -64,6 +64,7 @@ export default function MessageFiles({ attachments, shownElsewhere = [] }) {
             >
               <VideoPlayer
                 src={file.url}
+                mediaKey={file.url}
                 name={file.filename}
                 size={file.size}
                 width={file.width}

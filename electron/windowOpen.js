@@ -1,12 +1,13 @@
 // The windows the page may open (setWindowOpenHandler), by their names (client
-// voice/popoutWindow.js): the popped-out screen share, a blank window the page draws the stream
-// into itself, and Watch Together's popped-out player, the app's own popout.html (YouTube's
+// voice/popoutWindow.js): the popped-out screen share and a message's popped-out video, blank
+// windows the page draws into itself, and Watch Together's popped-out player, the app's own popout.html (YouTube's
 // player needs a real page for its Referer) that the page draws into likewise. Links to other
 // sites open in the browser; anything else is refused.
 const { ORIGIN } = require('./protocol');
 
 const STREAM_WINDOW_NAME = 'voicaw-stream';
 const WATCH_PARTY_WINDOW_NAME = 'voicaw-watch-together';
+const VIDEO_WINDOW_NAME = 'voicaw-video';
 const POPOUT_PAGE = `${ORIGIN}/popout.html`;
 
 function popout(icon, title) {
@@ -25,6 +26,7 @@ function popout(icon, title) {
 
 function windowOpenAction({ url, frameName }, { icon, openExternal }) {
     if (frameName === STREAM_WINDOW_NAME && url === 'about:blank') return popout(icon, 'Stream – Voicaw');
+    if (frameName === VIDEO_WINDOW_NAME && url === 'about:blank') return popout(icon, 'Video – Voicaw');
     if (frameName === WATCH_PARTY_WINDOW_NAME && url === POPOUT_PAGE) return popout(icon, 'Watch Together – Voicaw');
     if (/^(https?:|mailto:)/.test(url)) openExternal(url);
     return { action: 'deny' };
@@ -44,4 +46,4 @@ function streamWindowPermission(permission) {
     return permission === 'fullscreen';
 }
 
-module.exports = { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, windowOpenAction, popoutNavigationAllowed, streamWindowPermission };
+module.exports = { STREAM_WINDOW_NAME, WATCH_PARTY_WINDOW_NAME, VIDEO_WINDOW_NAME, windowOpenAction, popoutNavigationAllowed, streamWindowPermission };

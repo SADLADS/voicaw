@@ -44,6 +44,7 @@ export function SiteVideo({ url, link = url, width, height, poster }) {
     >
       <VideoPlayer
         {...(autoLoad ? { src: url, poster } : { load: async () => url })}
+        mediaKey={url}
         name={name}
         width={width}
         height={height}

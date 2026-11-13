@@ -19,6 +19,7 @@ import {
 } from '../../voice/watchPartyWindow';
 import { usePrivacyPrefs } from '../../utils/privacy';
 import { PERMISSIONS, has } from '../../utils/permissions';
+import { useCornerClaim } from '../../services/cornerSlot';
 import { t } from '../../i18n';
 
 const VOLUME_KEY = 'watchPartyVolume';
@@ -122,6 +123,9 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
   const [onSlot, setOnSlot] = useState(Boolean(slot));
   // Popped out, it fills its window and has all its controls, as over the slot.
   const docked = popout || onSlot;
+  // Small, it needs the corner, which shows one player at a time (services/cornerSlot.js):
+  // while another has it, this one plays on unseen (in step, with its sound) until it's free.
+  const waiting = !useCornerClaim('watchParty', !docked);
   const [popupBlocked, setPopupBlocked] = useState(false);
   const [frame, setFrame] = useState(null); // the <iframe> or <video>
   const [embed, setEmbed] = useState(null);
@@ -231,7 +235,8 @@ function PlayerBox({ guildId, channelId, party, slot, deafened, myId, onClose, p
   const muted = deafened || volume === 0;
 
   return (
-    <div ref={boxRef} className={`watch-party-player${popout ? ' popped-out' : docked ? ' docked' : ' mini'}${fullscreen ? ' fullscreen' : ''}`}>
+    <div ref={boxRef} className={`watch-party-player${popout ? ' popped-out' : docked ? ' docked' : ' mini'}${!docked && waiting ? ' waiting' : ''}${fullscreen ? ' fullscreen' : ''}`}
+      aria-hidden={!docked && waiting ? true : undefined}>
       {!docked && (
         <div className="watch-party-mini-bar">
           <span className="watch-party-mini-title" title={title}>{title}</span>

@@ -861,8 +861,8 @@ body.popout-window {
 
 .corner-players.at-top-left,
 .corner-players.at-bottom-left {
-  /* Inside the page's content, clear of the sidebar (measured by useCornerDrag). */
-  left: calc(var(--vc-pip-left, 0px) + 16px);
+  /* The screen's own corner, over the rail and the channel list. */
+  left: 16px;
   align-items: flex-start;
 }
 
@@ -2595,4 +2595,14 @@ body.popout-window {
 .voice-view-button.push-to-talk-button.active {
   background-color: color-mix(in srgb, var(--vc-online) 22%, transparent);
   color: var(--vc-online);
+}
+
+/* Watch Together's mini player while another has the corner (services/cornerSlot.js): it plays
+   on unseen, in step and with its sound, until the corner is free. */
+.corner-players > .watch-party-player.mini.waiting {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
 }

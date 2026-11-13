@@ -44,9 +44,57 @@ export function saveVideoPrefs(prefs) {
   }
 }
 
-// Only one video plays at a time: starting one pauses the one before.
+// Only one video plays at a time: starting one pauses the one before (and closes one playing
+// on in the corner or its own window, services/floatingVideo.js).
 let playing = null;
+const claimListeners = new Set();
 export function claimPlayback(video) {
   if (playing && playing !== video && !playing.paused) playing.pause();
   playing = video;
+  for (const listener of claimListeners) listener(video);
+}
+
+export function onPlaybackClaimed(listener) {
+  claimListeners.add(listener);
+  return () => claimListeners.delete(listener);
+}
+
+// Arrow keys and the seek bar's keys move this far (seconds).
+export const SEEK_STEP = 5;
+
+// A video element's own volume is what every player of it shows (its message's, the corner's,
+// a window's); the choice is kept for the next video.
+export function setVideoVolume(element, volume) {
+  if (!element) return;
+  element.volume = volume;
+  element.muted = volume === 0;
+  saveVideoPrefs({ volume, muted: volume === 0 });
+}
+
+export function toggleVideoMute(element) {
+  if (!element) return;
+  const volume = element.volume || 1;
+  const muted = !element.muted;
+  element.volume = volume;
+  element.muted = muted;
+  saveVideoPrefs({ volume, muted });
+}
+
+export function seekVideo(element, to, duration) {
+  if (!element) return;
+  element.currentTime = Math.min(Math.max(0, to), duration || element.duration || 0);
+}
+
+// Playing can be refused (a browser that wants a fresh tap): the play button stays.
+export function startPlaying(element) {
+  if (!element) return;
+  claimPlayback(element);
+  Promise.resolve(element.play()).catch(() => {});
+}
+
+// Play or pause.
+export function togglePlaying(element) {
+  if (!element) return;
+  if (element.paused || element.ended) startPlaying(element);
+  else element.pause();
 }

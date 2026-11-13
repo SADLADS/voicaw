@@ -132,7 +132,17 @@
       "fullScreen": "Full screen",
       "fullScreenTitle": "Full screen (f)",
       "exitFullScreen": "Exit full screen",
-      "exitFullScreenTitle": "Exit full screen (f)"
+      "exitFullScreenTitle": "Exit full screen (f)",
+      "popOut": "Pop out",
+      "close": "Close",
+      "goToMessage": "Go to message",
+      "inCorner": "Playing in the corner",
+      "inWindow": "Playing in its own window",
+      "bringBack": "Bring back",
+      "popupBlocked": "The browser blocked the window. Allow pop-ups for this site to pop the video out.",
+      "windowTitle": "Video – Voicaw",
+      "windowTitleOf": "{{name}} – Voicaw",
+      "floatingLabel": "Video: {{name}}"
     },
     "embeds": {
       "image": "embedded image",

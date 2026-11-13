@@ -12,6 +12,7 @@ import StreamPopout from './voice/StreamPopout';
 import { useStreamOnPage } from '../hooks/useStreamOnPage';
 import { useCornerDrag } from '../hooks/useCornerDrag';
 import WatchPartyPlayer from './voice/WatchPartyPlayer';
+import { VideoCorner, VideoPopout } from './FloatingVideo';
 import IncomingCall from './call/IncomingCall';
 import UserProfileHost from './UserProfileHost';
 import { ShareHost } from './ShareDialog';
@@ -113,7 +114,7 @@ export default function Layout({ user, onLogout }) {
   // The corner players, dragged to any corner (bottom right, on a phone top right, until then).
   // While a page shows a stream, a bottom corner moves to the top on the same side, clear of
   // the stream's bar and the call's buttons.
-  const pip = useCornerDrag(isMobile ? 'top-right' : 'bottom-right', contentPaneRef);
+  const pip = useCornerDrag(isMobile ? 'top-right' : 'bottom-right');
   const pipCorner = streamOnPage ? pip.corner.replace('bottom', 'top') : pip.corner;
 
   // Leaving (or being removed from) the guild on screen goes back to the DMs.
@@ -388,15 +389,19 @@ export default function Layout({ user, onLogout }) {
 
         <IncomingCall user={user} />
         <StreamPopout />
-        {/* Small players in a corner, on every page: a watched stream no page shows, above
-            Watch Together's player while you're in a channel watching (which sits over the
-            channel page's slot instead while that's on screen). Dragged to any corner. */}
+        <VideoPopout />
+        {/* A small player in a corner, on every page, one at a time (services/cornerSlot.js,
+            first come first served): a watched stream no page shows, a video from a message
+            playing on after you left it, or Watch Together's player while you're in a channel
+            watching (which sits over the channel page's slot instead while that's on screen,
+            and plays on unseen while another has the corner). Dragged to any corner. */}
         <div
           ref={pip.ref}
           className={`corner-players at-${pipCorner}${pip.dragging ? ' dragging' : ''}`}
           onPointerDown={pip.onPointerDown}
         >
           <StreamCorner />
+          <VideoCorner />
           <WatchPartyPlayer />
         </div>
         {/* A bot's form, when one of its commands or buttons opens one. */}

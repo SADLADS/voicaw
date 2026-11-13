@@ -32,6 +32,7 @@ import { interactionError } from '../utils/commandOptions';
 import { t } from '../i18n';
 import { flashRow } from '../utils/flashRow';
 import { useImageLink } from '../hooks/useImageLink';
+import { useLocationJump } from '../hooks/useLocationJump';
 import { drawnByApp, linksIn, SUPPRESS_EMBEDS } from '../utils/linkPreviews';
 import { clearTyping } from '../utils/typing';
 import { endPoll, parsePoll, pollEnded, pollMarkup, pollWithAnswers } from '../utils/pollMarkup';
@@ -74,6 +75,11 @@ const noHover = () => {};
 // Opens the picture a link from the desktop app asks for, when it's in this chat (useImageLink).
 function ImageLinkOpener(props) {
   useImageLink(props);
+  return null;
+}
+
+function LocationJump(props) {
+  useLocationJump(props);
   return null;
 }
 
@@ -483,11 +489,13 @@ export default function ChatPane({
 
   return (
     <>
-      {/* `data-chat-id`: which chat a picture is in, for the desktop app's Open Image (utils/imageLink.js). */}
-      <div className="dm-message-wrapper" data-chat-id={chatId}>
+      {/* `data-chat-id`: which chat a picture is in, for the desktop app's Open Image (utils/imageLink.js);
+          with `data-chat-name`, which chat a video playing on in the corner came from (VideoPlayer). */}
+      <div className="dm-message-wrapper" data-chat-id={chatId} data-chat-name={chatName ?? undefined}>
         {inRouter && (
           <ImageLinkOpener chatId={chatId} userId={user?.id} ready={!conversation.isLoading} jumpToMessage={jumpToMessage} />
         )}
+        {inRouter && <LocationJump chatId={chatId} ready={!conversation.isLoading} jumpToMessage={jumpToMessage} />}
         {conversation.isLoading ? (
           <p></p>
         ) : conversation.error ? (

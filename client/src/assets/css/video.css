@@ -442,3 +442,138 @@
   display: block;
   background: linear-gradient(135deg, var(--vc-bg-elevated), var(--vc-bg-subtle));
 }
+
+/* Where the <video> goes: it's made in code, so it can move to the corner and back
+   (services/floatingVideo.js). */
+.video-slot {
+  position: absolute;
+  inset: 0;
+}
+
+/* Its video playing on elsewhere (the corner, its own window): a note and Bring back. */
+.video-away {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.65);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.video-popup-blocked {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.8);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* A handed-off video between its message and the corner or a window: in the page (so it plays
+   on), out of sight. */
+.floating-video-parking {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 320px;
+  height: 180px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* A message's video playing on in the corner (components/FloatingVideo.jsx), like Watch
+   Together's mini player: a bar with its name, then the video, sized to its shape. */
+.floating-video.corner {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--vc-popup);
+  color: var(--vc-fg);
+  box-shadow: 0 2px 8px var(--vc-popup-shadow);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+.floating-video-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 10px;
+}
+
+.floating-video-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.floating-video-name,
+.floating-video-chat {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floating-video-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.floating-video-chat {
+  font-size: 11px;
+  color: var(--vc-fg-muted);
+}
+
+.floating-video-button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.floating-video-button:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.floating-video .video-player {
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Popped out, or full screen: the whole window. */
+.floating-video.popout,
+.floating-video.fullscreen {
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+}
+
+.floating-video.popout .video-player,
+.floating-video.fullscreen .video-player {
+  width: 100% !important;
+  height: 100% !important;
+}

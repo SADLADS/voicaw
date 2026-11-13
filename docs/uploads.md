@@ -181,6 +181,44 @@ own additional data, so it can't pass for a chunk). Old `v=1` videos still play.
   desktop browsers) it says so over the poster and offers Download. That case used to show as a
   plain download box, the likely cause of "videos turned into download links" (not confirmed).
 
+**Videos in the corner** (picture in picture, 2026-11-13): a video in a message (an attachment,
+encrypted or not, a link to a video file, a bot's or webhook's; anything `VideoPlayer` plays, not
+YouTube's players) that's playing when you leave it carries on small in the corner
+(`FloatingVideo.jsx` `VideoCorner`, in Layout's `.corner-players`, dragged like the others): its
+name and chat, Go to message, Pop out (computers), Close, and the player's own controls (seek,
+volume, time, full screen). Leaving is its message going from the page (another chat or page) or
+its chat going out of sight while still on it (a phone's chat pane slid away to the list, a side
+chat closed); with Settings → Appearance → Picture in picture's second box, also the player
+alone scrolled under half in view (`utils/pipPrefs.js`, per device: "Keep videos playing in a
+corner when I leave the chat" on, "Also when I scroll a playing video out of view" off by
+default). A paused video just stops, as before.
+- **The same element, never a copy** (`services/floatingVideo.js`). `VideoPlayer` makes its
+  `<video>` in code (in `.video-slot`) instead of rendering it, and when it goes, hands it over in
+  a layout-effect cleanup: React runs that in the same task as removing it, and a media element
+  moved within the page in one task doesn't even pause (left out past the task, it would). It
+  waits in a parking spot in the page until the corner draws it, so nothing is downloaded,
+  decrypted or buffered again (a stream's URL and a decrypted copy are kept: `release` and
+  `attachmentCache`'s `pinObjectUrl` until it's closed). The message's player, shown again (by
+  `mediaKey`, the file's URL), takes it back still playing; while the video is elsewhere it says
+  "Playing in the corner" / "in its own window" with Bring back.
+- **Go to message** opens the chat with `state.jumpToMessage: { chatId, messageId }`
+  (`hooks/useLocationJump.js` in `ChatPane`, which loads older history until the message is
+  there; chat and message read from the page around the player: `data-chat-id`,
+  `data-chat-name`, `data-msg-id`).
+- **Pop out** (computers; from the corner or the message's controls): a blank window
+  (`services/videoWindow.js` on `voice/popoutWindow.js`, `voicaw-video`, allowed by the desktop
+  app) showing a copy of the picture (`captureStream()`), while the element stays in the page
+  playing the sound, so it doesn't reload: moving a media element into another window's document
+  makes the browser load it afresh. Its controls drive the page's element. Another site's video
+  can't be captured (SecurityError), so that one is moved into the window and carries on from the
+  same point (a short reload). Closing the window brings it back: its message if on the page,
+  else the corner, else it stops.
+- **One at a time**: starting another video closes it (`claimPlayback`), and the corner shows one
+  player (see The corner in `docs/voice-and-calls.md`): a video that leaves while a stream or
+  Watch Together has the corner stops, as before.
+- `e2e/videocorner.mjs` checks it all (no pause or reload on the way, the pop-out's frames, the
+  phone's back arrow, themes).
+
 **Spoilers:** an image or video draft can be marked as a spoiler with the eye button in the
 tray (`toggleSpoiler`; the thumbnail blurs), which puts `sp=1` in its URL (inside the
 encryption, like the rest of the fragment). `MediaCover` (also NSFW channels' cover, see NSFW

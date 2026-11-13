@@ -134,7 +134,17 @@
       "fullScreen": "Во весь экран",
       "fullScreenTitle": "Во весь экран (f)",
       "exitFullScreen": "Выйти из полноэкранного режима",
-      "exitFullScreenTitle": "Выйти из полноэкранного режима (f)"
+      "exitFullScreenTitle": "Выйти из полноэкранного режима (f)",
+      "popOut": "В отдельном окне",
+      "close": "Закрыть",
+      "goToMessage": "К сообщению",
+      "inCorner": "Играет в углу",
+      "inWindow": "Играет в отдельном окне",
+      "bringBack": "Вернуть",
+      "popupBlocked": "Браузер заблокировал окно. Разрешите всплывающие окна для этого сайта, чтобы открыть видео отдельно.",
+      "windowTitle": "Видео – Voicaw",
+      "windowTitleOf": "{{name}} – Voicaw",
+      "floatingLabel": "Видео: {{name}}"
     },
     "embeds": {
       "image": "встроенное изображение",

@@ -34,9 +34,28 @@ function remember(url, promise, bytes = 0) {
     if (cache.get(url) === promise) resolved.set(url, objectUrl);
   }, () => {});
   while (cache.size > 1 && (cache.size > MAX_CACHED || cachedBytes > MAX_CACHED_BYTES)) {
-    forget(cache.keys().next().value).then(URL.revokeObjectURL, () => {});
+    forget(cache.keys().next().value).then(revoke, () => {});
   }
   return promise;
+}
+
+// Object URLs in use outside the cache (a video playing on in the corner,
+// services/floatingVideo.js): dropped from the cache, they're revoked only once let go.
+const pinned = new Set();
+const dropped = new Set();
+
+function revoke(objectUrl) {
+  if (pinned.has(objectUrl)) dropped.add(objectUrl);
+  else URL.revokeObjectURL(objectUrl);
+}
+
+export function pinObjectUrl(objectUrl) {
+  if (typeof objectUrl === 'string' && objectUrl.startsWith('blob:')) pinned.add(objectUrl);
+}
+
+export function unpinObjectUrl(objectUrl) {
+  if (!pinned.delete(objectUrl)) return;
+  if (dropped.delete(objectUrl)) URL.revokeObjectURL(objectUrl);
 }
 
 export function getCachedAttachment(url) {

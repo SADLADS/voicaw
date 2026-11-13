@@ -85,10 +85,10 @@ describe('Settings pages', () => {
     expect(scroll).toHaveBeenCalled();
   });
 
-  it("lists Appearance's subsections: the theme, seasonal themes and how messages are shown", () => {
+  it("lists Appearance's subsections: the theme, seasonal themes and how messages are shown, picture in picture", () => {
     renderSettings({ at: '/settings/appearance' });
     expect(pageTitle()).toBe('Appearance');
-    expect(navSubs()).toEqual(['Theme', 'Seasonal themes', 'Message display']);
+    expect(navSubs()).toEqual(['Theme', 'Seasonal themes', 'Message display', 'Picture in picture']);
   });
 
   it('takes the old one-page Settings\' links to the page holding that section', async () => {

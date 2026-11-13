@@ -131,7 +131,17 @@
       "fullScreen": "เต็มหน้าจอ",
       "fullScreenTitle": "เต็มหน้าจอ (f)",
       "exitFullScreen": "ออกจากเต็มหน้าจอ",
-      "exitFullScreenTitle": "ออกจากเต็มหน้าจอ (f)"
+      "exitFullScreenTitle": "ออกจากเต็มหน้าจอ (f)",
+      "popOut": "แยกหน้าต่าง",
+      "close": "ปิด",
+      "goToMessage": "ไปที่ข้อความ",
+      "inCorner": "กำลังเล่นที่มุมจอ",
+      "inWindow": "กำลังเล่นในหน้าต่างแยก",
+      "bringBack": "นำกลับมา",
+      "popupBlocked": "เบราว์เซอร์บล็อกหน้าต่างนี้ อนุญาตป๊อปอัปสำหรับเว็บไซต์นี้เพื่อแยกวิดีโอออกมา",
+      "windowTitle": "วิดีโอ – Voicaw",
+      "windowTitleOf": "{{name}} – Voicaw",
+      "floatingLabel": "วิดีโอ: {{name}}"
     },
     "embeds": {
       "image": "รูปภาพที่ฝังไว้",

@@ -11,8 +11,10 @@ vi.mock('../../voice/voiceClient', () => ({ attachStream: () => () => {}, setStr
 vi.mock('../../voice/streamWindow', () => ({ closeStreamWindow() {}, openStreamWindow() {} }));
 vi.mock('../../utils/profiles', async (importOriginal) => ({ ...(await importOriginal()), useProfiles() {}, displayName: (id) => `user ${id}` }));
 
+import { act } from '@testing-library/react';
 import StreamCorner from './StreamCorner';
 import StreamView from './StreamView';
+import { cornerHolder, leaveCorner, resetCornerSlot, wantCorner } from '../../services/cornerSlot';
 
 function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>;
@@ -32,6 +34,7 @@ const inChannel = { status: 'connected', guildId: 3, channelId: 4, callId: null,
 
 afterEach(() => {
   cleanup();
+  resetCornerSlot();
   state.voice = {};
   state.call = null;
   state.poppedOut = false;
@@ -65,6 +68,25 @@ describe('StreamCorner', () => {
     const own = renderCorner();
     expect(own.container.querySelector('.stream-view.corner.camera')).toBeNull();
     expect(screen.getByLabelText("user 7's screen")).toBeTruthy();
+  });
+
+  it('waits, sound only, while another player has the corner, and comes once it\'s free', () => {
+    wantCorner('video');
+    state.voice = inChannel;
+    const { container } = renderCorner();
+    expect(container.querySelector('.stream-view.corner')).toBeNull();
+    act(() => leaveCorner('video'));
+    expect(container.querySelector('.stream-view.corner')).not.toBeNull();
+    expect(cornerHolder()).toBe('stream');
+  });
+
+  it('keeps the corner from a video that comes after it', () => {
+    state.voice = inChannel;
+    const { container } = renderCorner();
+    expect(cornerHolder()).toBe('stream');
+    act(() => wantCorner('video'));
+    expect(container.querySelector('.stream-view.corner')).not.toBeNull();
+    act(() => leaveCorner('video'));
   });
 
   it('steps aside while a page shows the stream', () => {
