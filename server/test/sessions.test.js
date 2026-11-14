@@ -1,5 +1,5 @@
 import './helpers/mockS3.js';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { registerUser, loginUser } from './helpers/authFlow.js';
@@ -231,5 +231,41 @@ describe('forgetting old sessions', () => {
     expect(await db.get('SELECT 1 FROM sessions WHERE id = ?', ['stale-session'])).toBeUndefined();
     expect(await db.get('SELECT 1 FROM sessions WHERE id = ?', [sid])).toBeTruthy();
     expect((await request(app).get('/api/profile').set(auth(token))).status).toBe(200);
+  });
+});
+
+describe('refused tokens in the log', () => {
+  // The API's warnings while `fn` runs.
+  async function warnings(fn) {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await fn();
+      return warn.mock.calls.map((args) => args.join(' '));
+    } finally {
+      warn.mockRestore();
+    }
+  }
+
+  it('say why (expired, session ended, another secret), once a minute, never the token', async () => {
+    const user = (await registerUser(app, request, 'refusal-log', 'pw')).response.body;
+    const expired = tokenFrom(user, SESSION_SECONDS + 60);
+    const loggedOut = (await loginUser(app, request, 'refusal-log', 'pw')).response.body.token;
+    await request(app).post('/api/logout').set(auth(loggedOut));
+    const forged = jwt.sign({ id: user.id, username: user.username, sid: 'x' }, 'another-secret');
+
+    const lines = await warnings(async () => {
+      for (const token of [expired, expired, loggedOut, forged]) {
+        expect((await request(app).get('/api/profile').set(auth(token))).status).toBe(403);
+      }
+    });
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toMatch(new RegExp(`^Token refused: expired; user ${user.id}, .*GET /api/profile`));
+    expect(lines[1]).toMatch(new RegExp(`^Token refused: session ended; user ${user.id}, session ${jwt.decode(loggedOut).sid.slice(0, 6)}`));
+    expect(lines[2]).toMatch(/^Token refused: not valid \(invalid signature\)/);
+    for (const [line, token] of [[lines[0], expired], [lines[1], loggedOut], [lines[2], forged]]) {
+      expect(line).not.toContain(token.split('.')[2]);
+      const { sid } = jwt.decode(token);
+      if (sid?.length > 6) expect(line).not.toContain(sid);
+    }
   });
 });

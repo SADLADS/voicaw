@@ -40,7 +40,29 @@ async function startSession(user, req) {
       [id, user.id, t, t, userAgent, ip]
     );
   });
+  console.log(`Session started: user ${user.id}, session ${id.slice(0, 6)}, ${userAgent?.match(/Voicaw\/[\d.]+|Chrome\/\d+|Firefox\/\d+|Safari\/\d+/)?.[0] ?? 'unknown'}`);
   return generateToken(user, id);
+}
+
+// Why a token was refused, one line in the API's log (never the token: only its account, the
+// start of its session id, when it was issued and where it was used), so that a device that keeps
+// being logged out can be told apart: expired, signed with another secret, its session ended.
+// Each token is logged at most once a minute (a dead one comes with every request it sends).
+const REFUSAL_LOG_MS = 60 * 1000;
+const refusalsLogged = new Map();
+
+function refused(reason, payload, req) {
+  const key = `${payload?.id}:${payload?.sid}:${payload?.iat}:${reason}`;
+  const at = Date.now();
+  if (at - (refusalsLogged.get(key) ?? 0) >= REFUSAL_LOG_MS) {
+    refusalsLogged.set(key, at);
+    if (refusalsLogged.size > 1000) refusalsLogged.clear();
+    const issued = payload?.iat ? new Date(payload.iat * 1000).toISOString() : '?';
+    const where = req ? `${req.method} ${req.originalUrl?.split('?')[0]}` : 'websocket';
+    const agent = String(req?.get?.('user-agent') ?? '').match(/Voicaw\/[\d.]+|Chrome\/\d+|Firefox\/\d+|Safari\/\d+/)?.[0] ?? '';
+    console.warn(`Token refused: ${reason}; user ${payload?.id ?? '?'}, session ${String(payload?.sid ?? 'none').slice(0, 6)}, issued ${issued}, ${where} ${agent}`.trim());
+  }
+  return null;
 }
 
 // Resolves to the token's user ({ id, username, iat, sid, renew, pending }), or null if it isn't
@@ -48,13 +70,17 @@ async function startSession(user, req) {
 // updates the session's device. `renew` says the token should be replaced; `pending`, that the
 // account waits for an admin's approval (signups.js).
 async function verifyToken(token, req = null) {
+  let failure = null;
   const payload = await new Promise((resolve) => {
-    jwt.verify(token, jwtSecret, (err, decoded) => resolve(err ? null : decoded));
+    jwt.verify(token, jwtSecret, (err, decoded) => {
+      failure = err;
+      resolve(err ? null : decoded);
+    });
   });
-  if (!payload) return null;
+  if (!payload) return refused(failure?.name === 'TokenExpiredError' ? 'expired' : `not valid (${failure?.message})`, jwt.decode(token), req);
   const row = await db.get('SELECT deleted_at, suspended_at, sessions_reset_at, pending FROM users WHERE id = ?', [payload.id]);
   // Deleted or suspended (Settings → Admin): the token no longer works anywhere.
-  if (!row || row.deleted_at || row.suspended_at) return null;
+  if (!row || row.deleted_at || row.suspended_at) return refused('account deleted or suspended', payload, req);
 
   const t = now();
   let sid = payload.sid;
@@ -62,7 +88,7 @@ async function verifyToken(token, req = null) {
     // A token from before login sessions: it becomes one, named after the token so the
     // requests a device sends at once share it, and is renewed with it. Logging any session
     // out from Settings refuses the ones that haven't been used since.
-    if (row.sessions_reset_at != null && payload.iat <= row.sessions_reset_at) return null;
+    if (row.sessions_reset_at != null && payload.iat <= row.sessions_reset_at) return refused('from before sessions, reset', payload, req);
     sid = crypto.createHash('sha256').update(token).digest('base64url').slice(0, 24);
     const { userAgent, ip } = deviceOf(req);
     await db.run(
@@ -72,7 +98,7 @@ async function verifyToken(token, req = null) {
     );
   }
   const session = await db.get('SELECT last_used_at FROM sessions WHERE id = ? AND user_id = ?', [sid, payload.id]);
-  if (!session) return null;
+  if (!session) return refused('session ended', payload, req);
   if (t - session.last_used_at >= SESSION_TOUCH_SECONDS) {
     const { userAgent, ip } = deviceOf(req);
     await db.run(

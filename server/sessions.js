@@ -39,6 +39,7 @@ async function endSessions(userId, ids, { fromSettings = true } = {}) {
       await db.run('UPDATE users SET sessions_reset_at = ? WHERE id = ?', [Math.floor(Date.now() / 1000), userId]);
     }
   });
+  console.log(`Sessions ended (${fromSettings ? 'from Settings' : 'logout'}): user ${userId}, ${ids.map((id) => id.slice(0, 6)).join(', ')}`);
   const ended = new Set(ids);
   const message = JSON.stringify({ type: 'session_revoked' });
   for (const socket of [...(clients.get(String(userId)) ?? []), ...(pendingClients.get(String(userId)) ?? [])]) {

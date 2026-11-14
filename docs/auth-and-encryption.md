@@ -81,6 +81,12 @@ the session exists, and only shown to the account itself.
   renewed with a `sid` straight away. Ending any session from Settings sets
   `users.sessions_reset_at`, which refuses the old tokens issued before it (devices not opened
   since sessions began then have to log in again) and deletes push subscriptions with no session.
+- **The log** (pm2's, 2026-11-14): every session started (`Session started: user 1, session
+  5LXenR, Voicaw/1.0.44`), ended (`Sessions ended (logout|from Settings): …`) and every token
+  refused, with why (`Token refused: expired | not valid (invalid signature) | session ended |
+  …; user, session, issued, route or websocket, app`), each token at most once a minute
+  (`auth.js` `refused`). Never the token or IP. For telling apart why a device keeps being logged
+  out (`pm2 logs voicaw-api | grep -E 'Token refused|Session'`); the privacy policy says so.
 - Changing the password still leaves other devices logged in (Settings → Devices logs them out).
 - Deleting an account deletes its sessions.
 - On start, `AuthProvider` only drops the session when `/profile` answers 401/403/404. With no
