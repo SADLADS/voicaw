@@ -2,6 +2,8 @@ import React, { useContext } from 'react';
 import '../../assets/css/voice.css';
 import { InteractionContext } from '../../contexts';
 import { useVolumeMenu } from '../../hooks/useVolumeMenu';
+import { useProfileCard } from '../../hooks/useProfileCard';
+import ProfilePopover from '../ProfilePopover';
 import UserAvatar from '../voice/UserAvatar';
 import UserVolumeMenu from '../voice/UserVolumeMenu';
 import { CameraIcon, EarIcon, HeadphonesIcon, MicIcon } from '../voice/VoiceIcons';
@@ -11,17 +13,18 @@ import { t } from '../../i18n';
 // Who's in a voice channel, under it in the channel list (like Discord): picture (ringed while
 // they talk, when you're in the channel too and can hear it), name, Live while sharing their
 // screen, a camera while theirs is on, mute/deafen icons, and an ear on a bot that can hear the channel (Listen). `inChannel`: you're in it, so clicking someone else sets how
-// loud they are for you.
+// loud they are for you. Clicking their picture opens their profile card (useProfileCard).
 export default function VoiceChannelMembers({ members, speaking, inChannel = false }) {
   useProfiles();
   const { isMobile } = useContext(InteractionContext);
   const volumeMenu = useVolumeMenu(inChannel);
+  const profileCard = useProfileCard();
   if (!members?.length) return null;
   return (
     <ul className="voice-members" aria-label={t('guilds.voice.inThisChannel')}>
       {members.map((m) => (
         <li key={m.user_id} className="voice-member" data-user-id={m.user_id} {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}>
-          <UserAvatar userId={m.user_id} className="voice-member-avatar" speaking={speaking.has(String(m.user_id))} />
+          <UserAvatar userId={m.user_id} className="voice-member-avatar" speaking={speaking.has(String(m.user_id))} {...profileCard.pictureProps({ id: m.user_id, username: m.username })} />
           <span className="voice-member-name">{displayName(m.user_id, m.username)}</span>
           <span className="voice-member-icons">
             {m.self_stream && <span className="voice-live-badge">{t('guilds.voice.live')}</span>}
@@ -33,6 +36,7 @@ export default function VoiceChannelMembers({ members, speaking, inChannel = fal
         </li>
       ))}
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
+      {profileCard.card && <ProfilePopover user={profileCard.card.user} anchor={profileCard.card.anchor} onClose={profileCard.close} />}
     </ul>
   );
 }

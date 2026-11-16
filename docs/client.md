@@ -718,7 +718,13 @@ even when there is no display name).
   (`guild/MemberCard.jsx`) and the whole card elsewhere. Every person's card is the same 340 px
   floating box (`.profile-popover`): from a member list or a group DM's members
   (`hooks/useFloatingCard.js`, beside the list) and from a name or avatar in chat
-  (`ProfilePopover`, beside what was clicked). In a guild's chats (`GuildMembersContext`, from
+  (`ProfilePopover`, beside what was clicked), or from someone's picture in voice (the channel
+  list's voice members, a voice channel's tiles, DM and group call panels;
+  `hooks/useProfileCard.js`: the rest of the row or tile keeps its click, the volume or focusing
+  a camera, and the right click / long press stays the volume). A webhook's message's name or
+  picture opens its `WebhookCard` in the same box (the picture and name as sent, APP, a line
+  saying there's no account behind it; on phones too, since a webhook has no full profile; its
+  right-click menu there is the webhook's, Block Webhook). In a guild's chats (`GuildMembersContext`, from
   `GuildView`) a member's card from chat is the member list's `MemberCard` (roles, level, Apps);
   in DMs and group DMs, and for someone who left the guild, the `ProfileCard` alone. Cards have no
   buttons but the roles' and Apps: what can be done to someone is in their right-click menu
