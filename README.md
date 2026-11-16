@@ -344,8 +344,13 @@ run it once while the old store is live and again at the switch for what's new:
 ```sh
 # remotes `src` (provider Minio, the old store) and `dst` (provider Other, endpoint
 # http://127.0.0.1:3900, region us-east-1, force_path_style true), e.g. as RCLONE_CONFIG_* env vars
-for b in profile-pics guild-icons emojis sounds uploads; do rclone copy -M "src:$b" "dst:$b"; done
+for b in profile-pics guild-icons emojis sounds uploads; do rclone copy -M --low-level-retries 2 "src:$b" "dst:$b"; done
 ```
+
+A file MinIO can't read (its data gone from the drive) answers 503 `SlowDownRead` with
+`Retry-After: 60`, which the SDK inside rclone retries without end or log, so the copy sits at
+0 B/s. Find such files by reading every object in full (`curl` each one and compare its size
+with the listing: a 1-byte range read still succeeds), and pass them to `--exclude-from`.
 
 ### 5. Voice (LiveKit)
 
