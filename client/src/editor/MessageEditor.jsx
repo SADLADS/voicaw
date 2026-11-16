@@ -6,7 +6,7 @@ import { baseKeymap, splitBlock } from 'prosemirror-commands';
 import { history, redo, undo } from 'prosemirror-history';
 import { DOMSerializer, Fragment, Slice } from 'prosemirror-model';
 import 'prosemirror-view/style/prosemirror.css';
-import { OBJECT_CHAR, docToText, schema, sliceToText, textBeforeCaret, textToDoc, textToSlice, typedTimestamps } from './messageDoc';
+import { OBJECT_CHAR, deleteWord, docToText, schema, sliceToText, textBeforeCaret, textToDoc, textToSlice, typedTimestamps } from './messageDoc';
 import { formatTimestamp, onClockTick } from '../utils/timestamps';
 import { markdownPreview } from './markdownPreview';
 import { registerEditor } from './editorRegistry';
@@ -14,6 +14,10 @@ import { userLocale } from '../utils/locale';
 import { spellcheckPlugin } from '../spellcheck/spellcheckPlugin';
 import { ChannelMentionContext } from '../contexts';
 
+
+// Deleting a word: Ctrl on Windows, Linux and Android, Alt (Option) on macOS and iOS.
+const WORD_MOD = typeof navigator !== 'undefined' && /Mac|iP(hone|[ao]d)/.test(navigator.platform) ? 'Alt' : 'Ctrl';
+const WORD_KEYS = { [`${WORD_MOD}-Backspace`]: deleteWord(-1), [`${WORD_MOD}-Delete`]: deleteWord(1) };
 
 // The message box: a small ProseMirror editor whose value is message text (see messageDoc),
 // with draft attachments as chips, custom emoji as images and mentions as `@name` inline.
@@ -168,6 +172,7 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
         plugins: [
           history(),
           keymap({ Enter: enter, 'Shift-Enter': splitBlock, 'Mod-z': undo, 'Mod-y': redo, 'Shift-Mod-z': redo }),
+          keymap(WORD_KEYS),
           keymap(baseKeymap),
           lengthLimit,
           emptyState,

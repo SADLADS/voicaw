@@ -62,7 +62,10 @@ Messages store plain Unicode emoji; there is no server-side emoji data. `client/
   emoji as `<:name:id>`, mentions as `<@id>`...), so pasting them back gives the emoji and
   mentions again (elsewhere they paste as that markup); edits past the length limit are refused. Saving an edit left empty or
   only whitespace cancels it (`ChatPane`). Enter sends on desktop, Shift+Enter is a
-  new line; on mobile Enter is a new line. The ref handle (`focus`, `blur`, `insertText`,
+  new line; on mobile Enter is a new line. Ctrl+Backspace / Ctrl+Delete (Alt on macOS and
+  iOS) delete one word (`deleteWord` in `messageDoc.js`): the browser's own word delete took a
+  chip (attachment, custom emoji, mention) along with the word against it; a chip goes only
+  when nothing but spaces is between it and the cursor. The ref handle (`focus`, `blur`, `insertText`,
   `replaceBeforeCaret`, `insertAttachments`, `removeAttachment`, `clear`...) is how `Composer`
   and `Dm` drive it.
 - Opening a conversation (DM, group DM, notes, guild channel, thread) focuses its message box
