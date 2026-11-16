@@ -3,7 +3,7 @@ import { applyActivitiesSnapshot, applyUserActivities, resetActivities } from '.
 import { resetVoiceStreams } from './voiceStreams';
 import { mergeProfiles } from './profiles';
 import { applyTyping, resetTyping } from './typing';
-import { sameLogin } from './loginToken';
+import { sameLogin, savedToken } from './loginToken';
 import { closeNotifications, desktopNotificationsOn } from '../services/pushService';
 import { playMessageSound } from '../sounds/sounds';
 import { catchUp } from './catchUp';
@@ -209,7 +209,7 @@ export function connectWebSocket() {
     return;
   }
 
-  token = localStorage.getItem('token');
+  token = savedToken();
   if (!token) {
     console.warn('[WS] No JWT token found, not connecting');
     return;
@@ -601,7 +601,7 @@ function loggedOutElsewhere(socket) {
   // The socket's login ended, but another one is saved now: this page slept (a background tab,
   // a laptop's lid) while another tab logged out and in again. Logging out would end that new
   // login (logout ends the saved one): the page picks it up instead.
-  const saved = localStorage.getItem('token');
+  const saved = savedToken();
   if (saved && !sameLogin(saved, socket.token)) {
     loginReplacedListeners.forEach((cb) => cb());
     return;

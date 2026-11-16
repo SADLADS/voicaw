@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { sameLogin, tokenClaims } from './loginToken';
 
 const tokenFor = (claims, signature = 'sig') => `h.${btoa(JSON.stringify(claims)).replace(/=+$/, '')}.${signature}`;
@@ -17,5 +17,52 @@ describe('login tokens', () => {
     expect(sameLogin(tokenFor({ id: 1 }, 'one'), tokenFor({ id: 1 }, 'two'))).toBe(false);
     expect(sameLogin('x', 'x')).toBe(true);
     expect(sameLogin('x', null)).toBe(false);
+  });
+});
+
+describe('the saved login', () => {
+  // A fresh copy of the module (its memory) over an empty localStorage.
+  async function fresh() {
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+    vi.resetModules();
+    return { store, ...(await import('./loginToken')) };
+  }
+  const old = tokenFor({ id: 1, sid: 'old', iat: 100 });
+  const login = tokenFor({ id: 1, sid: 'new', iat: 200 });
+
+  it('keeps the newer login when storage goes back to an older one of the same account', async () => {
+    const { store, saveToken, savedToken } = await fresh();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    saveToken(login);
+    store.set('token', old); // the storage reverting on its own
+    expect(savedToken()).toBe(login);
+    expect(store.get('token')).toBe(login);
+  });
+
+  it("takes another account's login, a newer one, and none (logged out) as they are", async () => {
+    const { store, saveToken, savedToken } = await fresh();
+    saveToken(login);
+    const other = tokenFor({ id: 2, sid: 'x', iat: 50 });
+    store.set('token', other);
+    expect(savedToken()).toBe(other);
+    const newer = tokenFor({ id: 2, sid: 'y', iat: 300 });
+    store.set('token', newer);
+    expect(savedToken()).toBe(newer);
+    store.delete('token');
+    expect(savedToken()).toBeNull();
+  });
+
+  it('forgets it on logout, so an older one coming back is not replaced by it', async () => {
+    const { store, saveToken, savedToken, forgetToken } = await fresh();
+    saveToken(login);
+    forgetToken();
+    expect(store.has('token')).toBe(false);
+    store.set('token', old);
+    expect(savedToken()).toBe(old);
   });
 });

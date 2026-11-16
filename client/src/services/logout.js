@@ -1,4 +1,5 @@
 import api from '../utils/api';
+import { forgetToken, savedToken } from '../utils/loginToken';
 import { SUSPENDED_NOTICE, closeWebSocket } from '../utils/ws-client';
 import { leaveVoice } from '../voice/voiceClient';
 import { hangUp } from '../voice/callClient';
@@ -74,7 +75,7 @@ function forgetAccountStorage() {
 // settings...). Also what the "can't reach Voicaw" screen's Log out does: a saved login lives
 // in localStorage, so clearing cookies doesn't remove it.
 export async function forgetLogin() {
-  try { localStorage.removeItem('token'); } catch { /* storage blocked */ }
+  forgetToken();
   const clears = [clearUserKeys, forgetGroups, clearSearchIndex, clearOfflineCopy];
   // Each on its own: one failing mustn't leave the others behind.
   await Promise.all(clears.map((clear) => clear().catch((err) => console.error('Failed to clear stored data on logout', err))));
@@ -94,9 +95,9 @@ let loggingOut = null;
 // touch it.
 export function logOut() {
   loggingOut ??= (async () => {
-    const token = localStorage.getItem('token');
+    const token = savedToken();
     if (token) await waitAtMost(endOnServer(token), LOGOUT_SERVER_MS);
-    const now = localStorage.getItem('token');
+    const now = savedToken();
     if (now && now !== token) return;
     await forgetLogin();
   })().finally(() => { loggingOut = null; });

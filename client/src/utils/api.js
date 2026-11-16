@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { loadDoc, saveDoc } from '../services/offlineCopy';
 import { isOfflineMode, isUnreachable } from './offlineMode';
-import { tokenClaims } from './loginToken';
+import { tokenClaims, savedToken, saveToken } from './loginToken';
 import { apiBaseUrl } from './server';
 import { noteRequestAnswered, noteRequestUnanswered } from './connection';
 import { errorKind } from './errors';
@@ -14,7 +14,7 @@ const api = axios.create({
 // the token being logged out: sent late, after logging in again, they'd otherwise end the new
 // session).
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
+  const token = savedToken();
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -38,8 +38,8 @@ api.interceptors.response.use((res) => {
 api.interceptors.response.use(res => {
   const renewed = res.headers?.['x-voicaw-token'];
   const sentWith = res.config?.headers?.Authorization;
-  if (renewed && sentWith && sentWith === `Bearer ${localStorage.getItem('token')}`) {
-    localStorage.setItem('token', renewed);
+  if (renewed && sentWith && sentWith === `Bearer ${savedToken()}`) {
+    saveToken(renewed);
   }
   return res;
 });
@@ -67,7 +67,7 @@ api.interceptors.response.use((res) => {
   const name = offlineName(res.config);
   const sentWith = res.config?.headers?.Authorization;
   // Not after a logout (the copy is gone) or once someone else has logged in.
-  if (name && sentWith && sentWith === `Bearer ${localStorage.getItem('token')}`) {
+  if (name && sentWith && sentWith === `Bearer ${savedToken()}`) {
     saveDoc(accountOf(sentWith), name, res.data).catch(() => {});
   }
   return res;
