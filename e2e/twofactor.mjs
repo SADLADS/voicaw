@@ -48,6 +48,12 @@ async function passwordStep(browser, user, options) {
   return page;
 }
 
+// Whether the code box has the focus once things settle (so the code can be typed at once).
+async function codeFocused(page) {
+  await page.waitForTimeout(300);
+  return page.evaluate(() => document.activeElement?.name === 'two-factor-code');
+}
+
 async function submitCode(page, code) {
   await page.fill('input[name="two-factor-code"]', code);
   await page.click('button:has-text("Log in")');
@@ -96,6 +102,7 @@ try {
   // Logging in asks for a code.
   const desktop = await passwordStep(browser, alice);
   check(await desktop.isVisible('input[name="two-factor-code"]'), 'the password alone leads to the code screen');
+  check(await codeFocused(desktop), 'the code box has the focus');
   await shot(desktop, 'login-code');
   await submitCode(desktop, '123456');
   check(await desktop.isVisible('.login-error'), 'a wrong code is refused');
@@ -127,6 +134,7 @@ try {
   await recover.click('button:has-text("Continue")');
   await recover.waitForSelector('input[name="two-factor-code"]', { timeout: 20000 });
   check(await recover.isVisible('text=Enter the six-digit code'), 'recovery asks for a two-factor code after the new recovery code');
+  check(await codeFocused(recover), 'the code box has the focus there too');
   await shot(recover, 'recover-code');
   await recover.fill('input[name="two-factor-code"]', backupCodes[1]);
   await recover.click('button:has-text("Reset password and log in")');
