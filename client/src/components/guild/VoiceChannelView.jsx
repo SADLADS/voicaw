@@ -5,6 +5,8 @@ import { faClapperboard, faMusic, faPhoneSlash, faVolumeHigh } from '@fortawesom
 import { ConfigContext, InteractionContext } from '../../contexts';
 import { useVoice } from '../../hooks/useVoice';
 import { useVolumeMenu } from '../../hooks/useVolumeMenu';
+import { useProfileCard } from '../../hooks/useProfileCard';
+import ProfilePopover from '../ProfilePopover';
 import { useStreamWindow } from '../../hooks/useStreamWindow';
 import { useFittedTiles } from '../../hooks/useFittedTiles';
 import { cameraFocusAction, useCameraFocusKeys } from '../../hooks/useCameraFocus';
@@ -52,6 +54,8 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
   const members = channel.voice ?? [];
   const here = voice.channelId === channel.id && voice.status !== 'idle';
   const volumeMenu = useVolumeMenu(here);
+  // A picture opens that person's profile card; the rest of the tile, the volume or the camera.
+  const profileCard = useProfileCard();
   const speaking = new Set(here ? voice.speaking : []);
   const canConnect = has(channel.my_permissions, PERMISSIONS.CONNECT);
   // Its user limit reached (Manage Channels joins anyway, as the server allows).
@@ -172,7 +176,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
         {video ? (
           <CameraVideo userId={m.user_id} name={name} own={id === voice.identity} className="voice-tile-video" />
         ) : (
-          <UserAvatar userId={m.user_id} className="voice-tile-avatar" />
+          <UserAvatar userId={m.user_id} className="voice-tile-avatar" {...profileCard.pictureProps({ id: m.user_id, username: m.username })} />
         )}
         {soundEffects[m.user_id] && (
           <span key={soundEffects[m.user_id].key} className="voice-tile-effect" title={soundEffects[m.user_id].name} aria-hidden="true">
@@ -283,6 +287,7 @@ export default function VoiceChannelView({ guild, channel, nameColors }) {
       )}
       {tiles}
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
+      {profileCard.card && <ProfilePopover user={profileCard.card.user} anchor={profileCard.card.anchor} onClose={profileCard.close} />}
       {here && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
       {here && voice.cameraError && <p className="voice-view-note voice-view-error" role="alert">{voice.cameraError}</p>}
       {cantHear && <p className="voice-view-note">{t('guilds.voice.cantHear')}</p>}

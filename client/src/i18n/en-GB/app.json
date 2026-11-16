@@ -144,7 +144,8 @@
       "removeBanner": "Remove banner",
       "bannerColour": "Banner colour",
       "setStatus": "Set a custom status",
-      "addBio": "Add something about you"
+      "addBio": "Add something about you",
+      "webhookAbout": "Messages from a webhook are posted to this channel by another site or program. There's no account behind it."
     },
     "presence": {
       "online": "Online",

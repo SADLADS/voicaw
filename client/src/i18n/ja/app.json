@@ -141,7 +141,8 @@
       "removeBanner": "バナーを削除",
       "bannerColour": "バナーの色",
       "setStatus": "カスタムステータスを設定",
-      "addBio": "自己紹介を追加"
+      "addBio": "自己紹介を追加",
+      "webhookAbout": "Webhookのメッセージは、別のサイトやプログラムがこのチャンネルに投稿したものです。アカウントはありません。"
     },
     "presence": {
       "online": "オンライン",

@@ -909,16 +909,25 @@ describe('MessageList reactions', () => {
       ...over,
     });
 
-    it('shows its name and picture with an APP tag, and no profile card', () => {
+    it('shows its name and picture with an APP tag; either opens its webhook card', () => {
       render(<MessageList {...baseProps({ messages: [hookMessage()] })} />);
       const author = screen.getByText('CI', { selector: '.message-author' });
       expect(author.nextElementSibling).toHaveTextContent('APP');
-      expect(author).not.toHaveAttribute('role');
+      expect(author).not.toHaveAttribute('data-user-id');
       fireEvent.click(author);
+      let card = screen.getByRole('dialog', { name: 'Profile of CI' });
+      expect(card).toHaveTextContent("There's no account behind it.");
+      expect(card.querySelector('img')).toHaveAttribute('src', 'https://ci.test/bot.png');
+      expect(card.querySelector('img')).toHaveAttribute('referrerpolicy', 'no-referrer');
+      expect(card.querySelector('[data-webhook-id="3"]')).not.toBeNull();
+      fireEvent.keyDown(window, { key: 'Escape' });
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       const avatar = document.querySelector('img.message-avatar');
       expect(avatar).toHaveAttribute('src', 'https://ci.test/bot.png');
       expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer');
+      fireEvent.click(avatar);
+      card = screen.getByRole('dialog', { name: 'Profile of CI' });
+      expect(card).toHaveTextContent('APP');
     });
 
     it("shows a reply to one with that message's own name and picture", () => {

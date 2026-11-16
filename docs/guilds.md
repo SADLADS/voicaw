@@ -824,7 +824,8 @@ like the rest of a guild.
   `avatar_url`), plus `embeds` and `attachments` (JSON, Discord's shapes), `flags` and
   `edited_at`. Old pictures are never deleted, so old messages keep theirs. A reply to one gets
   that message's name and picture (`parent_username`, `parent_webhook_id`,
-  `parent_webhook_avatar`), which its reply snippet shows. Anyone can block a
+  `parent_webhook_avatar`), which its reply snippet shows. A message's name or picture opens
+  the webhook's card (`WebhookCard`, see Profiles in `docs/client.md`). Anyone can block a
   webhook for themselves (its messages collapsed, no pushes; see Blocking webhooks in
   `docs/client.md`).
 - **With the token** (no login): `POST` executes (JSON, a form, or multipart with

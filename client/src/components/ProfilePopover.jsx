@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from 
 import { createPortal } from 'react-dom';
 import ProfileCard from './ProfileCard';
 import MemberCard from './guild/MemberCard';
+import WebhookCard from './WebhookCard';
 import { GuildMembersContext } from '../contexts';
 import { t } from '../i18n';
 
@@ -12,11 +13,12 @@ const MARGIN = 8;
 // (GuildMembersContext) a member gets the member list's MemberCard (roles, level, Apps);
 // elsewhere, or someone who left, the ProfileCard. `anchor` is the clicked element's rect. What
 // can be done to them (Message, friends, Block, Report...) is in their right-click menu
-// (utils/personMenu.js); dialogs don't count as elsewhere.
-export default function ProfilePopover({ user, anchor, onClose }) {
+// (utils/personMenu.js); dialogs don't count as elsewhere. A webhook's message gives `webhook`
+// ({ id, name, avatar }) instead of `user`: its WebhookCard.
+export default function ProfilePopover({ user, webhook, anchor, onClose }) {
   const ref = useRef(null);
   const guildMembers = useContext(GuildMembersContext);
-  const member = guildMembers?.members.find((m) => String(m.id) === String(user.id)) ?? null;
+  const member = user ? guildMembers?.members.find((m) => String(m.id) === String(user.id)) ?? null : null;
   const [position, setPosition] = useState({ left: anchor.right + MARGIN, top: anchor.top, visibility: 'hidden' });
 
   // Beside what was clicked (below it if there's no room), within the window.
@@ -55,10 +57,10 @@ export default function ProfilePopover({ user, anchor, onClose }) {
   }, [onClose]);
 
   return createPortal(
-    <div className="profile-popover member-card" ref={ref} style={position} role="dialog" aria-label={t('app.profile.profileOf', { name: user.username })}>
-      {member
-        ? <MemberCard key={member.id} {...guildMembers} member={member} />
-        : <ProfileCard user={user} />}
+    <div className="profile-popover member-card" ref={ref} style={position} role="dialog" aria-label={t('app.profile.profileOf', { name: webhook ? webhook.name : user.username })}>
+      {webhook ? <WebhookCard webhook={webhook} />
+        : member ? <MemberCard key={member.id} {...guildMembers} member={member} />
+          : <ProfileCard user={user} />}
     </div>,
     document.body
   );

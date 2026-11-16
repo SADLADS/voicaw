@@ -462,16 +462,20 @@ const MessageRow = memo(function MessageRow({
   // A webhook's message (guilds): its own name and picture as sent, no person behind it.
   const webhook = Boolean(msg.webhook_id);
   const senderName = webhook ? msg.webhook_name : displayName(msg.sender_id, msg.sender_username);
-  // A name or avatar opens that person's profile card.
-  const profileProps = (id, username) => (onOpenProfile && !webhook ? {
-    'data-user-id': id,
+  // A name or avatar opens that person's profile card, or a webhook's its WebhookCard.
+  const opens = (person) => (onOpenProfile ? {
     role: 'button',
     tabIndex: 0,
-    onClick: (e) => { e.stopPropagation(); onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },
-    onKeyDown: (e) => { if (e.key === 'Enter') onOpenProfile({ id, username }, e.currentTarget.getBoundingClientRect()); },
+    onClick: (e) => { e.stopPropagation(); onOpenProfile(person, e.currentTarget.getBoundingClientRect()); },
+    onKeyDown: (e) => { if (e.key === 'Enter') onOpenProfile(person, e.currentTarget.getBoundingClientRect()); },
   } : {});
+  const profileProps = (id, username) => (onOpenProfile && !webhook ? { 'data-user-id': id, ...opens({ id, username }) } : {});
   // A webhook's name or picture: its right-click menu blocks it (PageMenus).
-  const webhookProps = webhook ? { 'data-webhook-id': msg.webhook_id, 'data-webhook-name': senderName } : {};
+  const webhookProps = webhook ? {
+    'data-webhook-id': msg.webhook_id,
+    'data-webhook-name': senderName,
+    ...opens({ webhook: { id: msg.webhook_id, name: senderName, avatar: msg.webhook_avatar } }),
+  } : {};
   // A bot's ephemeral reply (only you see it, until you reload): nothing to do to it but
   // dismiss it, so no menus, reactions or replies. A deferred reply shows "thinking…".
   const ephemeral = isEphemeral(msg);
@@ -1026,9 +1030,11 @@ export default function MessageList({
   // The profile card open from a name or avatar: { user, anchor (rect) }.
   const [profileFor, setProfileFor] = useState(null);
   const closeProfile = useCallback(() => setProfileFor(null), []);
-  // On a phone, straight to their full profile (no card: UserProfile).
+  // On a phone, straight to their full profile (no card: UserProfile). A webhook has no full
+  // profile: its card, on phones too ({ webhook }).
   const openProfile = useCallback((person, anchor) => {
-    if (isMobile) openUserProfile(person.id);
+    if (person.webhook) setProfileFor({ webhook: person.webhook, anchor });
+    else if (isMobile) openUserProfile(person.id);
     else setProfileFor({ user: person, anchor });
   }, [isMobile]);
 
@@ -1256,7 +1262,7 @@ export default function MessageList({
           </div>
         ))}
       </div>
-      {profileFor && <ProfilePopover user={profileFor.user} anchor={profileFor.anchor} onClose={closeProfile} />}
+      {profileFor && <ProfilePopover user={profileFor.user} webhook={profileFor.webhook} anchor={profileFor.anchor} onClose={closeProfile} />}
     </div>
   );
 }

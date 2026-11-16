@@ -5,6 +5,8 @@ import '../../assets/css/voice.css';
 import { useCall } from '../../hooks/useCall';
 import { useVoice } from '../../hooks/useVoice';
 import { useVolumeMenu } from '../../hooks/useVolumeMenu';
+import { useProfileCard } from '../../hooks/useProfileCard';
+import ProfilePopover from '../ProfilePopover';
 import { InteractionContext } from '../../contexts';
 import { hangUp } from '../../voice/callClient';
 import { watchStream } from '../../voice/voiceClient';
@@ -51,6 +53,7 @@ export default function CallPanel({ user, peer }) {
   const duration = useDuration(call?.state === 'active' ? call.answeredAt : null);
   const inThisCall = call != null && voice.callId === call.id && voice.status !== 'idle';
   const volumeMenu = useVolumeMenu(inThisCall);
+  const profileCard = useProfileCard(); // a picture opens that person's profile card
   useCameraFocusKeys(inThisCall);
   const peerLive = call != null && voice.callId === call.id && voice.status === 'connected'
     && String(call.peerId) === String(peer?.id) && voice.streams.includes(String(peer.id));
@@ -86,7 +89,7 @@ export default function CallPanel({ user, peer }) {
                 <CameraVideo userId={person.id} name={nameOf(person)} own={person.id === user.id} />
               </div>
             ) : (
-              <UserAvatar userId={person.id} className="call-panel-avatar" speaking={!muted && speaking.has(String(person.id))} />
+              <UserAvatar userId={person.id} className="call-panel-avatar" speaking={!muted && speaking.has(String(person.id))} {...profileCard.pictureProps(person)} />
             )}
             {live.has(String(person.id)) && <span className="voice-live-badge call-panel-live">{t('calls.stream.live')}</span>}
             {muted && <span className="call-panel-muted" title={t('calls.panel.muted')} aria-label={t('calls.panel.muted')}><MicIcon muted /></span>}
@@ -103,6 +106,7 @@ export default function CallPanel({ user, peer }) {
       {connected && voice.streamError && <p className="voice-view-note voice-view-error" role="alert">{voice.streamError}</p>}
       {connected && voice.cameraError && <p className="voice-view-note voice-view-error" role="alert">{voice.cameraError}</p>}
       {volumeMenu.menu && <UserVolumeMenu {...volumeMenu.menu} sheet={isMobile} onClose={volumeMenu.close} />}
+      {profileCard.card && <ProfilePopover user={profileCard.card.user} anchor={profileCard.card.anchor} onClose={profileCard.close} />}
       {call.outgoing || call.state !== 'ringing' ? (
         <div className="voice-view-controls">
           <VoiceControls className="voice-view-button" />

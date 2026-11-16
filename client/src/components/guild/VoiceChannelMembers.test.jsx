@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 vi.mock('../../voice/voiceClient', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -25,5 +25,13 @@ describe('VoiceChannelMembers', () => {
     const ears = screen.getAllByLabelText('This bot can hear the channel');
     expect(ears).toHaveLength(1);
     expect(ears[0].closest('li')).toHaveTextContent('Scribe');
+  });
+
+  it("opens someone's profile card from their picture", () => {
+    mergeProfiles([{ id: 1, username: 'alice', bio: 'Hi there' }]);
+    render(<VoiceChannelMembers speaking={new Set()} members={[{ user_id: 1, username: 'alice' }]} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Profile of alice' }));
+    expect(screen.getByRole('dialog', { name: 'Profile of alice' })).toHaveTextContent('Hi there');
   });
 });
