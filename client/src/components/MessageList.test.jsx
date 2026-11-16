@@ -921,6 +921,21 @@ describe('MessageList reactions', () => {
       expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer');
     });
 
+    it("shows a reply to one with that message's own name and picture", () => {
+      const reply = (id, name, avatar) => ({
+        id, sender_id: 2, sender_username: 'bob', plaintext: 're', timestamp: 1000 + id, reactions: [],
+        parent_message_id: 7, parent_plaintext: 'Build done', parent_sender_id: null, parent_username: name,
+        parent_webhook_id: 3, parent_webhook_avatar: avatar,
+      });
+      const { container } = render(<MessageList {...baseProps({ messages: [reply(20, 'Alpha', 'https://ci.test/a.png'), reply(21, 'Beta', null)] })} />);
+      const [a, b] = container.querySelectorAll('.reply-snippet');
+      expect(a.querySelector('img.reply-avatar')).toHaveAttribute('src', 'https://ci.test/a.png');
+      expect(a.querySelector('img.reply-avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
+      expect(a.querySelector('.reply-author')).toHaveTextContent('Alpha');
+      expect(b.querySelector('img.reply-avatar').getAttribute('src')).not.toContain('ci.test');
+      expect(b.querySelector('.reply-author')).toHaveTextContent('Beta');
+    });
+
     it('draws its embeds, with markdown, links that tell nobody where they came from, and no-referrer images', () => {
       const { container } = render(<MessageList {...baseProps({ messages: [hookMessage()] })} />);
       const embed = container.querySelector('.embed');

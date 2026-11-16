@@ -527,8 +527,12 @@ const MessageRow = memo(function MessageRow({
       plaintext: msg.parent_plaintext,
       sender_username: msg.parent_username,
       sender_id: msg.parent_sender_id,
+      // A webhook's message (no user): the name and picture that message was sent with.
+      webhook_id: msg.parent_webhook_id ?? null,
+      webhook_avatar: msg.parent_webhook_avatar ?? null,
     }
     : null;
+  const parentName = parent && (parent.webhook_id ? parent.sender_username : displayName(parent.sender_id, parent.sender_username));
 
   return (
     <div
@@ -543,8 +547,22 @@ const MessageRow = memo(function MessageRow({
       <InteractionHeader interaction={msg.interaction} />
       {parent && (
         <div className="reply-snippet">
-          <Avatar userId={parent.sender_id} alt={displayName(parent.sender_id, parent.sender_username)} className="reply-avatar" />
-          <span className="reply-author" style={{ color: nameColors?.[parent.sender_id] }}>{displayName(parent.sender_id, parent.sender_username)}</span>
+          {parent.webhook_id ? (
+            // As the message's own picture: maybe another site's, so no referrer.
+            <img
+              className="reply-avatar"
+              src={parent.webhook_avatar || defaultAvatar}
+              alt={parentName}
+              referrerPolicy="no-referrer"
+              draggable={false}
+              onError={(e) => { e.currentTarget.src = defaultAvatar; }}
+              data-webhook-id={parent.webhook_id}
+              data-webhook-name={parentName}
+            />
+          ) : (
+            <Avatar userId={parent.sender_id} alt={parentName} className="reply-avatar" />
+          )}
+          <span className="reply-author" style={{ color: parent.webhook_id ? undefined : nameColors?.[parent.sender_id] }}>{parentName}</span>
           <span
             className="reply-preview"
             onClick={() => onJumpToMessage?.(msg.parent_message_id)}
