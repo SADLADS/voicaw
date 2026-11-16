@@ -95,6 +95,7 @@ export function useUnsentMessages({ chatId, user, sendMessage, messages }) {
     timestamp,
     parent_message_id: replyTo?.id ?? null,
     parent_plaintext: replyTo?.plaintext ?? null,
+    parent_system: replyTo?.system ?? null,
     parent_sender_id: replyTo?.sender_id ?? null,
     parent_username: replyTo?.sender_username ?? null,
     reactions: [],

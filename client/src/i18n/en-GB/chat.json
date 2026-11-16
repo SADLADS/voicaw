@@ -377,7 +377,8 @@
       "draw": "It's a draw between <answers></answers>, {{share}}% each.",
       "separator": ", ",
       "lastSeparator": " and ",
-      "view": "View poll"
+      "view": "View poll",
+      "replyPreview": "Poll results"
     },
     "pinNotice": {
       "pinned": "<b>{{name}}</b> pinned <message>a message</message> to this chat.",

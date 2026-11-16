@@ -49,6 +49,7 @@ const MESSAGE_SELECT = `
     u.bot AS sender_bot,
     pm.content AS parent_content,
     pm.timestamp AS parent_timestamp,
+    pm.system AS parent_system,
     pu.id AS parent_sender_id,
     COALESCE(pu.username, pm.webhook_name) AS parent_username
   FROM guild_messages m

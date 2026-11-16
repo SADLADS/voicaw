@@ -330,3 +330,10 @@ export function pollEndFits(poll, sentAt, postedAt) {
   if (poll.endedAt) return true;
   return Boolean(poll.duration && sentAt && sentAt + poll.duration <= postedAt + 60);
 }
+
+// The poll a "poll ended" row (`system` 'poll_end') is about, if the row is shown: its poll
+// (`parent_plaintext`) can be read here and the row fits it (pollEndFits). Otherwise null.
+export function pollEndRowPoll(msg) {
+  const poll = parsePoll(msg?.parent_plaintext);
+  return poll && pollEndFits(poll, msg.parent_timestamp, msg.timestamp) ? poll : null;
+}

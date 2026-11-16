@@ -820,6 +820,13 @@ describe('group polls', () => {
     expect((await api.get(cal, `/group-dms/${groupId}/messages`)).body.some((m) => m.system)).toBe(false);
     // It can't be edited; deleting the poll takes it too.
     expect((await api.put(ann, `/group-dm-messages/${row.id}`, { content: poll.content })).status).toBe(403);
+    // It takes reactions and replies like a message; a reply says it answers a "poll ended" row.
+    expect((await api.post(dan, `/group-dm-messages/${row.id}/reactions`, { content: 'v2.' + 'A'.repeat(signedReactionLength() - 3) })).status).toBe(201);
+    const reply = await send(dan, groupId, 'Nice', { replyTo: row.id });
+    expect(reply.status).toBe(201);
+    const history = (await api.get(ann, `/group-dms/${groupId}/messages`)).body;
+    expect(history.find((m) => m.id === row.id).reactions.map((r) => r.user_id)).toEqual([dan.id]);
+    expect(history.find((m) => m.id === reply.body.id)).toMatchObject({ parent_message_id: row.id, parent_system: 'poll_end' });
     await api.delete(ann, `/group-dm-messages/${poll.id}`);
     expect(beaEvents.filter((e) => e.type === 'group_dm_message_delete').map((e) => e.messageId)).toEqual([poll.id, row.id]);
   });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  pollResult, pollEndFits, endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey,
+  pollResult, pollEndFits, pollEndRowPoll, endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey,
   answerKey, answerProblem, canRemoveAnswer, parseAnswer, pollWithAnswers, removalKey, MAX_POLL_OPTIONS,
 } from './pollMarkup';
 import { summarizeAttachments } from './attachmentMarkup';
@@ -140,6 +140,14 @@ describe('result', () => {
     expect(pollEndFits(poll(), 1000, 3000)).toBe(false); // still running
     expect(pollEndFits(endPoll(poll(), 2000), 1000, 2001)).toBe(true);
     expect(pollEndFits({ ...poll(), duration: null }, 1000, 1e9)).toBe(false);
+  });
+
+  it("gives a shown row's poll: readable, and fitting the row", () => {
+    const text = pollMarkup(poll());
+    expect(pollEndRowPoll({ parent_plaintext: text, parent_timestamp: 1000, timestamp: 4600 })).toMatchObject({ question: poll().question });
+    expect(pollEndRowPoll({ parent_plaintext: text, parent_timestamp: 1000, timestamp: 3000 })).toBeNull();
+    expect(pollEndRowPoll({ parent_plaintext: null, parent_timestamp: 1000, timestamp: 4600 })).toBeNull();
+    expect(pollEndRowPoll({ parent_plaintext: 'not a poll', parent_timestamp: 1000, timestamp: 4600 })).toBeNull();
   });
 });
 

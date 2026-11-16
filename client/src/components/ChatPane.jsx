@@ -199,7 +199,11 @@ export default function ChatPane({
     if (source) setForwarding(source);
   }, []);
   // A closed poll, a voice message and a forward can't be edited.
-  const editable = (msg) => !isClosedPoll(msg) && !isVoiceMessage(msg.plaintext) && !isForward(msg.plaintext);
+  const editable = (msg) => !msg.system && !isClosedPoll(msg) && !isVoiceMessage(msg.plaintext) && !isForward(msg.plaintext);
+  // The menus of a "poll ended" row (the only system row with any, MessageList's PollEndRow):
+  // reactions and Reply, nothing that changes or removes it.
+  const deletable = (msg) => !msg.system && (msg.sender_id === user.id || canModerate);
+  const pinnable = (msg) => canPin && !msg.system;
 
   // For jumping to a message, which waits for older pages: always the newest conversation.
   const latestConversation = useRef(conversation);
@@ -253,7 +257,7 @@ export default function ChatPane({
     }
   }
   // Only messages saved in the channel (not ephemeral, pending or failed ones).
-  const appsFor = (msg) => (commandChannelId != null && Number.isInteger(msg.id) && !msg.ephemeral && msg.id < 2 ** 52 ? messageApps : []);
+  const appsFor = (msg) => (commandChannelId != null && Number.isInteger(msg.id) && !msg.ephemeral && !msg.system && msg.id < 2 ** 52 ? messageApps : []);
 
   function openActions(msg) {
     if (commandChannelId != null) refreshCommands();
@@ -666,7 +670,7 @@ export default function ChatPane({
         <MessageActionSheet
           msg={actionsFor}
           isOwn={!readOnly && actionsFor.sender_id === user.id}
-          canDelete={actionsFor.sender_id === user.id || canModerate}
+          canDelete={deletable(actionsFor)}
           canReact={canAddReactions}
           myReactions={new Set((actionsFor.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => toggleReaction(actionsFor, emoji)}
@@ -675,7 +679,7 @@ export default function ChatPane({
           onReply={textOnly || readOnly ? undefined : () => handleReply(actionsFor)}
           onForward={forwardFor(actionsFor)}
           onEdit={editable(actionsFor) ? () => handleEdit(actionsFor) : undefined}
-          onTogglePin={canPin ? () => togglePin(actionsFor) : undefined}
+          onTogglePin={pinnable(actionsFor) ? () => togglePin(actionsFor) : undefined}
           onCreateThread={readOnly ? undefined : threadFrom(actionsFor)}
           onCopy={() => copyMessage(actionsFor)}
           onShowEdits={readOnly ? undefined : showEditsFor(actionsFor)}
@@ -693,7 +697,7 @@ export default function ChatPane({
           msg={menuMsg}
           anchor={menuFor.anchor}
           isOwn={!readOnly && menuMsg.sender_id === user.id}
-          canDelete={menuMsg.sender_id === user.id || canModerate}
+          canDelete={deletable(menuMsg)}
           canReact={canAddReactions}
           myReactions={new Set((menuMsg.reactions ?? []).filter((r) => r.user_id === user.id).map((r) => r.emoji))}
           onReact={(emoji) => toggleReaction(menuMsg, emoji)}
@@ -702,7 +706,7 @@ export default function ChatPane({
           onReply={textOnly || readOnly ? undefined : () => handleReply(menuMsg)}
           onForward={forwardFor(menuMsg)}
           onEdit={editable(menuMsg) ? () => handleEdit(menuMsg) : undefined}
-          onTogglePin={canPin ? () => togglePin(menuMsg) : undefined}
+          onTogglePin={pinnable(menuMsg) ? () => togglePin(menuMsg) : undefined}
           onCreateThread={readOnly ? undefined : threadFrom(menuMsg)}
           onCopy={() => copyText(menuMsg)}
           onShowEdits={readOnly ? undefined : showEditsFor(menuMsg)}
