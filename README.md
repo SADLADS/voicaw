@@ -124,11 +124,13 @@ handles TLS for all of them.
 ### 1. Requirements
 
 - Node 24 LTS and npm 11.
-- An S3-compatible object store (e.g. MinIO) for uploads, profile pictures, guild icons,
-  emoji and soundboard sounds. The server creates its buckets (`uploads`, `profile-pics`,
-  `guild-icons`, `emojis`, `sounds`) and
-  makes them public on start. Settings → Admin → Storage reads MinIO's metrics with the same
-  credentials (nothing to set up; other S3 stores just show it as unavailable).
+- An S3-compatible object store for uploads, profile pictures, guild icons, emoji and
+  soundboard sounds: [Garage](https://garagehq.deuxfleurs.fr) (section 4b; MinIO's free edition
+  is no longer maintained, archived in 2026). The server creates its buckets (`uploads`,
+  `profile-pics`, `guild-icons`, `emojis`, `sounds`) and, on a store with bucket policies, makes
+  them public on start; Garage has none, so 4b makes them public on the store itself.
+  Settings → Admin → Storage reads MinIO's metrics with the same credentials; with Garage (or any
+  other store) it shows the figures as unavailable.
 - nginx with TLS certificates (certbot), pm2, and rsync (`npm run build` publishes the web app
   with it).
 
@@ -224,6 +226,126 @@ VITE_WS_URL=wss://api.voicaw.com
 
 Both files are git-ignored, so a fresh clone has neither. The API address ends in `/` (paths
 are appended to it).
+
+### 4b. Object store (Garage)
+
+One Garage node on the same host, every port on localhost; nginx's media.voicaw.com (section 7)
+is the only way in. Garage has no bucket policies, so public reads go to its website endpoint
+(website access on for every bucket) and signed requests and writes to its S3 API; addresses
+stay `https://media.voicaw.com/<bucket>/<key>`, which messages hold (encrypted ones too, so
+they can never be rewritten).
+
+Install the binary (v2.5.0; Garage publishes no checksum file, this is the SHA-256 of the one
+in use) and a system user:
+
+```sh
+curl -fsSL https://garagehq.deuxfleurs.fr/_releases/v2.5.0/x86_64-unknown-linux-musl/garage -o /tmp/garage
+echo "2ff667286217cd73ebcb1c03af993822365000441dfe31a80cb64c5189a9dea8  /tmp/garage" | sha256sum -c -
+sudo install -m 755 /tmp/garage /usr/local/bin/garage
+sudo adduser --system --group --home /var/lib/garage --no-create-home garage
+sudo install -d -m 750 -o garage -g garage /var/lib/garage /var/lib/garage/meta /var/lib/garage/data
+sudo install -d -m 751 -o root -g garage /etc/garage
+```
+
+`/etc/garage/garage.toml` (`root:garage`, mode 640; the three secrets from
+`openssl rand -hex 32` / `openssl rand -base64 32`). `s3_region` matches `S3_REGION` in
+`server/.env`:
+
+```toml
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+metadata_auto_snapshot_interval = "6h"
+replication_factor = 1
+
+rpc_bind_addr = "127.0.0.1:3901"
+rpc_public_addr = "127.0.0.1:3901"
+rpc_secret = "<openssl rand -hex 32>"
+
+[s3_api]
+s3_region = "us-east-1"
+api_bind_addr = "127.0.0.1:3900"
+root_domain = ".s3.garage.internal"
+
+[s3_web]
+bind_addr = "127.0.0.1:3902"
+root_domain = ".web.garage.internal"
+index = "index.html"
+
+[admin]
+api_bind_addr = "127.0.0.1:3903"
+admin_token = "<openssl rand -base64 32>"
+metrics_token = "<openssl rand -base64 32>"
+```
+
+`/etc/systemd/system/garage.service`:
+
+```ini
+[Unit]
+Description=Garage object store (Voicaw)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=garage
+Group=garage
+Environment=GARAGE_CONFIG_FILE=/etc/garage/garage.toml
+ExecStart=/usr/local/bin/garage server
+Restart=always
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/garage
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then `sudo systemctl daemon-reload && sudo systemctl enable --now garage`, and set it up
+(`G` runs the CLI as Garage's user):
+
+```sh
+G="sudo -u garage env GARAGE_CONFIG_FILE=/etc/garage/garage.toml garage"
+$G layout assign -z dc1 -c 40G "$($G node id -q | cut -d@ -f1)"
+$G layout apply --version 1
+$G key create voicaw     # its Key ID and Secret key are S3_ROOT_USER / S3_ROOT_PASSWORD in server/.env
+for b in uploads profile-pics guild-icons emojis sounds; do
+  $G bucket create $b
+  $G bucket allow --read --write --owner $b --key voicaw
+  $G bucket website --allow $b
+done
+```
+
+Each bucket also needs CORS (the web, desktop and Android apps upload and read from their own
+origins, so any origin, as MinIO allowed by default) and a lifecycle rule dropping unfinished
+multipart uploads after a day (MinIO's `stale_uploads_expiry` did that). With the AWS CLI and
+the `voicaw` key:
+
+```sh
+export AWS_ACCESS_KEY_ID=<Key ID> AWS_SECRET_ACCESS_KEY=<Secret key> AWS_DEFAULT_REGION=us-east-1
+for b in uploads profile-pics guild-icons emojis sounds; do
+  aws --endpoint-url http://127.0.0.1:3900 s3api put-bucket-cors --bucket $b --cors-configuration \
+    '{"CORSRules":[{"AllowedOrigins":["*"],"AllowedMethods":["GET","HEAD","PUT"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag","Content-Length","Content-Range","Accept-Ranges","Content-Type"],"MaxAgeSeconds":3600}]}'
+  aws --endpoint-url http://127.0.0.1:3900 s3api put-bucket-lifecycle-configuration --bucket $b --lifecycle-configuration \
+    '{"Rules":[{"ID":"abort-stale-multipart","Status":"Enabled","Filter":{"Prefix":""},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":1}}]}'
+done
+```
+
+The nginx site is `server/nginx/media.voicaw.com` (section 7). `server/s3.js` turns off the AWS
+SDK's default request checksums (`requestChecksumCalculation: "WHEN_REQUIRED"`): since 2025 the
+SDK puts the empty body's CRC32 into pre-signed URLs, which Garage checks and refuses.
+
+**Moving from MinIO:** copy every bucket over the S3 API with rclone (it keeps each object's
+content type; MinIO keeps objects in its own on-disk format, so its folder can't just be copied). It only adds and updates, so
+run it once while the old store is live and again at the switch for what's new:
+
+```sh
+# remotes `src` (provider Minio, the old store) and `dst` (provider Other, endpoint
+# http://127.0.0.1:3900, region us-east-1, force_path_style true), e.g. as RCLONE_CONFIG_* env vars
+for b in profile-pics guild-icons emojis sounds uploads; do rclone copy -M "src:$b" "dst:$b"; done
+```
 
 ### 5. Voice (LiveKit)
 
@@ -352,7 +474,7 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 | `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M`; `/invite/<code>` sent to `/api/invite-embed/<code>` for link previewers (a `map` on the user agent: Discord, Slack... get the guild's Open Graph tags) (config: `website/nginx/app.voicaw.com`) |
 | `voicaw.com` | the info and download site, `root /opt/voicaw-site`, its `/api/` like the app's, anything else redirected to app.voicaw.com (section 10; config: `website/nginx/voicaw.com`) |
 | `api.voicaw.com` | `http://localhost:3002` (REST, the app's websocket and the bot gateway at `/api/gateway`: pass `Upgrade`/`Connection` on every path), `client_max_body_size 26M` |
-| `media.voicaw.com` | the object store, `client_max_body_size 100M` (each request; bigger attachments come in parts, and MinIO's default `stale_uploads_expiry` of a day clears abandoned ones) |
+| `media.voicaw.com` | the object store (Garage, section 4b): anonymous GET/HEAD to its website endpoint `127.0.0.1:3902` with `Host: <bucket>.web.garage.internal`, anything signed or writing to its S3 API `127.0.0.1:3900` with the Host as sent (signatures cover it); `client_max_body_size 100M` (each request; bigger attachments come in parts, and the buckets' lifecycle rule clears abandoned ones after a day) (config: `server/nginx/media.voicaw.com`) |
 | `rtc.voicaw.com` | LiveKit signalling, `http://127.0.0.1:7880` |
 
 The API's `client_max_body_size 26M` is for webhooks and bots (Discord's API): a post can carry up
@@ -432,7 +554,7 @@ networks) get through TURN over TLS on 443 (section 7), which needs nothing more
 
 The desktop app (`electron/`) ships its own copy of the client and talks to the same API
 (`voicaw://app` is already an allowed origin in `server/config.js`; the object store must allow
-it too, which MinIO does by default). `npm run dist:electron` builds the installers for the
+it too, which section 4b's CORS rule does). `npm run dist:electron` builds the installers for the
 system it runs on; on Linux, the Windows one is built in Docker (electron-builder's image, with
 wine); macOS ones need a Mac:
 
@@ -570,7 +692,7 @@ with an `nsis.include` that does `!define VOICAW_SKIP_APP_CHECK` and then includ
 
 The Android app (`mobile/`, Capacitor) ships its own copy of the client like the desktop app
 (`https://localhost` is already an allowed origin in `server/config.js`; the object store must
-allow it too, which MinIO does by default). It builds in Docker, so the host needs nothing else:
+allow it too, which section 4b's CORS rule does). It builds in Docker, so the host needs nothing else:
 
 ```bash
 npm run dist:android   # dist-android/voicaw-debug.apk (debug key, mobile/package.json's version)

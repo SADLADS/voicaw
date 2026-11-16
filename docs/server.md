@@ -16,7 +16,10 @@ unexpected errors. The rest:
   status), `isViewingConversation`, and
   `attachWebSocketServer` (the ws server).
 - `push.js`: web push sending and the DM push payload.
-- `s3.js`: pre-signed upload URLs. Bucket setup at startup logs and carries on if the store is down.
+- `s3.js`: pre-signed upload URLs. Bucket setup at startup (`bucketSetup.js`: each bucket on its
+  own, public through a bucket policy where the store has them; Garage doesn't, see Object store
+  in `README.md`) logs and carries on if the store is down. The SDK's default request checksums
+  are off (`WHEN_REQUIRED`): Garage refuses the empty-body CRC32 they put in pre-signed URLs.
 - `uploads.js`: which uploads exist and what links to them, and deleting the ones nothing uses
   (see Deleting files in `docs/uploads.md`); `uploadKeys.js` finds upload names in text.
 - `guilds.js`: shared guild helpers (membership checks, `getGuildLayout`, `sendToGuild`).
@@ -126,4 +129,5 @@ e2e harness only, never on a real server. For servers people pick on the login s
 servers in `docs/client.md`): `ALLOWED_ORIGINS` (more web origins for CORS),
 `PUBLIC_WEBSOCKET_URL`, `TERMS_URL` and `PRIVACY_URL` (all in `/api/config`). `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
-object store (e.g. MinIO) used for uploads and profile pics.
+object store (Garage, README section 4b; `S3_ROOT_USER`/`S3_ROOT_PASSWORD` are its `voicaw`
+key) used for uploads and profile pics.

@@ -3,13 +3,18 @@
 ## File uploads (S3-compatible object store)
 
 `server/s3.js` wraps `@aws-sdk/client-s3` against `S3_ENDPOINT` (`forcePathStyle: true`, so this
-targets a self-hosted/MinIO-style endpoint, not raw AWS). It auto-creates and makes public four
-buckets on startup: `uploads`, `profile-pics`, `guild-icons`, `emojis`. Uploads are client-direct: the server only
+targets a self-hosted endpoint, not raw AWS: Garage since 2026-11-16, MinIO before; README
+section 4b). It auto-creates five buckets on startup (`bucketSetup.js`): `uploads`,
+`profile-pics`, `guild-icons`, `emojis`, `sounds`, made public by a bucket policy where the store
+has them; Garage has none, so its buckets have website access on and media.voicaw.com's nginx
+sends anonymous reads there (`server/nginx/media.voicaw.com`), keeping every address
+`<S3_ENDPOINT>/<bucket>/<key>`. Uploads are client-direct: the server only
 issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, and profile pictures' and
 emoji originals, see Profiles and Guilds); the
 client uploads the file straight to S3, bypassing the app server. Both routes require a `size` query
 param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
-the object store rejects a body of any other length or type (verified against the live MinIO).
+the object store rejects a body of any other length or type (verified against the live MinIO,
+and against Garage on 2026-11-16, which answers an expired URL with 400 "Date is too old").
 Limits: attachments up to Settings → Admin's File size limit (`appSettings.js` `uploadLimit`:
 500, 250, 100, 50 or 25 MB, 500 by default; `/api/config` tells clients as `maxUploadBytes`), one
 request at most 100MB (nginx's cap on media.voicaw.com, so a bigger file comes in parts, see Big
@@ -35,9 +40,10 @@ memory, sending or saving, since a phone would run out:
   CORS needn't expose); `DELETE` abandons it. The client sends three parts at a time and tries
   a failed part twice more before abandoning the upload (no resuming after a reload: the user
   chose that, as a browser can't reopen the file without it being picked again). Unfinished
-  uploads are kept in the server's memory (a restart fails those going on) and dropped by MinIO
-  after a day (its default `stale_uploads_expiry`). Checked against a real MinIO: a part of the
-  wrong length gets 403. A 300 MB send holds about 75 MB in the page (the parts in flight).
+  uploads are kept in the server's memory (a restart fails those going on) and dropped by the
+  store after a day (Garage: each bucket's `AbortIncompleteMultipartUpload` lifecycle rule;
+  MinIO: its default `stale_uploads_expiry`). Checked against a real MinIO and Garage: a part of
+  the wrong length gets 403. A 300 MB send holds about 75 MB in the page (the parts in flight).
 - **Saving** (`services/attachmentSave.js`): a `v2` file from 32 MB is decrypted a chunk at a
   time as it downloads (`chunkedAttachment.js` `decryptingStream`) and written as it comes:
   in the Android app into Downloads (`utils/android.js` `saveToDownloads` takes a stream), in

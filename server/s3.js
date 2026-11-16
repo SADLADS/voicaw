@@ -1,50 +1,26 @@
 const {
-    S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBucketCommand,
-    HeadBucketCommand, PutBucketPolicyCommand, CreateMultipartUploadCommand, UploadPartCommand, ListPartsCommand,
+    S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command,
+    CreateMultipartUploadCommand, UploadPartCommand, ListPartsCommand,
     CompleteMultipartUploadCommand, AbortMultipartUploadCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { setUpBuckets } = require("./bucketSetup");
 
 const s3 = new S3Client({
     region: process.env.S3_REGION || "us-east-1",
     endpoint: process.env.S3_ENDPOINT,
     forcePathStyle: true,
+    // Since 2025 the SDK adds a CRC32 checksum to every request by default, pre-signed URLs
+    // included, where it's the empty body's (the client's file isn't known when signing).
+    // MinIO ignores it; Garage checks it and refuses the upload. Only send one when the
+    // operation needs it.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
     credentials: {
         accessKeyId: process.env.S3_ROOT_USER,
         secretAccessKey: process.env.S3_ROOT_PASSWORD,
     },
 });
-
-async function ensureBucketExists(bucketName) {
-    try {
-        await s3.send(new HeadBucketCommand({ Bucket: bucketName }));
-    } catch (err) {
-        if (err.name === "NotFound" || err.name === "NoSuchBucket") {
-            await s3.send(new CreateBucketCommand({ Bucket: bucketName }));
-        } else {
-            throw err;
-        }
-    }
-}
-
-async function makeBucketPublic(bucketName) {
-    const policy = {
-        Version: "2012-10-17",
-        Statement: [
-            {
-                Effect: "Allow",
-                Principal: "*",
-                Action: ["s3:GetObject"],
-                Resource: [`arn:aws:s3:::${bucketName}/*`]
-            }
-        ]
-    };
-
-    await s3.send(new PutBucketPolicyCommand({
-        Bucket: bucketName,
-        Policy: JSON.stringify(policy),
-    }));
-}
 
 
 // `contentLength` is signed into the URL: the object store rejects an upload whose
@@ -109,7 +85,7 @@ async function completeMultipartUpload(bucket, key, uploadId, parts) {
 }
 
 // Failures are logged, not thrown: the store drops unfinished uploads on its own after a day
-// (MinIO's stale_uploads_expiry).
+// (MinIO's stale_uploads_expiry; on Garage, the buckets' lifecycle rule, README "Object store").
 async function abortMultipartUpload(bucket, key, uploadId) {
     try {
         await s3.send(new AbortMultipartUploadCommand({ Bucket: bucket, Key: key, UploadId: uploadId }));
@@ -118,17 +94,9 @@ async function abortMultipartUpload(bucket, key, uploadId) {
     }
 }
 
-// The buckets exist and are publicly readable (attachments are encrypted; profile pictures
-// and guild icons are public on purpose). If the object store is unreachable, log it rather than crash the
-// server: messaging works without it, and the next start tries again.
-async function setUpBuckets() {
-    for (const bucket of ["uploads", "profile-pics", "guild-icons", "emojis", "sounds"]) {
-        await ensureBucketExists(bucket);
-        await makeBucketPublic(bucket);
-    }
-}
-
-setUpBuckets().catch((err) => console.error("Failed to set up S3 buckets:", err.code || err.name, err.message));
+// The buckets exist and are publicly readable (bucketSetup.js). If the object store is
+// unreachable, that's logged rather than crashing the server.
+setUpBuckets(s3).catch((err) => console.error("Failed to set up S3 buckets:", err.code || err.name, err.message));
 
 // Removes an object (e.g. a deleted custom emoji's image). Failures are logged, not thrown:
 // the row is already gone, and a leftover file only takes space. Returns whether it worked
