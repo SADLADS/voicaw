@@ -20,7 +20,11 @@ see `docs/desktop-and-site.md`.
 Each feature is worked on in its own chat, on its own branch, in its own worktree. The rules:
 
 - **`master` is the deploy branch, deployed by hand** (it replaced `dev` on 2026-10-19; `dev`
-  is no longer used). The live API (pm2 `voicaw-api`, :3002, with
+  is no longer used). **Since 2026-11-16 everything live runs on a DigitalOcean Droplet**
+  (`ssh voicaw-do`, 167.99.202.4, Debian 13, user `otto`; planned as a stay of about a month): the
+  API, LiveKit, Garage (the object store, README 4b), nginx and the static sites, with the same
+  paths as below. The old host's `voicaw-api`, `voicaw-livekit` and MinIO are stopped or idle
+  there; don't start them (their database is out of date). The live API (pm2 `voicaw-api`, :3002, with
   the real database) runs from `/home/otto/git/voicaw`, checked out on `master`. Nothing deploys a
   push any more: the GitHub webhook and the test.voicaw.com dev server (pm2 `voicaw-test`) were
   removed on 2026-10-02. After a merge, the API is updated with `git pull` there (`npm install`
