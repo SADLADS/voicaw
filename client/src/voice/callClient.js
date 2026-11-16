@@ -30,6 +30,7 @@ import { startLoop, stopLoop } from '../sounds/sounds';
 import { isAndroidApp } from '../utils/android';
 import { getPushStatus } from '../services/pushService';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // DM and group DM voice calls: ringing, being rung, answering or joining, declining and
 // hanging up (server/calls.js). The audio is voiceClient.js's (joinCall), end-to-end encrypted
@@ -112,7 +113,9 @@ async function findUser(userId) {
   return user;
 }
 
-const errorText = (err, fallback) => err?.response?.data?.error ?? err?.message ?? fallback;
+// Why a call failed: this device's own reasons (a changed key) are already in words; the
+// fallback (`calls.errors.*`) only stands in for a refusal the server gave no reason for.
+const callError = (err, fallbackKey) => errorText(err, err?.response ? t(fallbackKey) : undefined);
 
 // A server timestamp in this device's time (its clock can be off from the server's by minutes).
 function localTime(serverTime, call) {
@@ -322,7 +325,7 @@ export async function startCall(peer) {
     console.warn('Could not start the call', err);
     clear();
     hangUpRequest(id).catch(() => {});
-    setVoiceError(errorText(err, t('calls.errors.start')));
+    setVoiceError(callError(err, 'calls.errors.start'));
   }
 }
 
@@ -351,7 +354,7 @@ async function joinGroupCall(call) {
     if (snapshot.call?.id !== call.id) return;
     console.warn('Could not join the call', err);
     clear();
-    setVoiceError(errorText(err, t('calls.errors.join')));
+    setVoiceError(callError(err, 'calls.errors.join'));
   }
 }
 
@@ -394,7 +397,7 @@ export async function startGroupCall(groupId) {
     console.warn('Could not start the call', err);
     clear();
     hangUpRequest(id).catch(() => {});
-    setVoiceError(errorText(err, t('calls.errors.start')));
+    setVoiceError(callError(err, 'calls.errors.start'));
   }
 }
 
@@ -433,7 +436,7 @@ export async function acceptCall() {
     // Hanging up only if this device answered: the server may have refused because another of
     // this person's devices did, and that call must go on.
     (accepted ? hangUpRequest(offer.id) : declineCallRequest(offer.id)).catch(() => {});
-    setVoiceError(errorText(err, t('calls.errors.answer')));
+    setVoiceError(callError(err, 'calls.errors.answer'));
   }
 }
 

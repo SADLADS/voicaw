@@ -3,6 +3,7 @@ import { loadOwnPublicKeys } from '../services/keyStore';
 import { setContactVerified } from '../services/contactKeys';
 import { computeSafetyNumber } from '../services/safetyNumber';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Compare this number with the other person (in person or on a call). If it matches, nobody
 // has swapped either of your keys, and the contact can be marked verified.
@@ -21,7 +22,7 @@ export default function SafetyNumberDialog({ me, contact, verified, onChange, on
         { id: contact.id, identityKey: contact.identity_key }
       );
       if (!cancelled) setNumber(value);
-    })().catch((err) => !cancelled && setError(err.message));
+    })().catch((err) => !cancelled && setError(errorText(err)));
     return () => { cancelled = true; };
   }, [me.id, contact.id, contact.identity_key]);
 

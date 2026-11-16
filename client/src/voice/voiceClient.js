@@ -20,6 +20,7 @@ import {
   joinRefused, REJOIN_FOR_MS, rejoinDelay, shouldRejoin, STALE_AFTER_HIDDEN_MS, TAKE_OVER_AFTER_MS,
 } from './rejoin';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 import { desktop } from '../utils/desktop';
 import { captureStreamSound } from './deviceStreamSound';
 import { keepScreenOn } from '../utils/keepScreenOn';
@@ -435,10 +436,6 @@ function updateStreams() {
   syncSubscriptions();
 }
 
-function errorMessage(err, fallback) {
-  return err?.response?.data?.error ?? fallback;
-}
-
 function micErrorMessage(err) {
   if (err?.name === 'NotAllowedError') return t('voice.errors.micBlocked');
   if (err?.name === 'NotFoundError') return t('voice.errors.noMic');
@@ -848,7 +845,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     attempt++;
     await teardown();
     if (rejoining) return { error: err };
-    update({ ...NOT_IN_VOICE, error: errorMessage(err, err?.message === t('voice.errors.noEncryptedCalls') ? err.message : t('voice.errors.connect')) });
+    update({ ...NOT_IN_VOICE, error: errorText(err, err?.message === t('voice.errors.noEncryptedCalls') ? err.message : t('voice.errors.connect')) });
     return false;
   }
 }
@@ -994,7 +991,7 @@ async function tryRejoin() {
     return;
   }
   if (result?.error && joinRefused(result.error)) {
-    giveUpRejoin(errorMessage(result.error, t('voice.errors.lost')));
+    giveUpRejoin(errorText(result.error, t('voice.errors.lost')));
     return;
   }
   update({ ...NOT_IN_VOICE, guildId, channelId, status: 'reconnecting' });

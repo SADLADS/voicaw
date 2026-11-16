@@ -3,6 +3,7 @@ import '../assets/css/recovery.css';
 import { triggerDownload } from '../utils/saveFile';
 import { Trans } from 'react-i18next';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Shows a new recovery code once, with copy / save buttons, and only lets the user go on
 // once they say they've kept it. `onDone` may be async (e.g. storing the code); if it fails,
@@ -19,7 +20,7 @@ export default function RecoveryCodeDisplay({ code, username, onDone, onSkip, in
     try {
       await onDone();
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
       setBusy(false);
     }
   };

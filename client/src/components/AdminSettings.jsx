@@ -3,6 +3,7 @@ import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { Trans } from 'react-i18next';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 import { onSignupRequests, onTesterRequests } from '../utils/ws-client';
 import { shareOrigin } from '../utils/guildDisplay';
 import { formatDateTime } from '../utils/dateFormat';
@@ -16,10 +17,6 @@ const SOURCE_LABELS = {
   unset: 'settings.admin.source.unset',
   default: 'settings.admin.source.default',
 };
-
-function errorText(err, fallback) {
-  return err.response?.data?.error || fallback;
-}
 
 // App invites (server/signups.js): how long one lasts and how many sign-ups it lets in.
 const EXPIRY_OPTIONS = [

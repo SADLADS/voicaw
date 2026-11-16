@@ -24,11 +24,11 @@ import {
   fetchUserProfile, pictureFileError, removeBanner, removeProfilePicture, updateProfile, uploadBanner, uploadProfilePicture,
 } from '../services/profileService';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const BANNER_ASPECT = 2.5; // 5:2, server/avatarImage.js processBanner
 // What the colour picker starts at before a colour is chosen (the app's accent).
 const DEFAULT_PICKER_COLOUR = 0x6a52c9;
-const errorText = (err) => err?.response?.data?.error || err?.message || t('settings.savingFailed');
 
 // How long, in words: "45 min", "3 h 20 min".
 function playTime(seconds) {

@@ -12,6 +12,7 @@ import SearchDatePicker from './SearchDatePicker';
 import { displayName, nameOf, useProfiles } from '../utils/profiles';
 import { formatDate, formatDateTime, parseDate, useDateFormat } from '../utils/dateFormat';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const MARGIN = 8;
 
@@ -108,8 +109,6 @@ export default function MessageSearch({
     setError(null);
     setMobileOpen(false);
   }, [scopeId]);
-
-  const errorText = (err, fallback) => err.response?.data?.error || fallback;
 
   // Runs `search` (first page), and again whenever it changes.
   useEffect(() => {

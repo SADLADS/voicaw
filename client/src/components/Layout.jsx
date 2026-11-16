@@ -51,6 +51,7 @@ import { setPersonMessenger } from '../utils/personMenu';
 import { startBotDm } from '../services/botDmService';
 import { forgetChat, rememberChat } from '../utils/lastChat';
 import { clampSidebarWidth, loadSidebarWidth, onSidebarWidthStorage, saveSidebarWidth } from '../utils/sidebarWidth';
+import ConnectionStrip from './ConnectionStrip';
 
 // The router's path as the address bar has it now (hash URLs for a page opened from a file,
 // see App.jsx), which can be ahead of the rendered `location`.
@@ -67,6 +68,9 @@ export default function Layout({ user, onLogout }) {
   
   const [users, setUsers] = useState([]);
   const [errorUsers, setErrorUsers] = useState(null);
+  // Bumped by the DM list's Try again.
+  const [usersAttempt, setUsersAttempt] = useState(0);
+  const retryUsers = useCallback(() => setUsersAttempt((n) => n + 1), []);
   
   // Check if we are on the DM page
   const isDmPage = location.pathname.startsWith('/dm');
@@ -255,12 +259,12 @@ export default function Layout({ user, onLogout }) {
             navigate(data[0]?.last_timestamp != null ? `/dm/${data[0].id}` : '/dm/friends', { replace: true });
           }
         } catch (e) {
-          setErrorUsers(e.message);
+          setErrorUsers(e);
         }
       }
       fetchUsers();
     }
-  }, [isDmPage, navigate, location.pathname]);
+  }, [isDmPage, navigate, location.pathname, usersAttempt]);
 
 
   async function fetchUnreadMessages() {
@@ -351,8 +355,9 @@ export default function Layout({ user, onLogout }) {
 
   return (
     <LayoutContext.Provider value={{
-      user, fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, guildList, groupList, botDmList, conversationSettings,
+      user, fetchUnreadMessages, hasUnreadDms, unreadDms, users, errorUsers, retryUsers, guildList, groupList, botDmList, conversationSettings,
       settingsNavSlot: settingsColumn ? settingsNavSlot : null,
+      onLogout,
     }}>
     <CustomEmojiContext.Provider value={customEmoji}>
     <ChannelMentionContext.Provider value={channelMentions}>
@@ -415,7 +420,10 @@ export default function Layout({ user, onLogout }) {
 
         {/* The main page content */}
         <div ref={contentPaneRef} className='main-content-wrapper'>
-          <Outlet />
+          <ConnectionStrip />
+          <div className="main-content-page">
+            <Outlet />
+          </div>
         </div>
       </div>
     </ChannelMentionContext.Provider>

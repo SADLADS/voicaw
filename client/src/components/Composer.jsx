@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Trans } from 'react-i18next';
 import { Icon } from './Icon';
-import { faCheck, faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPaperPlane, faPlus, faShare, faSquarePollHorizontal, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faClock, faComments, faFaceSmile, faKeyboard, faMicrophone, faPaperPlane, faPlus, faShare, faSquarePollHorizontal, faUpload, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import AttachPanel from './AttachPanel';
 import EmojiPicker from './EmojiPicker';
 import EditorSuggestions from './EditorSuggestions';
@@ -35,6 +35,7 @@ import { displayName, nameOf, useProfiles } from '../utils/profiles';
 import { noteTyping, typingDone } from '../services/typingService';
 import { getDraft, saveDraft } from '../services/draftStore';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // "/", "/we": a bot command being picked (the whole message so far).
 const COMMAND_QUERY = /^\/([^\s/]{0,32})$/;
@@ -324,7 +325,7 @@ export default function Composer({
         } : undefined,
       });
     } catch (err) {
-      setError(t('chat.composer.sendFailed', { error: err.message }));
+      setError(t('chat.composer.sendFailed', { error: errorText(err) }));
     }
   }
 
@@ -335,7 +336,7 @@ export default function Composer({
     try {
       await onSend({ text: forwardText, replyTo: null });
     } catch (err) {
-      setError(t('chat.composer.sendFailed', { error: err.message }));
+      setError(t('chat.composer.sendFailed', { error: errorText(err) }));
     }
   }
 
@@ -350,7 +351,7 @@ export default function Composer({
       await onSaveEdit(text);
     } catch (err) {
       console.error('Failed to edit message', err);
-      setError(t('chat.composer.editFailed', { error: err.message }));
+      setError(t('chat.composer.editFailed', { error: errorText(err) }));
     }
   }
 
@@ -382,7 +383,7 @@ export default function Composer({
     try {
       await onSend({ text: gifMarkup(gif), replyTo });
     } catch (err) {
-      setError(t('chat.composer.gifFailed', { error: err.message }));
+      setError(t('chat.composer.gifFailed', { error: errorText(err) }));
     }
   }
 
@@ -412,7 +413,7 @@ export default function Composer({
         },
       });
     } catch (err) {
-      setError(t('chat.composer.sendFailed', { error: err.message }));
+      setError(t('chat.composer.sendFailed', { error: errorText(err) }));
     }
   }
 
@@ -568,7 +569,7 @@ export default function Composer({
 
         {error && (
           <div className="composer-error" role="alert">
-            <span>{error}</span>
+            <span className="composer-error-text"><Icon icon={faTriangleExclamation} />{error}</span>
             <button className="reply-close" onClick={() => setError(null)} type="button">
               ×
             </button>

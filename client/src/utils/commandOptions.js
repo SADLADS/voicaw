@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { errorText } from './errors';
 
 // Bots' slash commands in the message box (CommandSuggestions, CommandComposer; server/commands.js
 // for their shape). A command with subcommands is picked as one of them ("/name group sub"),
@@ -143,5 +144,5 @@ export function channelsFor(option, channels) {
 // The message an interaction failed with: the bot not answering in time gets its own words.
 export function interactionError(err) {
   if (err?.response?.status === 504) return t('commands.errors.noResponse');
-  return err?.response?.data?.error || err?.message || t('commands.errors.failed');
+  return errorText(err);
 }

@@ -17,6 +17,7 @@ import { DEFAULT_MAX_UPLOAD_BYTES, maxAttachmentBytes } from '../services/attach
 import { clearShare, fetchRecentChats, getShare, onShareChange, shareText, uploadSharedFiles } from '../services/shareService';
 import { sendToChat } from '../services/chatSend';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Whatever another app shared to the Android app, while one waits (services/shareService.js).
 export function ShareHost({ user }) {
@@ -83,7 +84,7 @@ export default function ShareDialog({ user, share, onClose }) {
           : '';
       } catch (err) {
         setStatus(null);
-        setErrors([err.tooBig ? tooBigMessage(err.tooBig, limit) : err.message]);
+        setErrors([err.tooBig ? tooBigMessage(err.tooBig, limit) : errorText(err)]);
         return;
       }
     }
@@ -224,7 +225,3 @@ function tooBigMessage(names, limit) {
   return t('media.drafts.tooBig', { count: names.length, names: names.join(', '), limit: formatBytes(limit) });
 }
 
-// The server's reason when it gave one (blocked, no permission...), else what went wrong here.
-function errorText(err) {
-  return err?.response?.data?.error || err?.message || String(err);
-}

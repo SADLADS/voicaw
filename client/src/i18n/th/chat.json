@@ -11,7 +11,6 @@
     "pane": {
       "cantSend": "คุณไม่มีสิทธิ์ส่งข้อความที่นี่",
       "empty": "ยังไม่มีข้อความ เริ่มบทสนทนาเลย!",
-      "error": "ข้อผิดพลาด: {{error}}",
       "copyFailed": "ไม่สามารถคัดลอกข้อความได้",
       "pollClosedEdit": "โพลนี้ปิดแล้ว จึงแก้ไขไม่ได้",
       "pollTooLong": "โพลยาวเกินไป",
@@ -37,12 +36,12 @@
     },
     "composer": {
       "tooLongWithLinks_other": "ข้อความยาวเกิน {{count}} ตัวอักษรเมื่อเพิ่มลิงก์ไฟล์แนบ",
-      "sendFailed": "ส่งข้อความไม่สำเร็จ: {{error}}",
-      "gifFailed": "ส่ง GIF ไม่สำเร็จ: {{error}}",
+      "sendFailed": "ส่งข้อความไม่สำเร็จ {{error}}",
+      "gifFailed": "ส่ง GIF ไม่สำเร็จ {{error}}",
       "replyingTo": "กำลังตอบกลับ <b>{{name}}</b>",
       "editingMessage": "กำลังแก้ไขข้อความ",
       "stopEditing": "หยุดแก้ไข",
-      "editFailed": "บันทึกข้อความไม่สำเร็จ: {{error}}",
+      "editFailed": "บันทึกข้อความไม่สำเร็จ {{error}}",
       "uploadFile": "อัปโหลดไฟล์",
       "createPoll": "สร้างโพล",
       "createThread": "สร้างเธรด",
@@ -74,7 +73,6 @@
       "readFailed": "ไม่สามารถเพิ่ม {{name}} ได้"
     },
     "dm": {
-      "loadUsersError": "เกิดข้อผิดพลาดในการโหลดผู้ใช้: {{error}}",
       "noConversations": "ไม่พบบทสนทนาล่าสุด",
       "call": "โทรหา {{name}}",
       "alreadyInCall": "คุณอยู่ในสายแล้ว",
@@ -167,7 +165,7 @@
       "tabLabel_other": "{{emoji}}: {{count}} รีแอคชัน",
       "reactedWith": "รีแอคชันด้วย {{emoji}}",
       "remove": "ลบรีแอคชันของคุณ",
-      "updateFailed": "ไม่สามารถอัปเดตรีแอคชันได้ ลองอีกครั้ง"
+      "updateFailed": "ไม่สามารถอัปเดตรีแอคชันได้"
     },
     "noKeys": "อุปกรณ์นี้ไม่มีคีย์เข้ารหัส ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง",
     "messageMenu": {
@@ -278,14 +276,14 @@
       "removeVote": "ลบโหวต",
       "backToVote": "กลับไปโหวต",
       "vote": "โหวต",
-      "voteFailed": "ไม่สามารถบันทึกโหวตของคุณได้ ลองอีกครั้ง",
+      "voteFailed": "ไม่สามารถบันทึกโหวตของคุณได้",
       "openHint": "ทุกคนเพิ่มคำตอบได้",
       "addedBy": "เพิ่มโดย {{name}}",
       "addedByYou": "เพิ่มโดยคุณ",
       "addAnswer": "เพิ่ม",
       "addAnswerLabel": "เพิ่มคำตอบ",
       "addAnswerPlaceholder": "เพิ่มคำตอบ…",
-      "addAnswerFailed": "ไม่สามารถเพิ่มคำตอบของคุณได้ ลองอีกครั้ง",
+      "addAnswerFailed": "ไม่สามารถเพิ่มคำตอบของคุณได้",
       "answerEmpty": "พิมพ์คำตอบก่อน",
       "answerTooLong": "คำตอบยาวได้ไม่เกิน {{count}} ตัวอักษร",
       "answerDuplicate": "คำตอบนั้นมีอยู่ในโพลแล้ว",
@@ -293,7 +291,7 @@
       "removeAnswer": "ลบคำตอบ",
       "removeAnswerOf": "ลบคำตอบ {{answer}}",
       "removeAnswerConfirm": "ลบ \"{{answer}}\" ออกจากโพลใช่ไหม",
-      "removeAnswerFailed": "ไม่สามารถลบคำตอบนั้นได้ ลองอีกครั้ง",
+      "removeAnswerFailed": "ไม่สามารถลบคำตอบนั้นได้",
       "duration": {
         "hours_other": "{{count}} ชั่วโมง",
         "days_other": "{{count}} วัน",

@@ -9,6 +9,7 @@ import { dmPreviewsContext, groupPreviewsContext, groupPreviewsSignatureContext,
 import { previewsFor } from './linkPreviewService';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
 import { t } from '../i18n';
+import { codedError } from '../utils/errors';
 
 // Sends `text` to a chat without opening it (the share screen, components/ShareDialog.jsx),
 // exactly as that chat's own message box would: encrypted in your notes, DMs and group DMs (with
@@ -36,11 +37,11 @@ export async function sendToChat(me, destination, text, { nonce } = {}) {
 async function sendDm(me, person, text, nonce) {
   const notes = String(person.id) === String(me.id);
   const myKey = await loadEncryptionKey();
-  if (!myKey) throw new Error(t('chat.noKeys'));
+  if (!myKey) throw codedError(t('chat.noKeys'), 'no_keys');
   let key;
   if (notes) {
     const own = await loadOwnPublicKeys();
-    if (!own?.encryptionKey) throw new Error(t('chat.noKeys'));
+    if (!own?.encryptionKey) throw codedError(t('chat.noKeys'), 'no_keys');
     key = await deriveNotesKey(myKey, own.encryptionKey);
   } else {
     // Their keys changed (or are broken): only their chat can show that and let you accept them.

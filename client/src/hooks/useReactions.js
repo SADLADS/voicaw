@@ -11,18 +11,19 @@ import {
   voteKey,
 } from '../utils/pollMarkup';
 import { t } from '../i18n';
+import { showErrorToast } from '../services/toasts';
 
 // Reacting to messages in a conversation (useConversation) or channel (useChannel): adding and
 // removing your own reactions, and which message the reaction picker is open for.
 // `saveReaction(msg, emoji)` stores one (resolving to its `{ id }`) and `deleteReaction(id)`
 // removes one: that's where a DM encrypts and a guild doesn't. Nothing is sent until `ready`.
-// `onError(message)` reports failures. The picker closes when the chat (`chatId`) changes.
+// Failures show as toasts (services/toasts.js). The picker closes when the chat (`chatId`) changes.
 // Poll votes are reactions too (utils/pollMarkup.js): `vote(msg, optionIds)`, and so are the
 // answers people add to open polls: `addAnswer` and `removeAnswer`. In a guild,
 // `removePollAnswer(msg, optionId)` has the server remove one (resolving to the ids of the
 // reactions it deleted); elsewhere its creator deletes their reaction and the poll's author
 // adds a removal.
-export function useReactions({ chatId, user, ready, saveReaction, deleteReaction, removePollAnswer, messagesRef, setMessageReactions, onError }) {
+export function useReactions({ chatId, user, ready, saveReaction, deleteReaction, removePollAnswer, messagesRef, setMessageReactions }) {
   // The message the picker is choosing a reaction for, and (desktop) the rect of the button
   // that opened it, to show it next to.
   const [reactingTo, setReactingTo] = useState(null);
@@ -64,7 +65,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
       }
     } catch (err) {
       console.error('Failed to update reaction', err);
-      onError(err.response?.data?.error || t('chat.reactions.updateFailed'));
+      showErrorToast(t('chat.reactions.updateFailed'), err);
     } finally {
       inFlight.current.delete(key);
     }
@@ -115,7 +116,7 @@ export function useReactions({ chatId, user, ready, saveReaction, deleteReaction
       return await work(messagesRef.current.find((m) => m.id === msg.id) ?? msg);
     } catch (err) {
       console.error('Failed to update the poll', err);
-      onError(err.response?.data?.error || err.message || t(failedKey));
+      showErrorToast(t(failedKey), err);
       throw err;
     } finally {
       inFlight.current.delete(key);

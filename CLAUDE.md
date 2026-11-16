@@ -154,7 +154,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   loading.
 - `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, image
   viewer.
-- `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, sidebar, phone
+- `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, errors and the connection strip, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
   other servers (the login screen's Server),
   profiles and pictures, sounds, admin settings, blocking, reports and suspensions.
@@ -193,7 +193,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   `hooks/` and `services/`). Draw names with `displayName(id, fallback)` / `nameOf(user)` and
   pictures with `Avatar`, never `user.username` or a hand-built URL. Icons are `Icon`
   (`components/Icon.jsx`), not Font Awesome's `FontAwesomeIcon` (slow on phones). Dates and times through
-  `utils/dateFormat.js`, never `toLocaleString`. CSS uses the `--vc-*` colour tokens (every
+  `utils/dateFormat.js`, never `toLocaleString`. Errors shown through `utils/errors.js`
+  (`errorText`, and `ErrorState` / `InlineError` / toasts), never `err.message` or the
+  server's `error` written in directly (see Errors in `docs/client.md`). CSS uses the `--vc-*` colour tokens (every
   theme), not literal colours. **Themes** (Dark, Light, Ol' Familiar, Halloween, Christmas,
   Slack; `voicaw.css`, see Themes in `docs/client.md`): a feature that needs a new colour token
   adds it to every theme's block, with a value that suits that theme (`themeTokens.test.js`

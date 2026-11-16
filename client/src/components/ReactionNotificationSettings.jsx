@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { setPreference, usePreferences } from '../utils/preferences';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const CHOICES = [
   ['all', 'settings.reactionNotifications.all'],
@@ -15,7 +16,7 @@ export default function ReactionNotificationSettings() {
   const [error, setError] = useState(null);
   const change = (value) => {
     setError(null);
-    setPreference('reactionNotifications', value).catch((err) => setError(err.response?.data?.error || err.message || t('settings.savingFailed')));
+    setPreference('reactionNotifications', value).catch((err) => setError(errorText(err, t('settings.savingFailed'))));
   };
   return (
     <div className="settings-card">

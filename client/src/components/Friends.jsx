@@ -17,6 +17,7 @@ import { lastSeenText, statusLabel } from '../utils/presence';
 import { displayName, getProfile, isDeleted, nameOf, useProfiles } from '../utils/profiles';
 import { addFriend, addFriendByName, relationOf, removeFriend, useFriends } from '../utils/friends';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const TABS = ['online', 'all', 'pending'];
 
@@ -67,7 +68,7 @@ export default function Friends() {
 
   const act = (action) => {
     setError(null);
-    action().catch(() => setError(t('friends.actionFailed')));
+    action().catch((err) => setError(errorText(err, t('friends.actionFailed'))));
   };
   const open = (id) => navigate(`/dm/${id}`);
   const longPress = useLongPress((target) => {

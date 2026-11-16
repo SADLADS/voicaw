@@ -38,6 +38,7 @@ import { sendGroupText } from '../services/groupSend';
 import { nameOf } from '../utils/profiles';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
 import { t } from '../i18n';
+import { codedError } from '../utils/errors';
 
 export const GROUP_PAGE_SIZE = 50;
 
@@ -62,6 +63,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Bumped by retry() (an error state's Try again): loads it again.
+  const [attempt, setAttempt] = useState(0);
   const [group, setGroup] = useState(null);
   // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
   const [pinsVersion, setPinsVersion] = useState(0);
@@ -264,7 +267,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         if (!page) {
           const saved = await loadChat(chatKey, { limit: GROUP_PAGE_SIZE });
           if (cancelled) return;
-          if (!saved) throw new Error(t('app.offline.notSaved'));
+          if (!saved) throw codedError(t('app.offline.notSaved'), 'offline_not_saved');
           setMessages(saved.messages);
           setHasMore(saved.hasMore);
           setFromCopy(true);
@@ -280,7 +283,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
       } catch (e) {
         if (cancelled) return;
         console.error('Failed to load group:', e);
-        setError(e.response?.data?.error || e.message);
+        setError(e);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -289,7 +292,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupId, user?.id]);
+  }, [groupId, user?.id, attempt]);
 
   const loadMoreMessages = async () => {
     if (loadingOlder.current || !hasMore) return;
@@ -597,6 +600,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
     hasMore,
     isLoading,
     error,
+    retry: () => setAttempt((n) => n + 1),
     loadMoreMessages,
     sendMessage,
     editMessage,

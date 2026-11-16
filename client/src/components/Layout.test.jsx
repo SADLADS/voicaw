@@ -90,7 +90,7 @@ function ContextConsumer() {
   return (
     <div>
       <div data-testid="users">{users.map((u) => u.username).join(',')}</div>
-      <div data-testid="errorUsers">{errorUsers || ''}</div>
+      <div data-testid="errorUsers">{errorUsers?.message || ''}</div>
       <div data-testid="hasUnreadDms">{String(hasUnreadDms)}</div>
       <div data-testid="unreadCount">{unreadDms.length}</div>
     </div>

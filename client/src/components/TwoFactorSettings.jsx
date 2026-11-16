@@ -6,6 +6,7 @@ import {
 } from '../services/authService';
 import { triggerDownload } from '../utils/saveFile';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Settings → My Account → Two-factor (server/twoFactor.js): off until turned on. Setting it up
 // shows a QR code (and the key, for typing in) for an authenticator app, then asks for one of
@@ -18,7 +19,7 @@ export default function TwoFactorSettings() {
   // null, 'setup', 'disable', 'backup' (new backup codes), or { codes } while they're shown.
   const [step, setStep] = useState(null);
 
-  const load = () => fetchTwoFactor().then(setStatus, (err) => setLoadError(err.message));
+  const load = () => fetchTwoFactor().then(setStatus, (err) => setLoadError(errorText(err)));
   useEffect(() => {
     load();
   }, []);
@@ -122,7 +123,7 @@ function SetUp({ username, onEnabled, onCancel }) {
     try {
       onEnabled(await enableTwoFactor(username, password, secret, code));
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
       setBusy(false);
     }
   };
@@ -177,7 +178,7 @@ function ConfirmWithCode({ username, submitLabel, onConfirm, onDone, onCancel })
     try {
       onDone(await onConfirm(username, password, code));
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
       setBusy(false);
     }
   };

@@ -6,12 +6,9 @@ import { describeDevice } from '../utils/deviceName';
 import { formatDate, formatDateTime, useDateFormat } from '../utils/dateFormat';
 import ConfirmDialog from './guild/ConfirmDialog';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const ICONS = { desktop: faLaptop, mobile: faMobileScreenButton, app: faDesktop };
-
-function errorText(err, fallback) {
-  return err.response?.data?.error || fallback;
-}
 
 function DeviceRow({ session, onLogOut, busy }) {
   const { name, kind } = describeDevice(session.user_agent);

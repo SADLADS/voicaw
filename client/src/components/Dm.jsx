@@ -96,7 +96,6 @@ export default function Dm({ user }) {
     <div id="dm-main" data-current-user-id={user?.id} data-other-user-id={chatUser?.id}>
       {/* Banners go under the header (when there is one), so it lines up with the list's. */}
       {!id && prompts}
-      {errorUsers && <p className="error-text">{t('chat.dm.loadUsersError', { error: errorUsers })}</p>}
       {users.length === 0 && !errorUsers && !id && <p>{t('chat.dm.noConversations')}</p>}
 
       {id && (

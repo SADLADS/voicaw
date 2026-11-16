@@ -10,6 +10,7 @@ import {
 } from '../services/gifService';
 import { usePrivacyPrefs } from '../utils/privacy';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const SEARCH_DELAY_MS = 300;
 const COLUMNS = 2;
@@ -68,7 +69,7 @@ function useGifResults(query, enabled) {
       },
       (err) => {
         if (controller.signal.aborted) return;
-        setState((s) => ({ ...s, loading: false, error: err.response?.data?.error || t('media.gifs.loadFailed') }));
+        setState((s) => ({ ...s, loading: false, error: errorText(err, t('media.gifs.loadFailed')) }));
       }
     );
   }, [query]);

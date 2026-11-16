@@ -1,0 +1,36 @@
+{
+  "errors": {
+    "text": {
+      "offline": "Voicaw に接続できません。接続を確認してください。",
+      "timeout": "Voicaw の応答に時間がかかりすぎました。もう一度お試しください。",
+      "server": "Voicaw 側で問題が発生しました。しばらくしてからもう一度お試しください。",
+      "session": "ログアウトされました。もう一度ログインしてください。",
+      "forbidden": "ここでその権限がありません。",
+      "gone": "それはもう存在しません。",
+      "rate": "操作が速すぎます。少し待ってからもう一度お試しください。",
+      "rejected": "Voicaw はそれを実行できませんでした。",
+      "unknown": "問題が発生しました。"
+    },
+    "tryAgain": "再試行",
+    "details": "詳細",
+    "hideDetails": "詳細を隠す",
+    "titles": {
+      "loadMessages": "メッセージを読み込めませんでした",
+      "loadChannel": "このチャンネルを読み込めませんでした",
+      "loadConversations": "会話を読み込めませんでした",
+      "offline": "オフラインです",
+      "generic": "問題が発生しました"
+    },
+    "noKeys": {
+      "title": "この端末ではメッセージを読めません",
+      "text": "暗号鍵がありません。もう一度ログインすると、バックアップから復元されます。",
+      "action": "ログアウトして再ログイン"
+    },
+    "connection": {
+      "lost": "Voicaw に接続できません。",
+      "retryIn": "{{seconds}} 秒後に再試行…",
+      "retrying": "再試行中…",
+      "tryNow": "今すぐ再試行"
+    }
+  }
+}

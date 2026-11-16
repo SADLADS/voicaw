@@ -15,6 +15,7 @@ import {
   voteShare,
 } from '../utils/pollMarkup';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // The current time (unix s), redrawn every minute until `endsAt` and once right at it. A new
 // `endsAt` (the poll was just ended) takes a fresh reading at once, so it shows as closed
@@ -118,7 +119,7 @@ export default function Poll({ poll: message, reactions, userId, authorId, names
       setNewAnswer('');
       setAnswerError(null);
     } catch (err) {
-      setAnswerError(err.response?.data?.error || err.message || t('chat.poll.addAnswerFailed'));
+      setAnswerError(errorText(err, t('chat.poll.addAnswerFailed')));
     } finally {
       setBusy(false);
     }

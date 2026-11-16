@@ -7,6 +7,7 @@ import { storeUserKeys } from './keyStore';
 import { fetchGroups } from './groupService';
 import { leaveEntry } from './groupKeys';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Logging in and registering: OPAQUE (the password never leaves the device) plus the
 // encryption keys, which the server keeps only as a backup encrypted with OPAQUE's
@@ -34,7 +35,7 @@ async function send(method, path, body) {
   } catch (err) {
     const data = err.response?.data;
     if (data?.code === 'suspended') throw Object.assign(new Error(suspendedText(data.reason)), { code: data.code });
-    throw Object.assign(new Error(data?.error || err.message), { code: data?.code });
+    throw Object.assign(new Error(errorText(err)), { code: data?.code });
   }
 }
 
@@ -303,7 +304,7 @@ export async function deleteAccount(user, password, { deleteOwnedGuilds = false 
       const data = err.response?.data;
       // A group changed meanwhile: sign again.
       if (data?.code === 'groups_changed' && attempt < 2) continue;
-      throw Object.assign(new Error(data?.error || err.message), { code: data?.code, guilds: data?.guilds });
+      throw Object.assign(new Error(errorText(err)), { code: data?.code, guilds: data?.guilds });
     }
   }
 }

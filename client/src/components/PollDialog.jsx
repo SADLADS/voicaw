@@ -17,6 +17,7 @@ import {
 } from '../utils/pollMarkup';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // An answer's box: one line that grows to show all of a long answer (up to MAX_OPTION_LENGTH)
 // instead of scrolling sideways. Answers are one line, so Enter posts (as an input's would) and
@@ -116,7 +117,7 @@ export default function PollDialog({ poll, addedAnswers = 0, onSubmit, onClose }
       await onSubmit(next);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message || t('chat.pollDialog.saveFailed'));
+      setError(errorText(err, t('chat.pollDialog.saveFailed')));
       setBusy(false);
     }
   }

@@ -7,8 +7,7 @@ import EmojiPicker from './EmojiPicker';
 import { ReactionEmoji } from './MessageReactions';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { t } from '../i18n';
-
-const errorText = (err, fallback) => err.response?.data?.error || fallback;
+import { errorText } from '../utils/errors';
 
 const EMPTY = { name: '', flag: '', url: '', apiUrl: '', apiKey: '', apiSecret: '' };
 

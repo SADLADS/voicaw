@@ -4,6 +4,7 @@ import { MessageContent } from './MessageList';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // An edited message's versions, oldest first, ending with what it says now (Edit history in
 // docs/messages.md). `loadEdits(msg)` is the chat hook's: it fetches (and in DMs and groups
@@ -19,7 +20,7 @@ export default function EditHistoryDialog({ msg, loadEdits, onClose, user, s3End
     let cancelled = false;
     loadEdits(msg)
       .then((loaded) => { if (!cancelled) setHistory(loaded); })
-      .catch((err) => { if (!cancelled) setError(err.response?.data?.error || t('chat.editHistory.loadFailed')); });
+      .catch((err) => { if (!cancelled) setError(errorText(err, t('chat.editHistory.loadFailed'))); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msg.id, msg.plaintext]);

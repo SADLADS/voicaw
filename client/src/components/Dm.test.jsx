@@ -156,6 +156,8 @@ import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { uploadAttachment } from '../services/attachmentUpload';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 import { setPrivacyPref } from '../utils/privacy';
+import { getToasts } from '../services/toasts';
+import { t } from '../i18n';
 
 const currentUser = { id: 1, username: 'me' };
 const chatUserFull = {
@@ -1257,7 +1259,9 @@ describe('Dm pins', () => {
     await openChat();
     setMessagePinned.mockRejectedValueOnce({ response: { data: { error: 'A chat can have at most 250 pinned messages. Unpin one first.' } } });
     fireEvent.click(screen.getByTestId('pin-10'));
-    expect(await screen.findByText(/at most 250 pinned messages/)).toBeInTheDocument();
+    // A toast (services/toasts.js): what didn't happen, and the server's reason.
+    await waitFor(() => expect(getToasts().at(-1)?.text).toMatch(/at most 250 pinned messages/));
+    expect(getToasts().at(-1).title).toBe(t('chat.pane.pinFailed'));
   });
 });
 

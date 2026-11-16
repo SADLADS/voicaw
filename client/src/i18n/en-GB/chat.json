@@ -11,14 +11,13 @@
     "pane": {
       "cantSend": "You don't have permission to send messages here.",
       "empty": "No messages yet. Start the conversation!",
-      "error": "Error: {{error}}",
       "copyFailed": "Couldn't copy the message.",
       "pollClosedEdit": "This poll has closed, so it can't be edited.",
       "pollTooLong": "The poll is too long.",
       "pollTimerFailed": "The poll was sent, but its result won't be announced when it closes.",
-      "pinFailed": "Couldn't pin the message.",
-      "removePreviewsFailed": "Couldn't remove the previews.",
-      "unpinFailed": "Couldn't unpin the message.",
+      "pinFailed": "Couldn't pin that message",
+      "removePreviewsFailed": "Couldn't remove the previews",
+      "unpinFailed": "Couldn't unpin that message",
       "jumpFailed": "Couldn't find that message in the chat."
     },
     "newDivider": {
@@ -38,12 +37,12 @@
     "composer": {
       "tooLongWithLinks_one": "Message is {{count}} character too long once attachment links are added.",
       "tooLongWithLinks_other": "Message is {{count}} characters too long once attachment links are added.",
-      "sendFailed": "Message failed to send: {{error}}",
-      "gifFailed": "GIF failed to send: {{error}}",
+      "sendFailed": "Message failed to send. {{error}}",
+      "gifFailed": "GIF failed to send. {{error}}",
       "replyingTo": "Replying to <b>{{name}}</b>",
       "editingMessage": "Editing message",
       "stopEditing": "Stop editing",
-      "editFailed": "Message failed to save: {{error}}",
+      "editFailed": "Message failed to save. {{error}}",
       "uploadFile": "Upload a file",
       "createPoll": "Create poll",
       "createThread": "Create thread",
@@ -75,7 +74,6 @@
       "readFailed": "Couldn't add {{name}}"
     },
     "dm": {
-      "loadUsersError": "Error loading users: {{error}}",
       "noConversations": "No recent conversations found.",
       "call": "Call {{name}}",
       "alreadyInCall": "You're already in a call",
@@ -170,7 +168,7 @@
       "tabLabel_other": "{{emoji}}: {{count}} reactions",
       "reactedWith": "Reacted with {{emoji}}",
       "remove": "Remove your reaction",
-      "updateFailed": "Couldn't update the reaction. Try again."
+      "updateFailed": "Couldn't update the reaction"
     },
     "noKeys": "This device has no encryption keys. Log out and log in again.",
     "messageMenu": {
@@ -286,14 +284,14 @@
       "removeVote": "Remove vote",
       "backToVote": "Back to vote",
       "vote": "Vote",
-      "voteFailed": "Couldn't save your vote. Try again.",
+      "voteFailed": "Couldn't save your vote",
       "openHint": "Anyone can add answers",
       "addedBy": "added by {{name}}",
       "addedByYou": "added by you",
       "addAnswer": "Add",
       "addAnswerLabel": "Add an answer",
       "addAnswerPlaceholder": "Add an answer…",
-      "addAnswerFailed": "Couldn't add your answer. Try again.",
+      "addAnswerFailed": "Couldn't add your answer",
       "answerEmpty": "Type an answer first.",
       "answerTooLong": "Answers are at most {{count}} characters.",
       "answerDuplicate": "That answer is already in the poll.",
@@ -301,7 +299,7 @@
       "removeAnswer": "Remove answer",
       "removeAnswerOf": "Remove the answer {{answer}}",
       "removeAnswerConfirm": "Remove \"{{answer}}\" from the poll?",
-      "removeAnswerFailed": "Couldn't remove that answer. Try again.",
+      "removeAnswerFailed": "Couldn't remove that answer",
       "duration": {
         "hours_one": "{{count}} hour",
         "hours_other": "{{count}} hours",

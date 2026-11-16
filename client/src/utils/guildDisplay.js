@@ -2,6 +2,7 @@ import { nameOf } from './profiles';
 import { isAndroidApp } from './android';
 import { apiBaseUrl, isBuiltInServer } from './server';
 import { t } from '../i18n';
+import { errorText } from './errors';
 
 // "Test Guild" -> "TG", "voicaw" -> "v": what a guild without an icon shows (like Discord).
 export function guildInitials(name) {
@@ -130,9 +131,10 @@ export function parseInviteCode(text) {
   return /^[A-Za-z0-9-]+$/.test(trimmed) ? trimmed : null;
 }
 
-// What to tell the user about a failed request: the server's message if it sent one.
+// What to tell the user about a failed request (utils/errors.js: the server's reason for its
+// rules, otherwise what happened in words, never axios's own message).
 export function errorMessage(err) {
-  return err?.response?.data?.error || err?.message || t('guilds.somethingWentWrong');
+  return errorText(err);
 }
 
 // Online members grouped like Discord: under their highest "display separately" (hoisted)

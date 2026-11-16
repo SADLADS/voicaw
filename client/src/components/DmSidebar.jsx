@@ -18,6 +18,7 @@ import { displayName, getProfile, nameOf, useProfiles } from '../utils/profiles'
 import Avatar from './Avatar';
 import { useFriends, visibleInDmList } from '../utils/friends';
 import { t } from '../i18n';
+import { InlineError } from './ErrorState';
 
 // The conversation list: people, group DMs and conversations with bots (`botDms`, tagged BOT;
 // not end-to-end encrypted, see BotDm), most recent first. `unreadDms`
@@ -33,7 +34,7 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
   useProfiles();
   const { id: activeId, groupId: activeGroupId, dmId: activeBotDmId } = useParams();
   const { isMobile } = useContext(InteractionContext);
-  const { conversationSettings, groupList } = useContext(LayoutContext) ?? {};
+  const { conversationSettings, groupList, errorUsers, retryUsers } = useContext(LayoutContext) ?? {};
   const { pathname } = useLocation();
   const notesActive = pathname === '/dm/notes';
   const friendsActive = pathname === '/dm/friends';
@@ -121,6 +122,7 @@ export default function DmSidebar({ user, users, groups = [], botDms = [], unrea
         </Link>
       </div>
       <div className="dm-user-list-container" {...longPress} onTouchStart={listTouchStart}>
+        {errorUsers && <InlineError error={errorUsers} title={t('errors.titles.loadConversations')} onRetry={retryUsers} />}
         {entries.map((entry) => {
           const { person, group, botDm, setting } = entry;
           if (botDm) {

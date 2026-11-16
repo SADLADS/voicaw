@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { MIN_PASSWORD_LENGTH, changePassword, createRecoveryCode } from '../services/authService';
 import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Settings → My Account: change password, and make a (new) recovery code, a card each. Both
 // need the current password, since that's what unlocks the encryption keys to re-encrypt them.
@@ -48,7 +49,7 @@ function ChangePassword({ username }) {
       setForm({ current: '', password: '', confirm: '' });
       setDone(true);
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }
@@ -93,7 +94,7 @@ function RecoveryCode({ user, onCreated }) {
       setCode(created);
       onCreated();
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
     } finally {
       setBusy(false);
     }

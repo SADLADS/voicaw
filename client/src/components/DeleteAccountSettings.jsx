@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { LayoutContext } from '../contexts';
 import { deleteAccount } from '../services/authService';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Settings: delete your account (server/accounts.js). Guilds you own have to be handed over
 // (Make owner on a member's card) or deleted first; ticking the box deletes them along with
@@ -38,7 +39,7 @@ export default function DeleteAccountSettings({ onDeleted }) {
       await deleteAccount(user, password, { deleteOwnedGuilds: owned.length > 0 && deleteGuilds });
     } catch (err) {
       if (err.code === 'owns_guilds') setRefusedFor(err.guilds);
-      setError(err.message);
+      setError(errorText(err));
       setBusy(false);
       return;
     }

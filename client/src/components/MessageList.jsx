@@ -4,7 +4,7 @@ import { useInRouterContext, useNavigate } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import { Icon } from './Icon';
-import { faEdit, faTrash, faReply, faFaceSmile, faShare, faSquarePollHorizontal, faThumbtack } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faReply, faFaceSmile, faShare, faSquarePollHorizontal, faThumbtack, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
@@ -759,7 +759,7 @@ const MessageRow = memo(function MessageRow({
         {/* Couldn't be sent (kept by ChatPane's useUnsentMessages until it's sent or deleted). */}
         {msg.status === 'failed' && onRetrySend && (
           <div className="message-unsent" role="status">
-            <span>{t('chat.message.notSent')}</span>
+            <span className="message-unsent-label"><Icon icon={faTriangleExclamation} />{t('chat.message.notSent')}</span>
             <button type="button" onClick={(e) => { e.stopPropagation(); onRetrySend(msg); }}>{t('chat.message.retry')}</button>
             <button type="button" onClick={(e) => { e.stopPropagation(); handleDelete(msg, e); }}>{t('common.delete')}</button>
           </div>

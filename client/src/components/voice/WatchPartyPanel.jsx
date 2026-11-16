@@ -13,8 +13,9 @@ import WatchPartySearchResults from './WatchPartySearchResults';
 import WatchPartyMediaResults from './WatchPartyMediaResults';
 import { displayName, useProfiles } from '../../utils/profiles';
 import { t } from '../../i18n';
+import { errorText } from '../../utils/errors';
 
-const errorOf = (err) => err?.response?.data?.error ?? t('voice.watchParty.failed');
+const errorOf = (err) => errorText(err, t('voice.watchParty.failed'));
 
 // Watch Together on a voice channel's page, once you're in its voice: paste a YouTube link to
 // add it, or search YouTube and add from what it finds (WatchPartySearchResults); with the

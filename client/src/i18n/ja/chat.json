@@ -11,14 +11,13 @@
     "pane": {
       "cantSend": "ここでメッセージを送信する権限がありません。",
       "empty": "メッセージはまだありません。会話を始めましょう！",
-      "error": "エラー: {{error}}",
       "copyFailed": "メッセージをコピーできませんでした。",
       "pollClosedEdit": "この投票は終了しているため、編集できません。",
       "pollTooLong": "投票が長すぎます。",
       "pollTimerFailed": "投票は送信されましたが、終了時に結果は告知されません。",
-      "pinFailed": "メッセージをピン留めできませんでした。",
-      "removePreviewsFailed": "プレビューを削除できませんでした。",
-      "unpinFailed": "メッセージのピン留めを外せませんでした。",
+      "pinFailed": "メッセージをピン留めできませんでした",
+      "removePreviewsFailed": "プレビューを削除できませんでした",
+      "unpinFailed": "メッセージのピン留めを外せませんでした",
       "jumpFailed": "チャット内でそのメッセージが見つかりませんでした。"
     },
     "newDivider": {
@@ -37,12 +36,12 @@
     },
     "composer": {
       "tooLongWithLinks_other": "添付ファイルのリンクを加えると、メッセージが {{count}} 文字長すぎます。",
-      "sendFailed": "メッセージを送信できませんでした: {{error}}",
-      "gifFailed": "GIF を送信できませんでした: {{error}}",
+      "sendFailed": "メッセージを送信できませんでした。{{error}}",
+      "gifFailed": "GIF を送信できませんでした。{{error}}",
       "replyingTo": "<b>{{name}}</b> さんに返信中",
       "editingMessage": "メッセージを編集中",
       "stopEditing": "編集をやめる",
-      "editFailed": "メッセージを保存できませんでした: {{error}}",
+      "editFailed": "メッセージを保存できませんでした。{{error}}",
       "uploadFile": "ファイルをアップロード",
       "createPoll": "投票を作成",
       "createThread": "スレッドを作成",
@@ -74,7 +73,6 @@
       "readFailed": "{{name}} を追加できませんでした"
     },
     "dm": {
-      "loadUsersError": "ユーザーの読み込みエラー: {{error}}",
       "noConversations": "最近の会話はありません。",
       "call": "{{name}} さんに発信",
       "alreadyInCall": "すでに通話中です",
@@ -167,7 +165,7 @@
       "tabLabel_other": "{{emoji}}: リアクション {{count}} 件",
       "reactedWith": "{{emoji}} でリアクション",
       "remove": "自分のリアクションを外す",
-      "updateFailed": "リアクションを更新できませんでした。もう一度お試しください。"
+      "updateFailed": "リアクションを更新できませんでした"
     },
     "noKeys": "この端末には暗号鍵がありません。ログアウトしてもう一度ログインしてください。",
     "messageMenu": {
@@ -278,14 +276,14 @@
       "removeVote": "投票を取り消す",
       "backToVote": "投票に戻る",
       "vote": "投票",
-      "voteFailed": "投票を保存できませんでした。もう一度お試しください。",
+      "voteFailed": "投票を保存できませんでした",
       "openHint": "誰でも選択肢を追加できます",
       "addedBy": "{{name}} さんが追加",
       "addedByYou": "あなたが追加",
       "addAnswer": "追加",
       "addAnswerLabel": "選択肢を追加",
       "addAnswerPlaceholder": "選択肢を追加…",
-      "addAnswerFailed": "選択肢を追加できませんでした。もう一度お試しください。",
+      "addAnswerFailed": "選択肢を追加できませんでした",
       "answerEmpty": "先に選択肢を入力してください。",
       "answerTooLong": "選択肢は {{count}} 文字以内です。",
       "answerDuplicate": "その選択肢はすでに投票にあります。",
@@ -293,7 +291,7 @@
       "removeAnswer": "選択肢を削除",
       "removeAnswerOf": "選択肢 {{answer}} を削除",
       "removeAnswerConfirm": "「{{answer}}」を投票から削除しますか？",
-      "removeAnswerFailed": "その選択肢を削除できませんでした。もう一度お試しください。",
+      "removeAnswerFailed": "その選択肢を削除できませんでした",
       "duration": {
         "hours_other": "{{count}} 時間",
         "days_other": "{{count}} 日",

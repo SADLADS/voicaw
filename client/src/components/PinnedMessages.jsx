@@ -8,6 +8,7 @@ import { MessageContent } from './MessageList';
 import { displayName, useProfiles } from '../utils/profiles';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const MARGIN = 8;
 
@@ -42,7 +43,7 @@ export default function PinnedMessages({
     let cancelled = false;
     loadPins()
       .then((list) => { if (!cancelled) { setPins(list); setError(null); } })
-      .catch((err) => { if (!cancelled) setError(err.response?.data?.error || t('chat.pins.loadFailed')); });
+      .catch((err) => { if (!cancelled) setError(errorText(err, t('chat.pins.loadFailed'))); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pinsVersion]);
@@ -70,7 +71,7 @@ export default function PinnedMessages({
     try {
       await onUnpin(msg);
     } catch (err) {
-      setError(err.response?.data?.error || t('chat.pins.unpinFailed'));
+      setError(errorText(err, t('chat.pins.unpinFailed')));
     }
   }
 

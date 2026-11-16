@@ -263,6 +263,20 @@ small {
   color: var(--vc-danger-text);
 }
 
+/* The triangle before "Not sent." and the composer's error (Errors, docs/client.md). */
+.message-unsent-label,
+.composer-error-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.message-unsent-label svg,
+.composer-error-text svg {
+  flex-shrink: 0;
+  font-size: 0.9em;
+}
+
 .message-unsent button {
   padding: 0;
   border: none;

@@ -35,6 +35,7 @@ import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { dmPreviewsContext, openDmPreviews, sealDmPreviews } from '../services/linkPreviewCrypto';
 import { previewsFor } from '../services/linkPreviewService';
 import { t } from '../i18n';
+import { codedError } from '../utils/errors';
 
 // Older history is fetched in pages this size as you scroll up.
 export const PAGE_SIZE = 50;
@@ -72,6 +73,8 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Bumped by retry() (an error state's Try again): loads it again.
+  const [attempt, setAttempt] = useState(0);
   const [sharedKey, setSharedKey] = useState(null);
   // Result of checking the contact's keys (see contactKeys): null while unknown, then
   // 'trusted' | 'verified' | 'changed' | 'invalid'.
@@ -155,7 +158,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         let key;
         if (notes) {
           const [myKey, own] = await Promise.all([loadEncryptionKey(), loadOwnPublicKeys()]);
-          if (!myKey || !own?.encryptionKey) throw new Error(t('chat.noKeys'));
+          if (!myKey || !own?.encryptionKey) throw codedError(t('chat.noKeys'), 'no_keys');
           if (cancelled) return;
           setKeyStatus('trusted');
           key = await deriveNotesKey(myKey, own.encryptionKey);
@@ -166,7 +169,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
           if (!check.encryptionKey) return;
 
           const myKey = await loadEncryptionKey();
-          if (!myKey) throw new Error(t('chat.noKeys'));
+          if (!myKey) throw codedError(t('chat.noKeys'), 'no_keys');
           key = await deriveConversationKey(myKey, check.encryptionKey);
         }
 
@@ -179,7 +182,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         if (!page) {
           const saved = await loadChat(chatKey, { limit: PAGE_SIZE });
           if (cancelled) return;
-          if (!saved) throw new Error(t('app.offline.notSaved'));
+          if (!saved) throw codedError(t('app.offline.notSaved'), 'offline_not_saved');
           setSharedKey(key);
           setMessages(saved.messages);
           setHasMore(saved.hasMore);
@@ -197,7 +200,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       } catch (e) {
         if (cancelled) return;
         console.error('Failed to load chat data:', e);
-        setError(e.message);
+        setError(e);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -209,7 +212,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     // Keyed on the contact's keys rather than the chatUser object, which Layout replaces on
     // every user-list fetch; reloading then would reset the conversation (and scroll).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, user?.id, chatUser?.identity_key, chatUser?.encryption_key, chatUser?.encryption_key_signature, keyCheck, notes]);
+  }, [id, user?.id, chatUser?.identity_key, chatUser?.encryption_key, chatUser?.encryption_key_signature, keyCheck, notes, attempt]);
 
   const acceptChangedKey = async () => {
     await acceptContactKeys(user.id, chatUser);
@@ -509,6 +512,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     hasMore,
     isLoading,
     error,
+    retry: () => setAttempt((n) => n + 1),
     sharedKey,
     keyStatus,
     setKeyStatus,

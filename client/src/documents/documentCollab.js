@@ -8,6 +8,7 @@ import {
   fetchDocumentSteps, joinDocumentCollab, leaveDocumentCollab, sendDocumentPresence, sendDocumentSteps, setDocumentDetails,
 } from '../services/guildService';
 import { onConnectionState, onGuildEvent } from '../utils/ws-client';
+import { errorText } from '../utils/errors';
 
 // Editing a document live with everyone else editing it (the server's side, the authority, is
 // server/documentCollab.js): ProseMirror's collab model. This editor's changes are sent as
@@ -274,7 +275,7 @@ export function startDocumentCollab({ view, document, makeState, onStatus, onEdi
         await catchUp();
       } else if (code === 400) {
         // Refused (too long, or not fitting the document): this editor's unconfirmed changes go.
-        onNotice?.('refused', err.response?.data?.error);
+        onNotice?.('refused', errorText(err));
         session = null;
         await join();
         return;

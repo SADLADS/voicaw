@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { setPreference, usePreferences } from '../utils/preferences';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // Settings → Content: what's covered in messages, and whether bots may message you. Saved to
 // your account (utils/preferences), so it's the same on every device.
@@ -9,7 +10,7 @@ export default function ContentSettings() {
   const [error, setError] = useState(null);
   const change = (key, value) => {
     setError(null);
-    setPreference(key, value).catch((err) => setError(err.response?.data?.error || err.message || t('settings.savingFailed')));
+    setPreference(key, value).catch((err) => setError(errorText(err, t('settings.savingFailed'))));
   };
   return (
     <div className="settings-card">

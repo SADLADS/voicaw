@@ -81,7 +81,8 @@ describe('useConversation and the offline copy', () => {
     fetchMessagesForUser.mockRejectedValue(unreachable());
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { result } = open();
-    await waitFor(() => expect(result.current.error).toMatch(/saved on this device/));
+    await waitFor(() => expect(result.current.error?.message).toMatch(/saved on this device/));
+    expect(result.current.error.code).toBe('offline_not_saved');
   });
 
   it("doesn't use the copy when the server refuses", async () => {
@@ -89,7 +90,7 @@ describe('useConversation and the offline copy', () => {
     fetchMessagesForUser.mockRejectedValue(Object.assign(new Error('Forbidden'), { response: { status: 403 } }));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { result } = open();
-    await waitFor(() => expect(result.current.error).toBe('Forbidden'));
+    await waitFor(() => expect(result.current.error?.response?.status).toBe(403));
     expect(result.current.messages).toHaveLength(0);
   });
 });

@@ -40,6 +40,9 @@ import { endPollOnServer, registerPollTimer, removeGuildPollAnswer } from '../se
 import ReportDialog from './ReportDialog';
 import ReactionsDialog from './ReactionsDialog';
 import { groupReactions } from '../utils/reactions';
+import { ErrorState } from './ErrorState';
+import { errorText } from '../utils/errors';
+import { showErrorToast } from '../services/toasts';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker), the desktop right-click menu and the
@@ -219,7 +222,6 @@ export default function ChatPane({
     removePollAnswer: pollKind === 'guild' ? (msg, optionId) => removeGuildPollAnswer(msg.id, optionId) : undefined,
     messagesRef: conversation.messagesRef,
     setMessageReactions: conversation.setMessageReactions,
-    onError: setComposerError,
   });
   const emojiIndex = useEmojiIndex();
 
@@ -380,7 +382,7 @@ export default function ChatPane({
     try {
       await retryUnsent(msg.id);
     } catch (err) {
-      setComposerError(t('chat.composer.sendFailed', { error: err.message }));
+      setComposerError(t('chat.composer.sendFailed', { error: errorText(err) }));
     }
   }, [retryUnsent]);
   const discardUnsent = useCallback((msg) => discardUnsentId(msg.id), [discardUnsentId]);
@@ -419,7 +421,7 @@ export default function ChatPane({
       await conversation.setPinned(msg, !msg.pinned_at);
     } catch (err) {
       console.error('Failed to pin message', err);
-      setComposerError(err.response?.data?.error || (msg.pinned_at ? t('chat.pane.unpinFailed') : t('chat.pane.pinFailed')));
+      showErrorToast(msg.pinned_at ? t('chat.pane.unpinFailed') : t('chat.pane.pinFailed'), err);
     }
   }
 
@@ -436,7 +438,7 @@ export default function ChatPane({
       await conversation.suppressEmbeds(msg);
     } catch (err) {
       console.error('Failed to remove previews', err);
-      setComposerError(err.response?.data?.error || t('chat.pane.removePreviewsFailed'));
+      showErrorToast(t('chat.pane.removePreviewsFailed'), err);
     }
   }
 
@@ -503,7 +505,11 @@ export default function ChatPane({
         {conversation.isLoading ? (
           <p></p>
         ) : conversation.error ? (
-          <p className="error-text">{t('chat.pane.error', { error: conversation.error })}</p>
+          <ErrorState
+            error={conversation.error}
+            title={t(String(chatId).startsWith('channel-') ? 'errors.titles.loadChannel' : 'errors.titles.loadMessages')}
+            onRetry={conversation.retry}
+          />
         ) : messages.length === 0 && !listHead ? (
           <p className="chat-empty">{emptyText}</p>
         ) : (

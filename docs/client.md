@@ -622,6 +622,55 @@
   elsewhere) with `rsync --delay-updates --delete-after`: the new files go in together at the
   end, and only then do the old build's go. A failed build or check changes nothing there.
 
+## Errors
+
+Built 2026-11-16, after "Error loading users: Network Error" and "Error: Request failed with
+status code 500": axios's own words never reach the screen. An error says what didn't happen,
+whose problem it is (so whether trying again can help), and offers the fix as a button.
+
+- **The words** (`utils/errors.js`): `errorKind(err)` sorts any failure: `offline` (no answer;
+  502/504; a 503 without our JSON, i.e. nginx's), `timeout`, `server` (a 5xx of ours), `session`
+  (401), `forbidden` (403), `gone` (404), `rate` (429), `rejected` (other 4xx), `device` (thrown
+  here: keys, crypto, media, already written with `t()`). `errorText(err, fallback?)` is the one
+  line every screen shows: the kind's sentence (`errors.text.*`) for the connection, the
+  server's own `error` for its rules (still English, see Translations; a 503 of ours explains
+  itself too), the error's message for device errors. `fallback`, when given, stands in for a
+  device error and for a refusal the server gave no reason for (voice keeps LiveKit's
+  technical messages out this way). `describeError` adds whether it's retryable and the
+  details line (status, method, path without the query, time). `codedError(message, code)`
+  makes a device error a component can act on: `no_keys` (Log out and back in),
+  `offline_not_saved`. `guildDisplay.js` `errorMessage` is `errorText`. Don't write
+  `err.message` or `err.response.data.error` into what's shown; call `errorText`.
+- **A pane that couldn't load** (`ErrorState`, `components/ErrorState.jsx`): icon, title (what
+  failed: `errors.titles.*`), the reason, Try again when it can help (or the code's own fix), and
+  Details, which opens the details line with Copy (for bug reports). The chat hooks
+  (`useConversation`, `useChannel`, `useGroupConversation`, `useBotDm`) keep the error itself
+  and a `retry()` that loads again; ChatPane shows them.
+- **A list that couldn't load** (`InlineError`): a small card in the list's place, Try again.
+  The DM list's is in `DmSidebar` (Layout's `errorUsers` / `retryUsers`); before, it was in the
+  main pane at `/dm` only, and not shown at all on Friends.
+- **Forms and dialogs**: `.error-msg` and `.error-text` (and `FormError`, with a title) are a
+  tinted callout with a triangle. The text still comes from `errorText`.
+- **Toasts** (`services/toasts.js`, drawn by `Toasts.jsx` in App): `showErrorToast(title, err,
+  { onRetry })` for what fails out of view: pinning, removing previews, reactions and poll
+  votes (`useReactions`). Above the message box, centred, at most three, gone after 6 s (10 s
+  with Try again). Not shown for an `offline` error while the connection strip is up.
+- **Messages that couldn't be sent**: unchanged ("Not sent." with Retry and Delete, and the
+  composer's bar), each with the triangle; the bar's reason comes from `errorText`.
+- **The connection strip** (`ConnectionStrip.jsx`, at the top of Layout's content;
+  `utils/connection.js`): Voicaw can't be reached while the app is in use. Fed by the websocket's
+  state (`ws-client.js` reports it and when it tries again; it only counts once the socket has
+  been online, so not while the app starts) and by requests without an answer (`api.js`; any
+  answer clears it, as does the socket opening). Shown after 2 s of trouble (a phone back from
+  the background shouldn't flash it), counting down to the socket's next try; Try now reconnects
+  at once and asks `/config`, which it also asks every 5 s while only requests are failing. Not
+  in offline mode (the app started without the server), which keeps `OfflineBanner`. An error
+  state that failed for want of the connection tries again by itself once it's back.
+- **Colours**: `--vc-danger-soft` and `--vc-warning-soft` (every theme), the callouts' and the
+  strip's tints.
+- **Checks**: `utils/errors.test.js`, `utils/connection.test.js`, `ErrorState.test.jsx`, and
+  `e2e/errors.mjs` in a browser.
+
 ## Other servers
 
 The login screen says which server it logs in to ("Server: app.voicaw.com · Change",

@@ -23,6 +23,7 @@ import RecoveryCodeDisplay from './RecoveryCodeDisplay';
 import ServerChoice from './ServerChoice';
 import { ConfigContext } from '../contexts';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // The terms of use a server's config doesn't name others (server/index.js `termsUrl`).
 const DEFAULT_TERMS_URL = 'https://voicaw.com/terms/';
@@ -79,7 +80,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
       }
       loggedIn(result);
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
       console.error('Login error:', err);
     } finally {
       setLoading(false);
@@ -105,7 +106,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
       if (err.code === 'two_factor_expired') {
         setMode('login');
         setError(t('auth.twoFactor.expired'));
-      } else setError(err.message);
+      } else setError(errorText(err));
     } finally {
       setLoading(false);
     }
@@ -129,7 +130,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
       );
       setMode({ user, recoveryCode });
     } catch (err) {
-      setError(SIGNUP_ERRORS[err.code] ? t(SIGNUP_ERRORS[err.code], { count: MAX_REASON }) : err.message);
+      setError(SIGNUP_ERRORS[err.code] ? t(SIGNUP_ERRORS[err.code], { count: MAX_REASON }) : errorText(err));
     } finally {
       setLoading(false);
     }
@@ -147,7 +148,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
       const recovery = await startRecovery(recoverData.username, recoverData.code, recoverData.password);
       setMode({ recovery, recoveryCode: recovery.newCode });
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,36 @@
+{
+  "errors": {
+    "text": {
+      "offline": "Can't reach Voicaw. Check your connection.",
+      "timeout": "Voicaw took too long to answer. Try again.",
+      "server": "Something went wrong on Voicaw's side. Try again in a moment.",
+      "session": "You've been logged out. Log in again.",
+      "forbidden": "You don't have permission here.",
+      "gone": "That doesn't exist any more.",
+      "rate": "Slow down a little, then try again.",
+      "rejected": "Voicaw couldn't do that.",
+      "unknown": "Something went wrong."
+    },
+    "tryAgain": "Try again",
+    "details": "Details",
+    "hideDetails": "Hide details",
+    "titles": {
+      "loadMessages": "Couldn't load your messages",
+      "loadChannel": "Couldn't load this channel",
+      "loadConversations": "Couldn't load your conversations",
+      "offline": "You're offline",
+      "generic": "Something went wrong"
+    },
+    "noKeys": {
+      "title": "This device can't read your messages",
+      "text": "Its encryption keys are missing. Log in again to get them back from your backup.",
+      "action": "Log out and back in"
+    },
+    "connection": {
+      "lost": "Can't reach Voicaw.",
+      "retryIn": "Trying again in {{seconds}} s…",
+      "retrying": "Trying again…",
+      "tryNow": "Try now"
+    }
+  }
+}

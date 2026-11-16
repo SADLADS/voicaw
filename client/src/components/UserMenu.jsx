@@ -11,6 +11,7 @@ import { apiId } from '../utils/copyId';
 import { openUserProfile } from '../utils/userProfile';
 import { PROFILE_LIMITS, getProfile, mergeProfiles, nameOf, useProfiles } from '../utils/profiles';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const MARGIN = 8;
 
@@ -74,7 +75,7 @@ export default function UserMenu({ user, anchor, trigger, onLogout, onClose }) {
       mergeProfiles([await updateProfile({ customStatus: next || null, customStatusEmoji: emoji })]);
       setEditing(false);
     } catch (err) {
-      setError(err.response?.data?.error ?? t('app.userMenu.statusSaveFailed'));
+      setError(errorText(err, t('app.userMenu.statusSaveFailed')));
       finished.current = false;
     } finally {
       setSaving(false);

@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { connectWebSocket, onAccountApproved } from '../utils/ws-client';
 import { deleteAccount } from '../services/authService';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 // How often the page asks whether the account was approved, in case the websocket missed it.
 const CHECK_MS = 60 * 1000;
@@ -45,7 +46,7 @@ export default function PendingApproval({ user, onApproved, onLogout }) {
     try {
       await deleteAccount(user, password);
     } catch (err) {
-      setError(err.message);
+      setError(errorText(err));
       setBusy(false);
       return;
     }

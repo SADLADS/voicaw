@@ -8,6 +8,7 @@ import { closeNotifications, desktopNotificationsOn } from '../services/pushServ
 import { playMessageSound } from '../sounds/sounds';
 import { catchUp } from './catchUp';
 import { websocketUrl } from './server';
+import { noteSocketState, resetConnection } from './connection';
 
 let ws;
 let token;
@@ -43,7 +44,11 @@ let reconnectTimeout = null;
 let connectionState = 'offline';
 const connectionListeners = new Set();
 
+// When the socket next tries to reconnect (ms), while one is waiting (the connection strip).
+let nextAttemptAt = null;
+
 function setConnectionState(next) {
+  noteSocketState(next, next === 'online' ? null : nextAttemptAt);
   if (next === connectionState) return;
   connectionState = next;
   connectionListeners.forEach((cb) => cb(next));
@@ -370,19 +375,33 @@ export function connectWebSocket() {
       loggedOutElsewhere(socket);
       return;
     }
-    setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
     console.warn(`[WS] Connection closed. Code: ${event.code}, Reason: "${event.reason || 'No reason'}"`);
 
     // Try to reconnect after short delay
+    nextAttemptAt = Date.now() + RECONNECT_MS;
+    setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
     reconnectTimeout = setTimeout(() => {
+      reconnectTimeout = null;
+      nextAttemptAt = null;
       console.log('[WS] Attempting reconnect...');
       connectWebSocket(); // uses token from localStorage
-    }, 3000);
+    }, RECONNECT_MS);
   };
 
   ws.onerror = (err) => {
     console.error('[WS] WebSocket error:', err);
   };
+}
+
+const RECONNECT_MS = 3000;
+
+// The connection strip's Try now: reconnect at once instead of waiting.
+export function reconnectNow() {
+  if (!reconnectTimeout) return;
+  clearTimeout(reconnectTimeout);
+  reconnectTimeout = null;
+  nextAttemptAt = null;
+  connectWebSocket();
 }
 
 export function closeWebSocket() {
@@ -400,7 +419,9 @@ export function closeWebSocket() {
     ws = null;
     socket.close(1000, 'Client logout');
   }
+  nextAttemptAt = null;
   setConnectionState('offline');
+  resetConnection();
   identified = false;
   ownActivities = [];
   clearTimeout(activityTimer);

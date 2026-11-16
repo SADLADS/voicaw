@@ -35,6 +35,8 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Bumped by retry() (an error state's Try again): loads it again.
+  const [attempt, setAttempt] = useState(0);
   // The channel whose history is loaded (null while loading), so a jump waits for it.
   const [loadedChannelId, setLoadedChannelId] = useState(null);
   // Bumped whenever a message here is pinned or unpinned (the pins list reloads).
@@ -110,7 +112,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
       } catch (e) {
         if (cancelled) return;
         console.error('Failed to load channel:', e);
-        setError(e.response?.data?.error || e.message);
+        setError(e);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -119,7 +121,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatKey]);
+  }, [chatKey, attempt]);
 
   const loadMoreMessages = async () => {
     if (loadingOlder.current || !hasMore) return;
@@ -358,6 +360,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     hasMore,
     isLoading,
     error,
+    retry: () => setAttempt((n) => n + 1),
     loadedChannelId,
     loadMoreMessages,
     sendMessage,

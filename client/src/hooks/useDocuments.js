@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { onGuildEvent, setActiveChat } from '../utils/ws-client';
+import { errorText } from '../utils/errors';
 import {
   addDocumentReaction,
   fetchDocument,
@@ -56,7 +57,7 @@ export function useDocumentFeed({ channelId, showing, onRead }) {
       setDocuments(list);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.error || err.message);
+      setError(errorText(err));
     } finally {
       setLoaded(true);
     }

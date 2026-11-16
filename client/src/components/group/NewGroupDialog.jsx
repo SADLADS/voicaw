@@ -8,6 +8,7 @@ import { createGroup } from '../../services/groupKeys';
 import { MAX_GROUP_MEMBERS } from '../../services/groupCrypto';
 import { showContent } from '../../utils/mobilePanes';
 import { t } from '../../i18n';
+import { errorText } from '../../utils/errors';
 
 // Pick two or more people (and optionally a name) for a new group DM. `users`: your friends.
 export default function NewGroupDialog({ user, users, onCreated, onClose }) {
@@ -27,7 +28,7 @@ export default function NewGroupDialog({ user, users, onCreated, onClose }) {
       navigate(`/dm/g/${group.id}`);
       showContent();
     } catch (err) {
-      setError(err.response?.data?.error ?? err.message);
+      setError(errorText(err));
       setBusy(false);
     }
   }

@@ -86,6 +86,9 @@
   --vc-danger: #cc3f37;
   --vc-danger-hover: #b3342d;
   --vc-danger-text: #f07a72;
+  /* Tinted backgrounds behind errors and the connection strip (Errors, docs/client.md). */
+  --vc-danger-soft: rgba(204, 63, 55, 0.16);
+  --vc-warning-soft: rgba(232, 131, 58, 0.16);
 
   /* Roles a theme may colour on their own (Ol' Familiar does): links, unread markers (the
      rail's marker, unread pills and dots) and the count of unread mentions. */
@@ -204,6 +207,9 @@
   --vc-danger: #cc3f37;
   --vc-danger-hover: #b3342d;
   --vc-danger-text: #c83c34;
+  /* Tinted backgrounds behind errors and the connection strip (Errors, docs/client.md). */
+  --vc-danger-soft: rgba(204, 63, 55, 0.12);
+  --vc-warning-soft: rgba(184, 92, 24, 0.12);
 
   --vc-link: #5b44b0;
   --vc-unread: #d8b930;
@@ -273,6 +279,9 @@
   --vc-danger: #d22d39;
   --vc-danger-hover: #a9232e;
   --vc-danger-text: #ffa09b;
+  /* Tinted backgrounds behind errors and the connection strip (Errors, docs/client.md). */
+  --vc-danger-soft: rgba(210, 45, 57, 0.16);
+  --vc-warning-soft: rgba(252, 181, 41, 0.16);
 
   --vc-link: #76aff6;
   --vc-unread: #ffffff;
@@ -342,6 +351,9 @@
   --vc-danger: #c8243a;
   --vc-danger-hover: #a91d30;
   --vc-danger-text: #ff7a85;
+  /* Tinted backgrounds behind errors and the connection strip (Errors, docs/client.md). */
+  --vc-danger-soft: rgba(200, 36, 58, 0.16);
+  --vc-warning-soft: rgba(255, 179, 71, 0.16);
 
   --vc-link: #c39bf7;
   --vc-unread: #ff8a2a;
@@ -411,6 +423,9 @@
   --vc-danger: #d9343c;
   --vc-danger-hover: #bb2b32;
   --vc-danger-text: #ff8a8a;
+  /* Tinted backgrounds behind errors and the connection strip (Errors, docs/client.md). */
+  --vc-danger-soft: rgba(217, 52, 60, 0.16);
+  --vc-warning-soft: rgba(255, 179, 71, 0.16);
 
   --vc-link: #8ec9f5;
   --vc-unread: #ff5a5f;
@@ -477,6 +492,9 @@
   --vc-danger: #e01e5a;
   --vc-danger-hover: #c41a4f;
   --vc-danger-text: #c41a4f;
+  /* Tinted backgrounds behind errors and the connection strip (Errors, docs/client.md). */
+  --vc-danger-soft: rgba(224, 30, 90, 0.12);
+  --vc-warning-soft: rgba(184, 92, 24, 0.12);
 
   --vc-link: #1264a3;
   --vc-unread: #e01e5a;
@@ -993,6 +1011,14 @@ pre code {
      to their content. Without it the row takes the tallest child's height, and the DM view
      grows to fit every message instead of scrolling. */
   height: var(--vc-app-height);
+  /* The connection strip (when shown) over the page. */
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content-page {
+  flex: 1;
+  min-height: 0;
 }
 
 
@@ -1794,9 +1820,347 @@ pre code {
   color: var(--vc-online);
 }
 
-.error-msg {
-  color: var(--vc-danger-text);
+/* ERRORS (Errors in docs/client.md): the text comes from utils/errors.js, never axios's own.
+   .error-msg and FormError: a form or dialog that didn't go through, a tinted callout. */
+.error-msg,
+.error-text,
+.form-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
   margin-top: 0.5rem;
+  padding: 8px 10px;
+  border-left: 3px solid var(--vc-danger);
+  border-radius: var(--vc-radius-sm);
+  background: var(--vc-danger-soft);
+  color: var(--vc-fg);
+  font-size: var(--vc-text-md);
+  line-height: 1.45;
+  text-align: left;
+}
+
+.error-msg::before,
+.error-text::before {
+  content: "";
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  background-color: var(--vc-danger-text);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-13.3 0-24 10.7-24 24V296c0 13.3 10.7 24 24 24s24-10.7 24-24V184c0-13.3-10.7-24-24-24zm32 224a32 32 0 1 0 -64 0 32 32 0 1 0 64 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-13.3 0-24 10.7-24 24V296c0 13.3 10.7 24 24 24s24-10.7 24-24V184c0-13.3-10.7-24-24-24zm32 224a32 32 0 1 0 -64 0 32 32 0 1 0 64 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.form-error > svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  color: var(--vc-danger-text);
+}
+
+.form-error-title {
+  font-weight: 600;
+}
+
+.form-error-title + .form-error-text {
+  color: var(--vc-fg-muted);
+}
+
+/* ErrorState: a whole pane that couldn't load. */
+.error-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 100%;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--vc-fg);
+}
+
+.error-state-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: 22px;
+}
+
+.error-state-icon.danger {
+  background: var(--vc-danger-soft);
+  color: var(--vc-danger-text);
+}
+
+.error-state-title {
+  margin: 0;
+  font-size: var(--vc-text-lg);
+  font-weight: 600;
+}
+
+.error-state-text {
+  max-width: 340px;
+  margin: 0;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-md);
+  line-height: 1.5;
+}
+
+.error-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.error-state-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: var(--vc-radius-md);
+  background: var(--vc-accent);
+  color: var(--vc-on-accent);
+  font-size: var(--vc-text-md);
+  font-weight: 500;
+}
+
+.error-state-button:hover {
+  background: var(--vc-accent-hover);
+}
+
+.error-state-link {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: var(--vc-radius-md);
+  background: transparent;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-md);
+}
+
+.error-state-link:hover {
+  background: var(--vc-bg-hover);
+  color: var(--vc-fg);
+}
+
+.error-state-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: var(--vc-radius-md);
+  background: var(--vc-bg-subtle);
+  color: var(--vc-fg-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--vc-text-xs);
+  text-align: left;
+  user-select: text;
+}
+
+.error-state-details span {
+  overflow-wrap: anywhere;
+}
+
+.error-state-details button {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-link);
+  font: inherit;
+}
+
+/* InlineError: a list that couldn't load, in the list's place. */
+.inline-error {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: var(--vc-radius-md);
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  font-size: var(--vc-text-md);
+  line-height: 1.4;
+}
+
+.inline-error > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--vc-danger-text);
+}
+
+.inline-error-body {
+  min-width: 0;
+}
+
+.inline-error-title {
+  font-weight: 600;
+}
+
+.inline-error-text {
+  margin-top: 1px;
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-sm);
+}
+
+.inline-error-retry {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-link);
+  font-size: var(--vc-text-sm);
+  font-weight: 600;
+}
+
+/* Toasts (services/toasts.js), above the message box. */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(440px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--vc-border-light);
+  border-radius: var(--vc-radius-lg);
+  background: var(--vc-popup);
+  box-shadow: 0 10px 30px var(--vc-popup-shadow);
+  color: var(--vc-fg);
+  font-size: var(--vc-text-md);
+  pointer-events: auto;
+  animation: toast-in var(--vc-duration-slow) var(--vc-ease-out);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+
+.toast-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--vc-danger-soft);
+  color: var(--vc-danger-text);
+  font-size: 13px;
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.toast-title {
+  font-weight: 500;
+}
+
+.toast-text {
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-sm);
+}
+
+.toast-retry {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--vc-radius-md);
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg);
+  font-size: var(--vc-text-sm);
+  font-weight: 600;
+}
+
+.toast-retry:hover {
+  background: var(--vc-bg-elevated-hover);
+}
+
+.toast-close {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--vc-fg-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* The connection strip (ConnectionStrip.jsx), at the top of the page. */
+.connection-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--vc-border-dark);
+  background: var(--vc-warning-soft);
+  color: var(--vc-fg);
+  font-size: var(--vc-text-md);
+}
+
+.connection-strip-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vc-warning);
+  animation: connection-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes connection-pulse {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connection-strip-dot { animation: none; }
+}
+
+.connection-strip-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.connection-strip-text span {
+  color: var(--vc-fg-muted);
+}
+
+.connection-strip-button {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vc-link);
+  font-weight: 500;
 }
 
 .success-msg {

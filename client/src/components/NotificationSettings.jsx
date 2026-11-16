@@ -9,6 +9,7 @@ import {
 } from '../services/pushService';
 import { isDesktopApp } from '../utils/desktop';
 import { t } from '../i18n';
+import { errorText } from '../utils/errors';
 
 const STATUS_TEXT = {
   granted: 'settings.notifications.status.granted',
@@ -35,7 +36,7 @@ export default function NotificationSettings() {
       () => { if (!cancelled) setRegistrationError(null); },
       (err) => {
         console.error('Could not register this device for notifications:', err);
-        if (!cancelled) setRegistrationError(err.message || String(err));
+        if (!cancelled) setRegistrationError(errorText(err));
       }
     );
     return () => { cancelled = true; };
@@ -48,7 +49,7 @@ export default function NotificationSettings() {
       await fn();
     } catch (err) {
       console.error(err);
-      setMessage(t('settings.notifications.somethingWentWrong', { error: err.message }));
+      setMessage(t('settings.notifications.somethingWentWrong', { error: errorText(err) }));
     } finally {
       setStatus(getPushStatus());
       setBusy(false);

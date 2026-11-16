@@ -16,6 +16,8 @@ export function useBotDm({ dmId, user, onRead }) {
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Bumped by retry() (an error state's Try again): loads it again.
+  const [attempt, setAttempt] = useState(0);
   const [loadedChannelId, setLoadedChannelId] = useState(null);
   // Where the unread messages started when the conversation opened ({ id }; useConversation's).
   const [firstUnread, setFirstUnread] = useState(null);
@@ -68,7 +70,7 @@ export function useBotDm({ dmId, user, onRead }) {
         markRead(newest ? newest.id : 0, { opening: true });
       } catch (e) {
         if (cancelled) return;
-        setError(e.response?.data?.error || e.message);
+        setError(e);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -77,7 +79,7 @@ export function useBotDm({ dmId, user, onRead }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dmId]);
+  }, [dmId, attempt]);
 
   const loadMoreMessages = async () => {
     if (loadingOlder.current || !hasMore) return;
@@ -193,6 +195,7 @@ export function useBotDm({ dmId, user, onRead }) {
     hasMore,
     isLoading,
     error,
+    retry: () => setAttempt((n) => n + 1),
     loadedChannelId,
     loadMoreMessages,
     sendMessage,

@@ -3,6 +3,8 @@ import { loadDoc, saveDoc } from '../services/offlineCopy';
 import { isOfflineMode, isUnreachable } from './offlineMode';
 import { tokenClaims } from './loginToken';
 import { apiBaseUrl } from './server';
+import { noteRequestAnswered, noteRequestUnanswered } from './connection';
+import { errorKind } from './errors';
 
 const api = axios.create({
   baseURL: apiBaseUrl(),
@@ -22,6 +24,17 @@ api.interceptors.request.use(config => {
 // The server sends a new login token once the current one is a day old (server/auth.js),
 // so a session lasts as long as the app is used. It's only kept if it renews the token this
 // request was sent with: not after a logout, or once someone else has logged in.
+// Whether Voicaw answers (utils/connection.js: the connection strip). Before the offline
+// copy's interceptor, so an answer from the copy doesn't count as one from the server.
+api.interceptors.response.use((res) => {
+  noteRequestAnswered();
+  return res;
+}, (err) => {
+  if (err?.code !== 'ERR_CANCELED' && errorKind(err) === 'offline') noteRequestUnanswered();
+  else if (err?.response) noteRequestAnswered();
+  throw err;
+});
+
 api.interceptors.response.use(res => {
   const renewed = res.headers?.['x-voicaw-token'];
   const sentWith = res.config?.headers?.Authorization;

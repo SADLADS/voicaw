@@ -25,8 +25,8 @@ import { InteractionContext } from '../../contexts';
 import { useFriends } from '../../utils/friends';
 import { lastSeenText, statusLabel } from '../../utils/presence';
 import { t } from '../../i18n';
+import { errorText } from '../../utils/errors';
 
-const errorText = (err) => err.response?.data?.error ?? err.message;
 
 // A group DM's members (from its checked membership log), with the owner's crown. Anyone adds
 // people (from their friends, as in Discord), renames and changes the picture (cropped here, then
