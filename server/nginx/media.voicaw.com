@@ -14,9 +14,14 @@ map $request_uri $media_bucket { "~^/(?<b>[^/?]+)/" $b; default ""; }
 map $request_uri $media_key { "~^/[^/?]+(?<k>/[^?]*)" $k; default "/"; }
 
 server {
-    listen 80;
-    listen [::]:80;
     server_name media.voicaw.com;
+
+    # HTTPS arrives through stream-443.conf's split (README 7, TURN on 443), with the PROXY protocol.
+    listen 127.0.0.1:8443 ssl proxy_protocol;
+    ssl_certificate /etc/letsencrypt/live/voicaw.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/voicaw.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     # Each request is at most 100MB (bigger attachments come in parts, see Big files in docs/uploads.md).
     client_max_body_size 100M;
@@ -43,4 +48,11 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_http_version 1.1;
     }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name media.voicaw.com;
+    return 301 https://$host$request_uri;
 }
