@@ -356,6 +356,22 @@ describe('a webhook with its token', () => {
     expect((await messagesIn(member, general)).slice(-2).map((m) => m.content)).toEqual(['before', 'after']);
   });
 
+describe("replies to a webhook's messages", () => {
+  it('carry the name and picture that message was sent with, each its own', async () => {
+    const { member, general, hook } = await setUp();
+    const send = async (body) => (await request(app).post(`${hookPath(hook)}?wait=true`).send(body)).body;
+    const first = await send({ content: 'one', username: 'Alpha', avatar_url: 'https://example.com/a.png' });
+    const second = await send({ content: 'two', username: 'Beta', avatar_url: 'https://example.com/b.png' });
+    const plain = await send({ content: 'three' });
+    const replyTo = async (m) => (await api.post(member, `/channels/${general.id}/messages`, { content: 're', replyTo: Number(m.id) })).body;
+    expect(await replyTo(first)).toMatchObject({ parent_webhook_id: Number(hook.id), parent_username: 'Alpha', parent_webhook_avatar: 'https://example.com/a.png', parent_sender_id: null });
+    expect(await replyTo(second)).toMatchObject({ parent_username: 'Beta', parent_webhook_avatar: 'https://example.com/b.png' });
+    expect(await replyTo(plain)).toMatchObject({ parent_webhook_id: Number(hook.id), parent_username: 'Captain Hook', parent_webhook_avatar: null });
+    const listed = (await messagesIn(member, general)).filter((m) => m.parent_message_id === Number(second.id));
+    expect(listed[0]).toMatchObject({ parent_webhook_avatar: 'https://example.com/b.png' });
+  });
+});
+
 describe('webhooks and pins', () => {
   it("pins a webhook's message; the pins list has its name and embeds", async () => {
     const { owner, general, hook } = await setUp();

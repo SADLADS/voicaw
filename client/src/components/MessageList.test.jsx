@@ -816,6 +816,61 @@ describe('MessageList reactions', () => {
     expect(props.onOpenMenu).not.toHaveBeenCalled();
   });
 
+  describe('a "poll ended" row', () => {
+    const pollText = `poll:v1:${JSON.stringify({ q: 'Lunch?', multi: false, d: 60, o: [{ id: 'aaaa1111', t: 'Pizza' }] })}`;
+    const row = (extra = {}) => ({
+      id: 9, sender_id: 2, recipient_id: 1, sender_username: 'bob', system: 'poll_end', plaintext: null, timestamp: 2000,
+      parent_message_id: 4, parent_plaintext: pollText, parent_timestamp: 1000, poll_reactions: [],
+      reactions: [{ id: 1, user_id: 2, emoji: '👍' }], ...extra,
+    });
+
+    it('takes reactions and replies from its hover menu, and shows its reactions', () => {
+      const msg = row();
+      const props = reactionProps({ messages: [msg], hoveredMsgId: 9 });
+      const { container } = render(
+        <EmojiContext.Provider value={buildEmojiIndex(emojiData)}>
+          <MessageList {...props} />
+        </EmojiContext.Provider>
+      );
+      const wrapper = container.querySelector('[data-msg-id="9"]');
+      expect(wrapper).toHaveClass('each-dm-message-wrapper', 'poll-end-row');
+      expect(wrapper.querySelector('.poll-end')).toBeTruthy();
+      const menu = wrapper.querySelector('.message-menu');
+      expect(menu.querySelectorAll('.quick-reaction-button')).toHaveLength(3);
+      // Nothing that would change or remove it.
+      expect(menu.querySelector('.trash-button, .pin-button, [data-icon="pen-to-square"]')).toBeNull();
+
+      fireEvent.click(menu.querySelector('[data-icon="reply"]').closest('button'));
+      expect(props.handleReply).toHaveBeenCalledWith(msg);
+      fireEvent.click(screen.getByRole('button', { name: '👍 1, reacted by bob' }));
+      expect(props.onToggleReaction).toHaveBeenCalledWith(msg, '👍');
+    });
+
+    it('opens its menu on right-click, and has no Reply where you can\'t send', () => {
+      const msg = row();
+      const props = reactionProps({ messages: [msg], hoveredMsgId: 9, onOpenMenu: vi.fn(), canReply: false });
+      render(<MessageList {...props} />);
+      expect(document.querySelector('.message-menu [data-icon="reply"]')).toBeNull();
+      fireEvent.contextMenu(screen.getByText(/has closed/), { clientX: 3, clientY: 4 });
+      expect(props.onOpenMenu).toHaveBeenCalledWith(msg, { left: 3, right: 3, top: 4, bottom: 4 });
+    });
+
+    it("draws nothing, reactions included, when its poll can't be read", () => {
+      const { container } = render(<MessageList {...reactionProps({ messages: [row({ parent_plaintext: null })], hoveredMsgId: 9 })} />);
+      expect(container.querySelector('[data-msg-id="9"]')).toBeNull();
+      expect(container.querySelector('.reaction-chip')).toBeNull();
+    });
+
+    it('is named in the snippet of a reply to it', () => {
+      const reply = {
+        id: 10, sender_id: 1, recipient_id: 2, sender_username: 'alice', plaintext: 'good call', timestamp: 3000,
+        parent_message_id: 9, parent_plaintext: null, parent_system: 'poll_end', parent_sender_id: 2, parent_username: 'bob',
+      };
+      render(<MessageList {...reactionProps({ messages: [row(), reply] })} />);
+      expect(screen.getByText('Poll results').closest('.reply-preview')).toBeTruthy();
+    });
+  });
+
   it('on mobile, right-click (a long press on Android) does not open the desktop menu', () => {
     const msg = { id: 5, sender_id: 2, recipient_id: 1, sender_username: 'bob', plaintext: 'hold me', timestamp: 1 };
     const props = reactionProps({ messages: [msg], isMobile: true, onOpenActions: vi.fn(), onOpenMenu: vi.fn() });
@@ -864,6 +919,21 @@ describe('MessageList reactions', () => {
       const avatar = document.querySelector('img.message-avatar');
       expect(avatar).toHaveAttribute('src', 'https://ci.test/bot.png');
       expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer');
+    });
+
+    it("shows a reply to one with that message's own name and picture", () => {
+      const reply = (id, name, avatar) => ({
+        id, sender_id: 2, sender_username: 'bob', plaintext: 're', timestamp: 1000 + id, reactions: [],
+        parent_message_id: 7, parent_plaintext: 'Build done', parent_sender_id: null, parent_username: name,
+        parent_webhook_id: 3, parent_webhook_avatar: avatar,
+      });
+      const { container } = render(<MessageList {...baseProps({ messages: [reply(20, 'Alpha', 'https://ci.test/a.png'), reply(21, 'Beta', null)] })} />);
+      const [a, b] = container.querySelectorAll('.reply-snippet');
+      expect(a.querySelector('img.reply-avatar')).toHaveAttribute('src', 'https://ci.test/a.png');
+      expect(a.querySelector('img.reply-avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
+      expect(a.querySelector('.reply-author')).toHaveTextContent('Alpha');
+      expect(b.querySelector('img.reply-avatar').getAttribute('src')).not.toContain('ci.test');
+      expect(b.querySelector('.reply-author')).toHaveTextContent('Beta');
     });
 
     it('draws its embeds, with markdown, links that tell nobody where they came from, and no-referrer images', () => {

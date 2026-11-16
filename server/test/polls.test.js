@@ -262,6 +262,23 @@ describe('DM polls', () => {
     expect((await api.get(bob, `/dm-messages/${ann.id}`)).body).toEqual([]);
     expect(await db.get("SELECT * FROM poll_timers WHERE kind = 'dm' AND message_id = ?", [poll.id])).toBeUndefined();
   });
+
+  it('takes reactions and replies on its "poll ended" row, the replies saying what they answer', async () => {
+    const [ann, bob] = [await makeUser('dmpoll'), await makeUser('dmpoll')];
+    const poll = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.encrypted-poll' })).body;
+    await api.post(ann, `/polls/dm/${poll.id}/timer`, { duration: 3600 });
+    const { messageId } = (await api.post(ann, `/polls/dm/${poll.id}/end`)).body;
+    const reaction = await api.post(bob, '/dm-reactions', { messageId, content: REACTION });
+    expect(reaction.status).toBe(201);
+    const reply = await api.post(bob, '/dm-send', { recipient_id: ann.id, content: 'v1.reply', replyTo: messageId });
+    expect(reply.status).toBe(201);
+    const history = (await api.get(ann, `/dm-messages/${bob.id}`)).body;
+    const row = history.find((m) => m.id === messageId);
+    expect(row.reactions.map((r) => r.id)).toEqual([reaction.body.id]);
+    expect(row.poll_reactions).toEqual([]); // the poll's votes, not the row's reactions
+    expect(history.at(-1)).toMatchObject({ id: reply.body.id, parent_message_id: messageId, parent_system: 'poll_end', parent_sender_id: ann.id });
+    expect(history.find((m) => m.id === poll.id).parent_system).toBeNull();
+  });
 });
 
 describe('guild poll rows', () => {
@@ -279,6 +296,13 @@ describe('guild poll rows', () => {
     const row = bobEvents.find((e) => e.type === 'guild_message_new').message;
     expect(row).toMatchObject({ id: messageId, system: 'poll_end', parent_message_id: poll.id, poll_reactions: [] });
     expect(row.parent_content).toContain('poll:v1:');
+
+    // Its row takes reactions (with Add Reactions) and replies, like any message.
+    expect((await api.post(bob, `/guild-messages/${messageId}/reactions`, { emoji: '👍' })).status).toBe(201);
+    const reply = (await api.post(bob, `/channels/${general.id}/messages`, { content: 'Nice', replyTo: messageId })).body;
+    expect(reply).toMatchObject({ parent_message_id: messageId, parent_system: 'poll_end' });
+    const history = (await api.get(owner, `/channels/${general.id}/messages`)).body;
+    expect(history.find((m) => m.id === messageId).reactions).toMatchObject([{ user_id: bob.id, emoji: '👍' }]);
   });
 });
 

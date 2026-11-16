@@ -37,6 +37,8 @@ const MAX_POLL_REACTIONS_PER_USER = 50;
 
 // A webhook's messages (routes/webhooks.js) have sender_id 0 and no user: their name is
 // `webhook_name` (also as sender_username) and their picture `webhook_avatar` (a URL or null).
+// Each message keeps the name and picture it was sent with, so a reply to one gets that
+// message's: `parent_username` and `parent_webhook_avatar` (with `parent_webhook_id`).
 const MESSAGE_SELECT = `
   SELECT
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
@@ -49,8 +51,11 @@ const MESSAGE_SELECT = `
     u.bot AS sender_bot,
     pm.content AS parent_content,
     pm.timestamp AS parent_timestamp,
+    pm.system AS parent_system,
     pu.id AS parent_sender_id,
-    COALESCE(pu.username, pm.webhook_name) AS parent_username
+    COALESCE(pu.username, pm.webhook_name) AS parent_username,
+    pm.webhook_id AS parent_webhook_id,
+    pm.webhook_avatar AS parent_webhook_avatar
   FROM guild_messages m
   LEFT JOIN users u ON m.sender_id = u.id
   LEFT JOIN guild_messages pm ON m.parent_message_id = pm.id

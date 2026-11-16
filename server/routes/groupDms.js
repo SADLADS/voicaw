@@ -54,6 +54,7 @@ const MESSAGE_SELECT = `
     CASE WHEN pk.user_id IS NOT NULL THEN pm.content END AS parent_content,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.epoch END AS parent_epoch,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.timestamp END AS parent_timestamp,
+    CASE WHEN pk.user_id IS NOT NULL THEN pm.system END AS parent_system,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.parent_message_id END AS parent_reply_to,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.edited END AS parent_edited,
     CASE WHEN pk.user_id IS NOT NULL THEN pm.sender_id END AS parent_sender_id,

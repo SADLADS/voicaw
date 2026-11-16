@@ -4900,6 +4900,12 @@ body.mobile-mode .poll-voters-list {
   margin-right: 4px;
 }
 
+/* A reply to a "poll ended" row: the poll icon before "Poll results" (MessageList). */
+.reply-poll-end-icon {
+  margin-right: 6px;
+  color: var(--vc-accent-text);
+}
+
 .poll-end-answer .poll-option-emoji img.emoji {
   width: 18px;
   height: 18px;

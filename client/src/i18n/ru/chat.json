@@ -407,7 +407,8 @@
       "draw": "Ничья между <answers></answers>, по {{share}}%.",
       "separator": ", ",
       "lastSeparator": " и ",
-      "view": "Посмотреть опрос"
+      "view": "Посмотреть опрос",
+      "replyPreview": "Результаты опроса"
     },
     "pinNotice": {
       "pinned": "<b>{{name}}</b> закрепил(а) в этом чате <message>сообщение</message>.",

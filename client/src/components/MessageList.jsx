@@ -4,7 +4,7 @@ import { useInRouterContext, useNavigate } from 'react-router-dom';
 import remarkGfm from 'remark-gfm';
 import remarkEmoji from 'remark-emoji';
 import { Icon } from './Icon';
-import { faEdit, faTrash, faReply, faFaceSmile, faShare, faThumbtack } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faReply, faFaceSmile, faShare, faSquarePollHorizontal, faThumbtack } from '@fortawesome/free-solid-svg-icons';
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
@@ -47,7 +47,7 @@ import { openUserProfile } from '../utils/userProfile';
 import Avatar from './Avatar';
 import { formatDateTime, formatLongDate, formatTime, useDateFormat } from '../utils/dateFormat';
 import { useMessageDisplay } from '../utils/messageDisplay';
-import { parsePoll, pollEnded } from '../utils/pollMarkup';
+import { parsePoll, pollEnded, pollEndRowPoll } from '../utils/pollMarkup';
 import { forwardSource, parseForward } from '../utils/forwardMarkup';
 import { hasEditHistory } from '../utils/editHistory';
 import { UNKNOWN_CHANNEL, mentionName, mentionsMe as isForMe, mentionsToText, roleName } from '../utils/mentions';
@@ -527,8 +527,12 @@ const MessageRow = memo(function MessageRow({
       plaintext: msg.parent_plaintext,
       sender_username: msg.parent_username,
       sender_id: msg.parent_sender_id,
+      // A webhook's message (no user): the name and picture that message was sent with.
+      webhook_id: msg.parent_webhook_id ?? null,
+      webhook_avatar: msg.parent_webhook_avatar ?? null,
     }
     : null;
+  const parentName = parent && (parent.webhook_id ? parent.sender_username : displayName(parent.sender_id, parent.sender_username));
 
   return (
     <div
@@ -543,15 +547,34 @@ const MessageRow = memo(function MessageRow({
       <InteractionHeader interaction={msg.interaction} />
       {parent && (
         <div className="reply-snippet">
-          <Avatar userId={parent.sender_id} alt={displayName(parent.sender_id, parent.sender_username)} className="reply-avatar" />
-          <span className="reply-author" style={{ color: nameColors?.[parent.sender_id] }}>{displayName(parent.sender_id, parent.sender_username)}</span>
+          {parent.webhook_id ? (
+            // As the message's own picture: maybe another site's, so no referrer.
+            <img
+              className="reply-avatar"
+              src={parent.webhook_avatar || defaultAvatar}
+              alt={parentName}
+              referrerPolicy="no-referrer"
+              draggable={false}
+              onError={(e) => { e.currentTarget.src = defaultAvatar; }}
+              data-webhook-id={parent.webhook_id}
+              data-webhook-name={parentName}
+            />
+          ) : (
+            <Avatar userId={parent.sender_id} alt={parentName} className="reply-avatar" />
+          )}
+          <span className="reply-author" style={{ color: parent.webhook_id ? undefined : nameColors?.[parent.sender_id] }}>{parentName}</span>
           <span
             className="reply-preview"
             onClick={() => onJumpToMessage?.(msg.parent_message_id)}
           >
-            {/* One line (CSS cuts it with "…" where it runs out of room); the start is plenty. */}
-            {mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles, mentionChannels)
-              ?.replace(/\s+/g, ' ').trim().slice(0, 300) || "…"}
+            {/* A reply to a "poll ended" row (no text of its own; its author is the poll's). */}
+            {msg.parent_system === 'poll_end' ? (
+              <><Icon icon={faSquarePollHorizontal} className="reply-poll-end-icon" />{t('chat.pollEnd.replyPreview')}</>
+            ) : (
+              /* One line (CSS cuts it with "…" where it runs out of room); the start is plenty. */
+              mentionsToText(customEmojiToText(hideSpoilers(summarizeAttachments(parent.plaintext))), reactionNames, mentionRoles, mentionChannels)
+                ?.replace(/\s+/g, ' ').trim().slice(0, 300) || "…"
+            )}
           </span>
         </div>
       )}
@@ -760,6 +783,89 @@ const MessageRow = memo(function MessageRow({
   );
 });
 
+// A "poll ended" row (PollEndNotice) as a message you can react and reply to, as Discord's poll
+// results: the hover menu (quick reactions, Add Reaction, Reply), the reactions under it, the
+// right-click menu or long-press sheet (ChatPane leaves out what such a row can't do: edit, pin,
+// delete...) and swiping to reply. Nothing at all when the notice isn't shown (pollEndRowPoll).
+// Memoised like MessageRow, from the same props.
+const PollEndRow = memo(function PollEndRow({
+  msg,
+  user,
+  isMobile,
+  menuOpen = false,
+  focused = false,
+  replying = false,
+  setHoveredMsgId,
+  handleReply,
+  onToggleReaction,
+  onOpenReactionPicker,
+  onOpenActions,
+  onOpenMenu,
+  onJumpToMessage,
+  reactionNames,
+  canAddReactions = true,
+  canReply = true,
+}) {
+  const shown = Boolean(pollEndRowPoll(msg));
+  const longPress = useLongPress(() => onOpenActions(msg), { enabled: isMobile && Boolean(onOpenActions) && shown });
+  if (!shown) return null;
+  const canReact = Boolean(onToggleReaction);
+  const onContextMenu = !isMobile && onOpenMenu ? (e) => {
+    if (pageMenuTarget(e.target, document.getSelection()?.toString() ?? '')) return;
+    e.preventDefault();
+    onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY });
+  } : undefined;
+  const reacting = canReact && canAddReactions;
+  return (
+    <div
+      className={`each-dm-message-wrapper poll-end-row${focused ? ' focused' : ''}${replying ? ' replying' : ''}`}
+      data-msg-id={msg.id}
+      onMouseEnter={() => setHoveredMsgId(msg.id)}
+      onMouseLeave={() => setHoveredMsgId(null)}
+      onContextMenu={onContextMenu}
+      onClick={(e) => { if (cannotHover()) flashRow(e.currentTarget, 'tap-highlight'); }}
+      {...longPress}
+    >
+      {menuOpen && !isMobile && (reacting || canReply) && (
+        <div className="message-menu" ref={placeMessageMenu}>
+          {reacting && <HoverQuickReactions msg={msg} userId={user.id} onToggle={(emoji) => onToggleReaction(msg, emoji)} />}
+          {reacting && (
+            <button
+              className="icon-button"
+              aria-label={t('chat.reactions.add')}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => onOpenReactionPicker(msg, e.currentTarget)}
+            >
+              <Icon icon={faFaceSmile} title={t('chat.reactions.add')} />
+            </button>
+          )}
+          {canReply && (
+            <button className="icon-button" onClick={() => handleReply(msg)}>
+              <Icon icon={faReply} title={t('common.reply')} />
+            </button>
+          )}
+        </div>
+      )}
+      <PollEndNotice msg={msg} onJump={onJumpToMessage}>
+        {canReact && (
+          <MessageReactions
+            reactions={msg.reactions}
+            userId={user.id}
+            names={reactionNames}
+            onToggle={(emoji) => onToggleReaction(msg, emoji)}
+            onAdd={canAddReactions ? (anchor) => onOpenReactionPicker(msg, anchor) : undefined}
+          />
+        )}
+      </PollEndNotice>
+      {isMobile && canReply && (
+        <span className="swipe-reply-icon" aria-hidden="true">
+          <Icon icon={faReply} />
+        </span>
+      )}
+    </div>
+  );
+});
+
 // How close to the top (in viewport heights) to start fetching older history, so it's
 // usually in place before the user gets there.
 const LOAD_OLDER_WITHIN_VIEWPORTS = 1.5;
@@ -929,7 +1035,9 @@ export default function MessageList({
   // Mobile: swiping a message left replies to it (where there's a message box to reply in).
   const repliable = (key) => {
     const msg = messages.find((each) => rowKey(each) === key);
-    return msg && !msg.system && !isEphemeral(msg) && msg.status !== 'pending' && msg.status !== 'failed' ? msg : null;
+    // Of the system rows, only "poll ended" ones take replies (PollEndRow).
+    const replyable = !msg?.system || (msg.system === 'poll_end' && pollEndRowPoll(msg));
+    return msg && replyable && !isEphemeral(msg) && msg.status !== 'pending' && msg.status !== 'failed' ? msg : null;
   };
   useSwipeToReply(scrollerRef, {
     enabled: isMobile && canReply,
@@ -1131,7 +1239,7 @@ export default function MessageList({
               : startsNewDay(messages[i - 1], msg, { hasMore }) && <DayDivider time={rowTime(msg)} />}
             {/* A poll's result when it closed, a pin, a call; group DMs: membership changes, between the messages. */}
             {msg.system === 'poll_end'
-              ? <PollEndNotice msg={msg} onJump={onJumpToMessage} />
+              ? <PollEndRow msg={msg} {...rowProps} {...rowState(msg)} />
               : msg.system === 'pin'
               ? <PinNotice msg={msg} onJump={onJumpToMessage} onShowPins={onShowPins} />
               : msg.system === 'call'

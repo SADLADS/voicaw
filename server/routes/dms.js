@@ -30,6 +30,7 @@ const DM_SELECT = `
     u.display_name AS sender_display_name,
     pm.content AS parent_content,
     pm.timestamp AS parent_timestamp,
+    pm.system AS parent_system,
     pu.id AS parent_sender_id,
     pu.username AS parent_username
   FROM direct_messages dm
