@@ -188,8 +188,10 @@ export default function Login({ onLoginSuccess, invite = '' }) {
   }
 
   if (mode.twoFactor) {
+    // Keyed: the same shape as the login form, so React would reuse its username box for the
+    // code box, and autoFocus only works on a box that's new.
     return (
-      <div className="login-page">
+      <div className="login-page" key="two-factor">
         <div className="form-container">
           <h3 className="login-header text-center mb-3">{t('auth.twoFactor.title')}</h3>
           <p className="register-password-hint">{t('auth.twoFactor.hint')}</p>
