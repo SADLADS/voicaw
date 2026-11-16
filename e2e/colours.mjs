@@ -131,10 +131,10 @@ try {
   await b.click('.attach-button');
   await b.click('.composer-add-item:has-text("Create poll")');
   await b.fill('#poll-question', 'Which accent colour?');
-  await b.fill('input[aria-label="Answer 1"]', 'Blurple');
-  await b.fill('input[aria-label="Answer 2"]', 'Teal');
+  await b.fill('textarea[aria-label="Answer 1"]', 'Blurple');
+  await b.fill('textarea[aria-label="Answer 2"]', 'Teal');
   await b.click('text=+ Add another answer');
-  await b.fill('input[aria-label="Answer 3"]', 'Orange');
+  await b.fill('textarea[aria-label="Answer 3"]', 'Orange');
   await b.click('.vc-dialog button:has-text("Post")');
   await b.waitForSelector('.vc-dialog', { state: 'detached' });
   await a.goto(`${BASE}/guild/${guildId}/${polls.id}`);

@@ -84,8 +84,8 @@ try {
   await b.click('.attach-button');
   await b.click('.composer-add-item:has-text("Create poll")');
   await b.fill('#poll-question', 'Pizza?');
-  await b.fill('input[aria-label="Answer 1"]', 'Yes');
-  await b.fill('input[aria-label="Answer 2"]', 'No');
+  await b.fill('textarea[aria-label="Answer 1"]', 'Yes');
+  await b.fill('textarea[aria-label="Answer 2"]', 'No');
   await b.click('.vc-dialog button:has-text("Post")');
   await b.waitForSelector('.poll-question:text-is("Pizza?")');
   await away();

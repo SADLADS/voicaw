@@ -31,9 +31,9 @@ const SIGNED_PREFIX = 'v2.';
 const SIGNATURE_BYTES = 64;
 const MAX_MESSAGE_LENGTH = getMaxEncryptedLength(maxPlaintextLength + SIGNATURE_BYTES);
 const MAX_PREVIEWS_LENGTH = getMaxEncryptedLength(MAX_LINK_PREVIEWS_BYTES + SIGNATURE_BYTES);
-// A signed reaction is always one of these long: signature + 256 padded bytes (64 from apps
-// from before answers could be added to polls; see DM reactions).
-const REACTION_LENGTHS = [256, 64].map((padded) => getMaxEncryptedLength(SIGNATURE_BYTES + padded));
+// A signed reaction is always one of these long: signature + 512 padded bytes (256 or 64 from
+// older apps; see DM reactions).
+const REACTION_LENGTHS = [512, 256, 64].map((padded) => getMaxEncryptedLength(SIGNATURE_BYTES + padded));
 const OUTDATED = 'Please update the app (group messages are signed now)';
 
 // A new message or edit's content: signed, and not too long. -> an error message, or null.

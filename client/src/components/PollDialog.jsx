@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 import { faFaceSmile } from '@fortawesome/free-solid-svg-icons';
@@ -17,6 +17,36 @@ import {
 } from '../utils/pollMarkup';
 import { reactionPickerPosition } from '../utils/reactionPickerPosition';
 import { t } from '../i18n';
+
+// An answer's box: one line that grows to show all of a long answer (up to MAX_OPTION_LENGTH)
+// instead of scrolling sideways. Answers are one line, so Enter posts (as an input's would) and
+// pasted line breaks become spaces.
+function AnswerBox({ value, onChange, ...props }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    box.style.height = 'auto';
+    box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      {...props}
+      ref={ref}
+      rows={1}
+      className="form-control poll-dialog-answer"
+      maxLength={MAX_OPTION_LENGTH}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/[\r\n]+/g, ' '))}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          e.currentTarget.form?.requestSubmit();
+        }
+      }}
+    />
+  );
+}
 
 // Making a poll, or editing one (`poll`): a question and 1 to MAX_POLL_OPTIONS answers
 // (empty rows are left out), each with an optional emoji (the smiley button: the emoji
@@ -61,7 +91,7 @@ export default function PollDialog({ poll, addedAnswers = 0, onSubmit, onClose }
     setOptions((list) => [...list, row()]);
     // Focus the new answer once it's there.
     requestAnimationFrame(() => {
-      const inputs = listRef.current?.querySelectorAll('input');
+      const inputs = listRef.current?.querySelectorAll('textarea');
       inputs?.[inputs.length - 1]?.focus();
     });
   }
@@ -155,13 +185,11 @@ export default function PollDialog({ poll, addedAnswers = 0, onSubmit, onClose }
                   </button>
                 )}
               </span>
-              <input
-                className="form-control"
+              <AnswerBox
                 aria-label={t('chat.pollDialog.answer', { number: i + 1 })}
-                maxLength={MAX_OPTION_LENGTH}
                 placeholder={t('chat.pollDialog.answerPlaceholder')}
                 value={o.text}
-                onChange={(e) => setText(o.key, e.target.value)}
+                onChange={(text) => setText(o.key, text)}
               />
               <button
                 type="button"

@@ -274,9 +274,9 @@ export async function decryptMessage(envelope, key, context) {
 
 // Every reaction is padded to this many bytes before encryption, so the server can't tell
 // 👍 from 👨‍👩‍👧, a custom emoji, a poll vote or an answer added to a poll (the longest, about
-// 210 bytes) by its length. The server checks the size; it also takes reactions from before
-// answers could be added, padded to 64.
-export const REACTION_PLAINTEXT_BYTES = 256;
+// 480 bytes) by its length. The server checks the size; it also takes reactions from older
+// apps: 256 (before answers could be 110 characters) and 64 (before answers could be added).
+export const REACTION_PLAINTEXT_BYTES = 512;
 
 // Binds a reaction to its message, the person reacting and the conversation, so the server
 // can't move it to another message or make it look like the other person's.

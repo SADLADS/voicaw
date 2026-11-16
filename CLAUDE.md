@@ -344,8 +344,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - **Open polls** (built 2026-10-06, see Polls in `docs/messages.md`): anyone adds answers, each
   a reaction from whoever added it (not a table: reactions already have the encryption, group
   signing and delivery, and the server still can't tell which messages are polls), so
-  encrypted reactions are padded to 256 bytes. Its creator, the poll's author or a guild
-  moderator removes one nobody else voted for; a new question drops every vote and added
+  encrypted reactions are padded (512 bytes since answers went from 55 to 110 characters,
+  2026-11-16; the server still takes older apps' 256 and 64). Its creator, the poll's author or
+  a guild moderator removes one nobody else voted for; a new question drops every vote and added
   answer. Polls take 20 answers.
 - **The + panel** (built 2026-10-07, see The + panel in `docs/uploads.md`): on phones the
   + button opens Discord's panel (camera, a grid of recent photos, then Photos / Poll / Thread /

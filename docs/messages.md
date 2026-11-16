@@ -297,8 +297,9 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
 ## Polls
 
 Any chat (DM, notes, group DM, guild text channel) can have polls: the composer's `+` opens a
-menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–20 answers (55
-each, each with an optional emoji: Unicode or a guild's custom one, from `EmojiPicker` over the
+menu (Upload a file / Create poll). `PollDialog.jsx` takes a question (300), 1–20 answers (110
+each, since 2026-11-16, was 55; each answer box is a one-line textarea that grows onto more
+lines for a long one, Enter posts and pasted line breaks become spaces; each with an optional emoji: Unicode or a guild's custom one, from `EmojiPicker` over the
 dialog; Escape there closes only the picker, since `EmojiPicker` marks it handled and `Modal`
 skips handled Escapes; Tab goes question → answers → Add another answer, skipping the emoji
 and remove buttons), a duration (1h, 4h, 8h, 24h (default), 3d, 1w, 2w), "Allow multiple
@@ -335,10 +336,10 @@ posting. A poll is sent as its own message (replying if a reply is set, like a G
   can add an answer, from the vote screen only (a box under the answers; not on the results),
   and adding one neither votes for it nor ticks it (that would look like a vote): it's picked
   and sent with Vote like any other. Each added answer is a reaction from whoever added it,
-  `poll:+` + JSON `{ i: id, r: round, t: text }` (text only, at most 55 characters, one line,
+  `poll:+` + JSON `{ i: id, r: round, t: text }` (text only, at most 110 characters, one line,
   trimmed; `parseAnswer` ignores anything not made exactly so), so who added it is the
   reaction's owner (signed in groups) and, in encrypted chats, the server can't tell it from an
-  emoji (reactions are padded to 256 bytes for it; see Reactions in `auth-and-encryption.md`).
+  emoji (reactions are padded to 512 bytes for it, room for 110 characters of escaped JSON; see Reactions in `auth-and-encryption.md`).
   `pollWithAnswers` is the poll with them: the author's answers, then added ones in server
   order, leaving out other rounds, repeats of an earlier answer ignoring case (refused when
   typed too, `answerProblem`), ones added after the poll closed, and any past 20 answers in all

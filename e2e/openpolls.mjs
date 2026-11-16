@@ -23,7 +23,7 @@ async function createOpenPoll(page, question, answers, { multi = false } = {}) {
   await page.fill('#poll-question', question);
   for (let i = 0; i < answers.length; i++) {
     if (i >= 2) await page.click('text=+ Add another answer');
-    await page.fill(`input[aria-label="Answer ${i + 1}"]`, answers[i]);
+    await page.fill(`textarea[aria-label="Answer ${i + 1}"]`, answers[i]);
   }
   if (answers.length === 1) await page.click('button[aria-label="Remove answer 2"]');
   if (multi) await page.check('.vc-dialog label:has-text("Allow multiple answers") input');

@@ -4660,6 +4660,23 @@ body.mobile-mode .poll-voters-list {
   gap: 6px;
 }
 
+/* A long answer wraps onto more lines (the box grows, see PollDialog's AnswerBox); the emoji
+   and × stay by its first line. */
+.poll-dialog-options .vc-form-row {
+  align-items: flex-start;
+}
+
+.poll-dialog-answer {
+  min-height: 38px;
+  overflow: hidden;
+  resize: none;
+  line-height: 1.4;
+}
+
+.poll-dialog-options .poll-dialog-remove {
+  margin-top: 3px;
+}
+
 .poll-dialog-remove {
   flex-shrink: 0;
   width: 32px;

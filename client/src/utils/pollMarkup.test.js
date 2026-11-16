@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   pollResult, pollEndFits, endPoll, pollEnded, pollEndsAt, timeLeft, editedPoll, parsePoll, planVotes, myVotes, pollMarkup, tallyVotes, voteKey,
-  answerKey, answerProblem, canRemoveAnswer, parseAnswer, pollWithAnswers, removalKey, MAX_POLL_OPTIONS,
+  answerKey, answerProblem, canRemoveAnswer, parseAnswer, pollWithAnswers, removalKey, MAX_POLL_OPTIONS, MAX_OPTION_LENGTH,
 } from './pollMarkup';
+import { REACTION_PLAINTEXT_BYTES } from '../services/encryptionService';
 import { summarizeAttachments } from './attachmentMarkup';
 import { groupReactions } from './reactions';
 
@@ -162,12 +163,14 @@ describe('open polls', () => {
     expect(parseAnswer('poll:+{"i":"cccc3333","r":"round111","t":" Curry"}')).toBeNull();
     expect(parseAnswer('poll:+{"i":"cccc3333","r":"round111","t":"Cur\\nry"}')).toBeNull();
     expect(parseAnswer('poll:+{"i":"cccc3333","r":"round111","t":"Curry","e":"🍛"}')).toBeNull();
-    expect(parseAnswer(`poll:+{"i":"cccc3333","r":"round111","t":"${'x'.repeat(56)}"}`)).toBeNull();
+    expect(parseAnswer(`poll:+{"i":"cccc3333","r":"round111","t":"${'x'.repeat(110)}"}`)).not.toBeNull();
+    expect(parseAnswer(`poll:+{"i":"cccc3333","r":"round111","t":"${'x'.repeat(111)}"}`)).toBeNull();
     expect(parseAnswer('poll:+[1,2,3]')).toBeNull();
     expect(parseAnswer('poll:cccc3333')).toBeNull();
-    // The longest fits an encrypted reaction (256 bytes), whatever the characters.
-    for (const text of ['"'.repeat(55), '\\'.repeat(55), '€'.repeat(55), 'ü'.repeat(55), '😀'.repeat(27)]) {
-      expect(new TextEncoder().encode(answerKey({ id: 'cccc3333', round: 'round111', text })).length).toBeLessThanOrEqual(256);
+    // The longest fits an encrypted reaction (REACTION_PLAINTEXT_BYTES), whatever the characters.
+    expect(MAX_OPTION_LENGTH).toBe(110);
+    for (const text of ['"'.repeat(110), '\\'.repeat(110), '€'.repeat(110), 'ü'.repeat(110), '😀'.repeat(55)]) {
+      expect(new TextEncoder().encode(answerKey({ id: 'cccc3333', round: 'round111', text })).length).toBeLessThanOrEqual(REACTION_PLAINTEXT_BYTES);
     }
   });
 

@@ -27,7 +27,7 @@ async function createPoll(page, question, answers, { multi = false, emoji = {}, 
   await page.fill('#poll-question', question);
   for (let i = 0; i < answers.length; i++) {
     if (i >= 2) await page.click('text=+ Add another answer');
-    await page.fill(`input[aria-label="Answer ${i + 1}"]`, answers[i]);
+    await page.fill(`textarea[aria-label="Answer ${i + 1}"]`, answers[i]);
   }
   // A new poll starts with two rows; drop the unused one.
   if (answers.length === 1) await page.click('button[aria-label="Remove answer 2"]');
@@ -169,7 +169,7 @@ try {
   await row.locator('button:has(svg[data-icon="pen-to-square"])').click();
   await a.waitForSelector('.vc-dialog:has-text("Edit poll")');
   if (!(await a.isDisabled('.vc-dialog input[type=checkbox]'))) throw new Error('multiple choice can be changed');
-  await a.fill('input[aria-label="Answer 2"]', 'Tomato soup');
+  await a.fill('textarea[aria-label="Answer 2"]', 'Tomato soup');
   await a.waitForSelector('text=Changing an answer removes the votes it had.');
   await shot(a, '4-edit');
   await a.click('.vc-dialog button:has-text("Save")');

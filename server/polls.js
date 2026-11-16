@@ -13,7 +13,7 @@ const ANSWER_PREFIX = 'poll:+';
 const POLL_REACTION_PREFIX = 'poll:';
 const OPTION_ID = /^[a-z0-9]{8}$/;
 const MAX_OPTIONS = 20;
-const MAX_ANSWER_LENGTH = 55;
+const MAX_ANSWER_LENGTH = 110;
 const MAX_DURATION = 14 * 86400;
 // How far an early end's time may be from the server's clock.
 const END_CLOCK_SLACK = 300;

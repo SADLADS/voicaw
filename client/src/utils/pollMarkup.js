@@ -29,7 +29,7 @@ export const ANSWER_PREFIX = 'poll:+';
 export const REMOVAL_PREFIX = 'poll:-';
 export const MAX_POLL_OPTIONS = 20;
 export const MAX_QUESTION_LENGTH = 300;
-export const MAX_OPTION_LENGTH = 55;
+export const MAX_OPTION_LENGTH = 110;
 
 // How long a poll can run (Discord's choices); 24 hours unless picked.
 export const POLL_DURATIONS = [

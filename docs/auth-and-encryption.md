@@ -316,9 +316,10 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   data, so the server can't re-attribute or move messages. Replies and edits use the original
   message's sender/recipient.
 - **Reactions** (`dm_reactions`): the emoji is encrypted (`encryptReaction`) with the conversation
-  key, zero-padded to `REACTION_PLAINTEXT_BYTES` (256, room for an answer added to an open
-  poll, see Polls in `messages.md`) so every envelope is 383 chars (the server rejects any other
-  length, except 127: 64 bytes, from apps before open polls) and its size doesn't reveal whether
+  key, zero-padded to `REACTION_PLAINTEXT_BYTES` (512, room for a 110-character answer added to
+  an open poll, see Polls in `messages.md`) so every envelope is 723 chars (the server rejects any
+  other length, except older apps' 383, 256 bytes from before answers were 110 characters, and
+  127, 64 bytes from before open polls) and its size doesn't reveal whether
   it's an emoji, a vote or an added answer. `reactionContext(messageId,
   reactorId, senderId, recipientId)` is the additional data, so a reaction can't be moved or
   re-attributed. Which message was reacted to, by whom and when is deliberately visible, like reply

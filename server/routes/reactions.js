@@ -13,8 +13,9 @@ const { notifyDmReaction } = require('../reactionPushes');
 // person covers a whole poll's worth (20 answers, votes for all of them and a few of their own).
 const router = express.Router();
 
-// 256 since answers could be added to polls; apps from before pad to 64.
-const REACTION_LENGTHS = [256, 64].map(getMaxEncryptedLength);
+// 512 since poll answers could be 110 characters; older apps pad to 256 (55-character answers)
+// or 64 (before answers could be added to polls).
+const REACTION_LENGTHS = [512, 256, 64].map(getMaxEncryptedLength);
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 50;
 
 // The DM `messageId` if `userId` is one of its two participants.

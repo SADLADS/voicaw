@@ -128,7 +128,7 @@ describe('guild open polls', () => {
     expect((await add(bob, answer('ffff6666', 'Soon', 'round999'))).status).toBe(400); // another round
     expect((await add(bob, answer('cccc3333', 'Other'))).status).toBe(400); // an id in use
     expect((await add(bob, answer('gggg7777', ' Padded '))).status).toBe(400);
-    expect((await add(bob, answer('hhhh8888', 'x'.repeat(56)))).status).toBe(400);
+    expect((await add(bob, answer('hhhh8888', 'x'.repeat(111)))).status).toBe(400);
     expect((await add(bob, `poll:+${JSON.stringify({ i: 'iiii9999', r: 'round111', t: 'Extra', e: '🍕' })}`)).status).toBe(400);
     expect((await add(bob, 'poll:-cccc3333')).status).toBe(400); // removals are the server's here
 
@@ -138,6 +138,8 @@ describe('guild open polls', () => {
     // Kept with the poll's reactions.
     const page = await api.get(owner, `/channels/${general.id}/messages`);
     expect(page.body.find((m) => m.id === poll.id).reactions.map((r) => r.emoji)).toEqual([answer('cccc3333', 'Later')]);
+    // Up to 110 characters.
+    expect((await add(bob, answer('kkkk1111', 'x'.repeat(110)))).status).toBe(201);
   });
 
   it('needs Send Messages to add one, and stops at 20 answers', async () => {

@@ -62,9 +62,11 @@ describe('DM reactions', () => {
     expect((await react(alice, messageId, REACTION + 'AAAA')).status).toBe(400);
     expect((await react(alice, messageId, 'v2.' + REACTION.slice(3))).status).toBe(400);
     expect((await react(alice, messageId, null)).status).toBe(400);
-    // Today's size: 256 padded bytes (room for an answer added to a poll), 383 chars.
+    // Today's size: 512 padded bytes (room for a 110-character answer added to a poll), 723 chars.
+    expect((await react(alice, messageId, 'v1.' + 'A'.repeat(720))).status).toBe(201);
+    expect((await react(alice, messageId, 'v1.' + 'A'.repeat(724))).status).toBe(400);
+    // Older apps' 256 padded bytes (383 chars) still go in.
     expect((await react(alice, messageId, 'v1.' + 'A'.repeat(379) + '=')).status).toBe(201);
-    expect((await react(alice, messageId, 'v1.' + 'A'.repeat(383) + '=')).status).toBe(400);
   });
 
   it('limits reactions per person per message', async () => {
