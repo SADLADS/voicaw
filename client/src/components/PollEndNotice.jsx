@@ -3,7 +3,7 @@ import { Trans } from 'react-i18next';
 import { Icon } from './Icon';
 import { faSquarePollHorizontal, faTrophy } from '@fortawesome/free-solid-svg-icons';
 import { ReactionEmoji } from './MessageReactions';
-import { parsePoll, pollEndFits, pollEndsAt, pollResult, pollWithAnswers } from '../utils/pollMarkup';
+import { pollEndRowPoll, pollEndsAt, pollResult, pollWithAnswers } from '../utils/pollMarkup';
 import { displayName, useProfiles } from '../utils/profiles';
 import { formatDateTime, useDateFormat } from '../utils/dateFormat';
 import { t } from '../i18n';
@@ -35,12 +35,13 @@ function Answers({ options }) {
 // answer and its share of the voters, a draw, or nobody voted. Worked out on this device from
 // the poll (`parent_plaintext`) and its votes (`poll_reactions`), which come with the row.
 // Nothing is shown if the poll can't be read here (deleted, or from before you joined a group)
-// or the row doesn't fit the poll (see pollEndFits). `onJump(id)` scrolls to the poll.
-export default function PollEndNotice({ msg, onJump }) {
+// or the row doesn't fit the poll (see pollEndRowPoll). `onJump(id)` scrolls to the poll.
+// `children` go under it (the row's reactions, MessageList's PollEndRow).
+export default function PollEndNotice({ msg, onJump, children }) {
   useProfiles();
   useDateFormat();
-  const poll = parsePoll(msg.parent_plaintext);
-  if (!poll || !pollEndFits(poll, msg.parent_timestamp, msg.timestamp)) return null;
+  const poll = pollEndRowPoll(msg);
+  if (!poll) return null;
   const endsAt = pollEndsAt(poll, msg.parent_timestamp);
   // The row's sender is the poll's author; added answers can win too.
   const full = pollWithAnswers(poll, msg.poll_reactions, msg.sender_id, endsAt);
@@ -56,7 +57,7 @@ export default function PollEndNotice({ msg, onJump }) {
   }
 
   return (
-    <div className="poll-end" data-msg-id={msg.id} title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
+    <div className="poll-end" title={formatDateTime(msg.timestamp * 1000, { seconds: true })}>
       <Icon icon={faSquarePollHorizontal} className="poll-end-icon" />
       <div className="poll-end-body">
         <div>
@@ -69,6 +70,7 @@ export default function PollEndNotice({ msg, onJump }) {
         {onJump && (
           <button type="button" className="poll-link" onClick={() => onJump(msg.parent_message_id)}>{t('chat.pollEnd.view')}</button>
         )}
+        {children}
       </div>
     </div>
   );

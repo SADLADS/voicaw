@@ -362,7 +362,8 @@
       "draw": "เสมอกันระหว่าง <answers></answers> ได้คนละ {{share}}%",
       "separator": ", ",
       "lastSeparator": " และ ",
-      "view": "ดูโพล"
+      "view": "ดูโพล",
+      "replyPreview": "ผลโพล"
     },
     "pinNotice": {
       "pinned": "<b>{{name}}</b> ปักหมุด<message>ข้อความ</message>ในแชทนี้",

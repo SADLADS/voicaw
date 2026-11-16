@@ -362,7 +362,8 @@
       "draw": "<answers></answers> がそれぞれ {{share}}% で引き分けです。",
       "separator": "、",
       "lastSeparator": "、",
-      "view": "投票を表示"
+      "view": "投票を表示",
+      "replyPreview": "投票結果"
     },
     "pinNotice": {
       "pinned": "<b>{{name}}</b> さんがこのチャットに<message>メッセージ</message>をピン留めしました。",

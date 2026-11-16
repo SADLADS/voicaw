@@ -306,6 +306,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       sender_username: user.username,
       parent_message_id: replyTo?.id ?? null,
       parent_plaintext: replyTo?.plaintext ?? null,
+      parent_system: replyTo?.system ?? null,
       localAttachments,
     };
     setMessages((prev) => [...prev, tempMessage]);

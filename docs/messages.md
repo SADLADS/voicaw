@@ -396,6 +396,16 @@ posting. A poll is sent as its own message (replying if a reply is set, like a G
   give or take a minute) isn't shown, and neither is one whose poll can't be read (someone
   added to a group later never gets it: it's in the poll's epoch). Rows can't be edited;
   deleting a poll deletes its row (and timer). An app from before this shows them as unreadable.
+- **Reacting and replying to "poll ended" rows** (MessageList's `PollEndRow`): as Discord's poll
+  results, a row takes reactions and replies like a message: the hover menu (quick reactions,
+  Add Reaction, Reply), its reactions under the result, the right-click menu or long-press sheet
+  (reactions, View Reactions, Reply; ChatPane leaves out Edit, Pin, Delete and bots' Apps for
+  system rows) and swiping to reply. They're the row's own reactions (`reactions`, bound to the
+  row like any message's), apart from its poll's votes (`poll_reactions`); the server already
+  took both (it refuses only calls and group renames). A reply to one carries `parent_system`
+  ('poll_end', from every chat's message select), so its snippet reads "Poll results" with the
+  poll icon instead of the row's empty text. A reaction there notifies the poll's author like
+  one on their message, without a preview (the row has no text).
 - **Notifications when a poll closes** (`server/systemPushes.js`, see "Pinned" and "poll
   ended" notifications in `realtime.md`): its author ("Your poll “Q” has closed") and everyone
   who voted, in a guild also whoever gets every message in the channel. In DMs and groups the
