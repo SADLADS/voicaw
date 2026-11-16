@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -40,6 +41,7 @@ public class CallService extends Service {
     private static JSObject shown;
 
     private PowerManager.WakeLock wakeLock;
+    private WifiManager.WifiLock wifiLock;
 
     static synchronized void show(Context context, JSObject ongoing) {
         shown = ongoing;
@@ -81,12 +83,21 @@ public class CallService extends Service {
     }
 
     @SuppressLint("WakelockTimeout")
+    @SuppressWarnings("deprecation") // WIFI_MODE_FULL_HIGH_PERF: still what keeps Wi-Fi awake with the screen off
     @Override
     public void onCreate() {
         super.onCreate();
         PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "voicaw:call");
         wakeLock.acquire();
+        // With the screen off Android lets Wi-Fi doze, which drops a call's connection (LiveKit
+        // closed phones' sessions as PEER_CONNECTION_DISCONNECTED); calling apps hold this lock.
+        WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        if (wifi != null) {
+            wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "voicaw:call");
+            wifiLock.setReferenceCounted(false);
+            wifiLock.acquire();
+        }
     }
 
     @Override
@@ -153,6 +164,7 @@ public class CallService extends Service {
             if (running == this) running = null;
         }
         if (wakeLock.isHeld()) wakeLock.release();
+        if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
         super.onDestroy();
     }
 

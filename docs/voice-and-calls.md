@@ -98,9 +98,14 @@ LiveKit carries the audio.
   give up and can't get in with an expired token, so after 15 s (`TAKE_OVER_AFTER_MS`), or once
   it gives up with a reason that isn't meant (`shouldRejoin`: not left, removed, replaced or
   room gone), `voiceClient` drops it and joins the channel again with a new token, backing off
-  (0, 1, 2, 5, 10 s) for up to 5 minutes; an API refusal (`joinRefused`) stops it. Phones only
-  try while the app is visible (iOS stops a page's microphone and connection in the background)
-  and, back in view after over 10 s with the connection still recovering, rejoin at once. Each
+  (0, 1, 2, 5, 10 s) for up to 5 minutes; an API refusal (`joinRefused`) stops it. Phone
+  browsers only try while the page is visible (iOS stops a page's microphone and connection in
+  the background); coming back into view starts the 5 minutes again (so a phone away for longer
+  still rejoins rather than showing "Connection lost") and, after over 10 s with the
+  connection still recovering, rejoins at once. The Android app keeps running with the screen
+  off (its call service), so it rejoins at once while hidden too (2026-11-16: waiting left
+  people out of the channel until they next looked at their phone); a camera that was on comes
+  back only once the app is shown (Android refuses one in the background). Each
   join is capped at 20 s (LiveKit's `connect` can loop forever when WebSockets are blocked but
   its HTTP answers). A `Disconnected` before a room finished joining is a failed join, handled
   by `connect` (`joinedRooms`). DM and group calls don't rejoin (their token and key come from

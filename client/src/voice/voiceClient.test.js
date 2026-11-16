@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 // A stand-in for livekit-client, as far as mute and deafen go. Its microphone behaves like
 // LiveKit's: turning it on the first time captures and publishes (which takes a while, here
@@ -203,9 +203,13 @@ vi.mock('../sounds/sounds', () => ({ playSound: vi.fn() }));
 const guildEvents = vi.hoisted(() => ({ listeners: [] }));
 vi.mock('../utils/ws-client', () => ({ onGuildEvent: (cb) => guildEvents.listeners.push(cb) }));
 const sendGuildEvent = (event) => guildEvents.listeners.forEach((cb) => cb(event));
-// A phone (isMobileDevice) while `device.mobile`; the screen kept on (keepScreenOn) while
-// `device.screenOn`.
-const device = vi.hoisted(() => ({ mobile: false, screenOn: false }));
+// A phone (isMobileDevice) while `device.mobile`, the Android app (isAndroidApp) while
+// `device.androidApp`; the screen kept on (keepScreenOn) while `device.screenOn`.
+const device = vi.hoisted(() => ({ mobile: false, androidApp: false, screenOn: false }));
+vi.mock('../utils/android', async (importOriginal) => ({
+  ...(await importOriginal()),
+  isAndroidApp: () => device.androidApp,
+}));
 vi.mock('../utils/presence', async (importOriginal) => ({
   ...(await importOriginal()),
   isMobileDevice: () => device.mobile,
@@ -245,6 +249,16 @@ globalThis.AudioContext = FakeAudioContext;
 
 const voice = await import('./voiceClient');
 const { setStreamVolume, setUserVolume } = await import('./userVolumes');
+
+// The page shown or hidden (a phone's screen off, another app in front).
+let hidden = false;
+Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
+Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+async function setHidden(value) {
+  hidden = value;
+  document.dispatchEvent(new Event('visibilitychange'));
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+}
 
 const flush = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -826,15 +840,6 @@ describe('voiceClient camera', () => {
     stop();
   });
 
-  let hidden = false;
-  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
-  Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
-  async function setHidden(value) {
-    hidden = value;
-    document.dispatchEvent(new Event('visibilitychange'));
-    await new Promise((resolve) => { setTimeout(resolve, 0); });
-  }
-
   it("keeps the screen on while the camera is on and shown", async () => {
     device.mobile = true;
     try {
@@ -903,5 +908,85 @@ describe('voiceClient camera', () => {
     await voice.switchCamera();
     expect(voice.getVoiceSnapshot()).toMatchObject({ cameraFacing: null, cameraError: expect.any(String) });
     expect(me.camera.restarts.map((o) => o.facingMode)).toEqual(['environment', 'user']);
+  });
+});
+
+describe('voiceClient lost connections', () => {
+  beforeEach(async () => {
+    await voice.leaveVoice();
+    lk.state.permissions = undefined;
+  });
+
+  const PEER_CONNECTION_DISCONNECTED = 13;
+  // Over 5 minutes (rejoin.js REJOIN_FOR_MS) in the background.
+  const LONG_AWAY_MS = 6 * 60 * 1000;
+  const settle = async () => {
+    await new Promise((resolve) => { setTimeout(resolve, 10); });
+    await flush();
+  };
+
+  // Allowed the camera, also in the room joined again (reset after each test).
+  async function joinAndLose({ camera = false } = {}) {
+    lk.state.permissions = { canPublish: true, canPublishSources: [1, 2] };
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    await voice.joinVoice(1, 2);
+    if (camera) await voice.startCamera();
+    const lost = lk.state.room;
+    await setHidden(true);
+    lost.emit('Disconnected', PEER_CONNECTION_DISCONNECTED);
+    await settle();
+    return lost;
+  }
+
+  it('the Android app rejoins at once with the screen off, and brings the camera back when shown', async () => {
+    device.mobile = true;
+    device.androidApp = true;
+    try {
+      const lost = await joinAndLose({ camera: true });
+      expect(lk.state.room).not.toBe(lost);
+      expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'connected', channelId: 2, cameraOn: false, cameraError: null });
+      // Android refuses a camera in the background: it waits until the app is back.
+      expect(lk.state.room.localParticipant.camera).toBeFalsy();
+      await setHidden(false);
+      await flush();
+      expect(lk.state.room.localParticipant.camera).toBeTruthy();
+    } finally {
+      device.mobile = false;
+      device.androidApp = false;
+      hidden = false;
+    }
+  });
+
+  it('a phone browser waits until it is shown, and still rejoins after a long time away', async () => {
+    device.mobile = true;
+    const now = Date.now();
+    try {
+      const lost = await joinAndLose();
+      expect(lk.state.room).toBe(lost);
+      expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'reconnecting', channelId: 2 });
+      vi.spyOn(Date, 'now').mockReturnValue(now + LONG_AWAY_MS);
+      await setHidden(false);
+      await settle();
+      expect(lk.state.room).not.toBe(lost);
+      expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'connected', channelId: 2, error: null });
+    } finally {
+      vi.restoreAllMocks();
+      device.mobile = false;
+      hidden = false;
+    }
+  });
+
+  it('a computer rejoins at once while hidden', async () => {
+    try {
+      const lost = await joinAndLose();
+      expect(lk.state.room).not.toBe(lost);
+      expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'connected', channelId: 2 });
+    } finally {
+      hidden = false;
+    }
+  });
+  afterAll(() => {
+    lk.state.permissions = undefined;
   });
 });

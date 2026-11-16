@@ -16,6 +16,7 @@ import { createSpeakingMeters, whoIsSpeaking } from './speaking';
 import { onPushToTalkChange, pushToTalkStage, startPushToTalkKeys } from './pushToTalk';
 import { playSound } from '../sounds/sounds';
 import { isMobileDevice } from '../utils/presence';
+import { isAndroidApp } from '../utils/android';
 import {
   joinRefused, REJOIN_FOR_MS, rejoinDelay, shouldRejoin, STALE_AFTER_HIDDEN_MS, TAKE_OVER_AFTER_MS,
 } from './rejoin';
@@ -836,8 +837,9 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     playSound('userJoin');
     updateStreams();
     await applyMicrophone();
-    // A lost channel connection rejoined: the camera comes back on if it was.
-    if (rejoining && cameraWanted) await startCamera();
+    // A lost channel connection rejoined: the camera comes back on if it was (on a phone
+    // with the screen off, once it's back: Android refuses a camera in the background).
+    if (rejoining && cameraWanted && !cameraWaitsForView()) await startCamera();
     return true;
   } catch (err) {
     if (current !== attempt) return;
@@ -951,7 +953,11 @@ function takeOver() {
   startRejoin(guildId, channelId);
 }
 
-const waitForVisible = () => isMobileDevice() && document.visibilityState === 'hidden';
+// Phone browsers stop a hidden page's microphone and connection (iOS freezes it), so a rejoin
+// waits until it's shown again. The Android app keeps running with the screen off (its call
+// service, see Ongoing call in docs/desktop-and-site.md), so it rejoins at once: waiting there
+// left people out of the channel until they next looked at their phone.
+const waitForVisible = () => isMobileDevice() && !isAndroidApp() && document.visibilityState === 'hidden';
 
 function cancelRejoin() {
   if (rejoin?.timer) clearTimeout(rejoin.timer);
@@ -1005,10 +1011,13 @@ function giveUpRejoin(error) {
 }
 
 // Back in view (or back online): rejoin now. A phone whose connection was frozen in the
-// background is most likely out already, so it doesn't wait for LiveKit's own retries.
+// background is most likely out already, so it doesn't wait for LiveKit's own retries. The
+// REJOIN_FOR_MS window starts again: a phone that waited in the background for longer still
+// gets its tries, rather than "Connection lost" the moment it's back.
 function retryNow() {
   if (rejoin) {
     rejoin.tries = 0;
+    rejoin.since = Date.now();
     scheduleRejoin();
   }
 }
@@ -1413,6 +1422,16 @@ function pauseCameraWhileHidden() {
   });
 }
 
+// A phone that rejoined with the screen off (the Android app) left its camera for later
+// (cameraWaitsForView): it comes back on once the app is shown.
+const cameraWaitsForView = () => isMobileDevice() && document.visibilityState === 'hidden';
+
+function resumeCameraAfterRejoin() {
+  if (!cameraWanted || cameraWaitsForView() || !room || snapshot.status !== 'connected') return;
+  if (room.localParticipant.getTrackPublication(livekit.Track.Source.Camera)) return;
+  startCamera();
+}
+
 export function clearCameraError() {
   update({ cameraError: null });
 }
@@ -1443,6 +1462,7 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     syncSubscriptions();
     pauseCameraWhileHidden();
+    resumeCameraAfterRejoin();
     syncScreenOn();
   });
 }

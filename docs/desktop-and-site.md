@@ -583,7 +583,8 @@ native bridge. Check real behaviour on a phone.
   hands the app's starting intent over again if it recreates the app later, which isn't
   someone answering.
 - **Ongoing call** (`CallService.java`): while in a call or voice channel, a foreground service
-  (microphone type, with a wake lock) keeps the app and its audio running with the screen off
+  (microphone type, with a wake lock, and a high-performance Wi-Fi lock so Wi-Fi doesn't doze
+  and drop the call's connection) keeps the app and its audio running with the screen off
   (not the camera: Android stops a camera in the background, so the page pauses yours while
   hidden, others seeing your picture until the app is back, and keeps the screen on while it's
   on, see Cameras in `docs/voice-and-calls.md`; the `CAMERA` permission is asked for by the WebView when you first turn
