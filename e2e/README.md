@@ -18,6 +18,7 @@ node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM)
 node e2e/guildfolders.mjs [dir] # guild folders: drag a guild onto another (ring), closed folder's small icons, open it, drag into it (line), Folder Settings name and colour, kept after reload (open per device), drag out, folder dragged whole, Ungroup, phone long-press drag makes one
 node e2e/joinemoji.mjs [dir] # joining a guild shows its custom emoji at once (picker, :name:), no reload
 node e2e/emojicopy.mjs [dir] # Ctrl+A, Ctrl+C, Ctrl+V in the box keeps a custom emoji and a mention (clipboard holds <:name:id> / <@id>), a second paste adds them again, sent message has both twice
+node e2e/worddelete.mjs [dir] # Ctrl+Backspace after an attached picture with Hello typed against it deletes Hello, not the chip; one word at a time; Ctrl+Delete forwards the same; the reply snippet reads "📎 image.png Hello"; right after a chip it deletes the chip
 node e2e/pickerswipe.mjs [dir] # phone emoji panel: swipe up = full screen (follows finger, chat doesn't jump), grid scrolls, swipe down (top follows the finger, bottom stays put) / handle = back, search from full screen
 node e2e/emojisheets.mjs [dir] # picker sprite sheets: no per-emoji SVGs, time to draw (cold, worker's copy), skin tone sheet, phone
 node e2e/emojiusage.mjs [dir] # emoji usage follows the account: Frequently Used and skin tone on a second device (another browser logging in), live while open, only ciphertext on the server, nothing in localStorage, another account's own

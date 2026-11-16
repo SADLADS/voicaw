@@ -88,9 +88,17 @@ export function summarizeAttachments(text) {
   if (forward) return `↪ ${t('chat.forward.summary', { text: summarizeAttachments(forward.content) })}`;
   const poll = parsePoll(text);
   if (poll) return pollSummary(poll);
-  return text.replace(EMBED_RE, (match, alt, url) => {
-    if (fragmentFlag(url, 'vm')) return `🎤 ${t('media.voice.summary')}`;
-    return fragmentFlag(url, 'sp') ? '📎 spoiler' : `📎 ${unescapeAltText(alt) || 'attachment'}`;
+  // Spaced from text written against it ("📎 image.png Hello", not "📎 image.pngHello").
+  let lastEnd = -1;
+  return text.replace(EMBED_RE, (match, alt, url, offset, whole) => {
+    let label;
+    if (fragmentFlag(url, 'vm')) label = `🎤 ${t('media.voice.summary')}`;
+    else label = fragmentFlag(url, 'sp') ? '📎 spoiler' : `📎 ${unescapeAltText(alt) || 'attachment'}`;
+    // The space between two embeds side by side comes from the first one's `after`.
+    const before = offset > 0 && offset !== lastEnd && !/\s/.test(whole[offset - 1]) ? ' ' : '';
+    lastEnd = offset + match.length;
+    const after = lastEnd < whole.length && !/\s/.test(whole[lastEnd]) ? ' ' : '';
+    return before + label + after;
   });
 }
 

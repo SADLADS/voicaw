@@ -90,7 +90,8 @@ emoji are deleted by their own code (a deleted guild takes its icon and emoji im
 
 Attachments are never uploaded when attached. The composer (`Composer.jsx`, `hooks/useAttachmentDrafts.js`) keeps them as local drafts
 and inserts a markdown placeholder `![name](attachment:ID)` (`utils/attachmentMarkup.js`; the editor
-shows it as a "📎 name" chip). Files come from the + button (see The + panel), a paste, or a drop anywhere on the
+shows it as a "📎 name" chip). Plain-text places (reply snippets, notifications) show it as
+"📎 name" too (`summarizeAttachments`), spaced from text written against it. Files come from the + button (see The + panel), a paste, or a drop anywhere on the
 window, as in Discord (`hooks/useFileDrop.js` `useWindowFileDrop`, while a composer is shown):
 a file dragged in from outside the page covers the window with "Upload to <chat>"
 (`FileDropOverlay.jsx`); drags that start in the page (an image from a message) and drags while

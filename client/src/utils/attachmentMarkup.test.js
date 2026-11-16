@@ -71,6 +71,13 @@ describe('attachmentMarkup', () => {
     expect(summarizeAttachments(null)).toBeNull();
   });
 
+  it('spaces a summarized attachment from text written against it', () => {
+    const img = (name) => `![${name}](https://s3.test/uploads/x.bin#v=1&k=SECRET)`;
+    expect(summarizeAttachments(`${img('image.png')}Hello`)).toBe('📎 image.png Hello');
+    expect(summarizeAttachments(`Hi${img('a.png')}${img('b.png')}there`)).toBe('Hi 📎 a.png 📎 b.png there');
+    expect(summarizeAttachments(`${img('a.png')}\nnext`)).toBe('📎 a.png\nnext');
+  });
+
   it("doesn't give a spoiler away by its name in previews", () => {
     const text = '![ending.png](https://s3.test/uploads/x.bin#v=1&k=SECRET&t=image%2Fpng&s=1&sp=1)';
     expect(summarizeAttachments(text)).toBe('📎 spoiler');

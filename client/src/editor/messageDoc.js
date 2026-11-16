@@ -228,3 +228,41 @@ export function textBeforeCaret(state) {
   const { $from } = state.selection;
   return $from.parent.textBetween(0, $from.parentOffset, undefined, leafText);
 }
+
+// Ctrl+Backspace / Ctrl+Delete (Alt on macOS): deletes the word beside the cursor and nothing
+// more. Left to the browser, a chip (an attachment, a custom emoji, a mention) next to the word
+// went with it. Spaces first, then a run of letters and digits or a run of other characters;
+// a chip only counts as the word when there is no text between it and the cursor. Returns
+// false at the edge of a line, where the base keymap joins lines.
+const WORD_CHAR = /[\p{L}\p{N}\p{M}_'’]/u;
+
+export function deleteWord(dir) {
+  return (state, dispatch) => {
+    const { empty, $from } = state.selection;
+    if (!empty) return false;
+    const parent = $from.parent;
+    const start = $from.pos - $from.parentOffset;
+    const text = dir < 0
+      ? parent.textBetween(0, $from.parentOffset, undefined, leafText)
+      : parent.textBetween($from.parentOffset, parent.content.size, undefined, leafText);
+    // Characters walked, from the cursor outwards.
+    const at = (i) => (dir < 0 ? text[text.length - 1 - i] : text[i]);
+    let n = 0;
+    while (n < text.length && /\s/.test(at(n))) n++;
+    if (n < text.length) {
+      const c = at(n);
+      if (c === OBJECT_CHAR) n++;
+      else {
+        const word = WORD_CHAR.test(c);
+        while (n < text.length && at(n) !== OBJECT_CHAR && !/\s/.test(at(n)) && WORD_CHAR.test(at(n)) === word) n++;
+      }
+    }
+    if (n === 0) return false;
+    // Leaves are one position each, as they are one character in `text`.
+    const from = dir < 0 ? $from.pos - n : $from.pos;
+    const to = dir < 0 ? $from.pos : $from.pos + n;
+    if (from < start) return false;
+    if (dispatch) dispatch(state.tr.delete(from, to).scrollIntoView());
+    return true;
+  };
+}

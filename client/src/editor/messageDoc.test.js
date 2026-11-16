@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState, TextSelection } from 'prosemirror-state';
-import { docToText, sliceToText, textToDoc, textBeforeCaret, OBJECT_CHAR, schema } from './messageDoc';
+import { deleteWord, docToText, sliceToText, textToDoc, textBeforeCaret, OBJECT_CHAR, schema } from './messageDoc';
 
 const emojiUrl = (id) => `https://s3.test/emoji/${id}.png`;
 
@@ -85,5 +85,42 @@ describe('messageDoc mentions', () => {
     doc.descendants((n) => { if (n.type === schema.nodes.channelMention) channels.push(n.attrs); });
     expect(channels).toEqual([{ id: '5', name: 'general' }]);
     expect(docToText(doc)).toBe('see <#5> and <#6>');
+  });
+});
+
+describe('deleteWord', () => {
+  // Runs deleteWord(dir) with the cursor at `cursor` characters into the first line.
+  function run(text, cursor, dir) {
+    let state = EditorState.create({ doc: textToDoc(text) });
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1 + cursor)));
+    let next = state;
+    const handled = deleteWord(dir)(state, (tr) => { next = state.apply(tr); });
+    return handled ? docToText(next.doc) : null;
+  }
+  const chip = '![image.png](attachment:3)';
+
+  it('deletes the word before the cursor and not a chip in front of it', () => {
+    // Chip, then "Hello": the chip is one position.
+    expect(run(`${chip}Hello`, 6, -1)).toBe(chip);
+    expect(run(`${chip} Hello world`, 13, -1)).toBe(`${chip} Hello `);
+    expect(run(`${chip} Hello`, 7, -1)).toBe(`${chip} `);
+  });
+
+  it('takes a chip only when no text is between it and the cursor', () => {
+    expect(run(`a ${chip} `, 4, -1)).toBe('a ');
+    expect(run(`a ${chip}`, 3, -1)).toBe('a ');
+  });
+
+  it('stops at punctuation and leaves line starts to the base keymap', () => {
+    expect(run('one, two', 4, -1)).toBe('one two');
+    expect(run('one, two', 3, -1)).toBe(', two');
+    expect(run('one,two', 7, -1)).toBe('one,');
+    expect(run('hi', 0, -1)).toBeNull();
+  });
+
+  it('deletes forwards the same way', () => {
+    expect(run(`Hello${chip}`, 0, 1)).toBe(chip);
+    expect(run(`ab  cd ${chip}`, 2, 1)).toBe(`ab ${chip}`);
+    expect(run('hi', 2, 1)).toBeNull();
   });
 });
