@@ -3,6 +3,7 @@ import api from './utils/api';
 import { AuthContext } from './hooks/useAuth';
 import { setOfflineMode, setReachable } from './utils/offlineMode';
 import { forgetLogin } from './services/logout';
+import { savedToken } from './utils/loginToken';
 
 // How long to wait before asking again when the server can't be reached.
 const RETRY_MS = 3000;
@@ -31,7 +32,7 @@ export function AuthProvider({ children }) {
     let retryTimer;
 
     async function fetchProfile() {
-      if (!localStorage.getItem('token')) {
+      if (!savedToken()) {
         setLoading(false);
         return;
       }

@@ -8,6 +8,7 @@ import { fetchGroups } from './groupService';
 import { leaveEntry } from './groupKeys';
 import { t } from '../i18n';
 import { errorText } from '../utils/errors';
+import { saveToken } from '../utils/loginToken';
 
 // Logging in and registering: OPAQUE (the password never leaves the device) plus the
 // encryption keys, which the server keeps only as a backup encrypted with OPAQUE's
@@ -107,7 +108,7 @@ async function finishLogIn(exportKey, data) {
   }
 
   await storeUserKeys(id, keys);
-  localStorage.setItem('token', token);
+  saveToken(token);
   return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending), termsAccepted: data.termsAccepted !== false };
 }
 
@@ -185,7 +186,7 @@ export async function register(username, password, invite = '', acceptedTerms = 
   if (!data.token) return { user: null, recoveryCode };
 
   await storeUserKeys(data.id, keys);
-  localStorage.setItem('token', data.token);
+  saveToken(data.token);
   return {
     user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true, pending: Boolean(data.pending), termsAccepted: true },
     recoveryCode,
@@ -342,7 +343,7 @@ export async function startRecovery(username, code, newPassword) {
     const fields = { ...(await newPasswordFields(username, newPassword, keys)), ...(await recoveryFields(newCode, keys)) };
     const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
     await storeUserKeys(done.id, keys);
-    localStorage.setItem('token', done.token);
+    saveToken(done.token);
     return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending), termsAccepted: done.termsAccepted !== false };
   };
   return { newCode, twoFactor: Boolean(data.twoFactor), finish };

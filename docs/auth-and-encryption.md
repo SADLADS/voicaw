@@ -81,6 +81,15 @@ the session exists, and only shown to the account itself.
   renewed with a `sid` straight away. Ending any session from Settings sets
   `users.sessions_reset_at`, which refuses the old tokens issued before it (devices not opened
   since sessions began then have to log in again) and deletes push subscriptions with no session.
+- **The saved login** (`localStorage` `token`) is read and written only through
+  `utils/loginToken.js` (`savedToken`, `saveToken`, `forgetToken`), which keeps the newest
+  token this page saved in memory and never lets the saved one go back to an *older* token of
+  the same account (it writes the newer one back, with a console warning). A Windows desktop
+  app's storage did that on its own (2026-11-16): after every login it went back to a month-old,
+  expired token, so the chats said "Invalid token" and the app logged out, while the server
+  never refused the new login. Another account's token, a newer one (another tab logging in) or
+  none (logged out) is taken as it is. Only within a page's life: a store that loses writes
+  still opens on the old token at the next start (refused, so the login screen).
 - **The log** (pm2's, 2026-11-14): every session started (`Session started: user 1, session
   5LXenR, Voicaw/1.0.44`), ended (`Sessions ended (logout|from Settings): …`) and every token
   refused, with why (`Token refused: expired | not valid (invalid signature) | session ended |
