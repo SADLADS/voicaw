@@ -486,8 +486,10 @@ native bridge. Check real behaviour on a phone.
   (Saving files), `showToast`, `mediaAccess` / `requestMediaAccess` / `listMedia` /
   `mediaThumbnail` (the + panel's photos, `Media.java`, see The + panel in `docs/uploads.md`;
   `openSettings({ which: 'app' })` when photos were refused), `fetchPage` (a linked page for an
-  encrypted chat's link preview, `PageFetch.java`; see Link previews in `docs/messages.md`); events `navigate` (a
-  tapped notification), `share` (Sharing to Voicaw), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
+  encrypted chat's link preview, `PageFetch.java`; see Link previews in `docs/messages.md`),
+  `releaseKeyboardContent` (Keyboard GIFs and stickers); events `navigate` (a
+  tapped notification), `share` (Sharing to Voicaw), `keyboardContent` (Keyboard GIFs and
+  stickers; not kept: no listener, the keyboard is told no), `callAction` (`answer` with a call id, `mute`, `unmute`, `hangUp`),
   `updateProgress` and `updateResult`, kept until the page listens, so a notification that
   started the app still counts (and `Layout`'s landing on /dm, opening the latest
   conversation, gives way to it; `e2e/notificationtap.mjs`). `hooks/useAndroidApp.js` (in
@@ -532,6 +534,24 @@ native bridge. Check real behaviour on a phone.
   ticked with why, and Send again sends only those (same nonces, files not uploaded again).
   Sent to one chat, that chat opens; to several, a toast says so. `e2e/share.mjs` checks the
   page side. Not done yet: Direct Share (people in Android's own share sheet).
+- **Keyboard GIFs and stickers** (built 2026-11-16): keyboards (Gboard, SwiftKey, Samsung's)
+  only offer their GIF and sticker buttons to a box that says it takes pictures, and a WebView
+  never says so, so they were greyed out. `VoicawWebView` (Capacitor's WebView, put in its place
+  by the app's copy of Capacitor's layout, `res/layout/capacitor_bridge_layout_main.xml`) tells
+  them every multi-line box (`contenteditable` and textareas: the WebView marks one-line boxes
+  and passwords otherwise) takes `image/*` (GIF, PNG, WebP, JPEG named too, for keyboards that
+  match by name). What the keyboard commits (`KeyboardContent.java`, on the WebView's input
+  thread) is a `content://` file of the keyboard's, refused like a share's if it's ours
+  (`Share.allowed`) or if the page isn't listening (logged out); the keyboard's leave to read it
+  is held until the page says it has (`releaseKeyboardContent`, or after 5 minutes). The page
+  (`services/keyboardContent.js`, from `useAndroidApp`) reads it through Capacitor's server as
+  the + panel's photos, gives it an extension if it has none, and pastes it into the box that
+  had focus as a pasted file: the message box attaches it (sent with Send, encrypted like any
+  attachment), a document puts the picture in, anything else shows a toast. Gboard fetches its
+  GIFs from Google's Tenor itself; the app only ever sees the file, never where it came from,
+  and sends no link. In a browser, the web app can't change this: whether the buttons work is
+  up to the browser's own connection to the keyboard (if it pastes the picture, the same paste
+  handling takes it).
 - **Saving files** (`Downloads.java`, `android.js` `saveToDownloads`, used by
   `utils/saveFile.js`): Android's WebView ignores `<a download>`, and the page's files
   (decrypted attachments, pictures, the recovery code) are `blob:` URLs no other app can read,

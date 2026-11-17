@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capacitor's own layout (BridgeActivity), with VoicawWebView in place of CapacitorWebView:
+     the app's copy of a library's resource replaces it. Keep in step with
+     node_modules/@capacitor/android/capacitor/src/main/res/layout/capacitor_bridge_layout_main.xml. -->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.getcapacitor.BridgeActivity"
+    >
+
+    <com.voicaw.app.VoicawWebView
+        android:id="@+id/webview"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

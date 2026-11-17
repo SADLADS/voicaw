@@ -480,6 +480,10 @@
       "keysChanged": "Their security key has changed: open the chat to check it first.",
       "notEncrypted": "Not encrypted",
       "notEncryptedTitle": "Guild channels aren't end-to-end encrypted: the server can read what's shared there, files included."
+    },
+    "keyboardImage": {
+      "failed": "Couldn't add the picture from your keyboard",
+      "notHere": "Only the message box and documents take pictures."
     }
   }
 }

@@ -8,6 +8,7 @@ import { useCall } from './useCall';
 import { voiceTitle } from '../utils/voiceTitle';
 import { showContent } from '../utils/mobilePanes';
 import { setShare } from '../services/shareService';
+import { receiveKeyboardContent } from '../services/keyboardContent';
 import { t } from '../i18n';
 
 // The Android app's side of the logged-in page (from Layout); does nothing elsewhere:
@@ -38,6 +39,8 @@ export function useAndroidApp({ navigate, user, guildList, groupList }) {
       // Shared from another app (Share.java): the share screen (ShareDialog). Kept by the app
       // until this listens, so a share made while logged out waits for the login.
       android.addListener('share', (share) => setShare(share)),
+      // A GIF or sticker from the keyboard (KeyboardContent.java), for the box it was sent to.
+      android.addListener('keyboardContent', (content) => { receiveKeyboardContent(content); }),
       android.addListener('callAction', ({ action, callId }) => {
         if (action === 'answer') answerWhenRinging(callId);
         else if (action === 'mute' || action === 'unmute') setSelfMute(action === 'mute');

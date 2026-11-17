@@ -88,8 +88,11 @@ final class Share {
         return intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
     }
 
-    /** Its name, type and size, or null if it can't be opened. */
-    private static JSObject describe(Context context, Uri uri, String intentType) {
+    /**
+     * Its name, type and size, or null if it can't be opened. `intentType`: the type it was
+     * offered as, if the provider doesn't say (also KeyboardContent's).
+     */
+    static JSObject describe(Context context, Uri uri, String intentType) {
         ContentResolver resolver = context.getContentResolver();
         String name = null;
         long size = -1;

@@ -4,7 +4,8 @@
 // no service worker, Settings → Android App, turning notifications on registers the phone's
 // Firebase token and key, a new version offered and downloaded on Update, tapping a
 // notification opens its chat, the hidden notification page
-// (notify.html) decrypts a real DM preview with the app's own storage, and a call: Answer from
+// (notify.html) decrypts a real DM preview with the app's own storage, a GIF from the keyboard
+// is attached to the focused message box and reaches Bob (none focused: a toast), and a call: Answer from
 // the notification answers it, the ongoing-call
 // notification follows it (name, mute), and its Hang up ends the call. Then with the page asleep
 // (a socket that hears no call events): Answer still answers, and coming back shows a call still
@@ -40,6 +41,7 @@ function fakeAndroid() {
     setOngoing: () => undefined,
     clearOngoing: () => undefined,
     stopRinging: () => undefined,
+    releaseKeyboardContent: () => undefined,
     getPushLog: () => ({ entries: [{ at: Date.now(), type: 'test', outcome: 'shown' }] }),
     openSettings: () => undefined,
     // updates.voicaw.com has a newer version (AppUpdater, the `direct` build).
@@ -64,6 +66,7 @@ function fakeAndroid() {
         { name: 'removeListener', rtype: 'promise' },
       ],
     }],
+    convertFileSrc: (path) => location.origin + path.replace('content:/', '/_capacitor_content_'),
     nativePromise: async (plugin, method, options) => {
       if (method === 'removeListener') return undefined;
       record.calls.push({ method, options: options ?? null });
@@ -202,6 +205,31 @@ try {
   check(rendered?.ok && rendered.body === 'Secret plans for Saturday', `the hidden page decrypts the preview ("${rendered?.body}")`);
   check(rendered?.title === bob.name && rendered.url === `/dm/${bob.id}` && rendered.labels?.answer === 'Accept', 'with its title, link and button labels');
   await notify.close();
+
+  // A GIF from the keyboard (VoicawWebView / KeyboardContent): read from the keyboard's file,
+  // attached to the message box it was sent to, sent encrypted; anywhere else, a toast.
+  const gif = Buffer.from('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==', 'base64');
+  const keyboardReads = [];
+  await page.route('**/_capacitor_content_/**', (route) => {
+    keyboardReads.push(route.request().url());
+    return route.fulfill({ status: 200, contentType: 'image/gif', body: gif });
+  });
+  const keyboardGif = (id) => ({ id, uri: `content://com.google.android.inputmethod.latin.fileprovider/gifs/${id}`, name: 'tenor', type: 'image/gif', size: gif.length });
+  await page.click('#dm-input');
+  await page.evaluate((c) => window.__android.emit('keyboardContent', c), keyboardGif('k1'));
+  await page.waitForSelector('#dm-input .editor-attachment', { timeout: 10000 }).catch(() => {});
+  check(await page.locator('#dm-input .editor-attachment', { hasText: 'tenor.gif' }).count() === 1, 'a GIF from the keyboard is attached to the message box (as tenor.gif)');
+  check(keyboardReads.some((url) => url.includes('/_capacitor_content_/com.google.android.inputmethod.latin.fileprovider/gifs/k1')), "read from the keyboard's file");
+  check((await callsTo(page, 'releaseKeyboardContent')).some((c) => c.options?.id === 'k1'), 'and the keyboard is let go of');
+  if (dir) await page.screenshot({ path: `${dir}/android-keyboard-gif.png` });
+  await page.click('#dm-main .send-button'); // Enter is a new line on a phone
+  const gifArrived = await bob.page.waitForFunction(() => [...document.querySelectorAll('img.attachment-media')].some((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20000 }).then(() => true, () => false);
+  check(gifArrived, 'Bob gets the GIF');
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.evaluate((c) => window.__android.emit('keyboardContent', c), keyboardGif('k2'));
+  check(await page.waitForSelector('.toast', { timeout: 5000 }).then(() => true, () => false)
+    && await page.isVisible('text=Only the message box and documents take pictures.'), 'one sent with no box focused says where pictures go');
+  check((await callsTo(page, 'releaseKeyboardContent')).some((c) => c.options?.id === 'k2'), 'and lets that one go too');
 
   // A call: Bob calls; Alice's phone rings natively (the page stays quiet), she answers from
   // the notification.

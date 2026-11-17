@@ -33,8 +33,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * push registration, the ongoing-call notification, and the events notifications send the page
  * (`navigate` to a chat, `callAction` answer / mute / unmute / hangUp), and updating the app
  * (AppUpdater: `updateProgress` while downloading, `updateResult` if Android didn't install it),
- * saving files to Downloads (Downloads), the phone's photos for the + panel (Media), and
- * what other apps share to Voicaw (`share`, Share).
+ * saving files to Downloads (Downloads), the phone's photos for the + panel (Media), what
+ * other apps share to Voicaw (`share`, Share), and GIFs and stickers from the keyboard
+ * (`keyboardContent`, KeyboardContent).
  */
 @CapacitorPlugin(
     name = "Voicaw",
@@ -126,6 +127,27 @@ public class VoicawPlugin extends Plugin {
         JSObject data = new JSObject().put("status", status);
         if (message != null) data.put("message", message);
         plugin.notifyListeners("updateResult", data);
+    }
+
+    /** Whether the page would take a GIF or sticker from the keyboard now (it listens once logged in). */
+    static boolean listensForKeyboardContent() {
+        VoicawPlugin plugin = instance;
+        return plugin != null && plugin.hasListeners("keyboardContent");
+    }
+
+    /** One from the keyboard (KeyboardContent). False if the page isn't there to take it. */
+    static boolean emitKeyboardContent(JSObject file) {
+        VoicawPlugin plugin = instance;
+        if (plugin == null || !plugin.hasListeners("keyboardContent")) return false;
+        plugin.notifyListeners("keyboardContent", file);
+        return true;
+    }
+
+    /** The page has read the keyboard's file `{ id }`: its leave to read it can go. */
+    @PluginMethod
+    public void releaseKeyboardContent(PluginCall call) {
+        KeyboardContent.release(call.getString("id"));
+        call.resolve();
     }
 
     private JSObject notificationState() {
