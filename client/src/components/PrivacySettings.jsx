@@ -3,6 +3,7 @@ import { Icon } from './Icon';
 import { faPuzzlePiece } from '@fortawesome/free-solid-svg-icons';
 import { setPrivacyPref, usePrivacyPrefs } from '../utils/privacy';
 import { getSetting, setSetting } from '../services/settingsStore';
+import { refreshLinkRules } from '../services/linkRules';
 import { t } from '../i18n';
 
 // Settings → Privacy: choices that trade a little privacy for convenience, on this device
@@ -101,6 +102,20 @@ export default function PrivacySettings() {
       </label>
       <p className="vc-hint">
         {t('settings.privacy.gifs.hint')}
+      </p>
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
+          checked={prefs.cleanLinks}
+          onChange={(e) => {
+            setPrivacyPref('cleanLinks', e.target.checked);
+            if (e.target.checked) refreshLinkRules({ force: true });
+          }}
+        />
+        {' '}{t('settings.privacy.cleanLinks.label')}
+      </label>
+      <p className="vc-hint">
+        {t('settings.privacy.cleanLinks.hint')}
       </p>
       <label className="settings-toggle">
         <input

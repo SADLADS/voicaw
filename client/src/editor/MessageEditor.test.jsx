@@ -5,6 +5,10 @@ import { render, act, fireEvent } from '@testing-library/react';
 import MessageEditor from './MessageEditor';
 import { editorFor } from './editorRegistry';
 import { setCustomEmojiBase } from '../emoji/customEmoji';
+import { setPrivacyPref } from '../utils/privacy';
+
+// Cleaning pasted links asks the server for its list now and then.
+vi.mock('../utils/api', () => ({ default: { get: vi.fn(async () => ({ data: { enabled: false } })) } }));
 
 function setup(props = {}) {
   const ref = createRef();
@@ -167,6 +171,26 @@ describe('MessageEditor', () => {
 
     fireEvent.paste(element, { clipboardData: { files: [], getData: (type) => (type === 'text/plain' ? 'line 1\r\nline 2' : '<b>bold</b>') } });
     expect(ref.current.getText()).toBe('line 1\nline 2');
+  });
+
+  it('takes tracking out of pasted links when asked to, and undo puts it back', () => {
+    const paste = (element, text) => fireEvent.paste(element, { clipboardData: { files: [], getData: (type) => (type === 'text/plain' ? text : '') } });
+    const link = 'https://x.com/Channel4News/status/2122354639941321113?a=lnRAVVaoK6hYw0NsZ2w&s=20';
+    const { ref, element } = setup();
+    paste(element, `look ${link}`);
+    expect(ref.current.getText()).toBe(`look ${link}`);
+
+    act(() => ref.current.clear());
+    setPrivacyPref('cleanLinks', true);
+    try {
+      act(() => ref.current.insertText('a '));
+      paste(element, `${link} and https://youtu.be/abc?si=XYZ&t=90.`);
+      expect(ref.current.getText()).toBe('a https://x.com/Channel4News/status/2122354639941321113 and https://youtu.be/abc?t=90.');
+      key(element, { key: 'z', ctrlKey: true });
+      expect(ref.current.getText()).toBe(`a ${link} and https://youtu.be/abc?si=XYZ&t=90.`);
+    } finally {
+      setPrivacyPref('cleanLinks', false);
+    }
   });
 
   it('copies custom emoji and mentions as message text, so pasting gives them back', () => {

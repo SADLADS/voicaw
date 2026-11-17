@@ -60,6 +60,9 @@ unexpected errors. The rest:
 - `linkPreviews.js` and `safeFetch.js`: link previews in guild messages, and fetching links
   without reaching anything that isn't on the public internet (see Link previews in
   `docs/messages.md`).
+- `linkRules.js`: the tracking parameter list for cleaning pasted links, AdGuard's filter
+  downloaded daily and converted (`routes/linkRules.js` serves it; see Tracking in pasted links
+  in `docs/messages.md`).
 - `signups.js`: who can sign up, app invites, accounts waiting for approval (see Sign-ups in
   `docs/auth-and-encryption.md`).
 - `bots.js`: bot applications and their bot users, tokens, adding bots to guilds (their own

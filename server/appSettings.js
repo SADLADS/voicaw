@@ -34,6 +34,13 @@ const SETTINGS = {
     choices: ['on', 'off'],
     fallback: 'on',
   },
+  // linkRules.js
+  linkRules: {
+    label: 'Tracking parameter list',
+    description: "Whether this server downloads AdGuard's list of tracking parameters once a day (filters.adtidy.org, which sees only this server asking) for people who turn on Remove tracking from pasted links in Settings → Privacy. Off: their apps use a short built-in list.",
+    choices: ['on', 'off'],
+    fallback: 'on',
+  },
   // voice.js joinToken: the most a screen share may send (client/src/voice/streamSettings.js).
   streamMaxResolution: {
     label: 'Screen share resolution limit',

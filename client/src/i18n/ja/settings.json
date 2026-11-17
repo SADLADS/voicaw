@@ -233,6 +233,7 @@
     "about": {
       "attribution": "絵文字のグラフィックは <twemoji>Twemoji</twemoji>（© Twitter, Inc およびその他の貢献者、<ccby>CC-BY 4.0</ccby> ライセンス）を使用しています。絵文字フォントは <font>twemoji-color-font</font> を改変したもので、<ofl>SIL Open Font License 1.1</ofl> でライセンスされています。GIF は <klipy>KLIPY</klipy> 提供です。",
       "gameCaptureAttribution": "ゲームキャプチャには <obs>OBS Studio</obs> のグラフィックフックを無改変で使用しています。<gpl>GNU GPL バージョン 2</gpl> でライセンスされています（<source>ソースコード</source>）。",
+      "linkRulesAttribution": "貼り付けたリンクから取り除くトラッキングパラメータは <adguard>AdGuard の URL トラッキングフィルタ</adguard>（<gpl>GNU GPL バージョン 3</gpl> でライセンス）を Voicaw サーバーが変換したものです。",
       "privacy": "プライバシーポリシー",
       "terms": "利用規約",
       "deleteAccount": "アカウントの削除について"
@@ -301,6 +302,10 @@
       "useDefault": "デフォルトを使用",
       "choices": {
         "linkPreviews": {
+          "on": "オン",
+          "off": "オフ"
+        },
+        "linkRules": {
           "on": "オン",
           "off": "オフ"
         },
@@ -643,6 +648,10 @@
       "gifs": {
         "label": "GIF をすぐに表示する",
         "hint": "メッセージ内の GIF と GIF ピッカーのプレビューは KLIPY から読み込まれ、KLIPY にはあなたの IP アドレスと表示した GIF が知られます（チャットやメッセージは知られません）。オフにすると、各 GIF は「表示」をタップするまで読み込まれず、GIF ピッカーはプレビューを表示する前に確認します。この端末に保存されます。"
+      },
+      "cleanLinks": {
+        "label": "貼り付けたリンクからトラッキングを削除",
+        "hint": "メッセージ欄に貼り付けたリンクから、共有した人や開いた人を追跡するためにサイトが付け加える部分（?utm_source=… や ?s=20 など）を取り除きます。リンクはそのまま使えますが、サイトに伝わる情報が減ります。YouTube リンクの再生開始時間など、必要な部分は残ります。貼り付けた直後に元に戻す（Ctrl+Z）と、貼り付けたときのリンクに戻ります。取り除く項目の一覧は Voicaw サーバーから届きます。サーバーは AdGuard の一覧の最新版を保持しており、お使いの端末が AdGuard に接続することはありません。この端末に保存されます。"
       },
       "safetyNumbers": {
         "label": "DM で安全番号を表示",

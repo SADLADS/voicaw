@@ -3,7 +3,7 @@ import { EditorState, Plugin, TextSelection } from 'prosemirror-state';
 import { Decoration, DecorationSet, EditorView } from 'prosemirror-view';
 import { keymap } from 'prosemirror-keymap';
 import { baseKeymap, splitBlock } from 'prosemirror-commands';
-import { history, redo, undo } from 'prosemirror-history';
+import { closeHistory, history, redo, undo } from 'prosemirror-history';
 import { DOMSerializer, Fragment, Slice } from 'prosemirror-model';
 import 'prosemirror-view/style/prosemirror.css';
 import { OBJECT_CHAR, deleteWord, docToText, schema, sliceToText, textBeforeCaret, textToDoc, textToSlice, typedTimestamps } from './messageDoc';
@@ -13,6 +13,7 @@ import { registerEditor } from './editorRegistry';
 import { userLocale } from '../utils/locale';
 import { spellcheckPlugin } from '../spellcheck/spellcheckPlugin';
 import { ChannelMentionContext } from '../contexts';
+import { cleanPastedLinks } from '../services/linkRules';
 
 
 // Deleting a word: Ctrl on Windows, Linux and Android, Alt (Option) on macOS and iOS.
@@ -198,7 +199,19 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
         // Always plain text: formatting from elsewhere means nothing in a message.
         const text = event.clipboardData?.getData('text/plain');
         if (!text) return true;
-        v.dispatch(v.state.tr.replaceSelection(textToSlice(text.replace(/\r\n?/g, '\n'), parseOptions())).scrollIntoView());
+        const pasted = text.replace(/\r\n?/g, '\n');
+        const from = v.state.selection.from;
+        const tr = v.state.tr.replaceSelection(textToSlice(pasted, parseOptions())).scrollIntoView();
+        v.dispatch(tr);
+        // Links without their tracking (Settings → Privacy, off by default): swapped in as an
+        // undo step of its own, so Ctrl+Z gives the link back as it was pasted.
+        const cleaned = cleanPastedLinks(pasted);
+        if (cleaned !== pasted) {
+          const start = tr.mapping.map(from, -1);
+          const swap = closeHistory(v.state.tr);
+          swap.setSelection(TextSelection.create(swap.doc, start, v.state.selection.from));
+          v.dispatch(swap.replaceSelection(textToSlice(cleaned, parseOptions())).scrollIntoView());
+        }
         return true;
       },
       handleDrop(v, event) {

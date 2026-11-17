@@ -218,6 +218,16 @@ export default function Settings({ onLogout }) {
                   />
                 </p>
               )}
+              {/* The server sends its copy of AdGuard's list (server/linkRules.js): GPL v3. */}
+              <p className="settings-attribution">
+                <Trans
+                  i18nKey="settings.about.linkRulesAttribution"
+                  components={{
+                    adguard: <a href="https://github.com/AdguardTeam/AdguardFilters" target="_blank" rel="noreferrer" />,
+                    gpl: <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer" />,
+                  }}
+                />
+              </p>
             </div>
           ),
         }),
