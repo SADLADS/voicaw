@@ -15,6 +15,9 @@ export function continuesGroup(prev, msg) {
   // Webhooks (no sender) group only with the same webhook, under the same name and picture.
   if ((prev.webhook_id || msg.webhook_id) && (prev.webhook_id !== msg.webhook_id ||
     prev.webhook_name !== msg.webhook_name || prev.webhook_avatar !== msg.webhook_avatar)) return false;
+  // Imported messages (history imports) group only with the same archive author (unlinked ones
+  // all have sender 0), never with live messages.
+  if ((prev.import_id != null || msg.import_id != null) && prev.import_author_id !== msg.import_author_id) return false;
   const gap = msg.timestamp - prev.timestamp;
   if (!(gap >= 0 && gap < GROUP_WINDOW_S)) return false;
   return new Date(prev.timestamp * 1000).toDateString() === new Date(msg.timestamp * 1000).toDateString();

@@ -709,7 +709,8 @@ async function decorateImported(messages) {
   }
   const ids = [...authorIds].filter(Number.isInteger);
   const authors = new Map(ids.length ? (await db.all(
-    `SELECT id, name, avatar, user_id FROM guild_import_authors WHERE id IN (${placeholders(ids)})`,
+    `SELECT a.id, a.name, a.avatar, a.user_id, u.username FROM guild_import_authors a LEFT JOIN users u ON u.id = a.user_id
+     WHERE a.id IN (${placeholders(ids)})`,
     ids
   )).map((a) => [a.id, a]) : []);
   return messages.map((m) => {
@@ -734,7 +735,8 @@ async function decorateImported(messages) {
         users: (r.users ?? []).map((id) => authors.get(id)).filter(Boolean).map((a) => ({ user_id: a.user_id ?? null, name: a.name })),
       })),
       ...(interaction && invoker ? {
-        interaction: { ...interaction, user_id: invoker.user_id ?? null, user_name: invoker.name },
+        // `user_username`: the member's, for drawing them before the app has their profile.
+        interaction: { ...interaction, user_id: invoker.user_id ?? null, user_name: invoker.name, user_username: invoker.username ?? null },
       } : {}),
     };
   });

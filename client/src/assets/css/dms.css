@@ -4065,6 +4065,19 @@ body.mobile-mode .dm-user-list-container .dm-user {
   outline-offset: 1px;
 }
 
+/* In a message, the note opens under its first line from the message's own left edge (the tag
+   can be far right on a phone), always within the message. Elsewhere (a card, Settings), under
+   the tag. */
+.dm-message .import-tag {
+  position: static;
+}
+
+.dm-message .import-tag-popover {
+  top: 30px;
+  left: var(--message-gutter, 10px);
+  max-width: min(320px, calc(100% - var(--message-gutter, 10px) - 10px));
+}
+
 .import-tag-popover {
   display: none;
   position: absolute;

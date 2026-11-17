@@ -872,3 +872,76 @@ like the rest of a guild.
   same name and picture.
 - **Not done:** Discord's Slack- and GitHub-compatible endpoints (`/slack`, `/github`),
   components (buttons), polls, threads/forums, and `tts`.
+
+## History imports
+
+Old chat history from an exported archive, put into a guild's channels (built 2026-11-17). The
+first format read is DiscordChatExporter's JSON (one file per channel, its `--media` folder for
+files); others can be added as adapters on the client.
+- **Who:** the owner or anyone with Administrator (no permission of its own: `USE_SOUNDBOARD`
+  took the last bit), while Settings → Admin's **History imports** is on (`historyImports`,
+  `appSettings.js`, on by default; `/api/config` says so, and the tab hides when it's off).
+- **Reading** happens in the browser (`client/src/services/historyImport/`): `archive.js` takes
+  picked `.json` files, a picked folder (`webkitRelativePath`) or a `.zip`, read in place (its
+  directory from the end of the file, each entry sliced out and inflated with
+  `DecompressionStream`, Zip64 too), so a multi-GB export is never in memory at once.
+  `discordChatExporter.js` makes one channel's file into the import's own shape: its content is
+  already plain text, so `@Nickname` (with the people in `mentions`) becomes `<@archiveId>` and
+  `:name:` (in `inlineEmojis`) `<:name:archiveId>`; replies; edits; pins; bots' answers to
+  commands (who ran them as `interaction`); forwards in our own forward format; the archive's
+  reactions with who reacted; stickers and attachments as files from the media folder or "not
+  included" (CDN links: they expire, and loading them would show readers' IP addresses to
+  Discord); bots' rich embeds as text only (links' previews aren't kept: the server makes its
+  own, one at a time, if link previews are on). Polls aren't in these exports: the poll's own
+  message is empty and gets its question from the "poll ended" message (type 46), which
+  becomes a line of text with the winner. System messages (joins, pins, boosts, calls) are
+  left out. Threads arrive as channels of their own and are imported as channels.
+- **Guild Settings → Import** (`guild/GuildImport.jsx`): choose the archive (a summary: its
+  guild, channels, messages, how many files it has), then each channel's place (a channel of
+  the same name if there is one, else a new one in a category of the archive's category's name,
+  or Don't import) and each author's member (suggested by username or display name; "Keep the
+  archive's name"; members who opted out are greyed), then the tag's word (Tag: up to 24
+  characters, empty = "Imported", with a preview), then it runs (a progress bar; Stop). Past
+  imports: Continue (choose the same archive again: what's in is skipped, its files too, via
+  `/known`), Edit authors (who they are, and renaming one, e.g. to "Former member"), Delete
+  (asks; deletes its messages, not the channels it made).
+- **Server** (`server/guildImports.js`, `routes/guildImports.js`; tables in `db.js` HISTORY
+  IMPORTS): `guild_imports` (label, the archive's guild name, status), `guild_import_authors`
+  (archive id, name, stored picture, the member `user_id` or null, and `unlinked_user_id`: who
+  said "This wasn't me", never shown), `guild_import_channels` (archive channel → our channel),
+  `guild_import_messages` (archive message id → ours: replies, and batches sent again are
+  skipped). Imported messages are `guild_messages` with `import_id`, `import_author_id`, the
+  archive's `timestamp`, `sender_id` the member or 0 (as webhooks), read-only `import_reactions`
+  (JSON, `{ emoji, count, users: [author row ids] }`), `interaction` `{ name, import_author_id }`.
+  `POST /guilds/:id/imports` (authors and channels; answers `suggested` and `opted_out`),
+  `PUT .../:importId/mapping` (label, authors → `userId`/`name`, channels → `channelId`; moving
+  remaps `sender_id`), `POST .../messages` (up to 500, oldest first, under 1 MB: written straight
+  in one transaction each, `indexGuildMessage` per message; **no** pushes, mention rows (pings),
+  XP, unread or live message events; mentions become members' `<@id>` or `@name`, custom emoji
+  the guild's of that name or `:name:`), `POST .../known`, `POST .../files` (a signed PUT straight
+  to the object store, `uploads/imports/<import>/<id>/<name>`, typed by its extension as
+  webhooks' files, registered so it's deleted unless a message links it within a day; 90 MB at
+  most, since the object store's nginx takes 100 MB a request and the API's 26), `PUT
+  .../authors/:id/avatar` (the archive's picture, made a profile picture in `profile-pics/
+  imports/`), `POST .../finish`, `DELETE`. Every change sends `guild_history_changed` to the
+  channel's viewers, whose apps load it again. Audit log: `import_create`, `import_mapping`,
+  `import_finish`, `import_delete`. Deleting the guild deletes its imports; deleting an account
+  unlinks it everywhere.
+- **Drawing** (`ImportedMessage.jsx`; `MessageSelect`/`withReactions` add `imported`: label,
+  archive guild and channel, importer, date, author name/picture/mapped): an outlined tag after
+  the name with an archive icon and the import's word, never the solid APP/BOT one; on hover,
+  focus or a tap, a note the app writes whatever the word: where from, who imported it and when,
+  that Voicaw can't confirm who wrote it, and for a linked member that the importer linked them.
+  So no label ("Verified") can hide that it's imported. A linked author shows as the member
+  with "as <archive name>" when it differs; an unlinked one by the archive's name and picture
+  (or an initial), whose card says it's not an account. Archive reactions are read-only chips
+  (names on hover); people can still react. Imported messages can't be edited (server and
+  menus), group only with the same archive author, and never count as unread or as a channel's
+  latest (unread counts, the New divider, the inbox, recent chats, bots' `last_message_id`).
+- **The person linked:** "This wasn't me" in their own imported message's menus, and Settings →
+  Privacy → **Imported messages** (each guild's links with Unlink, Unlink me from all, and
+  "Don't let imports link me": the preference `importOptOut`, off by default, which mapping
+  refuses). Unlinked, they show exactly as an author nobody linked.
+- **Order:** guild history is now paged by `(timestamp, id)`, not id (see Message list in
+  `docs/messages.md`).
+- `e2e/history-import.mjs` checks it in a browser.

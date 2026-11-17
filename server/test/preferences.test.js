@@ -28,8 +28,8 @@ function connect(user) {
   return events;
 }
 
-// The profile's tabs, all shown by default.
-const SHOWN = { showActivity: true, showMutualFriends: true, showMutualGuilds: true };
+// The profile's tabs, all shown by default, and history imports may link you (importOptOut off).
+const SHOWN = { showActivity: true, showMutualFriends: true, showMutualGuilds: true, importOptOut: false };
 
 describe('account preferences', () => {
   it('defaults, changes and tells your other devices', async () => {

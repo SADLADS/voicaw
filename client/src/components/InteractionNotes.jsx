@@ -16,7 +16,7 @@ import { t } from '../i18n';
 export function InteractionHeader({ interaction }) {
   useProfiles();
   if (!interaction?.name || (!interaction.user_id && !interaction.user_name)) return null;
-  const name = interaction.user_id ? displayName(interaction.user_id) : interaction.user_name;
+  const name = interaction.user_id ? displayName(interaction.user_id, interaction.user_username) : interaction.user_name;
   // Slash commands start with "/"; user and message commands are named as they are.
   const slash = !interaction.command_type || interaction.command_type === 1;
   return (

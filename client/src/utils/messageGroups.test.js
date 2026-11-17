@@ -24,6 +24,15 @@ describe('continuesGroup', () => {
     expect(continuesGroup(msg(), msg({ unsigned: true }))).toBe(false);
   });
 
+  it('groups imported messages only by the same archive author, never with live ones', () => {
+    const imported = (over) => msg({ sender_id: 0, import_id: 1, import_author_id: 7, ...over });
+    expect(continuesGroup(imported(), imported())).toBe(true);
+    // Two unlinked authors (both sender 0).
+    expect(continuesGroup(imported(), imported({ import_author_id: 8 }))).toBe(false);
+    // A member's own live message after their imported one.
+    expect(continuesGroup(imported({ sender_id: 2 }), msg({ sender_id: 2 }))).toBe(false);
+  });
+
   it("groups a webhook's messages only with the same webhook, name and picture", () => {
     const hook = (over) => msg({ sender_id: 0, webhook_id: 5, webhook_name: 'CI', webhook_avatar: null, ...over });
     expect(continuesGroup(hook(), hook({ timestamp: at(12, 1) }))).toBe(true);

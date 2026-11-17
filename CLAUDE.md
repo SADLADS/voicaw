@@ -523,6 +523,18 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   iframe can't move without restarting, and the user wanted none unless seamless); no native
   always-on-top picture in picture yet; paused videos don't go. Left corners now cover the
   rail and channel list.
+- **History imports** (built 2026-11-17, see History imports in `docs/guilds.md`): a guild's
+  owner or Administrator (no free permission bit) imports an exported archive
+  (DiscordChatExporter's JSON first; read in the browser, zips in place) while Settings → Admin
+  allows it. The user chose: merged by date into any channel (so guild history is paged by
+  `(timestamp, id)`, see `docs/messages.md`; imported messages are never unread), authors linked
+  to members shown as them with "as <archive name>" (they can say "This wasn't me", unlink all in
+  Settings → Privacy, or opt out of being linked), media re-uploaded when the export has it
+  ("not included" otherwise; the old CDN is never loaded), and the tag's word chosen by the
+  importer ("Discord"…, empty = "Imported") so the app itself never names Discord, while the
+  tag's look and its note (imported, can't be confirmed) are always the app's. No pings,
+  pushes, XP or unread; deleting the import is the undo. Polls, threads and Discord voice
+  messages don't come across as such (the exports lack polls; threads become channels).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

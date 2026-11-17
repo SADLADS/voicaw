@@ -869,6 +869,18 @@ message the way search, the pinned list and View poll do (`ChatPane`'s `jumpToMe
 down as `onJumpToMessage`): older pages load until it's there, then it's scrolled to the middle
 and flashed (`.jump-highlight`).
 
+**Guild channels are in time order** (2026-11-17, for history imports, see `docs/guilds.md`):
+imported messages have old times and new ids, so a channel's pages are by `(timestamp, id)`
+(`routes/guildMessages.js` `position`; index `guild_messages_position`), with `before`, `after`
+and `around` cursors (the bot API's and guild search too). Live messages' ids and times grow
+together, so read state stays an id: imported messages are never unread (and never a channel's
+latest), and marking read takes the page's highest id (`utils/messageOrder.js`). The client
+merges caught-up pages by position (`mergeNewestPage`'s `compare`). Jumping to a message that
+isn't loaded in a guild channel loads the page around it at once (`useChannel`'s `jumpTo`)
+instead of older pages one by one; the list then loads newer pages as you scroll down, shows
+"You're viewing older messages · Jump to present", doesn't follow the bottom, and holds live
+messages until it's back at the present (or a reload).
+
 While a reply is being written (the composer's "Replying to" bar), the message it answers stays
 highlighted, as in Discord: `ChatPane` passes `replyTo`'s id to `MessageList` as `replyingToId`
 and that row gets `.replying`, tinted in the accent with a bar on the left (purple, so it reads
