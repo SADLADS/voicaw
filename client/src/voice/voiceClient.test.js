@@ -462,6 +462,45 @@ describe('voiceClient channel settings', () => {
   });
 });
 
+describe('voiceClient speakers', () => {
+  const sinks = [];
+  const realSetSinkId = FakeAudioContext.prototype.setSinkId;
+  beforeEach(async () => {
+    await voice.leaveVoice();
+    sinks.length = 0;
+    FakeAudioContext.prototype.setSinkId = async function setSinkId(id) { sinks.push(id); };
+  });
+  afterAll(() => {
+    FakeAudioContext.prototype.setSinkId = realSetSinkId;
+  });
+
+  it('keeps voices on the system default, whatever device LiveKit resolves it to', async () => {
+    const { setAudioSettings } = await import('./audioSettings');
+    setAudioSettings({ outputDeviceId: '' });
+    await voice.joinVoice(1, 2);
+    await flush();
+    // Given "default", LiveKit would pin the device that's the default now.
+    expect(lk.state.room.options.audioOutput).toBeUndefined();
+    const context = lk.state.room.options.webAudioMix.audioContext;
+    // LiveKit choosing a concrete device (its "default", normalised) leaves it on the default.
+    await context.setSinkId('speakers-id');
+    expect(sinks).toEqual(['']);
+  });
+
+  it('plays on the chosen speakers, and goes back to the default when that is chosen', async () => {
+    const { setAudioSettings } = await import('./audioSettings');
+    setAudioSettings({ outputDeviceId: 'headphones-id' });
+    await voice.joinVoice(1, 2);
+    await flush();
+    expect(lk.state.room.options.audioOutput).toEqual({ deviceId: 'headphones-id' });
+    const context = lk.state.room.options.webAudioMix.audioContext;
+    expect(sinks).toEqual(['headphones-id']);
+    setAudioSettings({ outputDeviceId: '' });
+    await context.setSinkId('speakers-id');
+    expect(sinks.at(-1)).toBe('');
+  });
+});
+
 describe('voiceClient screen share quality', () => {
   beforeEach(async () => {
     await voice.leaveVoice();

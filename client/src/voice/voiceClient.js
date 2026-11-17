@@ -3,7 +3,8 @@ import { onGuildEvent } from '../utils/ws-client';
 import { createVoiceChain } from './voiceChain';
 import { VOICE_SAMPLE_RATE, voiceProcessingStage } from './noise/noiseStages';
 import {
-  captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, outputSinkId, processingChanged,
+  captureOptions, getAudioSettings, inputGainStage, onAudioSettingsChange, onDeviceChange, outputSinkId,
+  processingChanged,
 } from './audioSettings';
 import {
   canBoostVolume, getStreamVolume, getUserVolume, onStreamVolumesChange, onUserVolumesChange, playbackVolume,
@@ -182,16 +183,19 @@ function newPlaybackContext() {
   if (!canBoostVolume()) return null;
   try {
     const context = new AudioContext({ latencyHint: 'interactive' });
-    // LiveKit sets the speakers on it without waiting or catching, and may do so after we've
-    // closed it (a rejoin): that would be an uncaught error.
+    // It always plays where Settings → Voice & video says, whatever LiveKit asks for: LiveKit
+    // turns "default" into whichever device is the default at that moment and sets that, which
+    // would keep voices on the old speakers when headphones are plugged in. '' (the default)
+    // follows the system's default device as it changes, as the sounds' context does.
+    // (LiveKit also sets it without waiting or catching, and may do so after we've closed it
+    // (a rejoin): that would be an uncaught error.)
     if (context.setSinkId) {
       const setSinkId = context.setSinkId.bind(context);
-      context.setSinkId = (id) => (context.state === 'closed'
+      context.setSinkId = () => (context.state === 'closed'
         ? Promise.resolve()
-        : setSinkId(id).catch((err) => console.warn('Could not choose speakers', err)));
+        : setSinkId(outputSinkId()).catch((err) => console.warn('Could not choose speakers', err)));
     }
-    const sink = outputSinkId();
-    if (sink && context.setSinkId) context.setSinkId(sink);
+    if (outputSinkId() && context.setSinkId) context.setSinkId();
     return context;
   } catch {
     return null;
@@ -545,6 +549,11 @@ onPushToTalkChange((next, previous) => {
   playSound(next.pressed ? 'pushToTalkOn' : 'pushToTalkOff');
 });
 
+// A device plugged in or out: the chosen speakers may be back.
+onDeviceChange(() => {
+  if (outputSinkId()) playback?.setSinkId?.();
+});
+
 // Voice settings changed (Settings → Voice & video): a new microphone or processing means
 // capturing it again (or, while muted, dropping the track so unmuting captures it afresh).
 onAudioSettingsChange(async (next, previous) => {
@@ -802,7 +811,9 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
       webAudioMix: playback ? { audioContext: playback } : false,
       audioCaptureDefaults: captureOptions(),
       videoCaptureDefaults: cameraOptions(),
-      audioOutput: { deviceId: outputSinkId() || 'default' },
+      // Only a chosen device: given "default", LiveKit would pin the device that's the default
+      // now (see newPlaybackContext).
+      ...(outputSinkId() ? { audioOutput: { deviceId: outputSinkId() } } : {}),
       // stopMicTrackOnMute is a publish option (as a Room option LiveKit ignores it).
       publishDefaults: { dtx: true, red: true, stopMicTrackOnMute: true, audioPreset: { maxBitrate: bitrate } },
       e2ee,

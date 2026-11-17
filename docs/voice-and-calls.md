@@ -65,7 +65,12 @@ LiveKit carries the audio.
   audio received: about 30 ms to light, 300 ms to go out (LiveKit's took 500 and 650).
 - **Playback** (`voiceClient`): others' voices play through Web Audio, LiveKit's `webAudioMix`
   in our own AudioContext (`playback`, one per connection, its `setSinkId` the chosen speakers;
-  LiveKit's own context would miss the speakers chosen before joining): each remote track gets
+  LiveKit's own context would miss the speakers chosen before joining). Its `setSinkId` is
+  wrapped to always apply Settings' choice, whatever LiveKit passes: LiveKit turns `'default'`
+  into whichever device is the default at that moment, which kept voices on the old speakers
+  when headphones were plugged in mid-call; `''` follows the system default as it changes, so
+  `audioOutput` is only given to the Room for a chosen device, and a `devicechange` applies a
+  chosen one again in case it came back. Each remote track gets
   its own GainNode (`track.setVolume`), so volumes can go past 100%. Its `<audio>` element
   stays attached but muted (Chrome only feeds a remote stream to Web Audio while it plays). Where
   the browser can pick speakers for elements but not for an AudioContext (Firefox) it plays
