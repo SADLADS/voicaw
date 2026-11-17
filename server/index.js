@@ -18,7 +18,7 @@ app.set('trust proxy', 'loopback');
 // group DM's (routes/groupDms.js) and a history import's batches and lists (routes/guildImports.js).
 const json = express.json();
 const documentJson = express.json({ limit: '1mb' });
-const DOCUMENT_PATH = /^\/api\/(guilds\/\d+\/imports(\/\d+\/(messages|mapping))?|channels\/\d+\/documents|documents\/\d+(\/collab(\/\w+)?)?|applications\/\d+|group-dms\/[0-9a-f-]{36})$/;
+const DOCUMENT_PATH = /^\/api\/(guilds\/\d+\/imports(\/\d+\/(messages|mapping|known))?|channels\/\d+\/documents|documents\/\d+(\/collab(\/\w+)?)?|applications\/\d+|group-dms\/[0-9a-f-]{36})$/;
 app.use((req, res, next) => {
   if (/\/webhooks(\/|$)/.test(req.path) || /^\/api\/v\d+\//.test(req.path)) return next();
   return (DOCUMENT_PATH.test(req.path) ? documentJson : json)(req, res, next);
@@ -50,6 +50,8 @@ app.get('/api/config', async (req, res) => {
     maxUploadBytes: await uploadLimitBytes(),
     // The terms of use registering accepts (terms.js).
     termsVersion: require('./terms').TERMS_VERSION,
+    // Whether guilds' administrators may import history (Settings → Admin, guildImports.js).
+    historyImports: (await getSetting('historyImports')) !== 'off',
     // For apps that chose this server on the login screen (config.js).
     ...(config.publicWebsocketUrl && { websocketUrl: config.publicWebsocketUrl }),
     termsUrl: config.termsUrl,

@@ -28,6 +28,7 @@ export const AUDIT_FILTERS = [
   { key: 'events', label: t('guildAdmin.auditLog.filters.events'), actions: ['event_create', 'event_update', 'event_delete'] },
   { key: 'levels', label: t('guildAdmin.auditLog.filters.levels'), actions: ['levels_update', 'member_xp_update'] },
   { key: 'guild', label: t('guildAdmin.auditLog.filters.guild'), actions: ['guild_update', 'audit_log_clear', 'media_server_connect', 'media_server_disconnect'] },
+  { key: 'imports', label: t('guildAdmin.auditLog.filters.imports'), actions: ['import_create', 'import_mapping', 'import_finish', 'import_delete'] },
 ];
 
 // What the owner can clear (server/auditLog.js CLEAR_CHOICES): entries older than these days, 0 all.
@@ -138,6 +139,11 @@ export function describeEntry(entry, names) {
     case 'levels_update': return sentence('levelsUpdate', { actor });
     case 'media_server_connect': return sentence('mediaServerConnect', { actor, server: named(d.name) }, { account: d.username });
     case 'media_server_disconnect': return sentence('mediaServerDisconnect', { actor, server: named(d.name) });
+    // History imports (server/guildImports.js).
+    case 'import_create': return d.source ? sentence('importCreate', { actor, source: named(d.source) }) : sentence('importCreateUnnamed', { actor });
+    case 'import_mapping': return sentence('importMapping', { actor });
+    case 'import_finish': return sentence('importFinish', { actor }, { count: d.messages ?? 0 });
+    case 'import_delete': return d.source ? sentence('importDelete', { actor, source: named(d.source) }) : sentence('importDeleteUnnamed', { actor });
     case 'member_xp_update': return sentence('memberXpUpdate', { actor, target: target() });
     case 'audit_log_clear': return d.olderThanDays
       ? sentence('auditLogClearOlder', { actor }, { age: clearAge(d.olderThanDays), count: d.deleted })

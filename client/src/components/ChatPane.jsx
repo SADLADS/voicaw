@@ -43,6 +43,7 @@ import { groupReactions } from '../utils/reactions';
 import { ErrorState } from './ErrorState';
 import { errorText } from '../utils/errors';
 import { showErrorToast } from '../services/toasts';
+import { unlinkImportedAuthor } from '../services/historyImport/importService';
 
 // The body of a chat, shared by DMs (Dm) and guild channels (GuildChannel): the messages, the
 // composer, reactions (the floating or docked picker), the desktop right-click menu and the
@@ -201,8 +202,13 @@ export default function ChatPane({
     const source = forwardSource(msg);
     if (source) setForwarding(source);
   }, []);
-  // A closed poll, a voice message and a forward can't be edited.
-  const editable = (msg) => !msg.system && !isClosedPoll(msg) && !isVoiceMessage(msg.plaintext) && !isForward(msg.plaintext);
+  // A closed poll, a voice message, a forward and an imported message can't be edited.
+  const editable = (msg) => !msg.system && !msg.imported && !isClosedPoll(msg) && !isVoiceMessage(msg.plaintext) && !isForward(msg.plaintext);
+  // Your own imported message: "This wasn't me" (asks first; unlinks you from that archive
+  // author, so all their messages go back to the archive's name).
+  const [confirmingNotMe, setConfirmingNotMe] = useState(null);
+  const notMeFor = (msg) => (!readOnly && msg.imported?.author.mapped && msg.sender_id === user.id && msg.import_author_id
+    ? () => setConfirmingNotMe(msg) : undefined);
   // The menus of a "poll ended" row (the only system row with any, MessageList's PollEndRow):
   // reactions and Reply, nothing that changes or removes it.
   const deletable = (msg) => !msg.system && (msg.sender_id === user.id || canModerate);
@@ -455,17 +461,31 @@ export default function ChatPane({
   // Resolves to its row, or null if it couldn't be found.
   async function jumpToMessage(id) {
     if (isMobile) onClosePins?.();
-    const deadline = Date.now() + 20000;
+    const findRow = () => document.querySelector(`.message-scroller [data-msg-id="${id}"]`);
+    // A guild channel loads the page around it at once (useChannel's jumpTo: its history can
+    // reach years back, imported), then waits for it to be drawn; other chats load older pages
+    // until it's there.
+    const around = !findRow() && latestConversation.current.jumpTo;
+    if (around) {
+      try {
+        await latestConversation.current.jumpTo(id);
+      } catch (err) {
+        console.error('Failed to load the message', err);
+      }
+    }
+    const deadline = Date.now() + (around ? 3000 : 20000);
     while (Date.now() < deadline) {
-      const row = document.querySelector(`.message-scroller [data-msg-id="${id}"]`);
+      const row = findRow();
       if (row) {
         row.scrollIntoView({ block: 'center' });
         flashRow(row, 'jump-highlight');
         return row;
       }
       const current = latestConversation.current;
-      if (!current.hasMore) break;
-      await current.loadMoreMessages();
+      if (!around) {
+        if (!current.hasMore) break;
+        await current.loadMoreMessages();
+      }
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     setComposerError(t('chat.pane.jumpFailed'));
@@ -520,6 +540,8 @@ export default function ChatPane({
             head={listHead}
             newFrom={newFrom}
             loadMoreMessages={conversation.loadMoreMessages}
+            hasNewer={conversation.hasNewer ?? false}
+            loadNewerMessages={conversation.loadNewerMessages}
             s3Endpoint={s3Endpoint}
             hoveredMsgId={hoveredMsgId}
             setHoveredMsgId={readOnly ? noHover : setHoveredMsgId}
@@ -566,6 +588,12 @@ export default function ChatPane({
             // The message being replied to stays highlighted until the reply is sent or cancelled.
             replyingToId={replyTo?.id}
           />
+        )}
+        {conversation.hasNewer && !conversation.isLoading && (
+          <div className="jump-to-present" role="status">
+            <span>{t('chat.pane.viewingOlder')}</span>
+            <button type="button" onClick={conversation.jumpToPresent}>{t('chat.pane.jumpToPresent')}</button>
+          </div>
         )}
       </div>
 
@@ -645,6 +673,22 @@ export default function ChatPane({
         </ConfirmDialog>
       )}
 
+      {confirmingNotMe && (
+        <ConfirmDialog
+          title={t('chat.imported.notMeTitle')}
+          message={t('chat.imported.notMeConfirm', { name: confirmingNotMe.imported.author.name })}
+          confirmLabel={t('chat.imported.notMeAction')}
+          onConfirm={async () => {
+            try {
+              await unlinkImportedAuthor(confirmingNotMe.import_author_id);
+            } catch (err) {
+              showErrorToast(t('chat.imported.notMeFailed'), err);
+            }
+          }}
+          onClose={() => setConfirmingNotMe(null)}
+        />
+      )}
+
       {reporting && (
         <ReportDialog
           target={{
@@ -694,6 +738,7 @@ export default function ChatPane({
           onRunApp={(command) => runMessageApp(command, actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
           onReport={!readOnly && reportable(actionsFor) ? () => setReporting(actionsFor) : undefined}
+          onNotMe={notMeFor(actionsFor)}
           onClose={closeActions}
         />
       )}
@@ -721,6 +766,7 @@ export default function ChatPane({
           onRunApp={(command) => runMessageApp(command, menuMsg)}
           onDelete={(event) => requestDelete(menuMsg, event)}
           onReport={!readOnly && reportable(menuMsg) ? () => setReporting(menuMsg) : undefined}
+          onNotMe={notMeFor(menuMsg)}
           onClose={closeMenu}
         />
       )}

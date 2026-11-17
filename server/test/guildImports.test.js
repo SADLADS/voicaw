@@ -107,6 +107,7 @@ describe('who may import', () => {
       ...ARCHIVE, authors: [{ sourceId: '111', name: 'Someone', names: [member.username] }],
     })).body;
     expect(again.suggested).toEqual({});
+    expect(again.opted_out).toEqual([member.id]);
     const refused = await api.put(owner, `/guilds/${guild.id}/imports/${again.id}/mapping`, {
       authors: [{ id: authorOf(again, '111').id, userId: member.id }],
     });
@@ -165,6 +166,9 @@ describe('adding messages', () => {
     expect(await db.get('SELECT COUNT(*) AS n FROM guild_mentions WHERE user_id = ?', [member.id])).toEqual({ n: 0 });
     expect(memberEvents.filter((e) => e.type === 'guild_message_new')).toHaveLength(0);
 
+    // A resumed import asks which are in already (to skip their files).
+    const known = await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/known`, { sourceIds: ['m1', 'm4', 'nope'] });
+    expect(known.body).toEqual({ known: ['m1'] });
     // Sending the batch again adds nothing.
     const again = await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/messages`, {
       channelSourceId: '900',

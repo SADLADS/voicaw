@@ -106,7 +106,11 @@ async function importView(importId) {
     [importId]
   );
   const { count } = await db.get('SELECT COUNT(*) AS count FROM guild_import_messages WHERE import_id = ?', [importId]);
-  return { ...row, message_count: count, authors, channels };
+  // Members who don't want to be linked (the preference importOptOut), so the picker says so.
+  const members = row ? await db.all('SELECT user_id FROM guild_members WHERE guild_id = ?', [row.guild_id]) : [];
+  const optedOut = [];
+  for (const { user_id: userId } of members) if ((await getPreferences(userId)).importOptOut) optedOut.push(userId);
+  return { ...row, message_count: count, authors, channels, opted_out: optedOut };
 }
 
 async function listImports(member) {
@@ -298,7 +302,7 @@ function rewriteContent(content, ctx) {
     .replace(/<@&([A-Za-z0-9._:-]{1,64})>/g, (_, id) => `@${ctx.names.roles[id] ?? 'unknown-role'}`)
     .replace(/<(a?):([A-Za-z0-9_]{1,32}):(\d{1,25})>/g, (_, animated, name) => {
       const emoji = ctx.emojis.get(name.toLowerCase());
-      return emoji ? `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>` : `:${name}:`;
+      return emoji ? `<:${emoji.name}:${emoji.id}>` : `:${name}:`;
     });
 }
 
@@ -368,7 +372,7 @@ function cleanReactions(list, emojis, authors) {
       .map((id) => authors.get(cleanSourceId(id))?.id).filter(Boolean);
     if (typeof r.customName === 'string' && /^[A-Za-z0-9_]{1,32}$/.test(r.customName)) {
       const emoji = emojis.get(r.customName.toLowerCase());
-      out.push({ emoji: emoji ? `<${emoji.animated ? 'a' : ''}:${emoji.name}:${emoji.id}>` : `:${r.customName}:`, count, users });
+      out.push({ emoji: emoji ? `<:${emoji.name}:${emoji.id}>` : `:${r.customName}:`, count, users });
     } else if (typeof r.emoji === 'string' && r.emoji && r.emoji.length <= LIMITS.emoji) {
       out.push({ emoji: r.emoji, count, users });
     }
@@ -488,6 +492,23 @@ async function addMessages(member, importId, { channelSourceId, messages, names 
   });
   queuePreviews(withLinks);
   return result;
+}
+
+// Which of `sourceIds` (archive message ids) this import already holds, so a resumed import
+// skips their files too.
+async function knownMessages(member, importId, sourceIds) {
+  const imp = await getImport(member.guild.id, importId);
+  const ids = (Array.isArray(sourceIds) ? sourceIds : []).slice(0, 5000).map(cleanSourceId).filter(Boolean);
+  const known = [];
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    const rows = await db.all(
+      `SELECT source_id FROM guild_import_messages WHERE import_id = ? AND source_id IN (${placeholders(chunk)})`,
+      [imp.id, ...chunk]
+    );
+    known.push(...rows.map((r) => r.source_id));
+  }
+  return known;
 }
 
 // One file of the archive, `size` bytes, named `name` (`width`/`height` for a picture, from
@@ -728,6 +749,7 @@ module.exports = {
   createImport,
   setMapping,
   addMessages,
+  knownMessages,
   prepareImportFile,
   storeAuthorAvatar,
   finishImport,

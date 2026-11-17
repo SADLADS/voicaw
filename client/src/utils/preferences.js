@@ -14,6 +14,8 @@ import api from './api';
 const DEFAULTS = {
   blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all',
   showActivity: true, showMutualFriends: true, showMutualGuilds: true,
+  // History imports may not show you as an imported message's author (ImportedMessagesSettings).
+  importOptOut: false,
 };
 const listeners = new Set();
 let prefs = DEFAULTS;

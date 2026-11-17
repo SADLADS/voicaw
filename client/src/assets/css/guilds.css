@@ -3361,3 +3361,112 @@ img.emoji.custom-emoji {
   background-color: var(--vc-accent);
   color: var(--vc-on-accent);
 }
+
+/* GUILD SETTINGS → IMPORT (guild/GuildImport.jsx): the steps of a history import. */
+.guild-import-heading {
+  margin: 14px 0 4px;
+}
+
+.guild-import-heading:first-child {
+  margin-top: 0;
+}
+
+.guild-import-file {
+  cursor: pointer;
+}
+
+.guild-import-summary p {
+  margin: 4px 0;
+}
+
+.guild-import-warning {
+  color: var(--vc-warning);
+}
+
+.guild-import-list,
+.guild-import-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guild-import-item,
+.guild-import-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--vc-radius-md);
+  background: var(--vc-bg-subtle);
+}
+
+.guild-import-item-text,
+.guild-import-row-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.guild-import-row-name .app-tag {
+  align-self: flex-start;
+}
+
+.guild-import-row select {
+  flex: 0 1 240px;
+  min-width: 160px;
+}
+
+.guild-import-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guild-import-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 320px;
+}
+
+.guild-import-preview {
+  margin: 8px 0 0;
+}
+
+.guild-import-progress {
+  height: 8px;
+  border-radius: var(--vc-radius-full);
+  background: var(--vc-bg-subtle);
+  overflow: hidden;
+}
+
+.guild-import-progress-bar {
+  height: 100%;
+  background: var(--vc-accent);
+  transition: width 0.2s ease;
+}
+
+/* Settings → Privacy → Imported messages. */
+.imported-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.imported-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}

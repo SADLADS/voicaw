@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
-import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faShare, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faLinkSlash, faReply, faRobot, faShare, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup, faUserSlash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { quickReactions } from '../emoji/quickReactions';
@@ -36,6 +36,8 @@ export default function MessageActionSheet({
   onRemovePreviews,
   onDelete,
   onReport,
+  // Your own imported message (history imports): "This wasn't me" unlinks you from its archive author.
+  onNotMe,
   apps = [],
   onRunApp,
   onClose,
@@ -171,6 +173,11 @@ export default function MessageActionSheet({
                   </button>
                 ))}
               </div>
+            )}
+            {sent && onNotMe && (
+              <button type="button" className="action-sheet-item" onClick={act(onNotMe)}>
+                <Icon icon={faUserSlash} /> {t('chat.imported.notMe')}
+              </button>
             )}
             {sent && !isOwn && onReport && (
               <button type="button" className="action-sheet-item danger" onClick={act(onReport)}>

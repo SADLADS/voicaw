@@ -47,14 +47,15 @@ const isStored = (m) => Number.isInteger(m.id) && !isEphemeral(m);
 // has (being sent, ephemeral replies) are kept after it; one being sent that the page already
 // has (its text from its sender) becomes the stored row, as its websocket echo would.
 // -> { messages (prev itself when nothing changed), gap, added (rows that weren't shown) }.
-export function mergeNewestPage(prev, page, pageSize) {
+// `compare` orders two stored rows (negative: the first is older): by id, except in guild
+// channels, whose imported messages have old times but new ids (utils/messageOrder.js).
+export function mergeNewestPage(prev, page, pageSize, compare = (a, b) => a.id - b.id) {
   const stored = prev.filter(isStored);
-  const newestShown = stored.length ? stored[stored.length - 1].id : null;
-  const gap = page.length >= pageSize && newestShown != null && page[0].id > newestShown;
-  const cutoff = gap ? -Infinity : (page.length ? page[0].id : Infinity);
+  const newestShown = stored.length ? stored[stored.length - 1] : null;
+  const gap = page.length >= pageSize && newestShown != null && compare(page[0], newestShown) > 0;
 
   // The rows before the page, as they are (ephemeral ones among them too).
-  const firstReplaced = prev.findIndex((m) => isStored(m) && m.id >= cutoff);
+  const firstReplaced = gap ? 0 : !page.length ? -1 : prev.findIndex((m) => isStored(m) && compare(m, page[0]) >= 0);
   const head = gap ? [] : (firstReplaced === -1 ? prev : prev.slice(0, firstReplaced));
   const tail = gap ? prev : (firstReplaced === -1 ? [] : prev.slice(firstReplaced));
 

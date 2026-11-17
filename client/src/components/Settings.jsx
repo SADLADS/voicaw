@@ -20,6 +20,7 @@ import BlockedUsers from './BlockedUsers';
 import AuthorisedApps from './AuthorisedApps';
 import AdminReports from './AdminReports';
 import ProfileVisibilitySettings from './ProfileVisibilitySettings';
+import ImportedMessagesSettings from './ImportedMessagesSettings';
 import ContentSettings from "./ContentSettings";
 import ThemeSettings, { SeasonalThemeSettings } from "./ThemeSettings";
 import MessageDisplaySettings from "./MessageDisplaySettings";
@@ -102,6 +103,7 @@ export default function Settings({ onLogout }) {
         sub('privacy', 'privacy', { content: <PrivacySettings /> }),
         sub('storage', 'storage', { content: <StorageSettings /> }),
         sub('profile-visibility', 'profileVisibility', { content: <ProfileVisibilitySettings /> }),
+        sub('imported-messages', 'importedMessages', { content: <ImportedMessagesSettings /> }),
         sub('content', 'content', { content: <ContentSettings /> }),
         sub('blocked', 'blocked', { content: <BlockedUsers /> }),
         sub('authorised-apps', 'authorisedApps', { content: <AuthorisedApps /> }),

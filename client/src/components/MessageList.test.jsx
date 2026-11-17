@@ -1019,3 +1019,71 @@ describe('MessageList reactions', () => {
   });
 });
 
+describe('imported messages (history imports)', () => {
+  afterEach(() => clearProfiles());
+  const imported = (over = {}) => ({
+    label: null, source_guild_name: 'Old Crew', source_channel_name: 'general', importer_id: 2, imported_at: 1_700_000_000,
+    author: { name: 'kestrel99', avatar: null, mapped: false }, ...over,
+  });
+  const message = (over = {}) => ({
+    id: 70, sender_id: 0, sender_username: 'kestrel99', plaintext: 'count me in', content: 'count me in', timestamp: 1000,
+    reactions: [], import_id: 5, import_author_id: 9, imported: imported(), import_reactions: [], ...over,
+  });
+
+  it("shows an unlinked author by the archive's name and initial, with the tag and its note", () => {
+    mergeProfiles([{ id: 2, username: 'alex', display_name: 'Alex' }]);
+    render(<MessageList {...baseProps({ messages: [message()] })} />);
+    const author = screen.getByText('kestrel99', { selector: '.message-author' });
+    expect(author).not.toHaveAttribute('data-user-id');
+    expect(document.querySelector('.message-avatar.imported-avatar-initial')).toHaveTextContent('K');
+    const tag = document.querySelector('.import-tag');
+    expect(tag).toHaveTextContent('Imported');
+    const note = tag.querySelector('[role="tooltip"]');
+    expect(note).toHaveTextContent('From #general in “Old Crew”.');
+    expect(note).toHaveTextContent('Imported by Alex');
+    expect(note).toHaveTextContent("Voicaw can't confirm who wrote it");
+    expect(note).not.toHaveTextContent('Shown as');
+    fireEvent.click(author);
+    expect(screen.getByRole('dialog', { name: 'Profile of kestrel99' })).toHaveTextContent('not a Voicaw account');
+  });
+
+  it("shows a linked member as themselves, with the importer's label and the archive's name", () => {
+    mergeProfiles([{ id: 3, username: 'sam', display_name: 'Sam' }, { id: 2, username: 'alex', display_name: 'Alex' }]);
+    const msg = message({
+      sender_id: 3, sender_username: 'sam',
+      imported: imported({ label: 'Discord', author: { name: 'sammy_old', avatar: null, mapped: true } }),
+    });
+    render(<MessageList {...baseProps({ messages: [msg] })} />);
+    expect(screen.getByText('Sam', { selector: '.message-author' })).toHaveAttribute('data-user-id', '3');
+    expect(document.querySelector('.import-tag-label')).toHaveTextContent('Discord');
+    expect(screen.getByText('as sammy_old')).toBeInTheDocument();
+    expect(document.querySelector('.import-tag [role="tooltip"]')).toHaveTextContent('Shown as Sam because Alex linked them to this author.');
+  });
+
+  it("shows the archive's reactions as read-only counts, and has no Edit for your own", () => {
+    mergeProfiles([{ id: 1, username: 'alice', display_name: 'Alice' }]);
+    const msg = message({
+      sender_id: 1, sender_username: 'alice',
+      imported: imported({ author: { name: 'alice_old', avatar: null, mapped: true } }),
+      import_reactions: [{ emoji: '🔥', count: 2, users: [{ user_id: 1, name: 'alice_old' }, { user_id: null, name: 'kestrel99' }] }],
+    });
+    render(<MessageList {...baseProps({ messages: [msg], hoveredMsgId: 70, onToggleReaction: vi.fn() })} />);
+    const chip = document.querySelector('.imported-reaction');
+    expect(chip).toHaveTextContent('2');
+    expect(chip).toHaveAttribute('title', 'From the archive: Alice, kestrel99');
+    expect(chip.tagName).not.toBe('BUTTON');
+    expect(document.querySelector('.message-menu')).not.toBeNull();
+    expect(document.querySelector('.message-menu [data-icon="pen-to-square"]')).toBeNull();
+  });
+
+  it('draws a reply to an unlinked author with their name', () => {
+    const reply = {
+      id: 71, sender_id: 2, sender_username: 'bob', plaintext: 'still keen?', timestamp: 2000, reactions: [],
+      parent_message_id: 70, parent_plaintext: 'count me in', parent_username: 'kestrel99', parent_sender_id: null, parent_import_id: 5,
+    };
+    render(<MessageList {...baseProps({ messages: [reply] })} />);
+    expect(document.querySelector('.reply-author')).toHaveTextContent('kestrel99');
+    expect(document.querySelector('.reply-avatar.imported-avatar-initial')).toHaveTextContent('K');
+  });
+});
+

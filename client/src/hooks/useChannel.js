@@ -14,6 +14,7 @@ import {
 } from '../services/guildService';
 import { useCatchUp } from './useCatchUp';
 import { mergeNewestPage } from '../utils/catchUp';
+import { comparePosition, highestId } from '../utils/messageOrder';
 
 // Older history is fetched in pages this size as you scroll up.
 export const CHANNEL_PAGE_SIZE = 50;
@@ -44,6 +45,13 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
   // Where the unread messages started when the channel opened ({ id }; useConversation's).
   // Not for a document's replies: the channel's unread messages may be under other documents.
   const [firstUnread, setFirstUnread] = useState(null);
+  // Looking at older history after a jump (jumpTo): there are newer messages than those shown.
+  const [hasNewer, setHasNewer] = useState(false);
+  const hasNewerRef = useRef(false);
+  const setNewer = (value) => {
+    hasNewerRef.current = value;
+    setHasNewer(value);
+  };
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -90,6 +98,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     setMessages([]);
     setFirstUnread(null);
     setHasMore(true);
+    setNewer(false);
     setError(null);
     setLoadedChannelId(null);
     if (!channelId) {
@@ -106,9 +115,9 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
         setMessages(page.map(toChatMessage));
         setHasMore(page.length >= CHANNEL_PAGE_SIZE);
         setLoadedChannelId(channelId);
-        const newest = page[page.length - 1];
-        // Marked read even when empty, so the badge goes.
-        markRead(newest ? newest.id : 0, { opening: true });
+        // Marked read even when empty, so the badge goes. The highest id, not the last row's:
+        // an imported message can be last by time with an id above the live ones.
+        markRead(highestId(page) ?? 0, { opening: true });
       } catch (e) {
         if (cancelled) return;
         console.error('Failed to load channel:', e);
@@ -148,6 +157,7 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
   // A new message from the websocket. Our own echo replaces the matching pending message
   // (or is dropped, if the send's response already did).
   function addIncomingMessage(message) {
+    if (hasNewerRef.current) return; // shown when the list reaches the present again
     setMessages((prev) => {
       if (prev.some((m) => m.id === message.id)) return prev;
       const pendingIndex = prev.findIndex(
@@ -252,15 +262,63 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
   }
 
   // Whatever the websocket missed (the phone asleep, a reconnect): the newest page again.
+  // Not while looking at older history (jumpTo): the newest page isn't on screen then.
   useCatchUp(async () => {
     const requestedFor = chatKey;
+    if (hasNewerRef.current) return;
     const page = (await fetchChannelMessages(channelId, pageParams({ limit: CHANNEL_PAGE_SIZE }))).map(toChatMessage);
-    if (activeChannelId.current !== requestedFor) return;
-    const { gap, added } = mergeNewestPage(messagesRef.current, page, CHANNEL_PAGE_SIZE);
-    setMessages((prev) => mergeNewestPage(prev, page, CHANNEL_PAGE_SIZE).messages);
+    if (activeChannelId.current !== requestedFor || hasNewerRef.current) return;
+    const { gap, added } = mergeNewestPage(messagesRef.current, page, CHANNEL_PAGE_SIZE, comparePosition);
+    setMessages((prev) => mergeNewestPage(prev, page, CHANNEL_PAGE_SIZE, comparePosition).messages);
     if (gap) setHasMore(true);
-    if (added.length) markRead(page[page.length - 1].id);
+    if (added.length) markRead(highestId(page));
   }, loadedChannelId != null && String(loadedChannelId) === String(channelId));
+
+  // Jumping to a message that isn't loaded (search, pins, a reply far back, a link): the page
+  // around it replaces the list, which then loads newer pages as you scroll down
+  // (`hasNewer`) until it reaches the present again, or Jump to present reloads the newest.
+  // New messages meanwhile aren't added (they'd sit after a gap); reaching the present
+  // brings them. Resolves once the page is shown (false if the message isn't here).
+  async function jumpTo(messageId) {
+    const requestedFor = chatKey;
+    const page = await fetchChannelMessages(channelId, pageParams({ around: messageId, limit: CHANNEL_PAGE_SIZE }));
+    if (activeChannelId.current !== requestedFor) return false;
+    const at = page.findIndex((m) => m.id === messageId);
+    if (at === -1) return false;
+    loadingOlder.current = false;
+    setMessages(page.map(toChatMessage));
+    setHasMore(at >= Math.ceil(CHANNEL_PAGE_SIZE / 2) - 1);
+    setNewer(page.length - at - 1 >= Math.floor(CHANNEL_PAGE_SIZE / 2));
+    return true;
+  }
+
+  const loadingNewer = useRef(false);
+  async function loadNewerMessages() {
+    if (loadingNewer.current || !hasNewerRef.current) return;
+    const stored = messagesRef.current.filter((m) => Number.isInteger(m.id) && !isEphemeral(m));
+    const newest = stored[stored.length - 1];
+    if (!newest) return;
+    loadingNewer.current = true;
+    const requestedFor = chatKey;
+    try {
+      const page = await fetchChannelMessages(channelId, pageParams({ after: newest.id, limit: CHANNEL_PAGE_SIZE }));
+      if (activeChannelId.current !== requestedFor) return;
+      const known = new Set(messagesRef.current.map((m) => m.id));
+      const fresh = page.map(toChatMessage).filter((m) => !known.has(m.id));
+      if (fresh.length) setMessages((prev) => [...prev, ...fresh]);
+      if (page.length < CHANNEL_PAGE_SIZE) {
+        setNewer(false);
+        markRead(highestId(page) ?? newest.id);
+      }
+    } catch (e) {
+      console.error('Failed to load newer messages:', e);
+    } finally {
+      loadingNewer.current = false;
+    }
+  }
+
+  // Back to the newest page (Jump to present).
+  const jumpToPresent = () => setAttempt((n) => n + 1);
 
   // The server doesn't push messages here while this device is looking at the channel.
   useEffect(() => {
@@ -347,6 +405,11 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
             setMessages((prev) => prev.map((m) => (m.thread?.id === event.threadId ? { ...m, thread: null } : m)));
           }
           break;
+        // A history import added, changed or removed messages here (server/guildImports.js):
+        // loaded again, unless you're looking further back (it applies when you come back).
+        case 'guild_history_changed':
+          if (event.channelId === id && !hasNewerRef.current) setAttempt((n) => n + 1);
+          break;
         default:
       }
     });
@@ -363,6 +426,10 @@ export function useChannel({ channelId, documentId = null, side = false, user, o
     retry: () => setAttempt((n) => n + 1),
     loadedChannelId,
     loadMoreMessages,
+    hasNewer,
+    loadNewerMessages,
+    jumpTo,
+    jumpToPresent,
     sendMessage,
     editMessage,
     deleteMessage,

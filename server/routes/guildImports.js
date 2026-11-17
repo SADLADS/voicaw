@@ -43,6 +43,11 @@ router.post('/guilds/:guildId/imports/:importId/messages', authenticateJWT, impo
   res.json(await imports.addMessages(req.member, req.importId, req.body ?? {}));
 }));
 
+// { sourceIds } -> those already imported.
+router.post('/guilds/:guildId/imports/:importId/known', authenticateJWT, importer, withActionErrors(async (req, res) => {
+  res.json({ known: await imports.knownMessages(req.member, req.importId, req.body?.sourceIds) });
+}));
+
 router.post('/guilds/:guildId/imports/:importId/files', authenticateJWT, importer, withActionErrors(async (req, res) => {
   res.status(201).json(await imports.prepareImportFile(req.member, req.importId, req.body ?? {}));
 }));

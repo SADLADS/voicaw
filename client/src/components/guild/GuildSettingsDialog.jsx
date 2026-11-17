@@ -7,7 +7,8 @@ import EmojiSettings from './EmojiSettings';
 import SoundboardSettings from './SoundboardSettings';
 import LevelSettings from './LevelSettings';
 import MediaServerSettings from './MediaServerSettings';
-import { LayoutContext } from '../../contexts';
+import GuildImport from './GuildImport';
+import { ConfigContext, LayoutContext } from '../../contexts';
 import {
   deleteGuild,
   fetchBans,
@@ -365,9 +366,11 @@ function Bans({ guild }) {
 }
 
 // Guild settings: the tabs you have permission for (Overview and Invites: Manage Guild;
-// Levels and Watch Together: Manage Guild; Roles: Manage Roles; Emoji and Soundboard: Manage Emoji; Bans: Ban Members). Deleting the guild is the owner's alone.
+// Levels and Watch Together: Manage Guild; Roles: Manage Roles; Emoji and Soundboard: Manage Emoji; Bans: Ban Members;
+// Import: Administrator, while Settings → Admin allows history imports). Deleting the guild is the owner's alone.
 export default function GuildSettingsDialog({ guild, user, onClose }) {
   const can = (bit) => has(guild.my_permissions, bit);
+  const config = useContext(ConfigContext);
   const tabs = [
     can(PERMISSIONS.MANAGE_GUILD) && ['overview', t('guildAdmin.channelDialog.tabs.overview')],
     can(PERMISSIONS.MANAGE_ROLES) && ['roles', t('guildAdmin.guildSettings.tabs.roles')],
@@ -377,6 +380,7 @@ export default function GuildSettingsDialog({ guild, user, onClose }) {
     can(PERMISSIONS.MANAGE_GUILD) && ['watchTogether', t('guildAdmin.guildSettings.tabs.watchTogether')],
     can(PERMISSIONS.MANAGE_GUILD) && ['invites', t('guildAdmin.guildSettings.tabs.invites')],
     can(PERMISSIONS.BAN_MEMBERS) && ['bans', t('guildAdmin.guildSettings.tabs.bans')],
+    can(PERMISSIONS.ADMINISTRATOR) && config?.historyImports !== false && ['import', t('guildAdmin.guildSettings.tabs.import')],
   ].filter(Boolean);
   const [tab, setTab] = useState(tabs[0]?.[0]);
 
@@ -405,6 +409,7 @@ export default function GuildSettingsDialog({ guild, user, onClose }) {
         {tab === 'watchTogether' && <MediaServerSettings guild={guild} />}
         {tab === 'invites' && <Invites guild={guild} isOwner={guild.owner === user.id} />}
         {tab === 'bans' && <Bans guild={guild} />}
+        {tab === 'import' && <GuildImport guild={guild} />}
         {tabs.length === 0 && <p className="vc-hint">{t('guildAdmin.guildSettings.noPermission')}</p>}
       </div>
     </Modal>

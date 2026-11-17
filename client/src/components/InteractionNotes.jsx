@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trans } from 'react-i18next';
 import Avatar from './Avatar';
+import { ImportedAvatar } from './ImportedMessage';
 import { displayName, useProfiles } from '../utils/profiles';
 import { requestDismiss } from '../utils/botComponents';
 import { dismissEphemeral } from '../services/interactionService';
@@ -10,17 +11,20 @@ import { t } from '../i18n';
 // line above a command's answer, "<bot> is thinking…" while a reply is deferred, and the
 // "Only you can see this" footer of an ephemeral message.
 
-// Above a command's answer (message.interaction with a name): who used which command.
+// Above a command's answer (message.interaction with a name): who used which command. In an
+// imported message, someone not linked to a member is `user_name` (the archive's name).
 export function InteractionHeader({ interaction }) {
   useProfiles();
-  if (!interaction?.name || !interaction.user_id) return null;
-  const name = displayName(interaction.user_id);
+  if (!interaction?.name || (!interaction.user_id && !interaction.user_name)) return null;
+  const name = interaction.user_id ? displayName(interaction.user_id) : interaction.user_name;
   // Slash commands start with "/"; user and message commands are named as they are.
   const slash = !interaction.command_type || interaction.command_type === 1;
   return (
     // Drawn like a reply's snippet (the same line down to the avatar).
     <div className="reply-snippet interaction-header">
-      <Avatar userId={interaction.user_id} alt="" className="reply-avatar" />
+      {interaction.user_id
+        ? <Avatar userId={interaction.user_id} alt="" className="reply-avatar" />
+        : <ImportedAvatar name={name} className="reply-avatar" aria-hidden="true" />}
       <span className="reply-preview interaction-header-text">
         <Trans
           i18nKey={slash ? 'components.usedCommand' : 'components.usedApp'}

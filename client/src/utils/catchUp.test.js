@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeNewestPage } from './catchUp';
+import { comparePosition, highestId } from './messageOrder';
 
 const row = (id, extra = {}) => ({ id, sender_id: 2, plaintext: `text ${id}`, ...extra });
 const ids = (list) => list.map((m) => m.id);
@@ -50,5 +51,26 @@ describe('mergeNewestPage', () => {
   it('leaves an empty page alone', () => {
     const prev = [row(1)];
     expect(mergeNewestPage(prev, [], 50).messages).toBe(prev);
+  });
+
+  it('orders by position in guild channels, where imported messages have old times and new ids', () => {
+    // 900 and 901 are imported (old times, high ids) between live 1 and 2.
+    const prev = [row(1, { timestamp: 100 }), row(900, { timestamp: 150 }), row(901, { timestamp: 160 }), row(2, { timestamp: 200 })];
+    const page = [row(901, { timestamp: 160 }), row(2, { timestamp: 200 }), row(3, { timestamp: 300 })];
+    const { messages, gap, added } = mergeNewestPage(prev, page, 3, comparePosition);
+    expect(gap).toBe(false);
+    expect(ids(messages)).toEqual([1, 900, 901, 2, 3]);
+    expect(ids(added)).toEqual([3]);
+    // By id alone, the imported 901 would look newer than everything shown.
+    expect(mergeNewestPage(prev, [row(2, { timestamp: 200 }), row(3, { timestamp: 300 }), row(4, { timestamp: 400 })], 3, comparePosition).gap).toBe(false);
+  });
+});
+
+describe('message positions', () => {
+  it('sorts by time, then id, and finds the highest id to mark read', () => {
+    const rows = [row(900, { timestamp: 150 }), row(2, { timestamp: 200 }), row(1, { timestamp: 100 })];
+    expect(ids([...rows].sort(comparePosition))).toEqual([1, 900, 2]);
+    expect(highestId([...rows, { id: 'temp-1' }])).toBe(900);
+    expect(highestId([])).toBeNull();
   });
 });

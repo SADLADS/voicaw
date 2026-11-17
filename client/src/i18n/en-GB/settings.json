@@ -229,6 +229,10 @@
       "legal": {
         "title": "Privacy policy & terms",
         "keywords": "privacy policy terms of use legal delete account"
+      },
+      "importedMessages": {
+        "title": "Imported messages",
+        "keywords": "imported history archive linked author unlink wasnt me"
       }
     },
     "about": {
@@ -340,6 +344,10 @@
         "signupReason": {
           "optional": "Optional",
           "required": "Required"
+        },
+        "historyImports": {
+          "on": "On",
+          "off": "Off"
         }
       },
       "requests": {
@@ -1014,6 +1022,22 @@
       "showMutualFriendsHint": "The friends you have in common with whoever opens your profile.",
       "showMutualGuilds": "Show mutual guilds",
       "showMutualGuildsHint": "The guilds you're both in."
+    },
+    "importedMessages": {
+      "title": "Imported messages",
+      "hint": "Guilds can import old chat history and show you as the author of messages from it. Unlinked, they show the archive's name instead, and nobody can link you to that author again.",
+      "none": "No imported messages are linked to you.",
+      "as": "as {{name}}",
+      "count_one": "{{count}} message",
+      "count_other": "{{count}} messages",
+      "unlink": "Unlink",
+      "unlinkAll": "Unlink me from all imported messages",
+      "optOut": "Don't let imports link me",
+      "optOutHint": "Imports from now on can only show your old messages by the archive's name. Links made already stay until you unlink them.",
+      "failed": "Couldn't unlink you",
+      "confirmTitle": "Unlink you?",
+      "confirmAll": "Every imported message linked to you will show the archive's name instead.",
+      "confirmOne": "Imported messages by “{{name}}” in {{guild}} will show the archive's name instead."
     }
   }
 }

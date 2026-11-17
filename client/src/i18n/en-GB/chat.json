@@ -18,7 +18,9 @@
       "pinFailed": "Couldn't pin that message",
       "removePreviewsFailed": "Couldn't remove the previews",
       "unpinFailed": "Couldn't unpin that message",
-      "jumpFailed": "Couldn't find that message in the chat."
+      "jumpFailed": "Couldn't find that message in the chat.",
+      "viewingOlder": "You're viewing older messages.",
+      "jumpToPresent": "Jump to present"
     },
     "newDivider": {
       "pill": "New",
@@ -484,6 +486,28 @@
     "keyboardImage": {
       "failed": "Couldn't add the picture from your keyboard",
       "notHere": "Only the message box and documents take pictures."
+    },
+    "imported": {
+      "tag": "Imported",
+      "title": "Imported message",
+      "someone": "someone",
+      "fromChannel": "From #{{channel}} in “{{guild}}”.",
+      "fromGuild": "From “{{guild}}”.",
+      "fromArchive": "From an exported archive.",
+      "byOn": "Imported by {{name}} on {{date}}.",
+      "by": "Imported by {{name}}.",
+      "disclaimer": "Voicaw can't confirm who wrote it: an archive can be edited before it's imported.",
+      "linked": "Shown as {{name}} because {{importer}} linked them to this author.",
+      "authorAbout": "An author from imported history, not a Voicaw account.",
+      "reactions": "Reactions from the archive",
+      "reactionsTitle": "From the archive",
+      "reactedBy": "From the archive: {{names}}",
+      "as": "as {{name}}",
+      "notMe": "This wasn't me",
+      "notMeTitle": "Not your messages?",
+      "notMeConfirm": "Every imported message by “{{name}}” will stop showing as yours and show the archive's name instead. Whoever imported them can't link you to it again.",
+      "notMeAction": "Unlink me",
+      "notMeFailed": "Couldn't unlink you"
     }
   }
 }

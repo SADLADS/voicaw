@@ -4036,6 +4036,135 @@ body.mobile-mode .dm-user-list-container .dm-user {
   vertical-align: 2px;
 }
 
+/* IMPORTED MESSAGES (history imports, ImportedMessage.jsx): an outlined tag, never the solid
+   APP/BOT one, whatever its word; its note shows on hover or focus (a tap on a phone). */
+.import-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 4px;
+  border: 1px solid var(--vc-border-dark);
+  border-radius: 3px;
+  color: var(--vc-fg-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  vertical-align: 2px;
+  cursor: help;
+  white-space: nowrap;
+}
+
+.import-tag svg {
+  width: 9px;
+  height: 9px;
+}
+
+.import-tag:focus-visible {
+  outline: 2px solid var(--vc-accent);
+  outline-offset: 1px;
+}
+
+.import-tag-popover {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  flex-direction: column;
+  gap: 4px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border-radius: var(--vc-radius-md);
+  background: var(--vc-popup);
+  box-shadow: var(--vc-popup-shadow);
+  color: var(--vc-fg);
+  font-size: var(--vc-text-sm);
+  font-weight: 400;
+  line-height: 1.35;
+  white-space: normal;
+  cursor: default;
+}
+
+.import-tag-popover strong {
+  font-weight: 700;
+}
+
+.import-tag:hover .import-tag-popover,
+.import-tag:focus .import-tag-popover,
+.import-tag:focus-within .import-tag-popover {
+  display: flex;
+}
+
+.imported-as {
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-xs);
+}
+
+/* An unlinked archive author without a picture: their initial. */
+.imported-avatar-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-weight: 700;
+  user-select: none;
+}
+
+.dm-message img.message-avatar.imported-avatar,
+.dm-message .message-avatar.imported-avatar-initial {
+  position: absolute;
+  left: 10px;
+  top: calc(4px + 2px);
+  width: 44px;
+  height: 44px;
+  font-size: 18px;
+}
+
+.reply-snippet .reply-avatar.imported-avatar-initial {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 17px;
+  height: 17px;
+  margin: 5px;
+  font-size: 9px;
+}
+
+.message-avatar.imported-avatar-initial[role="button"] {
+  cursor: pointer;
+}
+
+/* The archive's reactions: chips that show counts and names, not buttons. */
+.imported-reactions .imported-reaction {
+  cursor: default;
+}
+
+/* Under older history after a jump (useChannel's jumpTo). */
+.jump-to-present {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 16px;
+  padding: 4px 10px;
+  border-radius: var(--vc-radius-md) var(--vc-radius-md) 0 0;
+  background: var(--vc-bg-elevated);
+  color: var(--vc-fg-muted);
+  font-size: var(--vc-text-sm);
+}
+
+.jump-to-present button {
+  border: 0;
+  background: none;
+  color: var(--vc-link);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .message-embeds {
   display: flex;
   flex-direction: column;

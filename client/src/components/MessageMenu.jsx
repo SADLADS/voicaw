@@ -1,5 +1,5 @@
 import React from 'react';
-import { faComments, faCopy, faEdit, faFaceSmile, faLinkSlash, faReply, faRobot, faShare, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup } from '@fortawesome/free-solid-svg-icons';
+import { faComments, faCopy, faEdit, faFaceSmile, faLinkSlash, faReply, faRobot, faShare, faThumbtack, faTrash, faFlag, faClockRotateLeft, faUserGroup, faUserSlash } from '@fortawesome/free-solid-svg-icons';
 import { useEmojiIndex } from '../emoji/emojiContext';
 import { useCustomEmoji } from '../emoji/customEmojiContext';
 import { quickReactions } from '../emoji/quickReactions';
@@ -43,6 +43,8 @@ export default function MessageMenu({
   onRemovePreviews,
   onDelete,
   onReport,
+  // Your own imported message (history imports): "This wasn't me" unlinks you from its archive author.
+  onNotMe,
   apps = [],
   onRunApp,
   onClose,
@@ -81,6 +83,7 @@ export default function MessageMenu({
       submenu: { title: t('commands.apps.label'), items: apps.map((command) => ({ key: `app-${command.id}`, label: command.name, hint: displayName(command.bot?.id, command.bot?.name), onSelect: () => onRunApp(command) })) },
     });
   }
+  if (sent && onNotMe) items.push({ key: 'not-me', label: t('chat.imported.notMe'), icon: faUserSlash, onSelect: onNotMe });
   if (sent && (canDelete || (!isOwn && onReport))) items.push({ separator: true });
   // Someone else's message, to Voicaw's moderators (ReportDialog).
   if (sent && !isOwn && onReport) items.push({ key: 'report', label: t('chat.report.menuMessage'), icon: faFlag, danger: true, onSelect: onReport });

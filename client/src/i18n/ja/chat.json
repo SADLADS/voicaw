@@ -18,7 +18,9 @@
       "pinFailed": "メッセージをピン留めできませんでした",
       "removePreviewsFailed": "プレビューを削除できませんでした",
       "unpinFailed": "メッセージのピン留めを外せませんでした",
-      "jumpFailed": "チャット内でそのメッセージが見つかりませんでした。"
+      "jumpFailed": "チャット内でそのメッセージが見つかりませんでした。",
+      "viewingOlder": "古いメッセージを表示しています。",
+      "jumpToPresent": "最新に戻る"
     },
     "newDivider": {
       "pill": "新着",
@@ -462,6 +464,28 @@
     "keyboardImage": {
       "failed": "キーボードの画像を追加できませんでした",
       "notHere": "画像を追加できるのはメッセージ欄とドキュメントだけです。"
+    },
+    "imported": {
+      "tag": "インポート",
+      "title": "インポートされたメッセージ",
+      "someone": "誰か",
+      "fromChannel": "「{{guild}}」の #{{channel}} から。",
+      "fromGuild": "「{{guild}}」から。",
+      "fromArchive": "エクスポートされたアーカイブから。",
+      "byOn": "{{name}} が {{date}} にインポートしました。",
+      "by": "{{name}} がインポートしました。",
+      "disclaimer": "誰が書いたかを Voicaw は確認できません。アーカイブはインポート前に編集できるためです。",
+      "linked": "{{importer}} がこの作成者に結び付けたため、{{name}} として表示されています。",
+      "authorAbout": "インポートされた履歴の作成者で、Voicaw のアカウントではありません。",
+      "reactions": "アーカイブのリアクション",
+      "reactionsTitle": "アーカイブから",
+      "reactedBy": "アーカイブから: {{names}}",
+      "as": "{{name}} として",
+      "notMe": "これは自分ではない",
+      "notMeTitle": "あなたのメッセージではありませんか？",
+      "notMeConfirm": "「{{name}}」のインポートされたメッセージはすべて、あなたのものとしてではなくアーカイブの名前で表示されます。インポートした人はあなたを再び結び付けられません。",
+      "notMeAction": "結び付けを解除",
+      "notMeFailed": "結び付けを解除できませんでした"
     }
   }
 }

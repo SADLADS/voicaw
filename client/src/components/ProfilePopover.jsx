@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import ProfileCard from './ProfileCard';
 import MemberCard from './guild/MemberCard';
 import WebhookCard from './WebhookCard';
+import { ImportedAuthorCard } from './ImportedMessage';
 import { GuildMembersContext } from '../contexts';
 import { t } from '../i18n';
 
@@ -14,8 +15,9 @@ const MARGIN = 8;
 // elsewhere, or someone who left, the ProfileCard. `anchor` is the clicked element's rect. What
 // can be done to them (Message, friends, Block, Report...) is in their right-click menu
 // (utils/personMenu.js); dialogs don't count as elsewhere. A webhook's message gives `webhook`
-// ({ id, name, avatar }) instead of `user`: its WebhookCard.
-export default function ProfilePopover({ user, webhook, anchor, onClose }) {
+// ({ id, name, avatar }) instead of `user`: its WebhookCard. An unlinked author of imported
+// messages gives `imported` ({ name, avatar, imported }): their ImportedAuthorCard.
+export default function ProfilePopover({ user, webhook, imported, anchor, onClose }) {
   const ref = useRef(null);
   const guildMembers = useContext(GuildMembersContext);
   const member = user ? guildMembers?.members.find((m) => String(m.id) === String(user.id)) ?? null : null;
@@ -57,8 +59,9 @@ export default function ProfilePopover({ user, webhook, anchor, onClose }) {
   }, [onClose]);
 
   return createPortal(
-    <div className="profile-popover member-card" ref={ref} style={position} role="dialog" aria-label={t('app.profile.profileOf', { name: webhook ? webhook.name : user.username })}>
+    <div className="profile-popover member-card" ref={ref} style={position} role="dialog" aria-label={t('app.profile.profileOf', { name: webhook ? webhook.name : imported ? imported.name : user.username })}>
       {webhook ? <WebhookCard webhook={webhook} />
+        : imported ? <ImportedAuthorCard author={imported} />
         : member ? <MemberCard key={member.id} {...guildMembers} member={member} />
           : <ProfileCard user={user} />}
     </div>,

@@ -287,7 +287,8 @@
         "events": "イベント",
         "levels": "レベル",
         "guild": "ギルド設定",
-        "sounds": "サウンドボード"
+        "sounds": "サウンドボード",
+        "imports": "履歴のインポート"
       },
       "deletedChannel": "削除されたチャンネル",
       "aWebhookStart": "ウェブフック",
@@ -358,7 +359,13 @@
         "unknown": "{{actor}} さんが操作を行いました（{{action}}）",
         "soundCreate": "{{actor}} がサウンド {{sound}} を追加しました",
         "soundUpdate": "{{actor}} がサウンド {{sound}} を変更しました",
-        "soundDelete": "{{actor}} がサウンド {{sound}} を削除しました"
+        "soundDelete": "{{actor}} がサウンド {{sound}} を削除しました",
+        "importCreate": "{{actor}} が {{source}} から履歴のインポートを始めました",
+        "importCreateUnnamed": "{{actor}} が履歴のインポートを始めました",
+        "importMapping": "{{actor}} がインポートの作成者またはチャンネルを変更しました",
+        "importFinish_other": "{{actor}} が {{count}} 件のメッセージをインポートしました",
+        "importDelete": "{{actor}} が {{source}} からインポートした履歴を削除しました",
+        "importDeleteUnnamed": "{{actor}} がインポートした履歴を削除しました"
       },
       "fields": {
         "name": "名前",
@@ -546,7 +553,8 @@
         "watchTogether": "Watch Together",
         "invites": "招待",
         "bans": "BAN",
-        "soundboard": "サウンドボード"
+        "soundboard": "サウンドボード",
+        "import": "インポート"
       },
       "noPermission": "ここで何かを変更する権限がありません。"
     },
@@ -659,6 +667,73 @@
       "volumeOf": "{{name}} の音量",
       "removeEmoji": "絵文字を削除",
       "deleteOne": "{{name}} を削除"
+    },
+    "import": {
+      "intro": "エクスポートされたアーカイブから、昔のチャット履歴をこのギルドに取り込みます。各チャンネルの行き先と各作成者が誰かを選べます。メッセージは日付を保ったまま、ギルドのメッセージの間に入ります。",
+      "disclaimer": "インポートされたメッセージには、インポートされたことと、誰が書いたかを Voicaw が確認できないことを示すタグと説明が付きます。作成者に結び付けられた人は自分で解除できます。誰にも通知されません。",
+      "start": "履歴をインポート",
+      "past": "過去のインポート",
+      "none": "まだ何もインポートしていません。",
+      "unnamed": "アーカイブ",
+      "pastLine_other": "{{count}} 件 · {{date}} · {{name}}",
+      "status": {
+        "mapping": "未開始",
+        "running": "未完了",
+        "done": "完了",
+        "failed": "失敗"
+      },
+      "continue": "続ける",
+      "editMapping": "作成者を編集",
+      "deleteTitle": "このインポートを削除しますか？",
+      "deleteConfirm_other": "{{count}} 件のメッセージが、ここで付いたリアクションや返信とともに削除されます。作成したチャンネルは残ります。",
+      "pickTitle": "アーカイブを選択",
+      "resumeTitle": "同じアーカイブをもう一度選択",
+      "howTo": "チャットのエクスポートツールでチャンネルを JSON として、メディアのダウンロードを有効にしてエクスポートすると、画像やファイルも移せます。次にエクスポートのフォルダー、その .zip、または .json ファイルだけを選びます（その場合ファイルは移せません）。",
+      "resumeHint": "インポート済みのものはスキップされます。",
+      "chooseFolder": "フォルダーを選択",
+      "chooseFiles": ".zip または .json を選択",
+      "reading": "アーカイブを読み込み中…",
+      "noChannels": "エクスポートされたチャンネルが見つかりませんでした。",
+      "unreadable": "読み込めませんでした。",
+      "summary_other": "「{{guild}}」: {{channels}} チャンネル、{{count}} 件のメッセージ。",
+      "files_other": "{{count}} 個中 {{included}} 個のファイルがアーカイブにあります。",
+      "filesMissing": "残りは「含まれていません」と表示されます。",
+      "filesTooBig_other": "{{count}} 個は 90 MB を超えるため含まれません。",
+      "skippedFiles_other": "{{count}} 個のファイルはチャンネルのエクスポートではないためスキップします。",
+      "next": "次へ",
+      "channelsTitle": "チャンネル",
+      "thread": "（#{{channel}} のスレッド）",
+      "channelLine_other": "{{count}} 件、{{from}} – {{to}}",
+      "channelTarget": "#{{name}} の行き先",
+      "newChannel": "新しいチャンネル #{{name}}",
+      "skip": "インポートしない",
+      "mergeHint": "すでにメッセージのあるチャンネルでは、日付順にその間に入ります。誰にも通知や未読は付きません。",
+      "authorsTitle": "作成者",
+      "authorsHint": "作成者をメンバーに結び付けると、そのメッセージはメンバーのものとして表示されます（本人は解除できます）。ほかはアーカイブの名前と画像で表示されます。",
+      "authorLine_other": "{{count}} 件",
+      "authorTarget": "{{name}} は誰か",
+      "keepName": "アーカイブの名前のまま",
+      "optedOut": "{{name}}（結び付けを望んでいません）",
+      "labelTitle": "タグ",
+      "labelHint": "インポートされた各メッセージのタグに表示する言葉（出典など）。空欄なら「インポート」。",
+      "go_other": "{{count}} 件をインポート",
+      "pollEnded_other": "📊 投票終了: {{question}} — 「{{answer}}」が {{count}} 票中 {{votes}} 票で勝ちました。",
+      "pollEndedNoWinner": "📊 投票終了: {{question}}",
+      "run": {
+        "running": "インポート中…",
+        "stopped": "停止しました",
+        "done": "インポートしました",
+        "failed": "エラーでインポートが止まりました",
+        "messages_other": "{{count}} 件中 {{done}} 件",
+        "files_other": "ファイル {{count}} 個",
+        "failedFiles_other": "{{count}} 個のファイルを送れませんでした",
+        "keepOpen": "終わるまでこの画面を開いたままにしてください。",
+        "canContinue": "「過去のインポート」から同じアーカイブで続けられます。",
+        "stop": "停止"
+      },
+      "editTitle": "「{{name}}」の作成者",
+      "renameHint": "作成者の名前を変える（例:「元メンバー」）か、誰なのかを変更します。",
+      "authorName": "作成者の名前"
     }
   }
 }

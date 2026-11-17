@@ -59,6 +59,7 @@ import { appPathOf, parseChannelLink } from '../utils/guildDisplay';
 import { pageMenuTarget } from '../utils/pageMenuTarget';
 import { useBlocked, useBlockedWebhookIds } from '../utils/blocks';
 import BlockedMessage from './BlockedMessage';
+import { ImportedAvatar, ImportedReactions, ImportTag } from './ImportedMessage';
 import { t } from '../i18n';
 
 // react-markdown's `components` must keep a stable identity: a new function each render
@@ -461,7 +462,12 @@ const MessageRow = memo(function MessageRow({
   useProfiles(); // and names when someone changes theirs
   // A webhook's message (guilds): its own name and picture as sent, no person behind it.
   const webhook = Boolean(msg.webhook_id);
-  const senderName = webhook ? msg.webhook_name : displayName(msg.sender_id, msg.sender_username);
+  // A message from a history import (ImportedMessage.jsx): linked to a member (drawn as them,
+  // with the archive's name when it differs) or not (the archive's name and picture).
+  const imported = msg.imported ?? null;
+  const archiveAuthor = imported && !imported.author.mapped;
+  const senderName = webhook ? msg.webhook_name : archiveAuthor ? imported.author.name : displayName(msg.sender_id, msg.sender_username);
+  const archiveName = imported?.author.mapped && imported.author.name !== senderName ? imported.author.name : null;
   // A name or avatar opens that person's profile card, or a webhook's its WebhookCard.
   const opens = (person) => (onOpenProfile ? {
     role: 'button',
@@ -469,7 +475,9 @@ const MessageRow = memo(function MessageRow({
     onClick: (e) => { e.stopPropagation(); onOpenProfile(person, e.currentTarget.getBoundingClientRect()); },
     onKeyDown: (e) => { if (e.key === 'Enter') onOpenProfile(person, e.currentTarget.getBoundingClientRect()); },
   } : {});
-  const profileProps = (id, username) => (onOpenProfile && !webhook ? { 'data-user-id': id, ...opens({ id, username }) } : {});
+  const profileProps = (id, username) => (onOpenProfile && !webhook && !archiveAuthor ? { 'data-user-id': id, ...opens({ id, username }) } : {});
+  // An unlinked archive author's name or picture: their card (ImportedAuthorCard).
+  const archiveProps = archiveAuthor ? opens({ imported: { ...imported.author, imported } }) : {};
   // A webhook's name or picture: its right-click menu blocks it (PageMenus).
   const webhookProps = webhook ? {
     'data-webhook-id': msg.webhook_id,
@@ -534,9 +542,12 @@ const MessageRow = memo(function MessageRow({
       // A webhook's message (no user): the name and picture that message was sent with.
       webhook_id: msg.parent_webhook_id ?? null,
       webhook_avatar: msg.parent_webhook_avatar ?? null,
+      // An imported message by an unlinked archive author: their name and picture.
+      archive: msg.parent_import_id != null && msg.parent_sender_id == null,
+      archive_avatar: msg.parent_import_avatar ?? null,
     }
     : null;
-  const parentName = parent && (parent.webhook_id ? parent.sender_username : displayName(parent.sender_id, parent.sender_username));
+  const parentName = parent && (parent.webhook_id || parent.archive ? parent.sender_username : displayName(parent.sender_id, parent.sender_username));
 
   return (
     <div
@@ -563,10 +574,12 @@ const MessageRow = memo(function MessageRow({
               data-webhook-id={parent.webhook_id}
               data-webhook-name={parentName}
             />
+          ) : parent.archive ? (
+            <ImportedAvatar name={parentName} src={parent.archive_avatar} className="reply-avatar" />
           ) : (
             <Avatar userId={parent.sender_id} alt={parentName} className="reply-avatar" />
           )}
-          <span className="reply-author" style={{ color: parent.webhook_id ? undefined : nameColors?.[parent.sender_id] }}>{parentName}</span>
+          <span className="reply-author" style={{ color: parent.webhook_id || parent.archive ? undefined : nameColors?.[parent.sender_id] }}>{parentName}</span>
           <span
             className="reply-preview"
             onClick={() => onJumpToMessage?.(msg.parent_message_id)}
@@ -604,8 +617,8 @@ const MessageRow = memo(function MessageRow({
               <Icon icon={faThumbtack} title={pinned ? t('common.unpin') : t('common.pin')} />
             </button>
           )}
-          {/* A closed poll, a voice message and a forward can't be edited. */}
-          {sent && msg.sender_id === user.id && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && !forward && (
+          {/* A closed poll, a voice message, a forward and an imported message can't be edited. */}
+          {sent && msg.sender_id === user.id && !imported && !(poll && pollEnded(poll, msg.timestamp)) && !isVoiceMessage(msg.plaintext) && !forward && (
             <button className="icon-button" onClick={() => handleEdit(msg)}>
               <Icon icon={faEdit} title={t('common.edit')} />
             </button>
@@ -646,7 +659,7 @@ const MessageRow = memo(function MessageRow({
               {formatTime(msg.timestamp * 1000)}
             </small>
             {compact && (
-              <><strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)} {...webhookProps}>{senderName}</strong>{' '}</>
+              <><strong className="message-author" style={{ color: webhook || archiveAuthor ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)} {...webhookProps} {...archiveProps}>{senderName}</strong>{' '}</>
             )}
           </>
         ) : (
@@ -667,6 +680,8 @@ const MessageRow = memo(function MessageRow({
             onError={(e) => { e.currentTarget.src = defaultAvatar; }}
             {...webhookProps}
           />
+        ) : archiveAuthor ? (
+          <ImportedAvatar name={senderName} src={imported.author.avatar} className="message-avatar" {...archiveProps} />
         ) : (
           <Avatar
             userId={msg.sender_id}
@@ -675,9 +690,11 @@ const MessageRow = memo(function MessageRow({
             {...profileProps(msg.sender_id, msg.sender_username)}
           />
         )}
-        <strong className="message-author" style={{ color: webhook ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)} {...webhookProps}>{senderName}</strong>{' '}
+        <strong className="message-author" style={{ color: webhook || archiveAuthor ? undefined : nameColors?.[msg.sender_id] }} {...profileProps(msg.sender_id, msg.sender_username)} {...webhookProps} {...archiveProps}>{senderName}</strong>{' '}
         {webhook && <span className="app-tag" title={t('chat.message.webhookTitle')}>{t('chat.message.webhookTag')}</span>}{webhook && ' '}
         {msg.sender_bot ? <><span className="app-tag" title={t('chat.message.botTitle')}>{t('chat.message.botTag')}</span>{' '}</> : null}
+        {imported && <><ImportTag imported={imported} authorName={senderName} />{' '}</>}
+        {archiveName && <><span className="imported-as">{t('chat.imported.as', { name: archiveName })}</span>{' '}</>}
 
         <small>
           {/* Compact: the time is in the left column already. */}
@@ -765,6 +782,7 @@ const MessageRow = memo(function MessageRow({
           </div>
         )}
 
+        {imported && <ImportedReactions reactions={msg.import_reactions} />}
         {canReact && (
           <MessageReactions
             reactions={msg.reactions}
@@ -963,6 +981,10 @@ export default function MessageList({
   canReply = true,
   head = null,
   newFrom = null,
+  // Older history after a jump (useChannel's jumpTo): newer pages load as you near the bottom,
+  // and the list doesn't stick to the bottom meanwhile.
+  hasNewer = false,
+  loadNewerMessages,
 }) {
   const scrollerRef = useRef(null);
   const contentRef = useRef(null);
@@ -980,8 +1002,8 @@ export default function MessageList({
   // difference is exactly how far to scroll to keep the row still.
   const anchor = useRef(null);
 
-  const latest = useRef({ hasMore, loadMoreMessages, messages, hoveredMsgId, setHoveredMsgId, isMobile, onRemovePreviews });
-  latest.current = { hasMore, loadMoreMessages, messages, hoveredMsgId, setHoveredMsgId, isMobile, onRemovePreviews };
+  const latest = useRef({ hasMore, loadMoreMessages, hasNewer, loadNewerMessages, messages, hoveredMsgId, setHoveredMsgId, isMobile, onRemovePreviews });
+  latest.current = { hasMore, loadMoreMessages, hasNewer, loadNewerMessages, messages, hoveredMsgId, setHoveredMsgId, isMobile, onRemovePreviews };
   // The previews' X by message id, the same function every render, so memoised EmbedParts stay drawn.
   const removePreviewsById = useCallback((id, event) => {
     const msg = latest.current.messages.find((m) => m.id === id);
@@ -1034,6 +1056,8 @@ export default function MessageList({
   // profile: its card, on phones too ({ webhook }).
   const openProfile = useCallback((person, anchor) => {
     if (person.webhook) setProfileFor({ webhook: person.webhook, anchor });
+    // An unlinked archive author (history imports): their card, on phones too.
+    else if (person.imported) setProfileFor({ imported: person.imported, anchor });
     else if (isMobile) openUserProfile(person.id);
     else setProfileFor({ user: person, anchor });
   }, [isMobile]);
@@ -1157,6 +1181,19 @@ export default function MessageList({
     if (scroller.scrollTop < scroller.clientHeight * LOAD_OLDER_WITHIN_VIEWPORTS) load();
   }, []);
 
+  const maybeLoadNewer = useCallback(() => {
+    const scroller = scrollerRef.current;
+    const { hasNewer: more, loadNewerMessages: load } = latest.current;
+    if (!scroller || !more || !load) return;
+    const below = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+    if (below < scroller.clientHeight * LOAD_OLDER_WITHIN_VIEWPORTS) load();
+  }, []);
+
+  // Older history after a jump isn't the bottom to follow.
+  useLayoutEffect(() => {
+    if (hasNewer) follow(false);
+  }, [hasNewer, follow]);
+
   const handleScroll = () => {
     const scroller = scrollerRef.current;
     // The list itself just changed height (keyboard / mobile emoji panel). The browser's scroll
@@ -1176,7 +1213,7 @@ export default function MessageList({
     const atBottom = scroller.scrollHeight - top - scroller.clientHeight <= bottomSlack.current;
     const movedUp = lastScrollTop.current !== null && top < lastScrollTop.current - 1;
     lastScrollTop.current = top;
-    follow(atBottom || (pinnedToBottom.current && !movedUp));
+    follow(!latest.current.hasNewer && (atBottom || (pinnedToBottom.current && !movedUp)));
     if (pinnedToBottom.current && !atBottom) {
       scroller.scrollTop = scroller.scrollHeight;
       lastScrollTop.current = scroller.scrollTop;
@@ -1186,6 +1223,7 @@ export default function MessageList({
     if (!pinnedToBottom.current) keepAnchorInPlace();
     rememberAnchor();
     maybeLoadOlder();
+    maybeLoadNewer();
   };
 
   // The last row's key, to notice a message added at the end.
@@ -1262,7 +1300,7 @@ export default function MessageList({
           </div>
         ))}
       </div>
-      {profileFor && <ProfilePopover user={profileFor.user} webhook={profileFor.webhook} anchor={profileFor.anchor} onClose={closeProfile} />}
+      {profileFor && <ProfilePopover user={profileFor.user} webhook={profileFor.webhook} imported={profileFor.imported} anchor={profileFor.anchor} onClose={closeProfile} />}
     </div>
   );
 }
