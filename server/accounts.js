@@ -117,6 +117,8 @@ async function deleteAccount(userId, plan) {
     await require('./oauth').forgetUser(userId);
     // Their conversations with bots (not encrypted, so not kept for anyone: botDms.js).
     await require('./botDms').forgetUser(userId);
+    // Imported messages linked to them go back to the archive's names (guildImports.js).
+    await require('./guildImports').unlinkDeletedUser(userId);
     // Not a name anyone can sign up with (sign-ups are lower case), and the old one is free again.
     await db.run(
       `UPDATE users SET username = ?, display_name = ?, password = '', key_backup = '', opaque_id = NULL,

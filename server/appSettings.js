@@ -34,6 +34,13 @@ const SETTINGS = {
     choices: ['on', 'off'],
     fallback: 'on',
   },
+  // guildImports.js
+  historyImports: {
+    label: 'History imports',
+    description: "Whether guild administrators may import old chat history from an exported archive into their guild's channels. Imported messages always say they were imported.",
+    choices: ['on', 'off'],
+    fallback: 'on',
+  },
   // voice.js joinToken: the most a screen share may send (client/src/voice/streamSettings.js).
   streamMaxResolution: {
     label: 'Screen share resolution limit',

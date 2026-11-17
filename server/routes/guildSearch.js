@@ -129,7 +129,7 @@ router.get('/guilds/:guildId/messages/search', authenticateJWT, async (req, res)
   const whereSql = where.join(' AND ');
   const { total } = await db.get(`SELECT COUNT(*) AS total FROM guild_messages m WHERE ${whereSql}`, params);
   const rows = total > offset
-    ? await db.all(`${MESSAGE_SELECT} WHERE ${whereSql} ORDER BY m.id ${order.toUpperCase()} LIMIT ? OFFSET ?`, [...params, PAGE_SIZE, offset])
+    ? await db.all(`${MESSAGE_SELECT} WHERE ${whereSql} ORDER BY m.timestamp ${order.toUpperCase()}, m.id ${order.toUpperCase()} LIMIT ? OFFSET ?`, [...params, PAGE_SIZE, offset])
     : [];
   res.json({ total_results: total, messages: await withReactions(rows) });
 });

@@ -743,3 +743,5 @@ Object.assign(module.exports, {
   fail, FormError, failForm, parseBody, readBody, cleanContent, cleanEmbeds, cleanAllowedMentions,
   cleanFilename, cleanFlags, storeFiles, isWebUrl,
 });
+// History imports' files are served by the same rules (guildImports.js).
+Object.assign(module.exports, { EXTENSION_TYPES });

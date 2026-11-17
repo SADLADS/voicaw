@@ -220,7 +220,8 @@ async function everyoneRoleId(guildId) {
 }
 
 async function lastMessageId(channelId) {
-  return (await db.get('SELECT MAX(id) AS id FROM guild_messages WHERE channel_id = ?', [channelId]))?.id ?? null;
+  // Imported messages (guildImports.js) are old, whatever their ids.
+  return (await db.get('SELECT MAX(id) AS id FROM guild_messages WHERE channel_id = ? AND import_id IS NULL', [channelId]))?.id ?? null;
 }
 
 // A channel (guild_channels row, or a thread) as Discord's.
@@ -1165,23 +1166,34 @@ router.post('/channels/:channelId/typing', auth, limit('typing', 5, 5000), inTex
 // ---- Messages ----
 
 // Newest first, as Discord: `limit` (1–100, default 50), and `before`, `after` or `around`.
+// In time order, (timestamp, id), as the app's (imported messages have old times and new ids;
+// see routes/guildMessages.js). A cursor that isn't a message here compares by id.
 router.get('/channels/:channelId/messages', auth, limit('messages-get', 10, 1000), inTextChannel, route(async (req, res) => {
   const max = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
   const channelId = req.access.channel.id;
   const select = (where, params, order, count) => db.all(
-    `${messages.MESSAGE_SELECT} WHERE m.channel_id = ? AND m.document_id IS NULL ${where} ORDER BY m.id ${order} LIMIT ?`,
+    `${messages.MESSAGE_SELECT} WHERE m.channel_id = ? AND m.document_id IS NULL ${where}
+     ORDER BY m.timestamp ${order}, m.id ${order} LIMIT ?`,
     [channelId, ...params, count]
   );
+  // `AND <m before/after the cursor (or at it, `inclusive`)>` and its parameters.
+  const relative = async (raw, op, inclusive = false) => {
+    const id = D.ourId(raw) ?? 0;
+    const idOp = inclusive ? `${op}=` : op;
+    const at = await db.get('SELECT timestamp FROM guild_messages WHERE id = ? AND channel_id = ?', [id, channelId]);
+    if (!at) return [`AND m.id ${idOp} ?`, [id]];
+    return [`AND (m.timestamp ${op} ? OR (m.timestamp = ? AND m.id ${idOp} ?))`, [at.timestamp, at.timestamp, id]];
+  };
   let rows;
   if (req.query.around != null) {
-    const around = D.ourId(req.query.around) ?? 0;
-    const older = await select('AND m.id <= ?', [around], 'DESC', Math.ceil(max / 2));
-    const newer = await select('AND m.id > ?', [around], 'ASC', Math.floor(max / 2));
+    // Discord's around includes the message itself.
+    const older = await select(...await relative(req.query.around, '<', true), 'DESC', Math.ceil(max / 2));
+    const newer = await select(...await relative(req.query.around, '>'), 'ASC', Math.floor(max / 2));
     rows = [...newer.reverse(), ...older];
   } else if (req.query.after != null) {
-    rows = (await select('AND m.id > ?', [D.ourId(req.query.after) ?? 0], 'ASC', max)).reverse();
+    rows = (await select(...await relative(req.query.after, '>'), 'ASC', max)).reverse();
   } else if (req.query.before != null) {
-    rows = await select('AND m.id < ?', [D.ourId(req.query.before) ?? 0], 'DESC', max);
+    rows = await select(...await relative(req.query.before, '<'), 'DESC', max);
   } else {
     rows = await select('', [], 'DESC', max);
   }

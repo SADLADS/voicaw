@@ -18,12 +18,16 @@ const db = require('./db');
 //   (GET /users/:id/profile, routes/userProfiles.js), all on by default. `showActivity` off
 //   also stops recording the games you play and deletes those kept (activityHistory.js).
 
+// - `importOptOut`: guilds' history imports may not show you as the author of imported
+//   messages (off by default; guildImports.js). Links already made stay until you unlink them.
+
 const REACTION_NOTIFICATIONS = ['all', 'dms', 'off'];
 const DEFAULTS = {
   blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all',
-  showActivity: true, showMutualFriends: true, showMutualGuilds: true,
+  showActivity: true, showMutualFriends: true, showMutualGuilds: true, importOptOut: false,
 };
 const isValid = {
+  importOptOut: (v) => typeof v === 'boolean',
   showActivity: (v) => typeof v === 'boolean',
   showMutualFriends: (v) => typeof v === 'boolean',
   showMutualGuilds: (v) => typeof v === 'boolean',

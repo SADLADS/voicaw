@@ -24,7 +24,7 @@ async function recentChatsFor(userId) {
     ),
     db.all(
       `SELECT channel_id AS id, MAX(id) AS last FROM guild_messages
-       WHERE sender_id = ? AND system IS NULL AND webhook_id IS NULL GROUP BY channel_id ORDER BY last DESC LIMIT ?`,
+       WHERE sender_id = ? AND system IS NULL AND webhook_id IS NULL AND import_id IS NULL GROUP BY channel_id ORDER BY last DESC LIMIT ?`,
       [userId, LIMIT]
     ),
   ]);

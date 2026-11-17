@@ -22,6 +22,7 @@ const { refreshLinkPreviews } = require('../linkPreviews');
 const levels = require('../guildLevels');
 const { notifyGuildReaction } = require('../reactionPushes');
 const { deduplicated } = require('../sendNonces');
+const { decorateImported } = require('../guildImports');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -39,13 +40,16 @@ const MAX_POLL_REACTIONS_PER_USER = 50;
 // `webhook_name` (also as sender_username) and their picture `webhook_avatar` (a URL or null).
 // Each message keeps the name and picture it was sent with, so a reply to one gets that
 // message's: `parent_username` and `parent_webhook_avatar` (with `parent_webhook_id`).
+// An imported message (guildImports.js) has `import_id`; unmapped, sender_id is 0 and its name
+// is the archive's (as sender_username), and a reply to one gets `parent_import_id` and
+// `parent_import_avatar`. withReactions adds `imported` (guildImports.decorateImported).
 const MESSAGE_SELECT = `
   SELECT
     m.id, m.channel_id, m.sender_id, m.content, m.timestamp, m.parent_message_id, m.edited,
     m.mention_everyone, m.mention_roles, m.pinned_at, m.pinned_by, m.system, m.document_id,
     m.webhook_id, m.webhook_name, m.webhook_avatar, m.embeds, m.attachments, m.flags, m.edited_at,
-    m.components, m.interaction, m.link_embeds,
-    COALESCE(u.username, m.webhook_name) AS sender_username,
+    m.components, m.interaction, m.link_embeds, m.import_id, m.import_author_id, m.import_reactions,
+    COALESCE(u.username, m.webhook_name, ia.name) AS sender_username,
     u.display_name AS sender_display_name,
     u.avatar AS sender_avatar,
     u.bot AS sender_bot,
@@ -53,13 +57,17 @@ const MESSAGE_SELECT = `
     pm.timestamp AS parent_timestamp,
     pm.system AS parent_system,
     pu.id AS parent_sender_id,
-    COALESCE(pu.username, pm.webhook_name) AS parent_username,
+    COALESCE(pu.username, pm.webhook_name, pia.name) AS parent_username,
     pm.webhook_id AS parent_webhook_id,
-    pm.webhook_avatar AS parent_webhook_avatar
+    pm.webhook_avatar AS parent_webhook_avatar,
+    pm.import_id AS parent_import_id,
+    pia.avatar AS parent_import_avatar
   FROM guild_messages m
   LEFT JOIN users u ON m.sender_id = u.id
+  LEFT JOIN guild_import_authors ia ON ia.id = m.import_author_id
   LEFT JOIN guild_messages pm ON m.parent_message_id = pm.id
-  LEFT JOIN users pu ON pm.sender_id = pu.id`;
+  LEFT JOIN users pu ON pm.sender_id = pu.id
+  LEFT JOIN guild_import_authors pia ON pia.id = pm.import_author_id`;
 
 // Adds `reactions` ([{ id, user_id, emoji, timestamp }], oldest first) to each message, and
 // makes `mention_roles` (the roles it pinged), `embeds` and `attachments` arrays. A message a
@@ -75,7 +83,7 @@ async function withReactions(messages) {
   );
   const byMessage = new Map(ids.map((id) => [id, []]));
   for (const { message_id: messageId, ...reaction } of rows) byMessage.get(messageId).push(reaction);
-  return messages.map((m) => ({
+  return decorateImported(messages.map((m) => ({
     ...m,
     mention_roles: parseRoleIds(m.mention_roles),
     embeds: parseJsonList(m.embeds),
@@ -86,7 +94,7 @@ async function withReactions(messages) {
     reactions: byMessage.get(m.id),
     thread: threadsByMessage.get(m.id) ?? null,
     ...pollReactionsFor(m, byMessage),
-  }));
+  })));
 }
 
 function parseJsonList(json) {
@@ -166,7 +174,7 @@ async function requireReadableChannel(req, res, next) {
 async function requireMessage(req, res, next) {
   const messageId = Number(req.params.messageId);
   const message = Number.isInteger(messageId) && await db.get(
-    'SELECT id, channel_id, sender_id, content, timestamp, edited, edited_at, system, webhook_id, webhook_name FROM guild_messages WHERE id = ?',
+    'SELECT id, channel_id, sender_id, content, timestamp, edited, edited_at, system, webhook_id, webhook_name, import_id FROM guild_messages WHERE id = ?',
     [messageId]
   );
   const access = message && await getChannelAccess(message.channel_id, req.user.id);
@@ -192,23 +200,40 @@ async function markRead(userId, channelId, messageId) {
   );
 }
 
-// The oldest message by someone else that's unread for `userId` (null if none).
+// The oldest message by someone else that's unread for `userId` (null if none). Imported
+// messages are never unread.
 async function firstUnread(userId, channelId) {
   const { id } = await db.get(
     `SELECT MIN(m.id) AS id FROM guild_messages m
-     WHERE m.channel_id = ? AND m.sender_id != ?
+     WHERE m.channel_id = ? AND m.sender_id != ? AND m.import_id IS NULL
        AND m.id > COALESCE((SELECT last_read_id FROM guild_channel_reads WHERE user_id = ? AND channel_id = ?), 0)`,
     [channelId, userId, userId, channelId]
   );
   return id ?? null;
 }
 
+// A channel's history is in time order: by (timestamp, id). Live messages' ids and times grow
+// together; imported ones (guildImports.js) have old times and new ids, so ids alone don't say
+// what came first. `position(id)` is a message's place, for cursors; BEFORE/AFTER compare
+// to one.
+const BEFORE = '(m.timestamp < ? OR (m.timestamp = ? AND m.id < ?))';
+const AFTER = '(m.timestamp > ? OR (m.timestamp = ? AND m.id > ?))';
+const NEWEST_FIRST = 'ORDER BY m.timestamp DESC, m.id DESC';
+const OLDEST_FIRST = 'ORDER BY m.timestamp ASC, m.id ASC';
+async function position(channelId, id) {
+  const row = Number.isInteger(id) && await db.get('SELECT timestamp, id FROM guild_messages WHERE id = ? AND channel_id = ?', [id, channelId]);
+  return row ? [row.timestamp, row.timestamp, row.id] : null;
+}
+
 // A page of a channel (or of a document's replies, `document`), oldest first: the newest
-// `limit` messages (1–100, default 50), or those before message id `before`.
+// `limit` messages (1–100, default 50), or those before message id `before`, after `after`
+// (the oldest of those), or `around` one (it and half the page each side; for jumping to a
+// message).
 router.get('/channels/:channelId/messages', authenticateJWT, requireChatChannel, async (req, res) => {
   const requestedLimit = parseInt(req.query.limit, 10);
   const limit = Number.isNaN(requestedLimit) ? 50 : Math.min(Math.max(requestedLimit, 1), 100);
-  const before = parseInt(req.query.before, 10);
+  const cursor = (name) => (req.query[name] == null ? null : parseInt(req.query[name], 10));
+  const [before, after, around] = ['before', 'after', 'around'].map(cursor);
 
   const params = [req.channel.id];
   let where = 'm.channel_id = ?';
@@ -216,12 +241,29 @@ router.get('/channels/:channelId/messages', authenticateJWT, requireChatChannel,
     where += ' AND m.document_id = ?';
     params.push(req.documentId);
   }
-  if (!Number.isNaN(before)) {
-    where += ' AND m.id < ?';
-    params.push(before);
+  const page = (extra, extraParams, order, n) => db.all(
+    `${MESSAGE_SELECT} WHERE ${where}${extra ? ` AND ${extra}` : ''} ${order} LIMIT ?`,
+    [...params, ...extraParams, n]
+  );
+  let rows;
+  if (around != null) {
+    const at = await position(req.channel.id, around);
+    if (!at) return res.status(404).json({ error: 'Message not found' });
+    const older = await page(`(${BEFORE} OR m.id = ?)`, [...at, around], NEWEST_FIRST, Math.ceil(limit / 2));
+    const newer = await page(AFTER, at, OLDEST_FIRST, Math.floor(limit / 2));
+    rows = [...older.reverse(), ...newer];
+  } else if (after != null) {
+    const at = await position(req.channel.id, after);
+    if (!at) return res.status(404).json({ error: 'Message not found' });
+    rows = await page(AFTER, at, OLDEST_FIRST, limit);
+  } else if (before != null) {
+    const at = await position(req.channel.id, before);
+    // An unknown cursor (a deleted message) falls back to its id, as before.
+    rows = (await page(at ? BEFORE : 'm.id < ?', at ?? [before], NEWEST_FIRST, limit)).reverse();
+  } else {
+    rows = (await page('', [], NEWEST_FIRST, limit)).reverse();
   }
-  const rows = await db.all(`${MESSAGE_SELECT} WHERE ${where} ORDER BY m.id DESC LIMIT ?`, [...params, limit]);
-  res.json(await withReactions(rows.reverse()));
+  res.json(await withReactions(rows));
 });
 
 // In a document channel, `documentId` says which document it replies to. In a thread (where
@@ -304,7 +346,8 @@ async function createMessage({
 // Only the author can edit. Mentions are worked out again (without pushes, like Discord).
 router.put('/guild-messages/:messageId', authenticateJWT, requireMessage, async (req, res) => {
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
-  if (req.message.system) return res.status(403).json({ error: "This message can't be edited" });
+  // Imported messages are the archive's words (even shown as yours): never edited.
+  if (req.message.system || req.message.import_id != null) return res.status(403).json({ error: "This message can't be edited" });
   const content = cleanContent(req.body?.content);
   if (!content) {
     return res.status(400).json({ error: `Messages are 1–${maxPlaintextLength} characters` });
@@ -634,7 +677,7 @@ router.post('/channels/:channelId/read', authenticateJWT, requireReadableChannel
 });
 
 // Unread counts for every channel of the caller's guilds that has any and they can see:
-// messages by other people after the caller's read marker (`count`), and how many of those
+// messages by other people after the caller's read marker (`count`; never imported ones), and how many of those
 // mention them (`mentions`), with its `category_id` (a thread's: its channel's), for muted
 // categories. Threads count only for their members.
 router.get('/guild-unread', authenticateJWT, async (req, res) => {
@@ -648,6 +691,7 @@ router.get('/guild-unread', authenticateJWT, async (req, res) => {
      JOIN guild_members gm ON gm.guild_id = c.guild_id AND gm.user_id = ?
      LEFT JOIN guild_channel_reads r ON r.channel_id = c.id AND r.user_id = ?
      JOIN guild_messages m ON m.channel_id = c.id AND m.id > COALESCE(r.last_read_id, 0) AND m.sender_id != ?
+       AND m.import_id IS NULL
      WHERE c.type != 'thread' OR EXISTS (SELECT 1 FROM guild_thread_members tm WHERE tm.thread_id = c.id AND tm.user_id = ?)
      GROUP BY c.id`,
     [me, me, me, me, me]

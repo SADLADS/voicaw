@@ -840,6 +840,64 @@ addColumn('ALTER TABLE guild_messages ADD COLUMN edited_at INTEGER');
 addColumn('ALTER TABLE guild_messages ADD COLUMN link_embeds TEXT');
 addColumn('ALTER TABLE guild_messages ADD COLUMN link_urls TEXT');
 
+// HISTORY IMPORTS (guildImports.js): old messages from an exported archive, put into a
+// guild's channels by an administrator. Each import is a row; each archive author one row of
+// guild_import_authors (mapped to a member through `user_id`, or shown by the archive's
+// `name` and `avatar`); each archive channel one of guild_import_channels (the channel it goes
+// into); each message imported one of guild_import_messages (resolves replies and makes
+// retried batches skip what's in). Imported messages are guild_messages with `import_id` and
+// `import_author_id`, `sender_id` the mapped member or 0, the archive's own `timestamp`, and
+// the archive's reactions as read-only `import_reactions` (JSON [{ emoji, count }]).
+// `unlinked_user_id`: the member who said "This wasn't me" (never shown; the importer can't
+// map them to that author again).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_imports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id INTEGER NOT NULL,
+  importer_id INTEGER,
+  source TEXT NOT NULL,
+  source_guild_name TEXT,
+  label TEXT,
+  status TEXT NOT NULL DEFAULT 'mapping',
+  created_at INTEGER NOT NULL,
+  finished_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS guild_imports_guild ON guild_imports (guild_id);
+CREATE TABLE IF NOT EXISTS guild_import_authors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  import_id INTEGER NOT NULL,
+  source_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  avatar TEXT,
+  is_bot INTEGER NOT NULL DEFAULT 0,
+  user_id INTEGER,
+  unlinked_user_id INTEGER,
+  UNIQUE (import_id, source_id)
+);
+CREATE INDEX IF NOT EXISTS guild_import_authors_user ON guild_import_authors (user_id);
+CREATE TABLE IF NOT EXISTS guild_import_channels (
+  import_id INTEGER NOT NULL,
+  source_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  channel_id INTEGER,
+  PRIMARY KEY (import_id, source_id)
+);
+CREATE TABLE IF NOT EXISTS guild_import_messages (
+  import_id INTEGER NOT NULL,
+  source_id TEXT NOT NULL,
+  message_id INTEGER NOT NULL,
+  PRIMARY KEY (import_id, source_id)
+);
+`);
+addColumn('ALTER TABLE guild_messages ADD COLUMN import_id INTEGER');
+addColumn('ALTER TABLE guild_messages ADD COLUMN import_author_id INTEGER');
+addColumn('ALTER TABLE guild_messages ADD COLUMN import_reactions TEXT');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_import ON guild_messages (import_id) WHERE import_id IS NOT NULL');
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_import_author ON guild_messages (import_author_id) WHERE import_author_id IS NOT NULL');
+// A channel's history in time order (imported messages have old times but new ids): pages
+// are by (timestamp, id), see routes/guildMessages.js.
+sqlite.exec('CREATE INDEX IF NOT EXISTS guild_messages_position ON guild_messages (channel_id, timestamp, id)');
+
 // GUILD AUDIT LOG (auditLog.js): who did what in a guild, and when. `actor_id` is the user
 // (null when a webhook acted with its token: `actor_webhook_id`); `target_type`/`target_id`
 // what it was done to (a user, role, channel, category, invite code, emoji or webhook);

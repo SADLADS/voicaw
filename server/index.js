@@ -14,11 +14,11 @@ app.set('trust proxy', 'loopback');
 // Webhook routes and the bot API (/api/v<n>/) parse their own bodies (bigger JSON for pictures,
 // forms, files; Discord's errors); see routes/webhooks.js and routes/botApi.js. Saving a
 // document (routes/guildDocuments.js, up to 100,000 characters) takes more than express's
-// default 100 kB (nginx takes 1 MB), as do a bot's picture (routes/applications.js) and a
-// group DM's (routes/groupDms.js).
+// default 100 kB (nginx takes 1 MB), as do a bot's picture (routes/applications.js), a
+// group DM's (routes/groupDms.js) and a history import's batches and lists (routes/guildImports.js).
 const json = express.json();
 const documentJson = express.json({ limit: '1mb' });
-const DOCUMENT_PATH = /^\/api\/(channels\/\d+\/documents|documents\/\d+(\/collab(\/\w+)?)?|applications\/\d+|group-dms\/[0-9a-f-]{36})$/;
+const DOCUMENT_PATH = /^\/api\/(guilds\/\d+\/imports(\/\d+\/(messages|mapping))?|channels\/\d+\/documents|documents\/\d+(\/collab(\/\w+)?)?|applications\/\d+|group-dms\/[0-9a-f-]{36})$/;
 app.use((req, res, next) => {
   if (/\/webhooks(\/|$)/.test(req.path) || /^\/api\/v\d+\//.test(req.path)) return next();
   return (DOCUMENT_PATH.test(req.path) ? documentJson : json)(req, res, next);
@@ -65,6 +65,7 @@ app.use('/api', require('./routes/guilds'));
 app.use('/api', require('./routes/guildMessages'));
 app.use('/api', require('./routes/threads'));
 app.use('/api', require('./routes/guildSearch'));
+app.use('/api', require('./routes/guildImports'));
 app.use('/api', require('./routes/guildRoles'));
 app.use('/api', require('./routes/guildEmojis'));
 app.use('/api', require('./routes/soundboard'));

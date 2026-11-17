@@ -134,7 +134,7 @@ async function guildEntries(userId, blocked, blockedWebhooks, from) {
      FROM guild_messages m
      LEFT JOIN users u ON u.id = m.sender_id
      LEFT JOIN guild_channel_reads r ON r.channel_id = m.channel_id AND r.user_id = ?
-     WHERE m.timestamp >= ? AND m.sender_id != ? AND m.system IS NULL AND (
+     WHERE m.timestamp >= ? AND m.sender_id != ? AND m.system IS NULL AND m.import_id IS NULL AND (
        m.id IN (SELECT message_id FROM guild_mentions WHERE user_id = ?)
        OR m.parent_message_id IN (SELECT id FROM guild_messages WHERE sender_id = ?)
      )

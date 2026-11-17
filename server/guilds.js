@@ -367,7 +367,8 @@ async function deleteGuild(guildId) {
   await require('./soundboard').deleteGuildSoundFiles(guildId);
   const guild = await db.get('SELECT icon_version FROM guilds WHERE id = ?', [guildId]);
   if (guild?.icon_version > 0) await deleteObject('guild-icons', String(guildId));
-  await db.transaction(async () => {
+  const importPictures = await db.transaction(async () => {
+    const pictures = await require('./guildImports').deleteGuildImports(guildId);
     await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);
     await require('./guildEvents').deleteGuildEvents(guildId);
     await require('./guildLevels').deleteGuildLevels(guildId);
@@ -380,8 +381,10 @@ async function deleteGuild(guildId) {
       await db.run(`DELETE FROM ${table} WHERE guild_id = ?`, [guildId]);
     }
     await db.run('DELETE FROM guilds WHERE id = ?', [guildId]);
+    return pictures;
   });
   require('./uploads').releaseUploads();
+  await require('./guildImports').deletePictures(importPictures);
 
   for (const userId of memberIds) sendToUserSockets(userId, { type: 'guild_remove', guildId });
 }
