@@ -278,6 +278,31 @@ describe('unlinking and undoing', () => {
     expect(relink.status).toBe(400);
   });
 
+  it('lets a linked member delete their imported messages, not once unlinked; deleted ones never come back', async () => {
+    const { owner, member, guild, general } = await setUp();
+    const imp = await startImport(owner, guild, general);
+    const sam = authorOf(imp, '111');
+    await api.put(owner, `/guilds/${guild.id}/imports/${imp.id}/mapping`, { authors: [{ id: sam.id, userId: member.id }] });
+    const batch = {
+      channelSourceId: '900',
+      messages: [
+        { sourceId: 'd1', authorSourceId: '111', timestamp: ms('2024-01-01T00:00:00Z'), content: 'mine' },
+        { sourceId: 'd2', authorSourceId: '111', timestamp: ms('2024-01-01T00:01:00Z'), content: 'also mine' },
+        { sourceId: 'd3', authorSourceId: '222', timestamp: ms('2024-01-01T00:02:00Z'), content: 'not mine' },
+      ],
+    };
+    await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/messages`, batch);
+    const [mine, alsoMine, notMine] = await messagesIn(member, general);
+    expect((await api.delete(member, `/guild-messages/${notMine.id}`)).status).toBe(403);
+    expect((await api.delete(member, `/guild-messages/${mine.id}`)).status).toBe(200);
+    // Unlinked, the rest are no longer theirs to delete.
+    await api.post(member, `/guild-imports/authors/${sam.id}/unlink`);
+    expect((await api.delete(member, `/guild-messages/${alsoMine.id}`)).status).toBe(403);
+    // Sending the batch again (a continued import) doesn't bring the deleted one back.
+    expect((await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/messages`, batch)).body).toEqual({ added: 0, skipped: 3 });
+    expect((await messagesIn(owner, general)).map((m) => m.content)).toEqual(['also mine', 'not mine']);
+  });
+
   it('unlinks everything at once', async () => {
     const { owner, member, guild, general } = await setUp();
     for (const n of [1, 2]) {
