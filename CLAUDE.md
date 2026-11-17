@@ -535,6 +535,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   tag's look and its note (imported, can't be confirmed) are always the app's. No pings,
   pushes, XP or unread; deleting the import is the undo. Polls, threads and Discord voice
   messages don't come across as such (the exports lack polls; threads become channels).
+- **Tracking in pasted links** (built 2026-11-17, see Tracking in pasted links in
+  `docs/messages.md`): Settings → Privacy can take tracking parameters out of pasted links (off
+  by default, the user's choice), on the device, as one undo step. The user chose the most
+  hands-off upkeep: our server downloads AdGuard's URL Tracking filter (GPL-3.0) daily and serves
+  it converted (devices never contact AdGuard; it only sees the server), with our own short list
+  bundled (not AdGuard's, so no GPL data in the app) for when there's none.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

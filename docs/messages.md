@@ -294,6 +294,39 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   address, in any chat, unless the setting is off. Checked in `e2e/linkpreviews.mjs` (the
   encrypted chats' previews in `e2e/dmlinkpreviews.mjs`).
 
+## Tracking in pasted links
+
+Settings → Privacy → Remove tracking from pasted links (`privacy` pref `cleanLinks`, **off by
+default**, the user's choice: it changes what you pasted) takes tracking parameters out of
+links pasted into the message box (`?utm_source=…`, X's `?s=20&t=…`, YouTube's `si`), while
+keeping the ones people mean to share (YouTube's `v`, `t`, `list`, `index`). Only on paste and
+only links (not typed text, not code spans or blocks); the original goes in first and the cleaned
+text replaces it as its own undo step (`closeHistory`), so Ctrl+Z right after pasting gives the
+link back as pasted (`MessageEditor.jsx` `handlePaste`). Only the removed `name=value` pieces
+are cut: the rest keeps its exact text, and a link with nothing to remove isn't touched. Other
+places that paste (documents, the share screen) don't clean yet.
+
+You can't tell tracking from a useful parameter by its shape, so it's a list of known ones,
+and a maintained list since sites keep adding them:
+- **AdGuard's URL Tracking filter** (GPL-3.0, `AdguardFilters/TrackParamFilter`, built at
+  `filters.adtidy.org/extension/chromium/filters/17.txt`), downloaded by our server when the API
+  starts and then daily (hourly retries after a failure; `server/linkRules.js`). Its
+  `$removeparam` rules are converted to `{ p, h?, x?, u?, e? }` (the parameter or `/regex/` or
+  `*`, hosts, excluded hosts, an address pattern as a regex, an exception), keeping only those
+  that apply to opening a link: rules for scripts, pictures and other requests a page makes,
+  `~` negations and unknown options are left out (about 2,740 of 2,820 kept, ~125 KB of JSON).
+  A download that doesn't parse, isn't that filter, has under 200 rules or under half the last
+  one is ignored and the last good copy kept (memory only). Settings → Admin's "Tracking
+  parameter list" (`linkRules`) stops downloading and serving it. Served by `GET /link-rules`
+  (`?have=<etag>` answers `unchanged`); Settings → About credits it.
+- **Our own short list** (`utils/linkRulesBuiltIn.js`, written for Voicaw so it can be bundled):
+  always applied, and alone with nothing downloaded (offline, an older or other server, the
+  admin switch off). Its KEEP rules win over both lists.
+
+The app keeps the downloaded list in localStorage `linkRules` and asks for it again at most every
+12 hours while the setting is on (and at once when it's turned on; `services/linkRules.js`); the
+cleaning itself is `utils/linkCleaner.js`. The device never contacts AdGuard.
+
 ## Polls
 
 Any chat (DM, notes, group DM, guild text channel) can have polls: the composer's `+` opens a

@@ -31,11 +31,15 @@ import { useSyncExternalStore } from 'react';
 // `safetyNumbers`: DMs show a Verified / Not verified badge that opens the safety number to
 // compare with the contact (off by default: confusing for most people, and nothing is given up
 // without it: keys are pinned and a changed key blocks the chat either way).
+// `cleanLinks`: links pasted into the message box lose their tracking parameters (`?utm_...`,
+// X's `?s=20`...) before they're sent (off by default: it changes what you pasted;
+// services/linkRules.js). Turned on, the app asks our server now and then for its copy of the
+// list of them; the device never asks the list's makers.
 // Notification previews are Settings → Privacy too, but kept in services/settingsStore (the
 // service worker reads them).
 
 const STORAGE_KEY = 'privacy';
-const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true, showLinkPreviews: true, searchCopy: true, offlineCopy: true, safetyNumbers: false };
+const DEFAULTS = { inviteEmbedsInEncrypted: true, sendTyping: true, youtubeEmbeds: true, gifs: true, linkPreviews: true, showLinkPreviews: true, searchCopy: true, offlineCopy: true, safetyNumbers: false, cleanLinks: false };
 const listeners = new Set();
 
 function load() {

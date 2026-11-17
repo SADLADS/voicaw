@@ -238,6 +238,7 @@
     "about": {
       "attribution": "Emoji graphics by <twemoji>Twemoji</twemoji>, © Twitter, Inc and other contributors, licensed under <ccby>CC-BY 4.0</ccby>. Emoji font modified from <font>twemoji-color-font</font>, licensed under the <ofl>SIL Open Font License 1.1</ofl>. GIFs from <klipy>KLIPY</klipy>.",
       "gameCaptureAttribution": "Game capture uses <obs>OBS Studio</obs>'s graphics hook, unmodified, licensed under the <gpl>GNU GPL version 2</gpl> (<source>its source code</source>).",
+      "linkRulesAttribution": "Tracking parameters removed from pasted links come from <adguard>AdGuard's URL Tracking filter</adguard>, licensed under the <gpl>GNU GPL version 3</gpl>, converted by the Voicaw server.",
       "privacy": "Privacy policy",
       "terms": "Terms of use",
       "deleteAccount": "Deleting your account"
@@ -309,6 +310,10 @@
       "useDefault": "Use default",
       "choices": {
         "linkPreviews": {
+          "on": "On",
+          "off": "Off"
+        },
+        "linkRules": {
           "on": "On",
           "off": "Off"
         },
@@ -665,6 +670,10 @@
       "gifs": {
         "label": "Show GIFs straight away",
         "hint": "GIFs in messages, and the previews in the GIF picker, load from KLIPY, which sees your IP address and which GIFs you see (not the chat or its messages). Turn this off and each GIF waits until you tap Show, and the GIF picker asks before showing previews. Saved on this device."
+      },
+      "cleanLinks": {
+        "label": "Remove tracking from pasted links",
+        "hint": "Links you paste into the message box lose the parts sites add to follow who shares and opens them (like ?utm_source=… or ?s=20): the link still works, but tells the site less. Parts that matter, such as a YouTube link's start time, are kept. Undoing straight after pasting (Ctrl+Z) brings the link back as you pasted it. The list of what to remove comes from the Voicaw server, which keeps an up-to-date copy of AdGuard's list; your device never contacts AdGuard. Saved on this device."
       },
       "safetyNumbers": {
         "label": "Show safety numbers in DMs",

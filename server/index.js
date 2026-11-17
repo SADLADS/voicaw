@@ -103,6 +103,7 @@ app.use('/api', require('./routes/interactions'));
 app.use('/api', require('./routes/botDms'));
 app.use('/api', require('./routes/inbox'));
 app.use('/api', require('./routes/recentChats'));
+app.use('/api', require('./routes/linkRules'));
 // Bots: Discord's API for bots (docs/bots.md), at Discord's versioned paths, and links to
 // pictures in Discord's CDN's shape.
 const botApi = require('./routes/botApi');
@@ -157,6 +158,8 @@ if (require.main === module) {
   // routes/testerRequests.js).
   require('./signups').startHistoryPrune();
   require('./routes/testerRequests').startHistoryPrune();
+  // The tracking parameter list for cleaning pasted links, downloaded daily (linkRules.js).
+  require('./linkRules').startLinkRules();
   // Documents being edited live are saved a moment after each change (documentCollab.js);
   // stopping (pm2 sends SIGINT, then kills after 1.6 s) saves what's left first.
   for (const signal of ['SIGINT', 'SIGTERM']) {

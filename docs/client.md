@@ -185,8 +185,10 @@
   previews); `showLinkPreviews`, links to other sites get previews at all (same section);
   `searchCopy`, searching an encrypted chat keeps an encrypted copy of it on the device (off
   deletes it; see docs/messages.md, Search in encrypted chats); `safetyNumbers`, DMs show the
-  Verified / Not verified badge and safety number (the one choice off by default: it adds a
-  check rather than giving anything away; see docs/auth-and-encryption.md, Contacts).
+  Verified / Not verified badge and safety number (off by default: it adds a
+  check rather than giving anything away; see docs/auth-and-encryption.md, Contacts);
+  `cleanLinks`, pasted links lose their tracking parameters (off by default, as it changes what
+  you pasted; see docs/messages.md, Tracking in pasted links).
   "Show message text in notifications" is here too, though it's kept in
   `services/settingsStore.js` (IndexedDB) for the service worker (see docs/realtime.md, Push
   notifications). New privacy trade-offs go here.
