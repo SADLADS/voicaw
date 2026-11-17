@@ -897,6 +897,14 @@ function channelChanged(event) {
   setBitrate(event.bitrate);
 }
 
+// An administrator moved us (`guild_voice_move`) from our voice channel into another: this
+// device joins it, if it's the one in that channel (the others ignore it). The server lets us
+// in even when it's full; until we join, we're still in the old one (for 15 s at most).
+function movedTo(event) {
+  if (snapshot.status === 'idle' || snapshot.channelId !== event.fromChannelId || snapshot.guildId !== event.guildId) return;
+  joinVoice(event.guildId, event.channelId);
+}
+
 // Listened for from the first join on.
 let listeningForChannels = false;
 function listenForChannelChanges() {
@@ -904,6 +912,7 @@ function listenForChannelChanges() {
   listeningForChannels = true;
   onGuildEvent((event) => {
     if (event.type === 'guild_voice_channel') channelChanged(event);
+    else if (event.type === 'guild_voice_move') movedTo(event);
   });
 }
 

@@ -304,6 +304,8 @@
         "memberKick": "{{actor}} kicked {{target}}",
         "memberBan": "{{actor}} banned {{target}}",
         "memberUnban": "{{actor}} unbanned {{target}}",
+        "memberMove": "{{actor}} moved {{target}} from {{from}} to {{channel}}",
+        "memberDisconnect": "{{actor}} disconnected {{target}} from {{channel}}",
         "botAdd": "{{actor}} added the bot {{target}}",
         "memberRoleUpdate": "{{actor}} changed the roles of {{target}}",
         "ownerTransfer": "{{actor}} made {{target}} the owner",

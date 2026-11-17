@@ -1,5 +1,5 @@
 import './helpers/mockS3.js';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { createHash } from 'crypto';
 import jwt from 'jsonwebtoken';
@@ -349,5 +349,108 @@ describe('voice channels', () => {
     const { everyone } = await setUp(0);
     const voicePermissions = P.CONNECT | P.SPEAK | P.STREAM;
     expect(everyone.permissions & voicePermissions).toBe(voicePermissions);
+  });
+});
+
+describe('moving people between voice channels', () => {
+  const move = (actor, guild, user, channelId) => api.put(actor, `/guilds/${guild.id}/voice/members/${user.id}`, { channelId });
+  const moveEvents = (events) => events.filter((e) => e.type === 'guild_voice_move');
+
+  it('lets the owner move someone: their app is told, and joins the new channel even when full', async () => {
+    const { owner, members: [alice, bob], guild, lounge, gaming } = await setUp(2);
+    await request(app).patch(`/api/guilds/${guild.id}/channels/${gaming.id}`).set(authed(owner)).send({ userLimit: 1 });
+    await join(bob, guild, gaming);
+    await webhook('participant_joined', gaming, bob);
+    expect((await join(alice, guild, gaming)).status).toBe(403);
+    await join(alice, guild, lounge);
+    await webhook('participant_joined', lounge, alice);
+    const events = listen(alice);
+
+    expect((await move(owner, guild, alice, gaming.id)).status).toBe(200);
+    expect(moveEvents(events)).toEqual([{ type: 'guild_voice_move', guildId: guild.id, fromChannelId: lounge.id, channelId: gaming.id }]);
+    // Gaming is full (one place, Bob's), but she was moved there.
+    expect((await join(alice, guild, gaming)).status).toBe(200);
+    await webhook('participant_joined', gaming, alice);
+    expect((await voiceOf(owner, guild, gaming)).map((s) => s.user_id)).toEqual([bob.id, alice.id]);
+    expect(await voiceOf(owner, guild, lounge)).toEqual([]);
+
+    const { entries } = (await api.get(owner, `/guilds/${guild.id}/audit-log`)).body;
+    expect(entries.find((e) => e.action === 'member_move')).toMatchObject({
+      actor_id: owner.id, target_id: String(alice.id), details: { channelName: 'gaming', fromChannelName: 'lounge' },
+    });
+    // The move is used up: once she leaves, the full channel turns her away again.
+    await api.delete(alice, '/voice');
+    expect((await join(alice, guild, gaming)).status).toBe(403);
+  });
+
+  it('lets Administrators move people, and nobody else', async () => {
+    const { owner, members: [alice, bob, carol], guild, lounge, gaming } = await setUp(3);
+    const mods = (await api.post(owner, `/guilds/${guild.id}/roles`, { name: 'mods', permissions: P.MANAGE_CHANNELS | P.KICK_MEMBERS })).body;
+    const admins = (await api.post(owner, `/guilds/${guild.id}/roles`, { name: 'admins', permissions: P.ADMINISTRATOR })).body;
+    await api.put(owner, `/guilds/${guild.id}/members/${bob.id}/roles`, { roleIds: [mods.id] });
+    await api.put(owner, `/guilds/${guild.id}/members/${carol.id}/roles`, { roleIds: [admins.id] });
+    await join(alice, guild, lounge);
+    await webhook('participant_joined', lounge, alice);
+
+    expect((await move(bob, guild, alice, gaming.id)).status).toBe(403);
+    expect((await move(alice, guild, alice, gaming.id)).status).toBe(403);
+    expect((await move(carol, guild, alice, gaming.id)).status).toBe(200);
+  });
+
+  it("won't move someone who isn't in voice there, or into a channel they can't join", async () => {
+    const { owner, members: [alice, bob], guild, general, lounge, gaming, everyone } = await setUp(2);
+    expect((await move(owner, guild, bob, gaming.id)).status).toBe(400);
+    await join(alice, guild, lounge);
+    await webhook('participant_joined', lounge, alice);
+    expect((await move(owner, guild, alice, general.id)).status).toBe(400);
+    expect((await move(owner, guild, alice, 999999)).status).toBe(404);
+    expect((await move(owner, guild, alice, 'nope')).status).toBe(400);
+
+    // Another guild's channel.
+    const other = (await api.post(owner, '/guilds', { name: 'Other' })).body;
+    const elsewhere = (await api.post(owner, `/guilds/${other.id}/channels`, { name: 'Elsewhere', type: 'voice' })).body;
+    expect((await move(owner, guild, alice, elsewhere.id)).status).toBe(404);
+    expect((await move(owner, other, alice, elsewhere.id)).status).toBe(400);
+
+    await api.put(owner, `/guilds/${guild.id}/channels/${gaming.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.CONNECT });
+    const events = listen(alice);
+    expect((await move(owner, guild, alice, gaming.id)).status).toBe(403);
+    // Already there: nothing to do.
+    expect((await move(owner, guild, alice, lounge.id)).status).toBe(200);
+    expect(moveEvents(events)).toEqual([]);
+  });
+
+  it('takes an app that never joins the new channel out of the old one', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const { owner, members: [alice], guild, lounge, gaming } = await setUp();
+      await join(alice, guild, lounge);
+      await webhook('participant_joined', lounge, alice);
+      expect((await move(owner, guild, alice, gaming.id)).status).toBe(200);
+      calls.length = 0;
+      await vi.advanceTimersByTimeAsync(voice.MOVE_GRACE_MS);
+      expect(calls).toContainEqual(['remove', `channel-${lounge.id}`, String(alice.id)]);
+      expect(voice.states.has(alice.id)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves someone who joined the new channel alone when the grace time is up', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const { owner, members: [alice], guild, lounge, gaming } = await setUp();
+      await join(alice, guild, lounge);
+      await webhook('participant_joined', lounge, alice);
+      await move(owner, guild, alice, gaming.id);
+      await join(alice, guild, gaming);
+      await webhook('participant_joined', gaming, alice);
+      calls.length = 0;
+      await vi.advanceTimersByTimeAsync(voice.MOVE_GRACE_MS);
+      expect(calls.filter((c) => c[0] === 'remove')).toEqual([]);
+      expect(voice.states.get(alice.id)?.channelId).toBe(gaming.id);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

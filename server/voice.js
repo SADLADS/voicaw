@@ -67,6 +67,10 @@ const pendingWatching = new Map();
 const PENDING_WATCHING_MS = 60 * 1000;
 // Participant sessions that already left: a late "joined" webhook for them is ignored.
 const leftSids = new Set();
+// Moves under way (moveMember): userId -> { guildId, channelId, fromChannelId, sid, timer }.
+const moves = new Map();
+// How long a moved person's app has to join the new channel before the old one is left for it.
+const MOVE_GRACE_MS = 15 * 1000;
 function rememberLeft(sid) {
   if (!sid) return;
   leftSids.add(sid);
@@ -227,7 +231,9 @@ function isFull(channel, userId, permissions) {
 async function joinToken({ channel, userId, username, permissions, selfMute, selfDeaf, isBot = false }) {
   const region = voiceRegions.forChannel(channel);
   if (!region) throw new ActionError(503, "Voice isn't set up yet");
-  if (isFull(channel, userId, permissions)) throw new ActionError(403, 'This voice channel is full', 0);
+  // Moved here by an administrator (moveMember): a full channel takes them anyway.
+  const movedHere = moves.get(userId)?.channelId === channel.id;
+  if (!movedHere && isFull(channel, userId, permissions)) throw new ActionError(403, 'This voice channel is full', 0);
   const current = states.get(userId);
   if (current && current.channelId !== channel.id) await disconnect(userId);
   await require('./calls').endCallOf(userId);
@@ -309,6 +315,7 @@ async function participantJoined(channelId, participant, regionId) {
     return;
   }
   const previous = states.get(userId);
+  if (moves.get(userId)?.channelId === channelId) finishMove(userId);
   if (previous && previous.channelId !== channelId) {
     states.delete(userId);
     await announce(previous.guildId, previous.channelId, userId, null);
@@ -415,6 +422,64 @@ async function handleWebhookEvent(event, regionId) {
   else if (event.event === 'track_published') await trackChanged(channelId, event.participant, event.track, true);
   else if (event.event === 'track_unpublished') await trackChanged(channelId, event.participant, event.track, false);
   else if (event.event === 'room_finished') await roomFinished(channelId, regionId);
+}
+
+function finishMove(userId) {
+  clearTimeout(moves.get(userId)?.timer);
+  moves.delete(userId);
+}
+
+// `actor` (a member context, guilds.js) moves `userId` from their voice channel in the guild
+// into voice channel `channelId`, as Discord's Move Members. Only the owner and Administrators
+// (no free permission bit for one of its own). The person must be allowed in the channel (View
+// Channel and Connect: enforceGuild would only take them out again); its user limit doesn't
+// count. LiveKit can't move a participant between rooms, so their apps are told
+// (`guild_voice_move`) and join the new channel themselves, with a new token; an app that
+// doesn't (an older one) is taken out of the old channel after MOVE_GRACE_MS. Bots join voice
+// with their own LiveKit SDKs, so they can't be moved, only disconnected. Throws ActionError.
+async function moveMember(actor, userId, channelId) {
+  if (!has(actor.permissions, PERMISSIONS.ADMINISTRATOR)) throw new ActionError(403, "You don't have permission to do that", 50013);
+  const state = states.get(userId);
+  if (!state || state.guildId !== actor.guild.id) throw new ActionError(400, 'Target user is not connected to voice.', 40032);
+  const target = Number.isInteger(channelId) ? await getChannelAccess(channelId, actor.userId) : null;
+  if (!target || target.channel.guild_id !== actor.guild.id || !has(target.permissions, PERMISSIONS.VIEW_CHANNEL)) {
+    throw new ActionError(404, 'Unknown Channel', 10003);
+  }
+  if (target.channel.type !== 'voice') throw new ActionError(400, 'Not a voice channel', 50024);
+  if (target.channel.id === state.channelId) return;
+  if (state.isBot) throw new ActionError(400, "Bots can't be moved to another voice channel", 50035);
+  if (!(await voiceAccess(channelId, userId))) throw new ActionError(403, "They can't connect to that channel", 50013);
+  finishMove(userId);
+  const move = { guildId: state.guildId, channelId, fromChannelId: state.channelId, sid: state.sid };
+  move.timer = setTimeout(() => {
+    if (moves.get(userId) !== move) return;
+    moves.delete(userId);
+    const now = states.get(userId);
+    if (now?.channelId === move.fromChannelId && now.sid === move.sid) {
+      disconnect(userId).catch((err) => console.error('Taking a moved member out failed:', err.message));
+    }
+  }, MOVE_GRACE_MS);
+  move.timer.unref?.();
+  moves.set(userId, move);
+  await require('./auditLog').logAudit({
+    guildId: actor.guild.id, actorId: actor.userId, action: 'member_move', targetType: 'user', targetId: userId, channelId,
+    details: { channelName: target.channel.name, fromChannelName: await channelName(move.fromChannelId) },
+  });
+  sendToUserSockets(userId, { type: 'guild_voice_move', guildId: state.guildId, fromChannelId: move.fromChannelId, channelId });
+}
+
+// `actor` takes `userId` out of their voice channel in the guild (the bot API's channel_id
+// null; Administrators, as moving). Throws ActionError.
+async function disconnectMember(actor, userId) {
+  if (!has(actor.permissions, PERMISSIONS.ADMINISTRATOR)) throw new ActionError(403, "You don't have permission to do that", 50013);
+  const state = states.get(userId);
+  if (!state || state.guildId !== actor.guild.id) return;
+  finishMove(userId);
+  await require('./auditLog').logAudit({
+    guildId: actor.guild.id, actorId: actor.userId, action: 'member_disconnect', targetType: 'user', targetId: userId,
+    channelId: state.channelId, details: { channelName: await channelName(state.channelId) },
+  });
+  await disconnect(userId);
 }
 
 // After anything in the guild changed (roles, overrides, channels, members): whoever may no
@@ -555,6 +620,9 @@ module.exports = {
   setWatching,
   voiceAccess,
   disconnect,
+  moveMember,
+  disconnectMember,
+  MOVE_GRACE_MS,
   verifyWebhook,
   handleWebhookEvent,
   enforceGuild,

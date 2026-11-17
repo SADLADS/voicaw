@@ -303,6 +303,8 @@
         "memberKick": "{{actor}} さんが {{target}} さんをキックしました",
         "memberBan": "{{actor}} さんが {{target}} さんを BAN しました",
         "memberUnban": "{{actor}} さんが {{target}} さんの BAN を解除しました",
+        "memberMove": "{{actor}} さんが {{target}} さんを {{from}} から {{channel}} に移動しました",
+        "memberDisconnect": "{{actor}} さんが {{target}} さんを {{channel}} から切断しました",
         "botAdd": "{{actor}} さんが Bot {{target}} を追加しました",
         "memberRoleUpdate": "{{actor}} さんが {{target}} さんのロールを変更しました",
         "ownerTransfer": "{{actor}} さんが {{target}} さんをオーナーにしました",

@@ -306,6 +306,8 @@
         "memberKick": "{{actor}} исключил(а) {{target}}",
         "memberBan": "{{actor}} забанил(а) {{target}}",
         "memberUnban": "{{actor}} разбанил(а) {{target}}",
+        "memberMove": "{{actor}} переместил(а) {{target}} из {{from}} в {{channel}}",
+        "memberDisconnect": "{{actor}} отключил(а) {{target}} от {{channel}}",
         "botAdd": "{{actor}} добавил(а) бота {{target}}",
         "memberRoleUpdate": "{{actor}} изменил(а) роли пользователя {{target}}",
         "ownerTransfer": "{{actor}} сделал(а) {{target}} владельцем",

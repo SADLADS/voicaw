@@ -891,7 +891,7 @@ async function modifyMember(req, res) {
   const guildId = req.member.guild.id;
   const target = await memberOr404(guildId, userId);
   const body = req.body ?? {};
-  for (const field of ['nick', 'mute', 'deaf', 'channel_id', 'communication_disabled_until']) {
+  for (const field of ['nick', 'mute', 'deaf', 'communication_disabled_until']) {
     if (body[field] !== undefined && body[field] !== null) {
       throw new webhooks.FormError([field], `${field} isn't supported on Voicaw.`, 'BASE_TYPE_INVALID');
     }
@@ -907,6 +907,13 @@ async function modifyMember(req, res) {
     // The bot's own role stays (it can't be given or taken), whether it's listed or not.
     const botRoles = target.roles.map(Number).filter((id) => req.member.allRoles.some((r) => r.id === id && r.bot_id));
     await roleActions.setMemberRoles(req.member, userId, [...new Set([...roleIds, ...botRoles])]);
+  }
+  // Discord's move (a voice channel's id) or disconnect (null): Administrator here, as there's
+  // no Move Members bit (voice.js moveMember).
+  if (body.channel_id !== undefined) {
+    const voice = require('../voice');
+    if (body.channel_id === null) await voice.disconnectMember(req.member, userId);
+    else await voice.moveMember(req.member, userId, D.ourId(body.channel_id));
   }
   res.json(await memberOr404(guildId, userId));
 }

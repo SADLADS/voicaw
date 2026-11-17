@@ -283,6 +283,44 @@ img.guild-icon {
   z-index: 6;
 }
 
+/* Moving someone to another voice channel (useVoiceMemberDrag): their row dims, a copy follows
+   the pointer and the voice channel under it (its row and who's in it) is outlined. */
+.guild-channel-list [data-voice-draggable] {
+  cursor: grab;
+  user-select: none;
+}
+
+.voice-member.dragging {
+  opacity: 0.4;
+}
+
+.guild-channel.voice-drop-target {
+  border-radius: 4px;
+  background-color: var(--vc-bg-hover);
+  box-shadow: inset 0 0 0 2px var(--vc-online);
+}
+
+.guild-channel-voice.voice-drop-target {
+  background-color: var(--vc-bg-hover);
+}
+
+.voice-member-ghost {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  padding: 4px 10px 4px 6px;
+  margin: 8px 0 0 12px;
+  border-radius: var(--vc-radius-md);
+  background-color: var(--vc-popup);
+  box-shadow: 0 4px 12px var(--vc-popup-shadow);
+  color: var(--vc-fg);
+  font-size: 14px;
+  pointer-events: none;
+}
+
 .guild-channel-list ul {
   list-style: none;
   margin: 0;

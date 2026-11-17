@@ -303,6 +303,8 @@
         "memberKick": "{{actor}} เตะ {{target}}",
         "memberBan": "{{actor}} แบน {{target}}",
         "memberUnban": "{{actor}} ยกเลิกการแบน {{target}}",
+        "memberMove": "{{actor}} ย้าย {{target}} จาก {{from}} ไปที่ {{channel}}",
+        "memberDisconnect": "{{actor}} ตัดการเชื่อมต่อ {{target}} จาก {{channel}}",
         "botAdd": "{{actor}} เพิ่มบอต {{target}}",
         "memberRoleUpdate": "{{actor}} เปลี่ยนบทบาทของ {{target}}",
         "ownerTransfer": "{{actor}} ตั้ง {{target}} เป็นเจ้าของ",

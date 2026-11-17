@@ -739,6 +739,35 @@ are lost, so browsers use it only when nothing direct works.
   as root and nginx can't pass UDP by name), and TURN for the other voice regions (each region's
   server needs its own `turn:` block and 443).
 
+## Moving people between voice channels
+
+Like Discord's Move Members (built 2026-11-17): the guild's owner and Administrators drag
+someone in a voice channel onto another voice channel in the channel list. There's no
+permission of its own (the bitfield is full, see Soundboard), so it's Administrator.
+- **Server** (`voice.js` `moveMember`, `PUT /guilds/:g/voice/members/:userId { channelId }`):
+  refuses unless the person is in voice in that guild and may be in the target channel (View
+  Channel and Connect; otherwise `enforceGuild` would only take them out again). The target's
+  user limit doesn't count (as with Discord's Move Members). LiveKit can't move a participant
+  between rooms, so the API sends the person's apps `guild_voice_move { guildId,
+  fromChannelId, channelId }` and remembers the move (`moves`): their next token for that
+  channel skips the user limit, and an app that hasn't joined it within 15 s (`MOVE_GRACE_MS`,
+  an older app that ignores the event) is taken out of the old channel. Audit log: `member_move`
+  (from and to by name). Bots can't be moved: they join with their own LiveKit SDKs, and are
+  never told.
+- **Client**: `voiceClient` joins the new channel when the event names the channel this device
+  is in (other devices ignore it), as a normal channel switch: a camera or screen share stops,
+  and the join sound plays. `hooks/useVoiceMemberDrag.js` (on `usePointerDrag`) does the drag in
+  `GuildSidebar`: a computer only (on a phone a long press on someone is their volume), not on
+  bots. The person's row dims, a copy of it follows the pointer, and the voice channel under it
+  (`data-voice-drop`, its row and the list of who's in it) is outlined; a refused move is a toast.
+- **Bot API**: Discord's `PATCH /guilds/:id/members/:user` with `channel_id` moves (or `null`
+  disconnects, `member_disconnect` in the audit log), with Administrator (see Voice in
+  `docs/bots.md`).
+- **Checked by** `server/test/voice.test.js` and `botVoice.test.js`, `voiceClient.test.js`,
+  `GuildSidebar.test.jsx` and `e2e/voicemove.mjs`.
+- **Not done:** moving on a phone (Discord's has a "Move to" in the person's menu), a menu item
+  as a keyboard way to do it, and Discord's Disconnect in the app.
+
 ## Channel settings (bitrate, user limit)
 
 Like Discord's (built 2026-10-07): a voice channel's Overview (`guild/ChannelDialog.jsx`, its

@@ -1,9 +1,9 @@
 const express = require('express');
 const voiceRegions = require('../voiceRegions');
-const { ActionError } = require('../actionError');
+const { ActionError, withActionErrors } = require('../actionError');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
-const { getChannelAccess } = require('../guilds');
+const { getChannelAccess, getMember } = require('../guilds');
 const voice = require('../voice');
 const calls = require('../calls');
 
@@ -76,6 +76,17 @@ router.put('/voice/watching', authenticateJWT, (req, res) => {
   const done = calls.setWatching(req.user.id, value) || voice.setWatching(req.user.id, value);
   res.json({ success: true, in_voice: done });
 });
+
+// Move someone in one of the guild's voice channels into another: { channelId }. The owner and
+// Administrators only (voice.js moveMember); their apps join the new channel themselves.
+router.put('/guilds/:guildId/voice/members/:userId', authenticateJWT, requireVoice, withActionErrors(async (req, res) => {
+  const actor = await getMember(Number(req.params.guildId), req.user.id);
+  if (!actor) return res.status(404).json({ error: 'Guild not found' });
+  const channelId = req.body?.channelId;
+  if (!Number.isInteger(channelId)) return res.status(400).json({ error: 'channelId must be a channel id' });
+  await voice.moveMember(actor, Number(req.params.userId), channelId);
+  res.json({ success: true });
+}));
 
 // Leave voice (also disconnects you in LiveKit, e.g. a tab that lost its connection).
 router.delete('/voice', authenticateJWT, async (req, res) => {

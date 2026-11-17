@@ -116,4 +116,33 @@ describe('bots in voice', () => {
     expect(calls).toContainEqual(['remove', `channel-${lounge.id}`, String(bot.id)]);
     expect((await discord.get(bot, `/guilds/${guild.id}/voice-states/@me`)).body).toMatchObject({ code: 10065 });
   });
+
+  it('move people (channel_id) and take them out (null) with Administrator only', async () => {
+    const { owner, guild, lounge, bot } = await setUp(P.ADMINISTRATOR);
+    const gaming = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'Gaming', type: 'voice' })).body;
+    const alice = await makeUser('bv-alice');
+    const invite = await api.post(owner, `/guilds/${guild.id}/invites`);
+    await api.post(alice, `/invites/${invite.body.code}`);
+    await api.post(alice, `/guilds/${guild.id}/channels/${lounge.id}/voice`);
+    await webhook('participant_joined', lounge, alice.id, alice.username);
+
+    const moved = await discord.patch(bot, `/guilds/${guild.id}/members/${alice.id}`, { channel_id: String(gaming.id) });
+    expect(moved.status).toBe(200);
+    expect(moved.body.user.id).toBe(String(alice.id));
+    expect((await discord.patch(bot, `/guilds/${guild.id}/members/${alice.id}`, { channel_id: String(guild.channels[0].id) })).body)
+      .toMatchObject({ code: 50024 });
+    expect((await discord.patch(bot, `/guilds/${guild.id}/members/${alice.id}`, { channel_id: null })).status).toBe(200);
+    expect(calls).toContainEqual(['remove', `channel-${lounge.id}`, String(alice.id)]);
+    expect(voice.states.has(alice.id)).toBe(false);
+    // Not in voice any more.
+    expect((await discord.patch(bot, `/guilds/${guild.id}/members/${alice.id}`, { channel_id: String(gaming.id) })).body)
+      .toMatchObject({ code: 40032 });
+
+    const plain = await setUp(P.VIEW_CHANNEL | P.CONNECT | P.MANAGE_CHANNELS | P.KICK_MEMBERS);
+    await api.post(plain.owner, `/guilds/${plain.guild.id}/channels/${plain.lounge.id}/voice`);
+    await webhook('participant_joined', plain.lounge, plain.owner.id, plain.owner.username);
+    expect((await discord.patch(plain.bot, `/guilds/${plain.guild.id}/members/${plain.owner.id}`, { channel_id: null })).body)
+      .toMatchObject({ code: 50013 });
+    expect(voice.states.has(plain.owner.id)).toBe(true);
+  });
 });

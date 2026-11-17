@@ -14,7 +14,9 @@ import { t } from '../../i18n';
 // they talk, when you're in the channel too and can hear it), name, Live while sharing their
 // screen, a camera while theirs is on, mute/deafen icons, and an ear on a bot that can hear the channel (Listen). `inChannel`: you're in it, so clicking someone else sets how
 // loud they are for you. Clicking their picture opens their profile card (useProfileCard).
-export default function VoiceChannelMembers({ members, speaking, inChannel = false }) {
+// `dragProps(userId, name)` (the owner and Administrators, useVoiceMemberDrag): someone can be
+// dragged onto another voice channel; `draggingId` is who's being dragged.
+export default function VoiceChannelMembers({ members, speaking, inChannel = false, dragProps, draggingId = null }) {
   useProfiles();
   const { isMobile } = useContext(InteractionContext);
   const volumeMenu = useVolumeMenu(inChannel);
@@ -23,7 +25,14 @@ export default function VoiceChannelMembers({ members, speaking, inChannel = fal
   return (
     <ul className="voice-members" aria-label={t('guilds.voice.inThisChannel')}>
       {members.map((m) => (
-        <li key={m.user_id} className="voice-member" data-user-id={m.user_id} {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}>
+        <li
+          key={m.user_id}
+          className={`voice-member${draggingId === m.user_id ? ' dragging' : ''}`}
+          data-user-id={m.user_id}
+          {...volumeMenu.triggerProps(m.user_id, displayName(m.user_id, m.username))}
+          // Bots join voice by themselves, so they can't be moved.
+          {...(dragProps && !isBot(m.user_id) ? dragProps(m.user_id, displayName(m.user_id, m.username)) : {})}
+        >
           <UserAvatar userId={m.user_id} className="voice-member-avatar" speaking={speaking.has(String(m.user_id))} {...profileCard.pictureProps({ id: m.user_id, username: m.username })} />
           <span className="voice-member-name">{displayName(m.user_id, m.username)}</span>
           <span className="voice-member-icons">
