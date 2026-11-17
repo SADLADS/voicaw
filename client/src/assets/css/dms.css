@@ -4147,6 +4147,12 @@ body.mobile-mode .dm-user-list-container .dm-user {
   font-size: 9px;
 }
 
+.profile-card-avatar .imported-avatar-initial {
+  width: 100%;
+  height: 100%;
+  font-size: 30px;
+}
+
 .message-avatar.imported-avatar-initial[role="button"] {
   cursor: pointer;
 }
