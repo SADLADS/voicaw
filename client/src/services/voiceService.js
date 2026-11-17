@@ -17,6 +17,12 @@ export async function saveWatching(watching) {
   await api.put('/voice/watching', { watching });
 }
 
+// Moves someone in one of the guild's voice channels into another (the owner and
+// Administrators); their apps join it themselves (voiceClient `guild_voice_move`).
+export async function moveVoiceMember(guildId, userId, channelId) {
+  await api.put(`/guilds/${guildId}/voice/members/${userId}`, { channelId: Number(channelId) });
+}
+
 export async function leaveVoiceChannel() {
   await api.delete('/voice');
 }

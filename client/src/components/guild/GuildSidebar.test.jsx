@@ -41,7 +41,13 @@ vi.mock('../../voice/voiceClient', () => ({
   joinVoice: vi.fn(),
 }));
 
+vi.mock('../../services/voiceService', async (importOriginal) => ({
+  ...(await importOriginal()),
+  moveVoiceMember: vi.fn(async () => {}),
+}));
+
 import GuildSidebar from './GuildSidebar';
+import { moveVoiceMember } from '../../services/voiceService';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
 import { joinVoice } from '../../voice/voiceClient';
 import {
@@ -87,14 +93,14 @@ function Where() {
   return <div data-testid="where">{useLocation().pathname}</div>;
 }
 
-function renderSidebar({ user = owner, unread = [], mutes = {}, categoryMutes = {}, channelLevels = {}, path = '/guild/5/10', permissions, isMobile = false, threads = [] } = {}) {
+function renderSidebar({ user = owner, unread = [], mutes = {}, categoryMutes = {}, channelLevels = {}, path = '/guild/5/10', permissions, isMobile = false, threads = [], channels = baseGuild.channels } = {}) {
   const guildList = {
     unread, mutes, categoryMutes, channelLevels, applyMute: vi.fn(), applyCategoryMute: vi.fn(), applyChannelLevel: vi.fn(),
     isMuted: (id) => Boolean(mutes[id] || categoryMutes[baseGuild.channels.find((c) => c.id === id)?.category_id]),
     isCategoryMuted: (id) => Boolean(categoryMutes[id]),
     clearUnread: vi.fn(), removeGuild: vi.fn(), upsertGuild: vi.fn(), loadGuild: vi.fn(async () => {}),
   };
-  const guild = { ...baseGuild, threads, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
+  const guild = { ...baseGuild, channels, threads, my_permissions: permissions ?? (user.id === baseGuild.owner ? ALL : DEFAULT) };
   render(
     <ConfigContext.Provider value={{ s3Endpoint: '', voiceEnabled: true }}>
     <InteractionContext.Provider value={{ isMobile }}>
@@ -121,6 +127,56 @@ beforeEach(() => {
 });
 
 describe('GuildSidebar', () => {
+  describe('moving people between voice channels', () => {
+    const channels = [
+      ...baseGuild.channels,
+      { id: 13, name: 'stage', type: 'voice', category_id: 2, position: 3, my_permissions: ALL, voice: [] },
+    ];
+    const memberRow = (name) => screen.getByText(name).closest('li');
+
+    it('lets an administrator drag someone onto another voice channel', async () => {
+      renderSidebar({ channels });
+      const carol = memberRow('carol');
+      const stage = channelRow('stage');
+      document.elementFromPoint = vi.fn(() => stage);
+      try {
+        fireEvent.pointerDown(carol, { pointerType: 'mouse', button: 0, clientX: 10, clientY: 10 });
+        fireEvent.pointerMove(window, { pointerType: 'mouse', clientX: 10, clientY: 60 });
+        expect(stage).toHaveClass('voice-drop-target');
+        expect(carol).toHaveClass('dragging');
+        expect(document.querySelector('.voice-member-ghost')).toHaveTextContent('carol');
+        fireEvent.pointerUp(window, { pointerType: 'mouse', clientX: 10, clientY: 60 });
+        expect(moveVoiceMember).toHaveBeenCalledWith(5, 3, 13);
+        expect(document.querySelector('.voice-member-ghost')).toBeNull();
+        expect(stage).not.toHaveClass('voice-drop-target');
+
+        // Dropped back on their own channel, or somewhere that isn't a voice channel: nothing.
+        for (const target of [channelRow('lounge'), channelRow('memes')]) {
+          document.elementFromPoint = vi.fn(() => target);
+          fireEvent.pointerDown(carol, { pointerType: 'mouse', button: 0, clientX: 10, clientY: 10 });
+          fireEvent.pointerMove(window, { pointerType: 'mouse', clientX: 10, clientY: 60 });
+          fireEvent.pointerUp(window, { pointerType: 'mouse', clientX: 10, clientY: 60 });
+        }
+        expect(moveVoiceMember).toHaveBeenCalledTimes(1);
+      } finally {
+        delete document.elementFromPoint;
+        // Each drop swallows the click that follows it until the next task (usePointerDrag).
+        await new Promise((resolve) => { setTimeout(resolve, 0); });
+      }
+    });
+
+    it("isn't offered to members who aren't administrators, or on a phone", () => {
+      renderSidebar({ user: member, channels, permissions: DEFAULT | 16 }); // Manage Channels
+      expect(memberRow('carol')).not.toHaveAttribute('data-voice-draggable');
+      cleanup();
+      renderSidebar({ channels, isMobile: true });
+      expect(memberRow('carol')).not.toHaveAttribute('data-voice-draggable');
+      cleanup();
+      renderSidebar({ channels });
+      expect(memberRow('carol')).toHaveAttribute('data-voice-draggable');
+    });
+  });
+
   it('lists the threads you joined under their channel, opening in full view', () => {
     const threads = [
       { id: 50, parent_id: 10, name: 'Trip planning', joined: true },

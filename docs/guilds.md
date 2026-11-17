@@ -141,10 +141,11 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   who did what, to what, when. Routes call `logAudit` inside their transaction: message deletes
   (anyone's, own included; whose it was, who deleted it, channel, when it was sent, **never its
   text**; a webhook deleting its own with its token is the actor), pins/unpins, kicks, bans and
-  unbans, member role changes, ownership transfer, roles (create/change/delete, with what
+  unbans, member role changes, moving someone to another voice channel (or a bot taking them
+  out), ownership transfer, roles (create/change/delete, with what
   changed), channels and categories (create/change/delete), channel overrides (before/after),
   invites (create/revoke), emoji, webhooks, guild name/icon. Not logged: reordering roles,
-  channels and categories, joins and leaves, edits, reactions, voice. `details` keeps names as
+  channels and categories, joins and leaves, edits, reactions, joining and leaving voice. `details` keeps names as
   they were. Kept for good (deleted with the guild); the owner alone (not Administrator: they
   could hide their own doings) can clear entries older than 30/90/365 days or all (`POST
   /guilds/:id/audit-log/clear { olderThanDays }`, `clearAuditLog`), which logs an

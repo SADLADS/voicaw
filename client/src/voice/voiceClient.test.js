@@ -460,6 +460,24 @@ describe('voiceClient channel settings', () => {
     expect(lk.state.room).not.toBe(before);
     expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'connected', channelId: 2 });
   });
+
+  it('joins the channel an administrator moved it to, only from the channel it was in', async () => {
+    const { fetchVoiceToken } = await import('../services/voiceService');
+    await voice.joinVoice(1, 2);
+    await flush();
+    const asked = fetchVoiceToken.mock.calls.length;
+    // For another device of ours (in another channel): nothing happens here.
+    sendGuildEvent({ type: 'guild_voice_move', guildId: 1, fromChannelId: 9, channelId: 3 });
+    await flush();
+    expect(fetchVoiceToken.mock.calls.length).toBe(asked);
+
+    sendGuildEvent({ type: 'guild_voice_move', guildId: 1, fromChannelId: 2, channelId: 3 });
+    await new Promise((resolve) => { setTimeout(resolve, 10); });
+    await flush();
+    expect(fetchVoiceToken.mock.calls.length).toBe(asked + 1);
+    expect(fetchVoiceToken.mock.calls.at(-1).slice(0, 2)).toEqual([1, 3]);
+    expect(voice.getVoiceSnapshot()).toMatchObject({ status: 'connected', guildId: 1, channelId: 3 });
+  });
 });
 
 describe('voiceClient speakers', () => {

@@ -24,6 +24,11 @@ import { showContent } from '../../utils/mobilePanes';
 import { groupChannels } from '../../utils/guildDisplay';
 import { deleteCategory, deleteChannel, leaveGuild, moveCategory, moveChannel } from '../../services/guildService';
 import { useChannelDrag } from '../../hooks/useChannelDrag';
+import { useVoiceMemberDrag } from '../../hooks/useVoiceMemberDrag';
+import { moveVoiceMember } from '../../services/voiceService';
+import { showErrorToast } from '../../services/toasts';
+import UserAvatar from '../voice/UserAvatar';
+import { createPortal } from 'react-dom';
 import InviteDialog from './InviteDialog';
 import ChannelDialog from './ChannelDialog';
 import CategoryDialog from './CategoryDialog';
@@ -121,6 +126,15 @@ export default function GuildSidebar({ guild, user }) {
       guildList.loadGuild(guild.id).catch(() => {});
     },
     onMenu: (item, anchor) => setRowMenu({ ...item, anchor }),
+  });
+  // The owner and Administrators drag people in voice onto another voice channel (on a computer).
+  const { drag: memberDrag, dragProps: memberDragProps } = useVoiceMemberDrag({
+    enabled: has(guild?.my_permissions, PERMISSIONS.ADMINISTRATOR) && voiceEnabled && !isMobile,
+    listRef,
+    move: (userId, toChannelId) => {
+      moveVoiceMember(guild.id, userId, toChannelId)
+        .catch((err) => showErrorToast(t('guilds.voice.moveFailed'), err));
+    },
   });
   // Touch and hold on the list's empty space (not a row) opens its menu on a phone.
   const listPress = useLongPress(() => setRowMenu({ kind: 'list', anchor: { left: 0, right: 0, top: 0, bottom: 0 } }), { enabled: isMobile });
@@ -267,11 +281,15 @@ export default function GuildSidebar({ guild, user }) {
     const muted = guildList.isMuted(channel.id);
     const ownMute = Boolean(guildList.mutes[channel.id]);
     const moving = dragged('channel', channel.id);
+    // Someone being dragged here from another voice channel (useVoiceMemberDrag).
+    const dropTarget = memberDrag?.overChannelId === channel.id && memberDrag.channelId !== channel.id;
+    const voiceDrop = channel.type === 'voice' ? channel.id : undefined;
     return (
       <React.Fragment key={channel.id}>
       <li
-        className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}${muted ? ' muted' : ''}${connected ? ' connected' : ''}${moving.className}`}
+        className={`guild-channel${active ? ' active' : ''}${unread ? ' unread' : ''}${muted ? ' muted' : ''}${connected ? ' connected' : ''}${dropTarget ? ' voice-drop-target' : ''}${moving.className}`}
         style={moving.style}
+        data-voice-drop={voiceDrop}
         data-drag-row="channel"
         data-id={channel.id}
         data-category={channel.category_id ?? ''}
@@ -346,8 +364,14 @@ export default function GuildSidebar({ guild, user }) {
         </li>
       ))}
       {channel.voice?.length > 0 && (
-        <li className="guild-channel-voice">
-          <VoiceChannelMembers members={channel.voice} speaking={channel.id === inVoice ? speaking : new Set()} inChannel={channel.id === inVoice} />
+        <li className={`guild-channel-voice${dropTarget ? ' voice-drop-target' : ''}`} data-voice-drop={voiceDrop}>
+          <VoiceChannelMembers
+            members={channel.voice}
+            speaking={channel.id === inVoice ? speaking : new Set()}
+            inChannel={channel.id === inVoice}
+            dragProps={(userId, name) => memberDragProps(userId, name, channel.id)}
+            draggingId={memberDrag?.userId ?? null}
+          />
         </li>
       )}
       {threadsOf(channel).map(renderThread)}
@@ -422,7 +446,7 @@ export default function GuildSidebar({ guild, user }) {
       </div>
 
       <nav
-        className={`guild-channel-list${drag ? ' reordering' : ''}`}
+        className={`guild-channel-list${drag || memberDrag ? ' reordering' : ''}`}
         aria-label={t('guilds.sidebar.channels')}
         ref={listRef}
         // Right-click on the empty space (a row's own menu has already handled its clicks).
@@ -436,6 +460,14 @@ export default function GuildSidebar({ guild, user }) {
         onTouchStart={onListTouchStart}
       >
         {drag?.lineTop != null && <div className="channel-drop-line" style={{ top: drag.lineTop }} aria-hidden="true" />}
+        {memberDrag && createPortal(
+          // A copy of the person being moved, following the pointer.
+          <div className="voice-member-ghost" style={{ left: memberDrag.x, top: memberDrag.y }} aria-hidden="true">
+            <UserAvatar userId={memberDrag.userId} className="voice-member-avatar" />
+            <span className="voice-member-name">{memberDrag.name}</span>
+          </div>,
+          document.body,
+        )}
         <button type="button" className="guild-events-button" onClick={() => openEvents()}>
           <Icon icon={faCalendarDays} className="guild-channel-icon" aria-hidden="true" />
           <span className="guild-channel-name">

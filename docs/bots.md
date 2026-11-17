@@ -256,6 +256,9 @@ maybe DAVE) may come later. Audio only: bots never get Video (`voice.canStreamWi
   fresh; joining another channel leaves the first); `GET /guilds/:id/voice-states/@me` (or a
   user id; Discord's shape plus `listening`); `PATCH /guilds/:id/voice-states/@me` (`self_mute`,
   `self_deaf`, or `channel_id: null` to leave); `DELETE /guilds/:id/voice-states/@me` leaves.
+  `PATCH /guilds/:id/members/:user` with `channel_id` moves someone in voice to another voice
+  channel, or with `null` takes them out (Administrator, as there's no Move Members bit; people
+  only, not bots; see Moving people between voice channels in `docs/voice-and-calls.md`).
   The bot is then a voice participant like anyone (LiveKit's webhooks put it in `voice.states`),
   so VOICE_STATE_UPDATE goes to bots with Guild Voice States, and GUILD_CREATE's
   `voice_states` lists who's in the voice channels the bot can see. Gateway op 4 (Discord's

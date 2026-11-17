@@ -17,6 +17,8 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   role_create / role_delete { name }, role_update { name, changes }
 //   member_role_update { added: [{ id, name }], removed } (target: the member)
 //   member_kick, member_ban_add, member_ban_remove (target: the user)
+//   member_move { channelName, fromChannelName } (target: the user; channel: where they went),
+//   member_disconnect { channelName } (taken out of voice by a bot; channel: the one they left)
 //   invite_create { code, maxAge, maxUses }, invite_delete { code }
 //   vanity_update { before, after } (the vanity invite's code; null: none)
 //   emoji_create / emoji_delete { name }, emoji_update { changes }
