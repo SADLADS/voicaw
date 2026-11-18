@@ -1182,6 +1182,27 @@ small {
   vertical-align: middle;
 }
 
+/* A DM's name and "Last seen": shrinks before the header's buttons do, the name cut with …
+   (a phone puts the status on its own line, mobile.css). */
+.chat-recipient-title {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  margin-right: 8px;
+}
+
+.chat-recipient-name,
+.chat-recipient-title .chat-recipient-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-recipient-title .chat-recipient-status {
+  flex-shrink: 0;
+  max-width: 50%;
+}
+
 .chat-recipient-header .key-status-badge {
   margin-left: 10px;
   font-size: 12px;

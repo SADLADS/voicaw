@@ -972,6 +972,7 @@ body.popout-window {
 
 .chat-call-button {
   order: 1;
+  flex-shrink: 0;
   margin-left: auto;
   display: flex;
   align-items: center;

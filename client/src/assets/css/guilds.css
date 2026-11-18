@@ -837,6 +837,7 @@ img.guild-icon {
 .chat-recipient-header .guild-search,
 .chat-recipient-header .search-button {
   order: 2;
+  flex-shrink: 0;
   margin-left: 6px;
 }
 

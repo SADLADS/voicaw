@@ -108,12 +108,15 @@ export default function Dm({ user }) {
                 {presence && <StatusIcon status={presence.status} />}
               </span>
             )}
-            {chatName || t('chat.composer.fallbackName')}
-            {presence?.status === 'offline' && (
-              <span className="chat-recipient-status">
-                {lastSeenText(presence.lastOnline) ?? statusLabel('offline')}
-              </span>
-            )}
+            {/* Shrinks (the name cut with …) so a long name never pushes the buttons away. */}
+            <span className="chat-recipient-title">
+              <span className="chat-recipient-name">{chatName || t('chat.composer.fallbackName')}</span>
+              {presence?.status === 'offline' && (
+                <span className="chat-recipient-status">
+                  {lastSeenText(presence.lastOnline) ?? statusLabel('offline')}
+                </span>
+              )}
+            </span>
             {blockedThem && (
               <button type="button" className="btn btn-sm btn-secondary chat-unblock-button" onClick={() => unblockUser(chatUser.id).catch(() => {})}>
                 {t('chat.blocked.unblock')}

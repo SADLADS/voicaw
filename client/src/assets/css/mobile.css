@@ -521,3 +521,21 @@
     top: calc(env(safe-area-inset-top) + 8px);
     margin-top: 4px;
 }
+
+/* A DM's header on a phone: "Last seen" on its own small line under the name, so the name keeps
+   the row's width and the buttons stay on screen. */
+.mobile-mode .chat-recipient-title {
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+}
+
+.mobile-mode .chat-recipient-name,
+.mobile-mode .chat-recipient-title .chat-recipient-status {
+    max-width: 100%;
+}
+
+.mobile-mode .chat-recipient-title .chat-recipient-status {
+    margin-left: 0;
+    font-size: 11px;
+}
