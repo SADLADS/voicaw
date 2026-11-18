@@ -5,6 +5,7 @@ import {
   decryptThumbnail,
   buildAttachmentUrl,
   parseAttachmentUrl,
+  safeAttachmentType,
   ENCRYPTION_OVERHEAD_BYTES,
 } from './attachmentCrypto';
 
@@ -61,6 +62,19 @@ describe('attachmentCrypto', () => {
     expect(parseAttachmentUrl('https://s3.test/x.bin#v=2&k=abc&s=5')).toBeNull();
     expect(parseAttachmentUrl('https://s3.test/x.bin#v=2&k=abc&n=AAAAAAAAAAAAAAAA')).toBeNull();
     expect(parseAttachmentUrl(undefined)).toBeNull();
+  });
+
+  it('keeps only types that cannot hold script; the rest are plain files', () => {
+    for (const type of ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'audio/webm', 'application/pdf', 'text/plain']) {
+      expect(safeAttachmentType(type)).toBe(type);
+    }
+    expect(safeAttachmentType('audio/webm;codecs=opus')).toBe('audio/webm');
+    expect(safeAttachmentType('IMAGE/PNG')).toBe('image/png');
+    for (const type of ['image/svg+xml', 'text/html', 'application/xhtml+xml', 'text/xml', 'application/xml', 'video/x+xml', 'image/x-icon', 'text/html;x=image/png', '', null]) {
+      expect(safeAttachmentType(type)).toBe('application/octet-stream');
+    }
+    // A sender's SVG is not a picture.
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=1&k=abc&t=image%2Fsvg%2Bxml').type).toBe('application/octet-stream');
   });
 
   it('defaults a missing type and tolerates a missing size', () => {

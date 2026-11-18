@@ -138,6 +138,10 @@ if (require.main === module) {
     console.log(`Server running on port ${config.port} (max message length ${config.maxPlaintextLength})`);
   });
   attachWebSocketServer(server);
+  // A promise nobody awaited failing is logged, not fatal: Node's default (exiting) would let
+  // one bad request or message restart the API for everyone. Uncaught synchronous exceptions
+  // still exit, as before.
+  process.on('unhandledRejection', (err) => console.error('Unhandled rejection', err));
   // Who's in voice right now, in case the API restarted while people were talking.
   require('./voice').restoreFromLiveKit();
   // Profile pictures from before they were processed (a one-off; nothing to do afterwards).

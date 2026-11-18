@@ -93,6 +93,18 @@ export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, sp
   return `${fileUrl}#${params}`;
 }
 
+// An attachment's type is whatever its sender wrote (`t=`), and becomes the type of the decrypted
+// blob: URL, which is the app's own origin. A type a browser renders as a page (text/html,
+// image/svg+xml, anything XML...) would let a sender's script run as the app if the blob were
+// ever opened, so only types that can't hold script are kept; the rest are plain files. Pictures
+// are only the raster types browsers show.
+const SAFE_TYPE = /^(?:image\/(?:png|jpeg|gif|webp|avif|bmp)|video\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+|application\/(?:pdf|zip|gzip|x-7z-compressed|x-tar|x-rar-compressed)|text\/plain)$/;
+
+export function safeAttachmentType(type) {
+  const bare = String(type ?? '').split(';')[0].trim().toLowerCase();
+  return SAFE_TYPE.test(bare) && !bare.includes('xml') ? bare : 'application/octet-stream';
+}
+
 function positiveInt(value) {
   return /^[1-9]\d*$/.test(value ?? '') ? Number(value) : null;
 }
@@ -132,7 +144,7 @@ export function parseAttachmentUrl(url) {
     version: Number(version),
     fileUrl,
     key,
-    type: params.get('t') || 'application/octet-stream',
+    type: safeAttachmentType(params.get('t')),
     size: /^\d+$/.test(size ?? '') ? Number(size) : null,
     width: width && height ? width : null,
     height: width && height ? height : null,

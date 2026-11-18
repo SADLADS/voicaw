@@ -57,10 +57,14 @@ function refused(reason, payload, req) {
   if (at - (refusalsLogged.get(key) ?? 0) >= REFUSAL_LOG_MS) {
     refusalsLogged.set(key, at);
     if (refusalsLogged.size > 1000) refusalsLogged.clear();
-    const issued = payload?.iat ? new Date(payload.iat * 1000).toISOString() : '?';
+    // The payload of a token that failed verification is whatever its sender wrote: only
+    // checked, short values go into the line (an iat of 1e300 would make toISOString throw).
+    const iat = Number(payload?.iat);
+    const issued = Number.isFinite(iat) && Math.abs(iat) < 8.64e12 ? new Date(iat * 1000).toISOString() : '?';
+    const id = String(payload?.id ?? '?').slice(0, 20);
     const where = req ? `${req.method} ${req.originalUrl?.split('?')[0]}` : 'websocket';
     const agent = String(req?.get?.('user-agent') ?? '').match(/Voicaw\/[\d.]+|Chrome\/\d+|Firefox\/\d+|Safari\/\d+/)?.[0] ?? '';
-    console.warn(`Token refused: ${reason}; user ${payload?.id ?? '?'}, session ${String(payload?.sid ?? 'none').slice(0, 6)}, issued ${issued}, ${where} ${agent}`.trim());
+    console.warn(`Token refused: ${reason}; user ${id}, session ${String(payload?.sid ?? 'none').slice(0, 6)}, issued ${issued}, ${where} ${agent}`.trim());
   }
   return null;
 }

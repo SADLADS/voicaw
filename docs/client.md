@@ -624,6 +624,22 @@
   elsewhere) with `rsync --delay-updates --delete-after`: the new files go in together at the
   end, and only then do the old build's go. A failed build or check changes nothing there.
 
+## Content-Security-Policy
+
+Added 2026-11-18 (security audit): every built page (`vite build`, so the web app, the desktop
+app and the Android app alike) carries a `<meta http-equiv="Content-Security-Policy">`, put in by
+the `contentSecurityPolicy()` plugin in `client/vite.config.js`: `script-src 'self'
+'wasm-unsafe-eval'` plus a sha256 hash of each inline script left in the page (worked out at build
+time, so editing `index.html`'s theme script needs nothing else), `object-src 'none'`,
+`base-uri 'self'`. Only scripts are restricted: pictures, styles (Font Awesome's CSS from
+cdnjs), frames (YouTube) and connections (other servers, LiveKit) come from wherever they did.
+`'wasm-unsafe-eval'` is for RNNoise and DeepFilterNet; workers and AudioWorklets are our own
+files. A page opened from a `blob:` URL inherits the policy, so a script in one doesn't run (the
+second line behind Attachment types in `docs/uploads.md`). The dev server has none (Vite adds
+inline scripts of its own); `e2e/attachmenttypes.mjs` checks a production build. Anything new
+that needs `eval`, an inline script added at run time or a script from another site will be
+refused: give it a file of its own instead.
+
 ## Errors
 
 Built 2026-11-16, after "Error loading users: Network Error" and "Error: Request failed with

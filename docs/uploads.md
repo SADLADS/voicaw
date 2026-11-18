@@ -115,6 +115,16 @@ placeholders (pending messages, from local blob URLs), encrypted attachments (fe
 cached in `services/attachmentCache.js`; images inline, videos in the player below, anything else
 a download box), and plain URLs (legacy unencrypted uploads, external images) as `<img>`.
 
+**Attachment types** (security audit, 2026-11-18): `t=` is whatever the sender wrote, and becomes
+the type of the decrypted `blob:` URL, which is the app's own origin. `parseAttachmentUrl` keeps
+only types that can't hold script (`safeAttachmentType`: png, jpeg, gif, webp, avif and bmp
+pictures, any video/ or audio/ type, pdf, a few archives, text/plain; parameters dropped) and makes
+the rest `application/octet-stream`, so an SVG (or HTML...) arrives as a download box, never a
+picture, and the service worker never serves one with that type. `openInNewTab`
+(`utils/saveFile.js`, the image menu's Open Image) only opens a blob whose type is a picture,
+video or sound and downloads anything else: a page made of a blob would run as the app. The
+Content-Security-Policy (see Content-Security-Policy in `docs/client.md`) is the second line.
+
 **The + panel** (2026-10-07, as in Discord's phone app): on a computer the + button is a menu
 (Upload a file, Create poll, and Create thread in a guild text channel you may start threads in,
 `ThreadContext` `startThread`). On a phone it's a panel in the keyboard's place

@@ -90,7 +90,8 @@ describe('voice messages', () => {
     const url = voiceUrl(waveform);
     expect(url).toContain('&vm=1&wf=');
     const meta = parseAttachmentUrl(url);
-    expect(meta).toMatchObject({ version: 2, voice: true, duration: 3.2, type: 'audio/webm;codecs=opus', size: 1234 });
+    // (Parameters such as codecs are dropped: safeAttachmentType.)
+    expect(meta).toMatchObject({ version: 2, voice: true, duration: 3.2, type: 'audio/webm', size: 1234 });
     expect([...meta.waveform]).toEqual([...waveform]);
     expect(uploadNamesIn(`![voice-message.webm](${url})`)).toEqual(['0f0e.bin']);
 

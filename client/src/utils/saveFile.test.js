@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { triggerDownload } from './saveFile';
+import { triggerDownload, openInNewTab } from './saveFile';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 
@@ -65,5 +65,42 @@ describe('triggerDownload', () => {
     await triggerDownload('blob:x', 'codes.txt');
     expect(navigator.share).not.toHaveBeenCalled();
     expect(clicked).toEqual(['codes.txt']);
+  });
+});
+
+describe('openInNewTab', () => {
+  let clicked;
+  beforeEach(() => {
+    clicked = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function click() {
+      clicked.push(this.download);
+    });
+    vi.spyOn(window, 'open').mockImplementation(() => null);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+  const blobOf = (type) => vi.stubGlobal('fetch', vi.fn(async () => ({ blob: async () => new Blob(['x'], { type }) })));
+
+  it('opens a decrypted picture in a tab', async () => {
+    blobOf('image/png');
+    await openInNewTab('blob:pic', 'cat.png');
+    expect(window.open).toHaveBeenCalledWith('blob:pic', '_blank');
+  });
+
+  // A page made of a blob runs as the app: its script could read the login and the keys.
+  it('downloads a blob that could hold script instead of opening it', async () => {
+    for (const type of ['image/svg+xml', 'text/html', 'application/xhtml+xml', '']) {
+      blobOf(type);
+      await openInNewTab('blob:evil', 'evil.svg');
+    }
+    expect(window.open).not.toHaveBeenCalled();
+    expect(clicked).toEqual(['evil.svg', 'evil.svg', 'evil.svg', 'evil.svg']);
+  });
+
+  it('opens other addresses with noopener', async () => {
+    await openInNewTab('https://example.test/');
+    expect(window.open).toHaveBeenCalledWith('https://example.test/', '_blank', 'noopener,noreferrer');
   });
 });

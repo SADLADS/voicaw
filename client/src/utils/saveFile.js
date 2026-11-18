@@ -54,14 +54,26 @@ export async function triggerDownload(objectUrl, name) {
   downloadLink(objectUrl, name);
 }
 
+// What a blob: URL may be opened as in a tab: a page made of it runs in the app's own origin, so
+// only types that can't hold script (pictures, videos, sound). Anything else is downloaded.
+const OPENABLE_BLOB = /^(?:image\/(?:png|jpeg|gif|webp|avif|bmp)|video\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+)$/;
+
 // `name`: what a blob: URL is saved as in the Android app, which has no tabs, and where no other
 // app can read one: it's saved to Downloads, then opened from there.
-export function openInNewTab(url, name) {
+export async function openInNewTab(url, name) {
   if (isAndroidApp() && url.startsWith('blob:')) return saveInAndroidApp(url, name || t('media.save.defaultName'), true);
+  if (!url.startsWith('blob:')) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const type = await fetch(url).then((res) => res.blob()).then((blob) => blob.type.toLowerCase(), () => '');
+  if (!OPENABLE_BLOB.test(type) || type.includes('xml')) {
+    downloadLink(url, name || t('media.save.defaultName'));
+    return;
+  }
   // Decrypted attachments are blob: URLs, which only resolve in a page from the same origin
   // and browsing-context group, so those can't be opened with noopener.
-  if (url.startsWith('blob:')) window.open(url, '_blank');
-  else window.open(url, '_blank', 'noopener,noreferrer');
+  window.open(url, '_blank');
 }
 
 // Attachments are already blob: URLs. Other images (legacy uploads, external links) are

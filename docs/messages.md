@@ -227,7 +227,9 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   the message's own followed by these, as in Discord). A page gives its OpenGraph / Twitter
   card (`embedFromHtml`: site name, title, description cut at 350, `theme-color` as the bar,
   `og:image` large with `summary_large_image` or a video, else a thumbnail, and an `og:video`
-  that is an MP4/WebM/QuickTime/Ogg file); a link to a picture (`image`, size read from its
+  that is an MP4/WebM/QuickTime/Ogg file; the page is read with `indexOf` scans, never
+  backtracking regexes, and tags over 8 KB or titles over 4 KB are skipped, since it is anyone's
+  page read on the API's own thread: a page of `<meta ` repeated once took minutes, 2026-11-18); a link to a picture (`image`, size read from its
   header with sharp) or a video (`video`) is shown as itself. Fetching (`safeFetch.js`): http(s)
   on ports 80/443 only, every address checked to be public (no loopback, private, link-local,
   CGNAT, multicast, IPv4-mapped or NAT64 ones), the check done on the address actually

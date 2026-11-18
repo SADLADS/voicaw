@@ -109,18 +109,54 @@ function colorOf(value) {
   return parseInt(hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex, 16);
 }
 
+// The page is anyone's, up to 1 MB, and read on the API's own thread: everything here takes
+// time in proportion to its length. (Regexes such as /<meta\s[^>]*>/g went quadratic on a page
+// of "<meta " with no ">", stalling the server for minutes.) Tags and titles longer than any
+// real one are skipped, which also keeps attributes() and decodeEntities() on short strings.
+const MAX_TAG_CHARS = 8192;
+const MAX_TITLE_CHARS = 4096;
+
+// Each <meta ...> tag in `head`.
+function* metaTags(head) {
+  const lower = head.toLowerCase();
+  let at = 0;
+  for (;;) {
+    const start = lower.indexOf('<meta', at);
+    if (start === -1) return;
+    const end = lower.indexOf('>', start);
+    if (end === -1) return; // No ">" left: no later tag can close either.
+    at = end + 1;
+    if (!/\s/.test(lower[start + 5] ?? '') || end - start > MAX_TAG_CHARS) continue;
+    yield head.slice(start, end + 1);
+  }
+}
+
+// The text of the first <title>, if it closes.
+function titleOf(head) {
+  const lower = head.toLowerCase();
+  let start = lower.indexOf('<title');
+  // "<title>" or "<title ...>", not "<titlebar>".
+  while (start !== -1 && !/[\s>]/.test(lower[start + 6] ?? '')) start = lower.indexOf('<title', start + 6);
+  if (start === -1) return undefined;
+  const open = lower.indexOf('>', start);
+  if (open === -1) return undefined;
+  const close = lower.indexOf('</title>', open);
+  if (close === -1 || close - open > MAX_TITLE_CHARS) return undefined;
+  return head.slice(open + 1, close);
+}
+
 // What a page says about itself: its <head>'s meta tags and title. Resolves to an embed for
 // `link` (fetched as `pageUrl`), or null when it says nothing worth showing.
 function embedFromHtml(html, link, pageUrl) {
   const bodyAt = html.search(/<body[\s>]/i);
   const head = bodyAt === -1 ? html : html.slice(0, bodyAt);
   const meta = {};
-  for (const [tag] of head.matchAll(/<meta\s[^>]*>/gi)) {
+  for (const tag of metaTags(head)) {
     const attrs = attributes(tag);
     const key = (attrs.property ?? attrs.name ?? attrs.itemprop)?.toLowerCase();
     if (key && attrs.content != null && !(key in meta)) meta[key] = attrs.content;
   }
-  const titleTag = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(head)?.[1];
+  const titleTag = titleOf(head);
   const title = clean(meta['og:title'] ?? meta['twitter:title'] ?? titleTag, 256);
   const description = clean(meta['og:description'] ?? meta['twitter:description'] ?? meta.description, 350);
   const siteName = clean(meta['og:site_name'] ?? meta['application-name'], 256);

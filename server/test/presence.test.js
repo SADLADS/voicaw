@@ -57,6 +57,34 @@ describe('connection check', () => {
     expect(await next((e) => e.type === 'pong')).toEqual({ type: 'pong' });
     ws.close();
   });
+
+  // Each of these once threw inside the message handler, which nothing caught: Node exited.
+  it('shrugs off messages that are valid JSON but not objects', async () => {
+    const { ws, next } = await connect();
+    for (const text of ['null', '1', '"x"', 'true']) ws.send(text);
+    ws.send(JSON.stringify({ type: 'ping' }));
+    expect(await next((e) => e.type === 'pong')).toEqual({ type: 'pong' });
+    ws.close();
+  });
+
+  it('refuses a forged token whose issue time is out of range, and keeps running', async () => {
+    const part = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const forged = `${part({ alg: 'HS256', typ: 'JWT' })}.${part({ id: 1, sid: 'x', iat: 1e300 })}.${'A'.repeat(43)}`;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const { ws } = await connect();
+      ws.send(JSON.stringify({ type: 'identify', token: forged }));
+      const code = await new Promise((resolve) => ws.on('close', resolve));
+      expect(code).toBe(1008);
+      expect(warn.mock.calls.flat().join(' ')).toMatch(/Token refused: .*issued \?/);
+    } finally {
+      warn.mockRestore();
+    }
+    const { ws, next } = await connect();
+    ws.send(JSON.stringify({ type: 'ping' }));
+    expect(await next((e) => e.type === 'pong')).toEqual({ type: 'pong' });
+    ws.close();
+  });
 });
 
 describe('online status over the websocket', () => {

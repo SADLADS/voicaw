@@ -89,6 +89,28 @@ describe('embedFromHtml', () => {
     expect(video).toEqual({ type: 'video', url: 'https://x.test/v', title: 'Clip', video: { url: 'https://x.test/v.mp4' } });
   });
 
+  // Pages built to make regexes backtrack (1 MB, as safeFetch allows): each once took minutes.
+  it('reads hostile pages in linear time', () => {
+    const MB = 1024 * 1024;
+    const pages = [
+      '<meta '.repeat(MB / 6),
+      '<title>'.repeat(MB / 7),
+      `<meta ${'a'.repeat(MB)}>`,
+      `<title>${'&a'.repeat(MB / 2)}</title>`,
+      `<meta name="description" content="${'&a'.repeat(MB / 2)}">`,
+    ];
+    for (const html of pages) {
+      const started = performance.now();
+      linkPreviews.embedFromHtml(html, 'https://x.test/', 'https://x.test/');
+      expect(performance.now() - started).toBeLessThan(500);
+    }
+  });
+
+  it('still finds tags after a "<meta" that is not one, and ignores <titlebar>', () => {
+    expect(linkPreviews.embedFromHtml('<metadata><titlebar>no</titlebar><title>Yes</title><meta name="description" content="d">', 'https://x.test/', 'https://x.test/'))
+      .toEqual({ type: 'link', url: 'https://x.test/', title: 'Yes', description: 'd' });
+  });
+
   it('gives nothing for a page that says nothing', () => {
     expect(linkPreviews.embedFromHtml('<html><body>hi</body></html>', 'https://x.test/', 'https://x.test/')).toBeNull();
   });

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import fs from 'fs';
+import crypto from 'crypto';
 import { createRequire } from 'module';
 import { SHEET_CELL, SHEET_COLUMNS, emojiSheets, sheetKey } from './src/emoji/emojiSheets.js';
 import { twemojiFile } from './src/emoji/twemojiFile.js';
@@ -122,6 +123,27 @@ function vendorChunk(id) {
 // Spellcheck dictionaries (src/spellcheck/dictionaries.js): the packages only export a Node
 // loader, so their .aff/.dic files are reached through these folders, as `?url` assets.
 const requireHere = createRequire(import.meta.url);
+// A Content-Security-Policy in every built page: scripts only from the app itself (plus the
+// page's own inline scripts, by hash, and WebAssembly for noise suppression), so a script that
+// finds its way into the app's origin (an attachment opened as a page, injected markup) doesn't
+// run. Only scripts are restricted: pictures, styles, frames and connections still come from
+// wherever they did. Built pages only: the dev server adds inline scripts of its own.
+function contentSecurityPolicy() {
+  return {
+    name: 'voicaw-csp',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        const hashes = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
+          .map(([, body]) => `'sha256-${crypto.createHash('sha256').update(body).digest('base64')}'`);
+        const policy = ["script-src 'self' 'wasm-unsafe-eval'", ...hashes].join(' ') + "; object-src 'none'; base-uri 'self'";
+        return html.replace(/<meta charset="UTF-8" \/>/i, (tag) => `${tag}\n  <meta http-equiv="Content-Security-Policy" content="${policy}" />`);
+      },
+    },
+  };
+}
+
 const DICTIONARY_ALIASES = {
   '@dictionaries/en-GB': path.dirname(requireHere.resolve('dictionary-en-gb')),
   '@dictionaries/en-US': path.dirname(requireHere.resolve('dictionary-en')),
@@ -159,6 +181,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       twemojiAssets(),
+      contentSecurityPolicy(),
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'src',

@@ -208,68 +208,77 @@ function attachWebSocketServer(server) {
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
 
+    // Nothing a client sends may take the server down: anything thrown is logged and dropped.
     ws.on('message', async (msg) => {
-      let data;
       try {
-        data = JSON.parse(msg);
+        let data;
+        try {
+          data = JSON.parse(msg);
+        } catch {
+          // (Not the error itself: it quotes the text, which could hold a token.)
+          console.error('Invalid websocket message');
+          return;
+        }
+        // JSON.parse also gives null, numbers and strings.
+        if (!data || typeof data !== 'object') return;
+        // A client checking its connection still works (a phone back from sleep: browsers can't
+        // see the heartbeat's pings).
+        if (data.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong' }));
+        } else if (data.type === 'identify') {
+          if (ws.userId || ws.pendingUserId || ws.identifying) return;
+          ws.identifying = true;
+          const user = await auth.verifyToken(data.token);
+          ws.identifying = false;
+          // Closed while the token was checked: its close handler has already run.
+          if (ws.readyState !== WebSocket.OPEN) return;
+          if (!user) {
+            ws.close(1008, 'Invalid token');
+            return;
+          }
+          ws.sessionId = user.sid;
+          if (user.pending) {
+            ws.pendingUserId = String(user.id);
+            if (!pendingClients.has(ws.pendingUserId)) pendingClients.set(ws.pendingUserId, []);
+            pendingClients.get(ws.pendingUserId).push(ws);
+            return;
+          }
+          addClient(ws, user.id);
+        } else if (data.type === 'presence') {
+          // Whether this client is on screen and which conversation it shows (used to skip
+          // push notifications for a chat the user is already looking at), whether it's a phone,
+          // and how long until it counts as idle. Kept even before identify finishes (the
+          // client sends it first), so the first status is already right.
+          const now = Date.now();
+          const idleIn = Math.min(Math.max(Number(data.idleIn) || 0, 0), MAX_IDLE_IN_MS);
+          ws.presence = {
+            visible: data.visible === true,
+            chatId: data.chatId != null ? String(data.chatId) : null,
+            // A second chat shown beside it (a thread next to its channel).
+            sideChatId: data.sideChatId != null ? String(data.sideChatId) : null,
+            mobile: data.mobile === true,
+            desktopNotifications: data.desktopNotifications === true,
+            reactionPushes: data.reactionPushes === true,
+            activeUntil: now + idleIn,
+            at: now,
+          };
+          if (ws.userId) {
+            refreshStatus(ws.userId);
+            clearShownReactions(ws);
+          }
+        } else if (data.type === 'activity') {
+          // What this device's games say you're doing (the desktop app's Rich Presence), or [].
+          if (!ws.userId) return;
+          const now = Date.now();
+          if (!ws.activityWindow || now - ws.activityWindow.start > 60000) ws.activityWindow = { start: now, count: 0 };
+          if (++ws.activityWindow.count > ACTIVITY_SETS_PER_MINUTE) return;
+          ws.activities = activities.cleanActivities(data.activities);
+          ws.activitiesAt = now;
+          refreshActivities(ws.userId);
+        }
       } catch (err) {
-        console.error('Invalid websocket message', err);
-        return;
-      }
-      // A client checking its connection still works (a phone back from sleep: browsers can't
-      // see the heartbeat's pings).
-      if (data.type === 'ping') {
-        ws.send(JSON.stringify({ type: 'pong' }));
-      } else if (data.type === 'identify') {
-        if (ws.userId || ws.pendingUserId || ws.identifying) return;
-        ws.identifying = true;
-        const user = await auth.verifyToken(data.token);
         ws.identifying = false;
-        // Closed while the token was checked: its close handler has already run.
-        if (ws.readyState !== WebSocket.OPEN) return;
-        if (!user) {
-          ws.close(1008, 'Invalid token');
-          return;
-        }
-        ws.sessionId = user.sid;
-        if (user.pending) {
-          ws.pendingUserId = String(user.id);
-          if (!pendingClients.has(ws.pendingUserId)) pendingClients.set(ws.pendingUserId, []);
-          pendingClients.get(ws.pendingUserId).push(ws);
-          return;
-        }
-        addClient(ws, user.id);
-      } else if (data.type === 'presence') {
-        // Whether this client is on screen and which conversation it shows (used to skip
-        // push notifications for a chat the user is already looking at), whether it's a phone,
-        // and how long until it counts as idle. Kept even before identify finishes (the
-        // client sends it first), so the first status is already right.
-        const now = Date.now();
-        const idleIn = Math.min(Math.max(Number(data.idleIn) || 0, 0), MAX_IDLE_IN_MS);
-        ws.presence = {
-          visible: data.visible === true,
-          chatId: data.chatId != null ? String(data.chatId) : null,
-          // A second chat shown beside it (a thread next to its channel).
-          sideChatId: data.sideChatId != null ? String(data.sideChatId) : null,
-          mobile: data.mobile === true,
-          desktopNotifications: data.desktopNotifications === true,
-          reactionPushes: data.reactionPushes === true,
-          activeUntil: now + idleIn,
-          at: now,
-        };
-        if (ws.userId) {
-          refreshStatus(ws.userId);
-          clearShownReactions(ws);
-        }
-      } else if (data.type === 'activity') {
-        // What this device's games say you're doing (the desktop app's Rich Presence), or [].
-        if (!ws.userId) return;
-        const now = Date.now();
-        if (!ws.activityWindow || now - ws.activityWindow.start > 60000) ws.activityWindow = { start: now, count: 0 };
-        if (++ws.activityWindow.count > ACTIVITY_SETS_PER_MINUTE) return;
-        ws.activities = activities.cleanActivities(data.activities);
-        ws.activitiesAt = now;
-        refreshActivities(ws.userId);
+        console.error('Websocket message failed', err);
       }
     });
 
