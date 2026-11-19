@@ -36,6 +36,7 @@
       "download": "Download {{name}}",
       "loading": "Loading {{name}}",
       "gifFromKlipy": "GIF from KLIPY",
+      "gifFromSite": "GIF from {{site}}",
       "showGif": "Show GIF",
       "show": "Show"
     },
@@ -146,7 +147,8 @@
     },
     "embeds": {
       "image": "embedded image",
-      "footerWithTime": "{{text}} • {{time}}"
+      "footerWithTime": "{{text}} • {{time}}",
+      "gif": "GIF"
     },
     "links": {
       "pictureFrom": "Picture from {{site}}",

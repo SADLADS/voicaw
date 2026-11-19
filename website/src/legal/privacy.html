@@ -109,7 +109,10 @@
     (not encrypted), with the archive's names and pictures for its authors and any of its files,
     and it's visible to whoever can see the channels it went into. The administrator can link an
     author in the archive to a guild member, who is then shown as the author of those messages;
-    every imported message says it was imported and that Voicaw can't confirm who wrote it. If
+    every imported message says it was imported and that Voicaw can't confirm who wrote it. When
+    the archive only links to its files, pictures and emoji, the administrator's browser can
+    download them from those links (so the site they're on sees the administrator's IP address)
+    and add them like the rest; emoji they choose to add become the guild's own. If
     you're linked to messages that aren't yours, or don't want to be, you can unlink yourself
     (from the message, or in Settings → Privacy → Imported messages): they then show the archive's
     name instead, and you can stop imports from linking you at all. Imported messages stay until
@@ -186,8 +189,10 @@
     the voice channel.</li>
   <li><strong>Link previews.</strong> When a link is posted in a guild, Voicaw's server visits
     it to show a preview (the page's title, description and picture), so that website sees
-    Voicaw's server asking, not who posted it. You can turn these off for the whole of a Voicaw
-    server in its admin settings. Links in direct messages and group chats are never sent to the
+    Voicaw's server asking, not who posted it. A link to a GIF on KLIPY is looked up with KLIPY's
+    own service instead (its pages can't be visited this way), and a GIF link from KLIPY or Tenor
+    shows the GIF itself, loaded from that site like the GIFs you pick. You can turn these off for
+    the whole of a Voicaw server in its admin settings. Links in direct messages and group chats are never sent to the
     server for this: if you send one from the desktop or Android app, your app visits the website
     itself to make the preview, so that website sees your IP address (as it would if you opened the
     link), and the preview is sent end-to-end encrypted with your message. The web app doesn't make

@@ -230,7 +230,16 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   that is an MP4/WebM/QuickTime/Ogg file; the page is read with `indexOf` scans, never
   backtracking regexes, and tags over 8 KB or titles over 4 KB are skipped, since it is anyone's
   page read on the API's own thread: a page of `<meta ` repeated once took minutes, 2026-11-18); a link to a picture (`image`, size read from its
-  header with sharp) or a video (`video`) is shown as itself. Fetching (`safeFetch.js`): http(s)
+  header with sharp) or a video (`video`) is shown as itself. **GIF sites' pages** (built
+  2026-11-19, `gifLinks.js`): `klipy.com/gifs/<slug>` and `tenor.com/view/…` become Discord's
+  `gifv` embed (`thumbnail` the animated file, Tenor's MP4 as `video` for bots), drawn by the
+  app as a GIF from the picker is (`GifView`, behind Settings → Privacy's "Show GIFs straight
+  away", named after the site), and a message that's nothing but that link hides its text
+  (`isGifLinkOnly`; it comes back with "Remove previews"). Klipy's pages answer bots with a
+  Cloudflare challenge, so its GIFs are looked up by slug with Klipy's Items API
+  (`/gifs/items?slugs=`) and the picker's key (none: no preview; Klipy sees our server, not who
+  posted); Tenor's own page gives `og:image` (a GIF) and `og:video`, kept only on
+  `media*.tenor.com`. Fetching (`safeFetch.js`): http(s)
   on ports 80/443 only, every address checked to be public (no loopback, private, link-local,
   CGNAT, multicast, IPv4-mapped or NAT64 ones), the check done on the address actually
   connected to and again on each of up to 5 redirects, 5 s in all, at most 1 MB of a page,

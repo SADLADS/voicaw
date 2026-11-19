@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isExport, parseExport } from './discordChatExporter';
+import { downloadable, isExport, parseExport } from './discordChatExporter';
 
 // A made-up export in the exporter's own shape (as its real files are).
 const person = (id, name, nickname, extra = {}) => ({ id, name, discriminator: '0000', nickname, color: null, isBot: false, avatarUrl: `https://cdn.example/avatars/${id}.png`, ...extra });
@@ -84,15 +84,15 @@ describe('DiscordChatExporter exports', () => {
     expect(m.editedTimestamp).toBe(Date.parse('2024-06-20T19:50:00.000+01:00'));
     expect(m.reactions).toEqual([
       { emoji: '🤠', count: 1, userSourceIds: ['200'] },
-      { customName: 'antiverified', count: 1, userSourceIds: ['300'] },
+      { customName: 'antiverified', customId: '555', count: 1, userSourceIds: ['300'] },
     ]);
   });
 
-  it('keeps media files by their path, and CDN links as not included; drops link previews', () => {
+  it('keeps media files by their path, and links elsewhere as not included; drops link previews', () => {
     const m = parse().messages.find((x) => x.sourceId === '1001');
     expect(m.attachments).toEqual([
-      { filename: 'image0.gif', size: 324843, mediaPath: null },
-      { filename: 'cat pic.png', size: 1234, mediaPath: 'old/export.json_Files/cat pic-5F3A.png' },
+      { filename: 'image0.gif', size: 324843, mediaPath: null, remoteUrl: null, expired: false },
+      { filename: 'cat pic.png', size: 1234, mediaPath: 'old/export.json_Files/cat pic-5F3A.png', remoteUrl: null, expired: false },
     ]);
     expect(m.embeds).toEqual([]);
   });
@@ -116,6 +116,38 @@ describe('DiscordChatExporter exports', () => {
     const result = messages.find((x) => x.sourceId === '1007');
     expect(result.content).toBe('POLL Jackbox on Saturday? Yes 4/5');
     expect(result.replyToSourceId).toBeUndefined();
+  });
+
+  it('lists the custom emoji used in messages and reactions, with their pictures', () => {
+    const { emojis } = parse();
+    expect([...emojis.values()]).toEqual([
+      { sourceId: '777', name: 'ooohhhhh', animated: false, imagePath: null, imageUrl: null, uses: 1 },
+      { sourceId: '555', name: 'antiverified', animated: false, imagePath: null, imageUrl: null, uses: 1 },
+    ]);
+    const withPictures = parseExport({
+      ...EXPORT,
+      messages: [base('2001', otto, '2024-06-20T19:45:46Z', {
+        content: ':wave: :wave:',
+        inlineEmojis: [{ id: '42', name: 'wave', code: 'wave', isAnimated: true, imageUrl: 'https://cdn.discordapp.com/emojis/42.gif' }],
+        reactions: [{ emoji: { id: '43', name: 'pog', code: 'pog', imageUrl: 'export.json_Files/43-AB.png' }, count: 3, users: [] }],
+      })],
+    }, 'old/export.json', { pollText });
+    expect(withPictures.emojis.get('42')).toMatchObject({ animated: true, imageUrl: 'https://cdn.discordapp.com/emojis/42.gif', imagePath: null });
+    expect(withPictures.emojis.get('43')).toMatchObject({ imagePath: 'old/export.json_Files/43-AB.png', imageUrl: null });
+  });
+
+  it("downloads only from the archive's CDN, and not attachments whose links have expired", () => {
+    const now = Date.parse('2026-11-19T12:00:00Z');
+    const hex = (iso) => Math.floor(Date.parse(iso) / 1000).toString(16);
+    const attachment = (ex) => `https://cdn.discordapp.com/attachments/9/1/a.png?ex=${ex}&is=0&hm=ff`;
+    expect(downloadable(attachment(hex('2026-11-20T00:00:00Z')), { now })).toEqual({ url: attachment(hex('2026-11-20T00:00:00Z')), expired: false });
+    expect(downloadable(attachment(hex('2026-11-18T00:00:00Z')), { now })).toEqual({ url: null, expired: true });
+    expect(downloadable('https://cdn.discordapp.com/attachments/9/1/a.png', { now })).toEqual({ url: null, expired: true });
+    expect(downloadable('https://cdn.discordapp.com/avatars/1/abc.png', { now }).url).toBe('https://cdn.discordapp.com/avatars/1/abc.png');
+    expect(downloadable('https://media.discordapp.net/stickers/5.png', { now }).url).toBe('https://media.discordapp.net/stickers/5.png');
+    expect(downloadable('https://tracker.example/a.png', { now })).toEqual({ url: null, expired: false });
+    expect(downloadable('http://cdn.discordapp.com/emojis/1.png', { now }).url).toBeNull();
+    expect(downloadable('export.json_Files/a.png', { now }).url).toBeNull();
   });
 
   it('notes threads', () => {

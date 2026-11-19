@@ -36,6 +36,7 @@
       "download": "ดาวน์โหลด {{name}}",
       "loading": "กำลังโหลด {{name}}",
       "gifFromKlipy": "GIF จาก KLIPY",
+      "gifFromSite": "GIF จาก {{site}}",
       "showGif": "แสดง GIF",
       "show": "แสดง"
     },
@@ -145,7 +146,8 @@
     },
     "embeds": {
       "image": "รูปภาพที่ฝังไว้",
-      "footerWithTime": "{{text}} • {{time}}"
+      "footerWithTime": "{{text}} • {{time}}",
+      "gif": "GIF"
     },
     "links": {
       "pictureFrom": "รูปภาพจาก {{site}}",

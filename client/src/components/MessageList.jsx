@@ -8,7 +8,8 @@ import { faEdit, faTrash, faReply, faFaceSmile, faShare, faSquarePollHorizontal,
 import Attachment from './Attachment';
 import MessageReactions from './MessageReactions';
 import UrlPreviews from './UrlPreviews';
-import { drawnByApp, SUPPRESS_EMBEDS } from '../utils/linkPreviews';
+import { drawnByApp, isGifLinkOnly, SUPPRESS_EMBEDS } from '../utils/linkPreviews';
+import { usePrivacyPrefs } from '../utils/privacy';
 import MessageEmbeds from './MessageEmbeds';
 import MessageFiles from './MessageFiles';
 import MessageComponents from './MessageComponents';
@@ -350,13 +351,15 @@ export function MessageContent({ msg, user, s3Endpoint, reactionNames, mentionRo
   );
   const poll = useMemo(() => parsePoll(msg.plaintext), [msg.plaintext]);
   const forward = useMemo(() => parseForward(msg.plaintext), [msg.plaintext]);
+  // A message that's only a GIF site's link shows its GIF, not the link (as Discord does).
+  const gifOnly = usePrivacyPrefs().showLinkPreviews && isGifLinkOnly(msg.plaintext, msg.link_embeds, msg.flags);
   return (
     <div className={`dm-message-content${isEmojiOnly(msg.plaintext, emojiIndex) ? ' emoji-only' : ''}`} data-image-gallery="">
       {poll
         ? <Poll poll={poll} reactions={msg.reactions} userId={user.id} authorId={msg.sender_id} names={reactionNames} sentAt={msg.timestamp} />
         : forward
           ? <ForwardedMessage forward={forward} rehypePlugins={rehypePlugins} mentions={mentions} />
-          : <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />}
+          : !gifOnly && <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />}
       <EmbedParts {...embedProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
     </div>
   );
@@ -514,6 +517,8 @@ const MessageRow = memo(function MessageRow({
   const mentionChannels = useContext(ChannelMentionContext)?.channels;
   const poll = useMemo(() => parsePoll(msg.plaintext), [msg.plaintext]);
   const forward = useMemo(() => parseForward(msg.plaintext), [msg.plaintext]);
+  // A message that's only a GIF site's link shows its GIF, not the link (as Discord does).
+  const gifOnly = usePrivacyPrefs().showLinkPreviews && isGifLinkOnly(msg.plaintext, msg.link_embeds, msg.flags);
 
   // Not before the server has the message (it has no id yet).
   const sent = msg.status !== 'pending' && msg.status !== 'failed';
@@ -752,7 +757,7 @@ const MessageRow = memo(function MessageRow({
             <ThinkingLine botName={senderName} />
           ) : forward ? (
             <ForwardedMessage forward={forward} rehypePlugins={rehypePlugins} mentions={mentions} />
-          ) : (
+          ) : gifOnly ? null : (
             <MessageMarkdown {...markdownProps(msg)} rehypePlugins={rehypePlugins} mentions={mentions} />
           )}
           {/* Without a header to carry it, "edited" goes after the text. */}

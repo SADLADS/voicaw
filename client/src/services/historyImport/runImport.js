@@ -8,7 +8,9 @@ import {
 // archive, start the import with its authors and channels, map them, then send each channel's
 // messages oldest first in batches, uploading their files just before. Batches are skipped by
 // the server when already in, and files of messages already in aren't uploaded again
-// (knownMessages), so a stopped import picks up where it was.
+// (knownMessages), so a stopped import picks up where it was. Files the archive only links to
+// are downloaded by this browser when the importer allows it (`download`; only from the
+// archive's own CDN, see discordChatExporter.js `downloadable`), then uploaded the same way.
 
 // The most a batch holds: the server's 500 messages, and under the 1 MB a request may be.
 const BATCH_MESSAGES = 500;
@@ -16,14 +18,47 @@ const BATCH_BYTES = 800_000;
 // Files bigger than the server takes (its LIMITS.file) stay "not included".
 export const MAX_FILE_BYTES = 90 * 1024 * 1024;
 const UPLOADS_AT_ONCE = 3;
+// The server's limit for an author's picture (guildImports.js LIMITS.avatar).
+const AVATAR_BYTES = 8 * 1024 * 1024;
+
+// A file of the archive (`path` in it, or `url` to download when `download`), as a Blob, or
+// null when it isn't there, can't be had or is bigger than `max` bytes.
+export async function archiveFile(read, { path, url }, { download = read.download, max = MAX_FILE_BYTES } = {}) {
+  const entry = path && findEntry(read.archive, path);
+  if (entry) return entry.size > max ? null : entry.blob();
+  if (!url || !download) return null;
+  const res = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
+  if (!res.ok) throw new Error(`download failed (${res.status})`);
+  if (Number(res.headers.get('content-length')) > max) return null;
+  const blob = await res.blob();
+  return blob.size > max ? null : blob;
+}
+
+const IMAGE_TYPES = { png: 'image/png', gif: 'image/gif', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', avif: 'image/avif' };
+// The server's limit for an emoji's picture (emojiImage.js MAX_EMOJI_UPLOAD_BYTES).
+const EMOJI_BYTES = 10 * 1024 * 1024;
+
+// An archive emoji's picture as a File the guild's emoji route takes (typed: a zip's entries
+// have no type). Throws when it can't be had.
+export async function emojiFile(read, emoji) {
+  const blob = await archiveFile(read, { path: emoji.imagePath, url: emoji.imageUrl }, { max: EMOJI_BYTES });
+  if (!blob) throw new Error('emoji picture unavailable');
+  const source = emoji.imagePath ?? new URL(emoji.imageUrl).pathname;
+  const extension = source.split('.').pop().toLowerCase();
+  const type = Object.values(IMAGE_TYPES).includes(blob.type) ? blob.type : IMAGE_TYPES[extension] ?? (emoji.animated ? 'image/gif' : 'image/png');
+  return new File([blob], `${emoji.name}.${type.split('/')[1]}`, { type });
+}
 
 // Reads picked files (JSON exports, a folder with them and their media, or a zip of that).
 // -> { archive, source, guildName, channels: [{ sourceId, name, category, thread, messages,
-// first, last }], authors: Map(sourceId -> author), files: { total, included, tooBig }, unreadable: [paths] }
+// first, last }], authors: Map(sourceId -> author), emojis: Map(sourceId -> emoji), files: {
+// total, included, downloadable, expired, tooBig }, unreadable: [paths], download (whether to
+// download linked files: on when there are any; the summary has a box for it) }
 export async function readArchive(picked, { pollText }) {
   const archive = await openArchive(picked);
   const channels = [];
   const authors = new Map();
+  const emojis = new Map();
   const unreadable = [];
   let guildName = null;
   for (const entry of archive.entries.values()) {
@@ -47,7 +82,17 @@ export async function readArchive(picked, { pollText }) {
       else {
         known.messageCount += author.messageCount;
         known.avatarPath ??= author.avatarPath;
+        known.avatarUrl ??= author.avatarUrl;
         known.names = [...new Set([...known.names, ...author.names])];
+      }
+    }
+    for (const [id, emoji] of parsed.emojis) {
+      const known = emojis.get(id);
+      if (!known) emojis.set(id, emoji);
+      else {
+        known.uses += emoji.uses;
+        known.imagePath ??= emoji.imagePath;
+        known.imageUrl ??= emoji.imageUrl;
       }
     }
     const existing = channels.find((c) => c.sourceId === parsed.channel.sourceId);
@@ -62,6 +107,8 @@ export async function readArchive(picked, { pollText }) {
   }
   let total = 0;
   let included = 0;
+  let linked = 0;
+  let expired = 0;
   let tooBig = 0;
   for (const channel of channels) {
     channel.first = channel.messages[0]?.timestamp ?? null;
@@ -70,12 +117,19 @@ export async function readArchive(picked, { pollText }) {
       for (const a of m.attachments) {
         total += 1;
         const entry = a.mediaPath && findEntry(archive, a.mediaPath);
-        if (entry && entry.size > MAX_FILE_BYTES) tooBig += 1;
+        if ((entry ? entry.size : a.size) > MAX_FILE_BYTES) tooBig += 1;
         else if (entry) included += 1;
+        else if (a.remoteUrl) linked += 1;
+        else if (a.expired) expired += 1;
       }
     }
   }
-  return { archive, source: SOURCE, guildName, channels, authors, files: { total, included, tooBig }, unreadable };
+  return {
+    archive, source: SOURCE, guildName, channels, authors, emojis,
+    files: { total, included, downloadable: linked, expired, tooBig },
+    unreadable,
+    download: linked > 0 || [...authors.values()].some((a) => !a.avatarPath && a.avatarUrl),
+  };
 }
 
 // Starts the import on the server. -> its view, with `suggested` ({ authorId: userId }).
@@ -86,6 +140,7 @@ export function startImport(guildId, read, { label }) {
     label,
     authors: [...read.authors.values()].map((a) => ({ sourceId: a.sourceId, name: a.name, names: a.names, isBot: a.isBot })),
     channels: read.channels.map((c) => ({ sourceId: c.sourceId, name: c.name })),
+    emojis: [...read.emojis.values()].map((e) => ({ sourceId: e.sourceId, name: e.name })),
   });
 }
 
@@ -133,11 +188,10 @@ export async function sendImport(guildId, view, read, { targets, signal, onProgr
   for (const author of read.authors.values()) {
     if (signal?.aborted) return progress;
     const row = authorIds.get(author.sourceId);
-    if (!row || row.avatar || !author.avatarPath) continue;
-    const entry = findEntry(read.archive, author.avatarPath);
-    if (!entry) continue;
+    if (!row || row.avatar || !(author.avatarPath || author.avatarUrl)) continue;
     try {
-      await uploadAuthorAvatar(guildId, view.id, row.id, await entry.blob());
+      const blob = await archiveFile(read, { path: author.avatarPath, url: author.avatarUrl }, { max: AVATAR_BYTES });
+      if (blob) await uploadAuthorAvatar(guildId, view.id, row.id, blob);
     } catch (err) {
       console.warn('An imported picture failed', err);
     }
@@ -164,10 +218,11 @@ export async function sendImport(guildId, view, read, { targets, signal, onProgr
       for (const m of fresh) {
         m.attachments.forEach((a, index) => {
           const entry = a.mediaPath && findEntry(read.archive, a.mediaPath);
-          if (!entry || entry.size > MAX_FILE_BYTES) return;
+          if (entry ? entry.size > MAX_FILE_BYTES : !(read.download && a.remoteUrl) || a.size > MAX_FILE_BYTES) return;
           uploads.push(async () => {
             try {
-              const blob = await entry.blob();
+              const blob = await archiveFile(read, { path: a.mediaPath, url: a.remoteUrl });
+              if (!blob) return null;
               const stored = await uploadFile(guildId, view.id, blob, { name: a.filename, ...(await imageSize(blob, a.filename)) });
               progress.files += 1;
               return { m, index, stored };

@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { linksIn, mediaLinkKind, linkFileName, drawnByApp } from './linkPreviews';
+import { linksIn, mediaLinkKind, linkFileName, drawnByApp, isGifLinkOnly, SUPPRESS_EMBEDS } from './linkPreviews';
 
 describe('linkPreviews', () => {
+  it('hides a message that is only a GIF site link with its GIF preview', () => {
+    const link = 'https://klipy.com/gifs/happy-birthday-1405';
+    const gif = [{ type: 'gifv', url: link, thumbnail: { url: 'https://static.klipy.com/x.webp' } }];
+    expect(isGifLinkOnly(` ${link} `, gif)).toBe(true);
+    expect(isGifLinkOnly(`look ${link}`, gif)).toBe(false);
+    expect(isGifLinkOnly(link, gif, SUPPRESS_EMBEDS)).toBe(false);
+    expect(isGifLinkOnly(link, [{ type: 'link', url: link }])).toBe(false);
+    expect(isGifLinkOnly(link, undefined)).toBe(false);
+  });
+
   it('finds links as the server does (server/test/linkPreviews.test.js)', () => {
     const text = 'see https://a.test/x_(y), and (https://b.test/z). `https://c.test` <https://d.test> '
       + '||https://e.test|| ![g](https://f.test/g.gif) ```\nhttps://g.test\n``` https://a.test/x_(y) http://h.test/p?q=1!';

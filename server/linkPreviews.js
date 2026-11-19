@@ -1,6 +1,7 @@
 const db = require('./db');
 const { safeFetch } = require('./safeFetch');
 const { getSetting } = require('./appSettings');
+const { gifPagePreview } = require('./gifLinks');
 
 // Link previews in guild messages, as Discord makes them: after a message is sent or edited,
 // the server fetches the web addresses in it (up to MAX_LINKS) and keeps what it found as
@@ -204,7 +205,14 @@ function decodeHtml(body, charset) {
 }
 
 // The preview for one link: an embed, or null (nothing to show, or it couldn't be fetched).
+// GIF sites' pages become the GIF itself (gifLinks.js).
 async function fetchPreview(link) {
+  const gif = await gifPagePreview(link, fetchPage);
+  return gif === undefined ? fetchPage(link) : gif;
+}
+
+// What a link is (a picture, a video, a page's card), fetched.
+async function fetchPage(link) {
   const res = await safeFetch(link, {
     // Pages are read up to their <head>'s likely end; of a picture only its header, of a video nothing.
     maxBytes: (type) => (IMAGE_TYPES.has(type) ? MAX_MEDIA_HEADER_BYTES : VIDEO_TYPES.has(type) ? 0 : MAX_HTML_BYTES),

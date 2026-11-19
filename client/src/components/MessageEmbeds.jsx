@@ -6,6 +6,7 @@ import MediaCover from './MediaCover';
 import SiteMediaGate from './SiteMediaGate';
 import RemovableEmbed from './RemovableEmbed';
 import { SiteImage, SiteVideo } from './LinkMedia';
+import { GifView } from './Attachment';
 import { t } from '../i18n';
 
 // Links in embeds open in a new tab, telling the site nothing about where they came from.
@@ -102,8 +103,13 @@ function Embed({ embed, renderMarkdown, isExternal }) {
 }
 
 // A link preview (server/linkPreviews.js): a link straight to a picture or a video shows just
-// that, anything else a card with plain text (it's another site's words, not markdown).
+// that, a GIF site's page its GIF (`gifv`, server/gifLinks.js, as a GIF from the picker), anything
+// else a card with plain text (it's another site's words, not markdown).
 function LinkEmbed({ embed }) {
+  if (embed.type === 'gifv' && embed.thumbnail?.url) {
+    const { url, width, height } = embed.thumbnail;
+    return <GifView src={url} name={t('media.embeds.gif')} width={width} height={height} site={embed.provider?.name ?? null} />;
+  }
   if (embed.type === 'image' && embed.thumbnail?.url) {
     return <SiteImage url={embed.thumbnail.url} link={embed.url} width={embed.thumbnail.width} height={embed.thumbnail.height} />;
   }

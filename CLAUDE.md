@@ -530,11 +530,20 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   `(timestamp, id)`, see `docs/messages.md`; imported messages are never unread), authors linked
   to members shown as them with "as <archive name>" (they can say "This wasn't me", unlink all in
   Settings → Privacy, or opt out of being linked), media re-uploaded when the export has it
-  ("not included" otherwise; the old CDN is never loaded), and the tag's word chosen by the
+  (else, since 2026-11-19 and as the user asked, downloaded by the importer's browser from the
+  export's links while they still work, a box on by default; readers never load the old CDN),
+  and the tag's word chosen by the
   importer ("Discord"…, empty = "Imported") so the app itself never names Discord, while the
   tag's look and its note (imported, can't be confirmed) are always the app's. No pings,
   pushes, XP or unread; deleting the import is the undo. Polls, threads and Discord voice
   messages don't come across as such (the exports lack polls; threads become channels).
+  Custom emoji (2026-11-19, the user asked for optional mapping): each becomes a guild emoji
+  the importer picks (same name by default), is added to the guild from the archive's picture,
+  or stays `:name:`.
+- **GIF links** (built 2026-11-19, see Link previews in `docs/messages.md`): klipy.com and
+  tenor.com GIF pages in guild messages preview as the GIF alone (the link hidden, as Discord
+  does), drawn like picker GIFs; Klipy's pages block bots, so the server asks Klipy's API by slug
+  with the picker's key.
 - **Tracking in pasted links** (built 2026-11-17, see Tracking in pasted links in
   `docs/messages.md`): Settings → Privacy can take tracking parameters out of pasted links (off
   by default, the user's choice), on the device, as one undo step. The user chose the most
