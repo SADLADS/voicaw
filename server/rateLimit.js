@@ -32,6 +32,52 @@ function createLimiter({ windowMs, max }) {
   };
 }
 
+// Like createLimiter, but counting distinct items per key (the different people someone wrote
+// to, say): `hit(key, item)` is allowed for an item already counted in this window, or while
+// fewer than `max` are.
+function createDistinctLimiter({ windowMs, max }) {
+  const windows = new Map(); // key -> { items: Set, resetAt }
+  return {
+    hit(key, item) {
+      const now = Date.now();
+      if (windows.size > MAX_KEYS / 2) {
+        for (const [k, w] of windows) if (w.resetAt <= now) windows.delete(k);
+        while (windows.size > MAX_KEYS) windows.delete(windows.keys().next().value);
+      }
+      let w = windows.get(key);
+      if (!w || w.resetAt <= now) {
+        w = { items: new Set(), resetAt: now + windowMs };
+        windows.set(key, w);
+      }
+      if (!w.items.has(item) && w.items.size >= max) return { allowed: false, retryAfterMs: w.resetAt - now };
+      w.items.add(item);
+      return { allowed: true, retryAfterMs: 0 };
+    },
+  };
+}
+
+// Counts one against `limiter` under `key` (and `item`, for a distinct limiter): the ms to wait
+// when over its limit, else 0. Always 0 when the tests turn rate limits off.
+function overLimit(limiter, key, item) {
+  if (!require('./config').rateLimitsEnabled) return 0;
+  const { allowed, retryAfterMs } = limiter.hit(key, item);
+  return allowed ? 0 : Math.max(1, retryAfterMs);
+}
+
+// The key for limiting by address: IPv4 as it is, IPv6 by its /64 (one home or server usually
+// has a whole /64, so counting exact addresses wouldn't limit it at all).
+function addressKey(ip) {
+  const address = String(ip ?? '');
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address);
+  if (mapped) return mapped[1];
+  if (!require('net').isIPv6(address)) return address;
+  const [head, tail = ''] = address.toLowerCase().split('::');
+  const left = head ? head.split(':') : [];
+  const right = address.includes('::') && tail ? tail.split(':') : [];
+  const groups = address.includes('::') ? [...left, ...Array(8 - left.length - right.length).fill('0'), ...right] : left;
+  return `${groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':')}::/64`;
+}
+
 // Sends 429 Too Many Requests with a Retry-After and a message people can act on.
 function tooManyAttempts(res, retryAfterMs) {
   const seconds = Math.ceil(retryAfterMs / 1000);
@@ -53,4 +99,4 @@ function limitRequests(limiter, keyOf = (req) => String(req.user?.id ?? req.ip))
   };
 }
 
-module.exports = { createLimiter, tooManyAttempts, limitRequests };
+module.exports = { createLimiter, createDistinctLimiter, overLimit, addressKey, tooManyAttempts, limitRequests };

@@ -27,9 +27,11 @@ const OFFLINE_GRACE_MS = 15000;
 const MAX_IDLE_IN_MS = 10 * 60 * 1000;
 // last_online is also saved while someone is online, so a crash loses at most this much.
 const LAST_ONLINE_SAVE_MS = 60000;
-// Activities (activities.js) a socket may set per minute; games update often, the app sends at
-// most one every few seconds.
-const ACTIVITY_SETS_PER_MINUTE = 30;
+// Activities (activities.js) an account may set per minute, all its sockets together (each set
+// goes to everyone logged in); games update often, the app sends at most one every few
+// seconds. Clearing them ([]) always goes through, so nobody's left showing a game they quit.
+const ACTIVITY_SETS_PER_MINUTE = 20;
+const activitySets = require('./rateLimit').createLimiter({ windowMs: 60 * 1000, max: ACTIVITY_SETS_PER_MINUTE });
 const statuses = new Map(); // user id (string) -> status, for everyone not offline
 const offlineTimers = new Map();
 let lastOnlineSavedAt = 0;
@@ -295,11 +297,10 @@ function attachWebSocketServer(server, { identifyWithinMs = IDENTIFY_WITHIN_MS }
         } else if (data.type === 'activity') {
           // What this device's games say you're doing (the desktop app's Rich Presence), or [].
           if (!ws.userId) return;
-          const now = Date.now();
-          if (!ws.activityWindow || now - ws.activityWindow.start > 60000) ws.activityWindow = { start: now, count: 0 };
-          if (++ws.activityWindow.count > ACTIVITY_SETS_PER_MINUTE) return;
-          ws.activities = activities.cleanActivities(data.activities);
-          ws.activitiesAt = now;
+          const clearing = !Array.isArray(data.activities) || data.activities.length === 0;
+          if (!clearing && !activitySets.hit(ws.userId).allowed) return;
+          ws.activities = activities.cleanActivities(data.activities, ws.userId);
+          ws.activitiesAt = Date.now();
           refreshActivities(ws.userId);
         }
       } catch (err) {

@@ -10,6 +10,7 @@ import { makeRecord, signRecord, entryHash, generateGroupKey, wrapGroupKey, grou
 
 const app = require('../index.js');
 const { PERMISSIONS: P } = require('../permissions.js');
+const db = require('../db.js');
 const clients = app.locals.clients;
 
 let userCount = 0;
@@ -44,6 +45,12 @@ function listen(user) {
 const typingEvents = (events) => events.filter((e) => e.type === 'typing');
 
 async function createGroup(owner, others) {
+  // Groups are made from friends (the server checks).
+  for (const other of others) {
+    for (const [a, b] of [[owner.id, other.id], [other.id, owner.id]]) {
+      await db.run('INSERT OR IGNORE INTO friends (user_id, friend_id, created_at) VALUES (?, ?, 0)', [a, b]);
+    }
+  }
   const groupId = randomUUID();
   const log = [];
   let prev = null;
@@ -85,6 +92,19 @@ describe('typing', () => {
     expect((await typing(alice, cal.id)).status).toBe(204);
     expect(typingEvents(bobEvents)).toHaveLength(1);
     expect(typingEvents(calEvents)).toHaveLength(1);
+  });
+
+  it('says nothing in a DM between people who blocked each other, either way', async () => {
+    const [alice, bob, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const [aliceEvents, bobEvents] = [alice, bob].map(listen);
+    expect((await api.put(bob, `/blocks/${alice.id}`)).status).toBeLessThan(300);
+    // Bob blocked Alice: neither one's typing reaches the other, and nothing says who blocked.
+    expect((await typing(alice, bob.id)).status).toBe(404);
+    expect((await typing(bob, alice.id)).status).toBe(404);
+    expect(typingEvents(bobEvents)).toEqual([]);
+    expect(typingEvents(aliceEvents)).toEqual([]);
+    // Others still can.
+    expect((await typing(cal, bob.id)).status).toBe(204);
   });
 
   it("refuses notes, unknown people, nonsense and logged-out callers", async () => {

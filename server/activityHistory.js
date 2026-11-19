@@ -1,5 +1,6 @@
 const db = require('./db');
 const { getPreferences } = require('./preferences');
+const { createLimiter } = require('./rateLimit');
 
 // Activity history: the games someone played over the last KEEP_DAYS days, shown on their
 // profile (Activity tab, GET /users/:id/profile). Built from their Rich Presence activities
@@ -16,6 +17,11 @@ const KEEP_SECONDS = KEEP_DAYS * 24 * 60 * 60;
 const REJOIN_SECONDS = 5 * 60;
 const TICK_MS = 60 * 1000;
 const PRUNE_EVERY_TICKS = 60;
+// No one starts more sessions than this an hour (a script sending made-up game names would
+// otherwise add rows by the thousand), and a profile shows at most MAX_GAMES games.
+const MAX_NEW_SESSIONS_PER_HOUR = 20;
+const MAX_GAMES = 50;
+const newSessions = createLimiter({ windowMs: 60 * 60 * 1000, max: MAX_NEW_SESSIONS_PER_HOUR });
 
 const now = () => Math.floor(Date.now() / 1000);
 const open = new Map(); // user id (string) -> Map(game name -> session row id)
@@ -45,7 +51,7 @@ async function apply(userId, list) {
         if (last) {
           await db.run('UPDATE activity_sessions SET ended_at = ? WHERE id = ?', [at, last.id]);
           sessions.set(name, last.id);
-        } else {
+        } else if (newSessions.hit(userId).allowed) {
           const { lastID } = await db.run(
             'INSERT INTO activity_sessions (user_id, name, started_at, ended_at) VALUES (?, ?, ?, ?)',
             [userId, name, at, at]
@@ -85,8 +91,8 @@ async function historyOf(userId) {
   const rows = await db.all(
     `SELECT name, SUM(ended_at - started_at) AS seconds, MAX(ended_at) AS last_played, COUNT(*) AS sessions
        FROM activity_sessions WHERE user_id = ? AND ended_at >= ?
-      GROUP BY name ORDER BY last_played DESC`,
-    [userId, now() - KEEP_SECONDS]
+      GROUP BY name ORDER BY last_played DESC LIMIT ?`,
+    [userId, now() - KEEP_SECONDS, MAX_GAMES]
   );
   const playing = open.get(String(userId)) ?? new Map();
   return rows.map((r) => ({ name: r.name, seconds: r.seconds, lastPlayed: r.last_played, sessions: r.sessions, playing: playing.has(r.name) }));
@@ -111,4 +117,4 @@ function startActivityHistory() {
   }, TICK_MS);
 }
 
-module.exports = { KEEP_DAYS, record, forget, historyOf, tick, prune, startActivityHistory };
+module.exports = { KEEP_DAYS, MAX_NEW_SESSIONS_PER_HOUR, MAX_GAMES, record, forget, historyOf, tick, prune, startActivityHistory };

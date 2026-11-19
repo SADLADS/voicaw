@@ -918,7 +918,8 @@ signups, testers }` (403 for everyone else), loaded at login and after a reconne
 added, and zeros to one just removed); `hooks/useAdminAlerts.js` (in Layout) keeps
 `utils/adminAlerts.js`. Something new is also pushed to every admin's devices (`type: 'admin'`,
 `kind` `report` | `signup` | `tester`, how many are waiting, opening the page; one notification
-per kind, each replacing the last), except to the admin who reported it. The push holds no report
+per kind, each replacing the last; reports and tester requests at most once every 5 minutes, so
+a burst buzzes once), except to the admin who reported it. The push holds no report
 details or tester emails, only a sign-up's username; `notificationFromPush` words it in the
 device's language (the server's English `title`/`body` are for apps from before). On Android it's
 in the Messages channel.
@@ -958,7 +959,9 @@ the other person accepts.
   names, pictures and contact keys for guilds, calls and mentions; "Everyone sees everyone" in
   CLAUDE.md), and being friends isn't needed to DM someone (people meet in guilds, as in
   Discord). Friends only decide who's listed, and who can be put in a group DM (`NewGroupDialog`,
-  `GroupMembers`' Add: friends only, in the app).
+  `GroupMembers`' Add: friends only, in the app and, since 2026-11-19, on the server:
+  `groupDms.js` `checkEntry`). Strangers (not friends, never wrote to you) also meet lower DM
+  and ringing limits (Sending limits in encrypted chats, `docs/messages.md`).
 - **Client**: `utils/friends.js` (the store: `useFriends`, `addFriend`, `addFriendByName`,
   `removeFriend`, `relationOf`, `visibleInDmList`), kept by `hooks/useFriendsSync.js` in Layout.
   `DmSidebar` filters people with `visibleInDmList` and has a Friends row above Notes with how many
@@ -1007,7 +1010,9 @@ use (voicaw.com/terms/) say rules are enforced.
   has it anyway). A DM or group message is end-to-end encrypted: the report holds only who, where
   and when unless the reporter ticks "Let moderators see this message" (off by default), when the
   text they see goes along (`shared`: it can't be checked against the ciphertext). Webhook
-  messages are reported against the guild's owner. At most 20 reports an hour each; resolved ones
+  messages are reported against the guild's owner. At most 20 reports an hour each (counted with
+  the insert, in one transaction), and reporting the same message or person again while the first
+  is open gives back that report (nothing new, no push); resolved ones
   are deleted a year on (the hourly sweep in `auth.js`).
 - **Settings → Admin → Reports** (`AdminReports.jsx`, global admins; `GET /admin/reports`): open
   reports (refreshed by `reports_changed`), Dismiss, Delete message (guild only, as a moderator:

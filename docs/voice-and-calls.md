@@ -865,7 +865,7 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   encrypts all of a call's tracks, so this only happens when something is wrong. A contact whose key changed can't be called or answered (their chat has to
   accept the new key first); the callee checks the caller's keys like opening their chat does.
 - **Server** (`server/calls.js`, `routes/calls.js`, in memory): `POST /dm-calls { calleeId,
-  callId, keyEnvelope }` rings (409 if they're in a call) and returns the caller's LiveKit
+  callId, keyEnvelope }` rings and returns the caller's LiveKit
   token (room `call-<id>`); the callee gets `call_incoming` on every device and a push ("Incoming
   voice call", tag `call-<id>`, 45 s TTL). `POST /dm-calls/:id/accept` (callee, once) returns
   theirs; `call_update` (state `active`) tells both, and the callee's other devices stop
@@ -876,6 +876,16 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   (LiveKit webhook) ends it after a 10 s grace (LiveKit's client may rejoin after a network
   change). `GET /dm-calls/current` lets a just-opened app show a call ringing for it. An API
   restart forgets calls (people keep talking until they hang up).
+- **Busy** (security audit L3, 2026-11-19; the user chose this for everyone, friends too): ringing
+  someone already in a call used to answer 409 "<name> is in another call", which told anyone
+  who was on a call right now. Now the call is made `unheard`: the caller sees it ring (the same
+  answer, `ringing: [callee]`) until it times out as missed; the callee isn't rung, can't see or
+  answer it, and afterwards gets the missed call (the chat's call row and a "Missed call" push),
+  as if they hadn't picked up. Calling the person you're already in a call with ends that call
+  first, so it rings normally.
+- **Ringing limits** (`chatLimits.js`): 10 rings per 10 minutes per caller (1:1 and group calls
+  together), and 3 per 10 minutes to the same stranger (not a friend, never sent you a DM);
+  over that, 429.
 - **Client** (`voice/callClient.js`, read with `hooks/useCall.js`; `initCalls(user)` from
   `Layout`): the call button in the DM header, `call/IncomingCall.jsx` over any page (answering
   opens the chat), `call/CallPanel.jsx` at the top of the DM (both people, speaking rings, the

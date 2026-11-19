@@ -41,11 +41,14 @@ const { cleanUpUploads } = require('../uploads.js');
 const clients = app.locals.clients;
 
 let userCount = 0;
-async function makeUser(prefix = 'grp') {
+// Groups are made from friends (the server checks), so everyone made here is friends with
+// everyone made before, as migration 14 did, unless `friends` is false.
+async function makeUser(prefix = 'grp', { friends = true } = {}) {
   const username = `${prefix}-${++userCount}`;
   const password = 'pw-groups-123';
   const { response: regRes, keys } = await registerUser(app, request, username, password);
   const { response: loginRes } = await loginUser(app, request, username, password);
+  if (friends) await befriendEveryone(regRes.body.id);
   return {
     id: regRes.body.id,
     username,
@@ -54,6 +57,12 @@ async function makeUser(prefix = 'grp') {
     signingKey: await importIdentityPrivateKey(keys.private.identityKey),
     encryptionKey: await importEncryptionPrivateKey(keys.private.encryptionKey),
   };
+}
+
+async function befriendEveryone(id) {
+  for (const [a, b] of [['?', 'id'], ['id', '?']]) {
+    await db.run(`INSERT OR IGNORE INTO friends (user_id, friend_id, created_at) SELECT ${a}, ${b}, 0 FROM users WHERE id != ? AND bot = 0`, [id, id]);
+  }
 }
 
 const authed = (user) => ({ Authorization: `Bearer ${user.token}` });
@@ -215,6 +224,26 @@ describe('group DMs', () => {
     expect((await change(bea, groupId, 'remove', cal)).status).toBe(403);
     // A group needs two other people.
     expect((await createGroup(ann, [bea])).res.status).toBe(400);
+  });
+
+  it("only puts the actor's friends in a group, as the app offers", async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const stranger = await makeUser('grp', { friends: false });
+    const strangerEvents = listen(stranger);
+    // Not at creation...
+    const made = await createGroup(ann, [bea, stranger]);
+    expect(made.res.status).toBe(403);
+    expect(made.res.body.error).toBe("This person can't be added");
+    expect((await db.get('SELECT id FROM group_dms WHERE id = ?', [made.groupId]))).toBeUndefined();
+    // ...nor added later.
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    expect((await change(ann, groupId, 'add', stranger, [ann, bea, cal, stranger])).status).toBe(403);
+    expect(strangerEvents.filter((e) => e.type === 'group_dm_add')).toEqual([]);
+    // Once friends, they can be.
+    for (const [a, b] of [[ann.id, stranger.id], [stranger.id, ann.id]]) {
+      await db.run('INSERT INTO friends (user_id, friend_id, created_at) VALUES (?, ?, 0)', [a, b]);
+    }
+    expect((await change(ann, groupId, 'add', stranger, [ann, bea, cal, stranger])).status).toBe(200);
   });
 
   it("doesn't show new members what was said before they joined", async () => {

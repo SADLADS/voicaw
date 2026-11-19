@@ -68,8 +68,13 @@ describe('reports', () => {
 
     const dm = (await api.post(bob, '/dm-send', { recipient_id: ann.id, content: `v1.${'A'.repeat(40)}` })).body;
     expect((await api.post(outsider, '/reports', { kind: 'message', place: 'dm', messageId: dm.id, category: 'harassment' })).status).toBe(404);
+    const dm2 = (await api.post(bob, '/dm-send', { recipient_id: ann.id, content: `v1.${'B'.repeat(40)}` })).body;
     const quiet = (await api.post(ann, '/reports', { kind: 'message', place: 'dm', messageId: dm.id, category: 'harassment' })).body;
-    const shared = (await api.post(ann, '/reports', { kind: 'message', place: 'dm', messageId: dm.id, category: 'harassment', sharedText: 'you are awful' })).body;
+    const shared = (await api.post(ann, '/reports', { kind: 'message', place: 'dm', messageId: dm2.id, category: 'harassment', sharedText: 'you are awful' })).body;
+    // The same message again while the first is open: that one, not another.
+    const again = await api.post(ann, '/reports', { kind: 'message', place: 'dm', messageId: dm.id, category: 'spam' });
+    expect(again.status).toBe(201);
+    expect(again.body.id).toBe(quiet.id);
     const { open } = (await api.get(mod, '/admin/reports')).body;
     expect(open.find((r) => r.id === quiet.id)).toMatchObject({ reported_id: bob.id, place: 'dm', content: null, shared: 0 });
     expect(open.find((r) => r.id === shared.id)).toMatchObject({ content: 'you are awful', shared: 1 });
@@ -78,8 +83,17 @@ describe('reports', () => {
   it('reports a person, a limited number of times an hour', async () => {
     expect((await api.post(ann, '/reports', { kind: 'user', userId: bob.id, category: 'harassment' })).status).toBe(201);
     expect((await api.post(ann, '/reports', { kind: 'user', userId: ann.id, category: 'other' })).status).toBe(400);
-    for (let i = 1; i < 20; i++) await api.post(ann, '/reports', { kind: 'user', userId: bob.id, category: 'other' });
-    expect((await api.post(ann, '/reports', { kind: 'user', userId: bob.id, category: 'other' })).status).toBe(429);
+    // Reporting them again while it's open adds nothing.
+    for (let i = 0; i < 25; i++) expect((await api.post(ann, '/reports', { kind: 'user', userId: bob.id, category: 'other' })).status).toBe(201);
+    expect((await db.get('SELECT COUNT(*) AS n FROM reports WHERE reporter_id = ?', [ann.id])).n).toBe(1);
+
+    // 25 different messages at once: the hourly 20 hold (counted and stored together).
+    const dms = [];
+    for (let i = 0; i < 25; i++) dms.push((await api.post(bob, '/dm-send', { recipient_id: ann.id, content: `v1.${'C'.repeat(40)}${i}` })).body);
+    const results = await Promise.all(dms.map((dm) => api.post(ann, '/reports', { kind: 'message', place: 'dm', messageId: dm.id, category: 'spam' })));
+    expect(results.filter((r) => r.status === 201)).toHaveLength(19);
+    expect(results.filter((r) => r.status === 429)).toHaveLength(6);
+    expect((await db.get('SELECT COUNT(*) AS n FROM reports WHERE reporter_id = ?', [ann.id])).n).toBe(20);
   });
 
   it('is only for admins to read and act on', async () => {

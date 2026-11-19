@@ -662,7 +662,10 @@ visitors get first, lead to the page's `#android-test` section: how to join, lin
 opt-in page and the Play listing (`PLAY_TEST_URL`, `PLAY_URL` in `build.mjs`), and a form (Google
 account email, optional name and note, a hidden field that catches bots) posting to
 `/api/tester-requests` through voicaw.com's `/api/` (`server/routes/testerRequests.js`: no
-account, 5 an hour per IP, at most 1000 waiting; the same email again replaces the name and note).
+account, 5 an hour per address (an IPv6 one by its /64), at most 50 new ones an hour from
+everyone and 1000 waiting; the same email again while it's waiting or added changes nothing, so
+nobody can rewrite someone else's name and note; admins are pushed at most once every 5
+minutes for new ones, as for reports).
 Admins see the requests in Settings → Admin → Android testers (live, over the websocket),
 copy the waiting emails, add them to the test's tester list in the Play Console by hand, then
 mark them added and remove them when done: Remove sets `removed_at`, moving the request to the

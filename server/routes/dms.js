@@ -16,6 +16,8 @@ const { CALL_LOG } = require('../callLog');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 const { parseRanges, countRanges } = require('../messageRanges');
 const { deduplicated } = require('../sendNonces');
+const { tooManyAttempts } = require('../rateLimit');
+const chatLimits = require('../chatLimits');
 
 // Direct messages. Contents are end-to-end encrypted: the server stores and relays
 // ciphertext only (and checks its length against the encrypted size of the plaintext limit).
@@ -147,6 +149,9 @@ router.post('/dm-send', authenticateJWT, deduplicated('dm', (req, id) => db.get(
   if (await blocks.blockedBetween(senderId, recipientId)) {
     return res.status(403).json({ error: blocks.NOT_DELIVERED, code: 'blocked' });
   }
+  // Per sender, stricter towards strangers (chatLimits.js).
+  const wait = await chatLimits.overDmLimit(senderId, recipientId);
+  if (wait) return tooManyAttempts(res, wait);
 
   // A reply must point at a message in this same conversation.
   let parentMessageId = null;
@@ -338,6 +343,8 @@ async function pinRoute(req, res, pinned) {
   if (row.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
   // Unpinning stays allowed: it adds nothing to the other's chat.
   if (pinned && await blockedReply(res, row)) return;
+  const wait = pinned && chatLimits.over('pins', req.user.id);
+  if (wait) return tooManyAttempts(res, wait);
   const result = await setPinned(
     'direct_messages', messageId, req.user.id, pinned,
     '((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))',

@@ -130,7 +130,8 @@ app's Rich Presence, see Rich Presence in `docs/desktop-and-site.md`), and bots'
 guilds", a custom status; gateway Presence Update). Built 2026-10-09.
 - Server (`activities.js`): kept on the socket that set them, in memory only, gone when it
   closes (only games' names and times are saved, below). A socket sends `activity { activities }` (cleaned: at most 3,
-  128-character texts, people's types 0/2/3/5, bots' 0-5; 30 a minute) once it's identified;
+  128-character texts, people's types 0/2/3/5, bots' 0-5; 20 a minute per account, all its
+  sockets together, since each set goes to everyone; clearing them always goes through) once it's identified;
   someone's activities are their most recently set socket's (an invisible bot's don't show).
   Changes go to every logged-in socket as `user_activities { userId, activities }`, and
   `presence_snapshot` carries `activities: { id: [...] }`. One activity: `{ name, type, details,
@@ -141,7 +142,8 @@ guilds", a custom status; gateway Presence Update). Built 2026-10-09.
   short line under names uses instead of the name; bots see it as `status_display_type`).
 - Pictures: the app sends a game's picture (JPEG or PNG, at most 48 KB; the app makes them 128
   px) as base64 in the activity the first time on each connection, then only its id; the server
-  keeps the last 500 in memory by the SHA-256 of their bytes and serves them at
+  keeps the last 500 in memory (at most 12 per account, its newest, so one account can't push
+  out everyone else's) by the SHA-256 of their bytes and serves them at
   `GET /api/activity-images/<id>` (no login: `<img>` can't send one, and the hash says nothing
   about who plays it; cached a day).
 - Client: `utils/activities.js` is the store (snapshot + changes) and the wording, `hooks/
@@ -177,8 +179,9 @@ that stops and starts again within 5 minutes carries on its last session. Open s
 move on every minute (`tick`), so a restart loses at most that; rows over 30 days old are deleted
 hourly (`prune`). Changes for one person run in order (a promise per person). With
 `showActivity` off nothing is recorded, and turning it off deletes their rows (`forget`, from
-`PUT /preferences`); deleting the account deletes them too. `historyOf(id)` sums them per game
-(`{ name, seconds, lastPlayed, sessions, playing }`, last played first).
+`PUT /preferences`); deleting the account deletes them too. At most 20 new sessions an hour per
+person (a script making up game names can't add rows by the thousand). `historyOf(id)` sums them per game
+(`{ name, seconds, lastPlayed, sessions, playing }`, last played first, at most 50 games).
 
 ## Push notifications (Web Push)
 

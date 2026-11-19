@@ -249,6 +249,18 @@ describe('DM polls', () => {
     expect((await api.put(ann, `/update-message/${rows[0].id}`, { content: 'v1.x' })).status).toBe(403);
   });
 
+  it('posts nothing into a DM once either person blocked the other', async () => {
+    const [ann, bob] = [await makeUser('dmpoll'), await makeUser('dmpoll')];
+    const old = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.any-old-message' })).body;
+    expect((await api.put(bob, `/blocks/${ann.id}`)).status).toBeLessThan(300);
+    const bobEvents = listen(bob);
+    expect((await api.post(ann, `/polls/dm/${old.id}/end`)).status).toBe(403);
+    expect((await api.post(ann, `/polls/dm/${old.id}/timer`, { duration: 1 })).status).toBe(403);
+    await announceDue();
+    expect(bobEvents.filter((e) => e.type === 'new_dm')).toEqual([]);
+    expect((await db.get("SELECT COUNT(*) AS n FROM direct_messages WHERE parent_message_id = ? AND system = 'poll_end'", [old.id])).n).toBe(0);
+  });
+
   it('ends a poll at once, and deleting the poll deletes its row', async () => {
     const [ann, bob] = [await makeUser('dmpoll'), await makeUser('dmpoll')];
     const poll = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content: 'v1.encrypted-poll' })).body;

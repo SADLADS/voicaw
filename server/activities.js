@@ -27,9 +27,13 @@ const STATUS_DISPLAY_TYPES = { state: 1, details: 2 };
 // Pictures: a game's cover or icon, made small on the player's computer (at most 128 px), kept
 // here by the hash of their bytes and served at /api/activity-images/:id. In memory, the most
 // recently used kept; the desktop app sends its pictures again after reconnecting.
+// Each account keeps at most MAX_IMAGES_PER_USER of them (its newest), so one account can't
+// push everyone else's out (security audit L3).
 const MAX_IMAGE_BYTES = 48 * 1024;
 const MAX_IMAGES = 500;
-const images = new Map(); // id -> { data: Buffer, type }
+const MAX_IMAGES_PER_USER = 12;
+const images = new Map(); // id -> { data: Buffer, type, owner }
+const owned = new Map(); // owner -> ids it stored, oldest first
 
 const text = (value) => {
   if (typeof value !== 'string') return null;
@@ -50,15 +54,27 @@ function imageType(data) {
   return null;
 }
 
-// Keeps a picture (base64 JPEG or PNG); returns its id, or null if it isn't one.
-function storeImage(base64) {
+// Keeps a picture (base64 JPEG or PNG) sent by `owner`; returns its id, or null if it isn't one.
+function storeImage(base64, owner = null) {
   if (typeof base64 !== 'string' || base64.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4) return null;
   const data = Buffer.from(base64, 'base64');
   const type = imageType(data);
   if (!type) return null;
   const id = crypto.createHash('sha256').update(data).digest('hex').slice(0, 32);
+  const existing = images.get(id);
   images.delete(id);
-  images.set(id, { data, type });
+  if (existing) {
+    images.set(id, existing); // most recently used, still its first sender's
+    return id;
+  }
+  images.set(id, { data, type, owner });
+  const mine = owned.get(owner) ?? [];
+  mine.push(id);
+  owned.set(owner, mine);
+  while (mine.length > MAX_IMAGES_PER_USER) {
+    const old = mine.shift();
+    if (images.get(old)?.owner === owner) images.delete(old);
+  }
   while (images.size > MAX_IMAGES) images.delete(images.keys().next().value);
   return id;
 }
@@ -71,14 +87,14 @@ function getImage(id) {
   return image;
 }
 
-function imageId(image) {
+function imageId(image, owner) {
   if (!image || typeof image !== 'object') return null;
-  if (typeof image.data === 'string') return storeImage(image.data);
+  if (typeof image.data === 'string') return storeImage(image.data, owner);
   return typeof image.id === 'string' && images.has(image.id) ? image.id : null;
 }
 
-// What a person's app sent (`activity` websocket message), cleaned.
-function cleanActivities(list) {
+// What a person's app sent (`activity` websocket message), cleaned. `owner`: who sent it.
+function cleanActivities(list, owner = null) {
   if (!Array.isArray(list)) return [];
   return list.slice(0, MAX_ACTIVITIES).filter((a) => a && typeof a === 'object').map((a) => {
     const type = Number(a.type);
@@ -94,7 +110,7 @@ function cleanActivities(list) {
       partySize: partySize != null && partyMax != null ? partySize : null,
       partyMax: partySize != null && partyMax != null ? partyMax : null,
       imageText: text(a.imageText),
-      image: imageId(a.image),
+      image: imageId(a.image, owner),
       smallIcon: SMALL_ICONS.has(a.smallIcon) ? a.smallIcon : null,
       smallText: text(a.smallText),
       statusShows: STATUS_SHOWS.has(a.statusShows) ? a.statusShows : null,
@@ -169,5 +185,5 @@ function discordActivity(a) {
 module.exports = {
   cleanActivities, cleanBotActivities, activitiesOf, remember, getActivities, discordActivity, storeImage, getImage,
   snapshot: () => Object.fromEntries(current),
-  MAX_IMAGE_BYTES,
+  MAX_IMAGE_BYTES, MAX_IMAGES_PER_USER,
 };

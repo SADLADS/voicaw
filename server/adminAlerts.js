@@ -14,6 +14,13 @@ const KINDS = {
   tester: { count: 'testers', url: '/settings/admin#admin-signups', title: 'New Android tester request' },
 };
 
+// Reports and tester requests are pushed at most once per QUIET_MS each (the push says how many
+// are waiting, so a later one loses nothing): a burst of them buzzes admins once, not per entry.
+// Sign-up requests name the person, so each one is pushed (sign-ups have their own limits).
+const QUIET_MS = 5 * 60 * 1000;
+const THROTTLED = new Set(['report', 'tester']);
+const lastPushed = new Map(); // kind -> ms
+
 async function counts() {
   const n = async (sql) => (await db.get(sql)).n;
   return {
@@ -42,6 +49,10 @@ async function announce({ alsoTo } = {}) {
 // Never rejects: callers don't wait for it.
 async function notify(kind, { name, exceptId } = {}) {
   try {
+    if (THROTTLED.has(kind) && require('./config').rateLimitsEnabled) {
+      if (Date.now() - (lastPushed.get(kind) ?? -Infinity) < QUIET_MS) return;
+      lastPushed.set(kind, Date.now());
+    }
     const { count: key, url, title } = KINDS[kind];
     const count = (await counts())[key];
     const payload = {

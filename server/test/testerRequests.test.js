@@ -44,11 +44,11 @@ describe('Android tester requests', () => {
     clients.delete(String(mod.id));
   });
 
-  it('updates a repeated request instead of adding another', async () => {
-    await apply({ email: 'pal.one@gmail.com', note: 'Pixel 8 now' });
+  it("doesn't add a repeated request again, nor let anyone change its name and note", async () => {
+    expect((await apply({ email: 'pal.one@gmail.com', note: 'something nasty' })).status).toBe(201);
     const rows = await db.all("SELECT * FROM tester_requests WHERE email = 'pal.one@gmail.com'");
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ name: null, note: 'Pixel 8 now' });
+    expect(rows[0]).toMatchObject({ name: 'Pal', note: 'Pixel 7' });
   });
 
   it('refuses bad input, and keeps nothing from a bot filling the hidden field', async () => {

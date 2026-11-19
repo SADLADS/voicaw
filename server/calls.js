@@ -38,7 +38,7 @@ const calls = new Map();
 const roomName = (callId) => `${ROOM_PREFIX}${callId}`;
 
 function isIn(call, userId) {
-  if (!call.groupId) return call.callerId === userId || call.calleeId === userId;
+  if (!call.groupId) return call.callerId === userId || (call.calleeId === userId && !call.unheard);
   return call.participants.has(userId);
 }
 
@@ -77,12 +77,14 @@ function publicCall(call) {
     // The server's clock when this was sent, so a device whose clock is off can turn
     // answered_at into its own time (else a call timer stays at 0:00 or starts ahead).
     server_now: Date.now(),
-    ringing: [...call.ringing],
+    // An unheard call (see startCall) looks rung like any other.
+    ringing: call.unheard ? [call.calleeId] : [...call.ringing],
     participants: [...call.participants],
   };
 }
 
 async function audience(call) {
+  if (call.unheard) return [call.callerId];
   if (!call.groupId) return [call.callerId, call.calleeId];
   const rows = await db.all('SELECT user_id FROM group_dm_members WHERE group_id = ?', [call.groupId]);
   return rows.map((r) => r.user_id);
@@ -185,11 +187,16 @@ function newCall(fields) {
 
 // The caller rings `callee` ({ id, username }). `id` is made by the caller (a UUID: it's bound
 // into the encrypted key). Throws { status, message } when it can't.
+//
+// A callee already in another call isn't rung, but the caller can't tell (security audit L3:
+// "is in another call" told anyone who was on a call): their call is `unheard`, looks like
+// ringing until RING_MS and ends as missed, the callee only getting the missed call afterwards
+// (the chat's call row and a push), as if they hadn't picked up.
 async function startCall({ id, caller, callee, keyEnvelope }) {
-  if (callOf(callee.id)) throw Object.assign(new Error(`${callee.username} is in another call`), { status: 409 });
   if (calls.has(id)) throw Object.assign(new Error('Call already exists'), { status: 409 });
   await endCallOf(caller.id);
   await voice.disconnect(caller.id);
+  const unheard = Boolean(callOf(callee.id));
 
   const call = newCall({
     id,
@@ -199,16 +206,19 @@ async function startCall({ id, caller, callee, keyEnvelope }) {
     calleeName: callee.username,
     keyEnvelope,
     state: 'ringing',
+    unheard,
   });
-  call.ringing.add(callee.id);
   call.timer = setTimeout(() => endCall(call, 'missed'), RING_MS);
   call.timer.unref?.();
   calls.set(id, call);
 
-  sendToUserSockets(callee.id, { type: 'call_incoming', call: publicCall(call) });
+  if (!unheard) {
+    call.ringing.add(callee.id);
+    sendToUserSockets(callee.id, { type: 'call_incoming', call: publicCall(call) });
+    push(call, callee.id, 'Incoming voice call');
+  }
   // The caller's other devices show it too.
   sendToUserSockets(caller.id, { type: 'call_update', call: publicCall(call) });
-  push(call, callee.id, 'Incoming voice call');
   return call;
 }
 

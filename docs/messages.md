@@ -750,6 +750,25 @@ kind: DMs, notes, group DMs, guild channels and threads, bot DMs.
 
 `e2e/unsent.mjs` checks it in the browser.
 
+## Sending limits in encrypted chats
+
+Security audit, low findings L3 (2026-11-19): sign-ups are open and anyone may DM anyone, so
+`server/chatLimits.js` limits each account (in memory, `rateLimit.js`, off in tests but
+`test/chatLimits.test.js`). Over a limit the request gets a 429 with Retry-After; the app shows
+its usual "too many, try later" and a message stays unsent (above), to Retry.
+- Messages (DMs, notes and group DMs together): 60 a minute. Towards a **stranger** (not a
+  friend, and they've never sent you a DM): 5 a minute to that person, and new conversations
+  with at most 20 strangers an hour.
+- Pins (DMs and groups): 30 a minute; unpinning isn't limited. Reactions (with poll votes and
+  added answers): 120 a minute.
+- Groups: 10 new ones, 60 new keys (epochs) and 30 renames or picture changes an hour, and only
+  friends can be put in one (the server checks what the app offers; see Friends in
+  `docs/client.md`).
+- Polls' timers and ends (`/polls/:kind/:id/timer|end`): 20 a minute, and refused in a DM with
+  someone either side blocked, or whose account is gone, as sending is.
+- Calls: see DM calls in `docs/voice-and-calls.md`. Typing in a DM isn't sent between people
+  who blocked each other (`routes/typing.js` answers 404, as for anyone unknown).
+
 ## Search in encrypted chats
 
 DMs, group DMs and notes are searched **on the device** (built 2026-10-09): the server only has

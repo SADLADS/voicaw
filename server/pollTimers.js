@@ -39,6 +39,12 @@ async function authoredPoll(kind, messageId, userId) {
     && await db.get(`SELECT * FROM ${config.table} WHERE id = ?`, [messageId]);
   if (!message || message.system) throw new PollError(404, 'Message not found');
   if (message.sender_id !== userId) throw new PollError(403, 'Not your poll');
+  // As sending: no new rows in a DM with someone either of them blocked, or who's gone.
+  if (kind === 'dm' && message.recipient_id !== userId) {
+    const partner = await db.get('SELECT deleted_at FROM users WHERE id = ?', [message.recipient_id]);
+    if (!partner || partner.deleted_at) throw new PollError(404, 'Message not found');
+    if (await require('./blocks').blockedBetween(userId, message.recipient_id)) throw new PollError(403, require('./blocks').NOT_DELIVERED);
+  }
   if (kind === 'group') {
     const member = await db.get('SELECT 1 FROM group_dm_members WHERE group_id = ? AND user_id = ?', [message.group_id, userId]);
     if (!member) throw new PollError(404, 'Message not found');

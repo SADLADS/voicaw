@@ -3,6 +3,8 @@ const { authenticateJWT } = require('../auth');
 const calls = require('../calls');
 const groups = require('../groupDms');
 const blocks = require('../blocks');
+const { tooManyAttempts } = require('../rateLimit');
+const { overRingLimit } = require('../chatLimits');
 
 // DM and group DM voice calls (see calls.js): ring someone or a group, answer or join,
 // decline, hang up, and the call you're in or being rung for (for a page that just loaded).
@@ -37,6 +39,8 @@ router.post('/dm-calls', authenticateJWT, requireVoice, async (req, res) => {
   if (typeof keyEnvelope !== 'string' || !keyEnvelope.startsWith('v1.') || keyEnvelope.length > MAX_KEY_ENVELOPE) {
     return res.status(400).json({ error: 'Invalid call key' });
   }
+  const wait = await overRingLimit(req.user.id, callee.id);
+  if (wait) return tooManyAttempts(res, wait);
   let call;
   try {
     call = await calls.startCall({ id: callId, caller: { id: req.user.id, username: req.user.username }, callee, keyEnvelope });
@@ -64,6 +68,8 @@ router.post('/group-dms/:groupId/call', authenticateJWT, requireVoice, async (re
   if (!state.latestEpoch || epoch !== state.latestEpoch.epoch) return res.status(409).json({ error: 'The group changed; try again', code: 'stale_epoch' });
   const existing = calls.groupCall(state.group.id);
   if (existing) return res.status(409).json({ error: 'There is already a call in this group', call: calls.publicCall(existing) });
+  const wait = await overRingLimit(req.user.id, null);
+  if (wait) return tooManyAttempts(res, wait);
   const call = await calls.startGroupCall({
     id: callId,
     group: state.group,
@@ -80,7 +86,7 @@ async function findCall(req, res, next) {
   const call = calls.calls.get(req.params.callId);
   const allowed = call && (call.groupId
     ? await groups.memberState(call.groupId, req.user.id)
-    : call.callerId === req.user.id || call.calleeId === req.user.id);
+    : call.callerId === req.user.id || (call.calleeId === req.user.id && !call.unheard));
   if (!allowed) return res.status(404).json({ error: 'Call not found' });
   req.call = call;
   next();

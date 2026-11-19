@@ -6,6 +6,8 @@ const { authenticateJWT } = require('../auth');
 const { sendToUserSockets } = require('../sockets');
 const { notifyDmReaction } = require('../reactionPushes');
 const blocks = require('../blocks');
+const { tooManyAttempts } = require('../rateLimit');
+const chatLimits = require('../chatLimits');
 
 // Reactions. The emoji is encrypted by the client with the conversation key, padded to
 // REACTION_PLAINTEXT_BYTES so every reaction is the same length; the server sees only who
@@ -47,6 +49,8 @@ router.post('/dm-reactions', authenticateJWT, async (req, res) => {
   if (await blocks.blockedBetween(message.sender_id, message.recipient_id)) {
     return res.status(403).json({ error: blocks.NOT_DELIVERED, code: 'blocked' });
   }
+  const wait = chatLimits.over('reactions', userId);
+  if (wait) return tooManyAttempts(res, wait);
 
   const { count } = await db.get(
     'SELECT COUNT(*) AS count FROM dm_reactions WHERE message_id = ? AND user_id = ?',

@@ -69,6 +69,13 @@ async function epochFor(creator, groupId, logSeq, members) {
 
 // A group made by `owner` with `others` (at least two).
 async function createGroup(owner, others) {
+  // Groups are made from friends (the server checks).
+  const db = require('../db');
+  for (const other of others) {
+    for (const [x, y] of [[owner.id, other.id], [other.id, owner.id]]) {
+      await db.run('INSERT OR IGNORE INTO friends (user_id, friend_id, created_at) VALUES (?, ?, 0)', [x, y]);
+    }
+  }
   const groupId = randomUUID();
   const log = [];
   let prev = null;

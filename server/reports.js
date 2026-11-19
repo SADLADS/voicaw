@@ -38,8 +38,23 @@ function cleanText(value, max) {
   return value.trim().slice(0, max) || null;
 }
 
-// Stores a checked report (`fields` from routes/reports.js); -> its id.
+// Stores a checked report (`fields` from routes/reports.js); -> { id, duplicate }. The hourly
+// limit is counted in the same transaction (so a burst of requests can't all pass it), and
+// reporting the same message or person again while the first is open gives back that one.
 async function addReport(fields) {
+  return db.transaction(async () => {
+    const open = await db.get(
+      `SELECT id FROM reports WHERE reporter_id = ? AND resolved_at IS NULL AND kind = ? AND reported_id = ?
+         AND place IS ? AND message_id IS ? LIMIT 1`,
+      [fields.reporterId, fields.kind, fields.reportedId, fields.place ?? null, fields.messageId ?? null]
+    );
+    if (open) return { id: open.id, duplicate: true };
+    if (await tooMany(fields.reporterId)) throw new ReportError(429, "You've sent a lot of reports: try again later");
+    return { id: await insertReport(fields), duplicate: false };
+  });
+}
+
+async function insertReport(fields) {
   const { lastID } = await db.run(
     `INSERT INTO reports (reporter_id, reported_id, kind, category, note, place, guild_id, channel_id, group_id,
        message_id, content, shared, created_at)

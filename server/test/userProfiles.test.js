@@ -83,6 +83,19 @@ describe('activity history', () => {
     expect((await db.get('SELECT COUNT(*) AS n FROM activity_sessions WHERE user_id = ?', [bea.id])).n).toBe(0);
   });
 
+  it('starts at most 20 sessions an hour, and shows at most 50 games', async () => {
+    const dee = await makeUser();
+    for (let i = 0; i < 10; i++) await history.record(dee.id, playing(`Made up ${i}a`, `Made up ${i}b`, `Made up ${i}c`));
+    await history.record(dee.id, []);
+    expect((await db.get('SELECT COUNT(*) AS n FROM activity_sessions WHERE user_id = ?', [dee.id])).n).toBe(history.MAX_NEW_SESSIONS_PER_HOUR);
+
+    const t = Math.floor(Date.now() / 1000);
+    for (let i = 0; i < 60; i++) {
+      await db.run('INSERT INTO activity_sessions (user_id, name, started_at, ended_at) VALUES (?, ?, ?, ?)', [dee.id, `Old ${i}`, t - 100, t - 50]);
+    }
+    expect(await history.historyOf(dee.id)).toHaveLength(history.MAX_GAMES);
+  });
+
   it('deletes the history when Show my activity is turned off', async () => {
     const cal = await makeUser();
     await history.record(cal.id, playing('Celeste'));

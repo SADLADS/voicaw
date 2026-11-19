@@ -7,7 +7,7 @@
 const express = require('express');
 const db = require('../db');
 const { rateLimitsEnabled } = require('../config');
-const { createLimiter, tooManyAttempts } = require('../rateLimit');
+const { createLimiter, addressKey, tooManyAttempts } = require('../rateLimit');
 const { sendToUserSockets } = require('../sockets');
 const { admin } = require('./admin');
 const adminAlerts = require('../adminAlerts');
@@ -24,7 +24,11 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const HISTORY_SECONDS = 365 * 24 * 60 * 60;
 const HISTORY_PAGE = 50;
 
+// 5 an hour per address (an IPv6 one by its /64), and new requests from everyone together at
+// most NEW_PER_HOUR an hour: a pool of addresses can't fill the list either.
+const NEW_PER_HOUR = 50;
 const perIp = createLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
+const allNew = createLimiter({ windowMs: 60 * 60 * 1000, max: NEW_PER_HOUR });
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -68,11 +72,12 @@ async function announce() {
 
 // { email, name?, note?, website? } from voicaw.com. `website` is a field people don't see:
 // a bot that fills it in is told it worked, and nothing is kept. Asking again with the same
-// email updates the name and note (and says nothing about whether it was already there); one
-// removed already is asked for again, as new.
+// email while it's waiting or added changes nothing (anyone could type someone else's email:
+// their name and note stay as they wrote them) and says nothing about whether it was already
+// there; one removed already is asked for again, as new.
 router.post('/tester-requests', async (req, res) => {
   if (rateLimitsEnabled) {
-    const { allowed, retryAfterMs } = perIp.hit(req.ip);
+    const { allowed, retryAfterMs } = perIp.hit(addressKey(req.ip));
     if (!allowed) return tooManyAttempts(res, retryAfterMs);
   }
   const body = req.body ?? {};
@@ -85,21 +90,19 @@ router.post('/tester-requests', async (req, res) => {
   if (note === undefined) return res.status(400).json({ error: `The note can be up to ${MAX_NOTE} characters.` });
 
   const existing = await db.get('SELECT id, removed_at FROM tester_requests WHERE email = ?', [email]);
-  if (existing && existing.removed_at == null) {
-    await db.run('UPDATE tester_requests SET name = ?, note = ? WHERE id = ?', [name, note, existing.id]);
+  if (existing && existing.removed_at == null) return res.status(201).json({ ok: true });
+  const { n } = await db.get('SELECT COUNT(*) AS n FROM tester_requests WHERE added_at IS NULL AND removed_at IS NULL');
+  const full = n >= MAX_WAITING || (rateLimitsEnabled && !allNew.hit('all').allowed);
+  if (full) return res.status(503).json({ error: "We aren't taking more requests right now. Try again later." });
+  if (existing) {
+    await db.run(
+      'UPDATE tester_requests SET name = ?, note = ?, created_at = ?, added_at = NULL, removed_at = NULL WHERE id = ?',
+      [name, note, now(), existing.id]
+    );
   } else {
-    const { n } = await db.get('SELECT COUNT(*) AS n FROM tester_requests WHERE added_at IS NULL AND removed_at IS NULL');
-    if (n >= MAX_WAITING) return res.status(503).json({ error: "We aren't taking more requests right now. Try again later." });
-    if (existing) {
-      await db.run(
-        'UPDATE tester_requests SET name = ?, note = ?, created_at = ?, added_at = NULL, removed_at = NULL WHERE id = ?',
-        [name, note, now(), existing.id]
-      );
-    } else {
-      await db.run('INSERT INTO tester_requests (email, name, note, created_at) VALUES (?, ?, ?, ?)', [email, name, note, now()]);
-    }
-    adminAlerts.notify('tester');
+    await db.run('INSERT INTO tester_requests (email, name, note, created_at) VALUES (?, ?, ?, ?)', [email, name, note, now()]);
   }
+  adminAlerts.notify('tester');
   await announce();
   res.status(201).json({ ok: true });
 });

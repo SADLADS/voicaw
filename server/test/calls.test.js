@@ -181,10 +181,35 @@ describe('DM calls', () => {
     expect((await api.post(eve, '/dm-calls', { calleeId: 999999, callId: randomUUID(), keyEnvelope: ENVELOPE })).status).toBe(404);
     expect((await api.post(eve, '/dm-calls', { calleeId: bob.id, callId: 'x', keyEnvelope: ENVELOPE })).status).toBe(400);
     expect((await api.post(eve, '/dm-calls', { calleeId: bob.id, callId: randomUUID(), keyEnvelope: 'plain key' })).status).toBe(400);
-    // Bob is busy.
+  });
+
+  it("rings someone busy without telling the caller, who later sees a missed call", async () => {
+    const [alice, bob, eve] = [await makeUser(), await makeUser(), await makeUser('eve')];
+    await request(app).post('/api/save-subscription').set(authed(bob))
+      .send({ subscription: { endpoint: `https://push.test/${bob.id}`, keys: { p256dh: 'p', auth: 'a' } } });
+    const bobsCall = (await ring(alice, bob)).body.call.id;
+    const [bobEvents, eveEvents] = [bob, eve].map(listen);
+    const since = sentPushes.length;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+
+    // To Eve it looks like any ring: no "in another call".
     const busy = await api.post(eve, '/dm-calls', { calleeId: bob.id, callId: randomUUID(), keyEnvelope: ENVELOPE });
-    expect(busy.status).toBe(409);
-    expect(busy.body.error).toBe(`${bob.username} is in another call`);
+    expect(busy.status).toBe(201);
+    expect(busy.body.call).toMatchObject({ state: 'ringing', callee_id: bob.id, ringing: [bob.id] });
+    const eveCall = busy.body.call.id;
+    // Bob isn't rung, his call goes on, and he can't pick this one up.
+    expect(ofType(bobEvents, 'call_incoming')).toEqual([]);
+    expect((await api.get(bob, '/dm-calls/current')).body.id).toBe(bobsCall);
+    expect((await api.post(bob, `/dm-calls/${eveCall}/accept`)).status).toBe(404);
+
+    // It rings out as missed: Eve hears "no answer", Bob gets the missed call afterwards.
+    await vi.advanceTimersByTimeAsync(calls.RING_MS + 10);
+    vi.useRealTimers();
+    expect(ofType(eveEvents, 'call_end')).toEqual([{ type: 'call_end', id: eveCall, reason: 'missed' }]);
+    expect(ofType(bobEvents, 'call_end')).toEqual([]);
+    const pushes = await waitForPushes(1, since);
+    expect(pushes.map((p) => p.payload)).toEqual([expect.objectContaining({ body: 'Missed call', tag: `call-${eveCall}` })]);
+    expect(calls.calls.has(bobsCall)).toBe(true);
   });
 
   it('ends when someone leaves the LiveKit room', async () => {

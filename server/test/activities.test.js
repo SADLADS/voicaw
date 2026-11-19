@@ -91,6 +91,18 @@ describe('activities (Rich Presence)', () => {
     expect((await request(app).get('/api/activity-images/..%2f')).status).toBe(404);
   });
 
+  it("keeps each account's newest pictures only, so nobody pushes out everyone else's", async () => {
+    const { MAX_IMAGES_PER_USER, getImage } = require('../activities.js');
+    const picture = (i) => Buffer.concat([Buffer.from(PNG, 'base64'), Buffer.from(`pic-${i}`)]).toString('base64');
+    const others = storeImage(picture('other'), 'bea');
+    const ids = Array.from({ length: MAX_IMAGES_PER_USER + 5 }, (_, i) => storeImage(picture(i), 'eve'));
+    expect(ids.slice(0, 5).map(getImage)).toEqual([null, null, null, null, null]);
+    expect(ids.slice(5).every((id) => getImage(id))).toBe(true);
+    expect(getImage(others)).not.toBeNull();
+    // A picture someone else already sent stays theirs.
+    expect(storeImage(picture('other'), 'eve')).toBe(others);
+  });
+
   it("tells everyone what someone is playing, in snapshots too, until their app disconnects", async () => {
     const alice = await makeUser();
     const bob = await makeUser();

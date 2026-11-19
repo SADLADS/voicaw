@@ -75,10 +75,11 @@ router.post('/reports', authenticateJWT, async (req, res) => {
       throw new reports.ReportError(400, 'Invalid report');
     }
     if (fields.reportedId === req.user.id) throw new reports.ReportError(400, "You can't report yourself");
-    if (await reports.tooMany(req.user.id)) throw new reports.ReportError(429, "You've sent a lot of reports: try again later");
-    const id = await reports.addReport({ ...fields, reporterId: req.user.id, kind: body.kind, category: body.category, note });
-    await announceToAdmins();
-    adminAlerts.notify('report', { exceptId: req.user.id });
+    const { id, duplicate } = await reports.addReport({ ...fields, reporterId: req.user.id, kind: body.kind, category: body.category, note });
+    if (!duplicate) {
+      await announceToAdmins();
+      adminAlerts.notify('report', { exceptId: req.user.id });
+    }
     res.status(201).json({ id });
   } catch (err) {
     if (err instanceof reports.ReportError) return res.status(err.status).json({ error: err.message });

@@ -17,6 +17,15 @@ const { removeLinkedRows } = require('../pollTimers');
 const { listedKeys, linkListed, releaseUploads } = require('../uploads');
 const { parseRanges, countRanges } = require('../messageRanges');
 const { deduplicated } = require('../sendNonces');
+const { tooManyAttempts } = require('../rateLimit');
+const chatLimits = require('../chatLimits');
+
+// Answers 429 when `userId` is over chatLimits.js's `kind` limit; returns whether it did.
+function limited(res, kind, userId) {
+  const wait = chatLimits.over(kind, userId);
+  if (wait) tooManyAttempts(res, wait);
+  return Boolean(wait);
+}
 
 // Group DMs (see groupDms.js): creating one, its membership log (add, remove, leave), key
 // epochs, and its messages and reactions (all ciphertext). Everything 404s for non-members.
@@ -122,6 +131,7 @@ router.post('/group-dms', authenticateJWT, handle(async (req, res) => {
   if (!groups.isNameCiphertext(epoch?.name) || epoch.nameVersion !== 1) return res.status(400).json({ error: groups.NAME_OUTDATED });
   if (!Array.isArray(log) || log.length < 3) return res.status(400).json({ error: 'A group needs at least two other people' });
   if (log.length > groups.MAX_MEMBERS) return res.status(400).json({ error: `Groups have at most ${groups.MAX_MEMBERS} people` });
+  if (limited(res, 'groups', req.user.id)) return;
 
   // Check the whole log before storing anything: the creator makes it and adds everyone.
   const state = { group: { id }, members: new Set(), ownerId: null, nextSeq: 0, prevHash: null, latestEpoch: null };
@@ -181,6 +191,7 @@ router.get('/group-dms/:groupId', member, async (req, res) => {
 router.patch('/group-dms/:groupId', member, handle(async (req, res) => {
   const { state } = req;
   const groupId = state.group.id;
+  if (limited(res, 'renames', req.user.id)) return;
   const rowId = await groups.storeName(state, req.user.id, req.body ?? {});
   for (const userId of state.members) {
     sendToUserSockets(userId, { type: 'group_dm_update', group: await groups.groupSummary(groupId, userId) });
@@ -207,6 +218,7 @@ router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
   const { state } = req;
   const groupId = state.group.id;
   const { entry, epoch } = req.body ?? {};
+  if (epoch && limited(res, 'epochs', req.user.id)) return;
   const before = new Set(state.members);
   const r = await groups.checkEntry(state, entry, req.user.id);
   if (r.type === 'add' && !epoch) return res.status(400).json({ error: 'Adding someone needs the new key' });
@@ -250,6 +262,7 @@ async function announceEpoch(groupId, epoch) {
 // 409 if another member made it first (then use theirs).
 router.post('/group-dms/:groupId/epochs', member, handle(async (req, res) => {
   const { state } = req;
+  if (limited(res, 'epochs', req.user.id)) return;
   await groups.storeEpoch(state, req.user.id, req.body ?? {});
   await announceEpoch(state.group.id, state.latestEpoch);
   res.status(201).json(state.latestEpoch);
@@ -296,6 +309,7 @@ router.post('/group-dms/:groupId/messages', member, deduplicated('group', (req, 
   if (invalid) return res.status(400).json({ error: invalid });
   const uploads = listedKeys(req.body?.uploads);
   if (uploads === null) return res.status(400).json({ error: 'Invalid uploads' });
+  if (limited(res, 'messages', req.user.id)) return;
   const latest = state.latestEpoch;
   if (!latest || epoch !== latest.epoch || latest.log_seq !== state.nextSeq - 1) {
     return res.status(409).json({ error: 'The group changed; its key has to be renewed', code: 'stale_epoch' });
@@ -419,6 +433,7 @@ router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMess
   }
   const { n } = await db.get('SELECT COUNT(*) AS n FROM group_dm_reactions WHERE message_id = ? AND user_id = ?', [req.message.id, req.user.id]);
   if (n >= MAX_REACTIONS_PER_USER_PER_MESSAGE) return res.status(400).json({ error: 'Too many reactions' });
+  if (limited(res, 'reactions', req.user.id)) return;
   const { lastID } = await db.run(
     `INSERT INTO group_dm_reactions (message_id, user_id, content, timestamp) VALUES (?, ?, ?, strftime('%s','now'))`,
     [req.message.id, req.user.id, content]
@@ -442,6 +457,7 @@ router.get('/group-dms/:groupId/pins', member, async (req, res) => {
 
 async function pinRoute(req, res, pinned) {
   const groupId = req.message.group_id;
+  if (pinned && limited(res, 'pins', req.user.id)) return;
   const result = await setPinned('group_dm_messages', req.message.id, req.user.id, pinned, 'group_id = ?', [groupId]);
   if (result.error) return res.status(result.status).json({ error: result.error });
   const pin = { messageId: req.message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
