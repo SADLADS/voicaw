@@ -132,6 +132,17 @@ picture, and the service worker never serves one with that type. `openInNewTab`
 video or sound and downloads anything else: a page made of a blob would run as the app. The
 Content-Security-Policy (see Content-Security-Policy in `docs/client.md`) is the second line.
 
+**Only this server's files are attachments** (security audit, 2026-11-19): an attachment address
+could be any site, and small pictures load as soon as the message is on screen, so a contact
+could host one themselves and learn the reader's IP address and when they opened the chat.
+`Attachment.jsx` now treats an address as an attachment (or a plain upload) only when it's in
+the server's file store (`inOwnStore`, the config's `s3Endpoint`); anything else, encrypted-looking
+or not, is drawn as another site's picture behind Settings → Privacy's "Show pictures and videos
+from links straight away" (`SiteMediaGate`, see Link previews in `messages.md`). Until the config
+has loaded, an encrypted attachment is only its name. **Download sizes:** `attachmentCache`
+refuses a download whose sender's `s=` or the server's Content-Length is over the largest File
+size limit (500 MB) before allocating anything, and stops one without a length once it passes it.
+
 **The + panel** (2026-10-07, as in Discord's phone app): on a computer the + button is a menu
 (Upload a file, Create poll, and Create thread in a guild text channel you may start threads in,
 `ThreadContext` `startThread`). On a phone it's a panel in the keyboard's place

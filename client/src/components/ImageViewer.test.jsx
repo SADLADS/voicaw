@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
+import { render as renderPlain, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 
 vi.mock('../services/attachmentCache', () => ({
   loadDecryptedAttachment: vi.fn(() => new Promise(() => {})),
@@ -17,6 +17,11 @@ import Attachment from './Attachment';
 import { getCachedAttachment, loadDecryptedAttachment } from '../services/attachmentCache';
 import { saveUrlAs, openInNewTab } from '../utils/saveFile';
 import { buildAttachmentUrl } from '../services/attachmentCrypto';
+import { ConfigContext } from '../contexts';
+// Attachments are only this server's files (the config's file store).
+const WithConfig = ({ children }) => <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>{children}</ConfigContext.Provider>;
+const render = (ui, options) => renderPlain(ui, { wrapper: WithConfig, ...options });
+
 
 const imageUrl = (file, size = 2048) => buildAttachmentUrl(`https://s3.test/uploads/${file}.bin`, {
   key: 'KEY', type: 'image/png', size, width: 1600, height: 900,

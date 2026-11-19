@@ -106,6 +106,35 @@ describe('callClient', () => {
     expect(getCallSnapshot().call).toMatchObject({ state: 'active', answeredAt: 1234 });
   });
 
+  it("never rings again for a call it answered (a recording of it, replayed by the server)", async () => {
+    const store = new Map();
+    vi.stubGlobal('localStorage', { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)) });
+    try {
+      await as(alice);
+      const callId = crypto.randomUUID();
+      const conversation = await deriveConversationKey(await importEncryptionPrivateKey(alice.keys.private.encryptionKey), bob.keys.public.encryptionKey);
+      const offer = { id: callId, caller_id: 1, caller_username: 'alice', key_envelope: await encryptCallKey(generateCallKey(), conversation, callKeyContext(callId, 1, 2)), state: 'ringing' };
+      await as(bob);
+      fetchUsersList.mockResolvedValue([alice.row]);
+      emit({ type: 'call_incoming', call: offer });
+      await acceptCall();
+      expect(acceptCallRequest).toHaveBeenCalledTimes(1);
+      emit({ type: 'call_end', id: callId, reason: 'ended' });
+      await flush();
+
+      // The same call again, even after a reload: no ringing, nothing to answer.
+      await as(bob);
+      startLoop.mockClear();
+      emit({ type: 'call_incoming', call: offer });
+      expect(getCallSnapshot().call).toBeNull();
+      expect(startLoop).not.toHaveBeenCalled();
+      await acceptCall();
+      expect(acceptCallRequest).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("won't call someone whose key changed", async () => {
     await as(alice);
     checkContactKeys.mockResolvedValue({ status: 'changed', encryptionKey: null });

@@ -69,22 +69,60 @@ export function seedAttachmentCache(url, objectUrl) {
   remember(url, Promise.resolve(objectUrl));
 }
 
+// No stored file is bigger than the largest File size limit (Settings → Admin): a download
+// claiming more (the server's Content-Length, or the sender's `s=`) is refused before anything
+// is allocated, and one without a length stops when it goes past it.
+// (attachmentUpload.js DEFAULT_MAX_UPLOAD_BYTES, the largest the setting offers.)
+export const MAX_DOWNLOAD_BYTES = 500 * 1024 * 1024;
+
 // Downloads a whole object, telling `onProgress(fraction)` as it arrives.
 async function download(url, onProgress, expectedSize) {
+  if (expectedSize > MAX_DOWNLOAD_BYTES) throw new Error('Attachment too big');
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
-  const total = Number(res.headers.get('Content-Length')) || expectedSize;
-  if (!onProgress || !res.body || !total) return res.arrayBuffer();
+  const length = Number(res.headers.get('Content-Length')) || 0;
+  if (length > MAX_DOWNLOAD_BYTES) throw new Error('Attachment too big');
+  const total = length || expectedSize || 0;
+  if (!res.body) {
+    const buffer = await res.arrayBuffer();
+    if (buffer.byteLength > MAX_DOWNLOAD_BYTES) throw new Error('Attachment too big');
+    return buffer;
+  }
   const reader = res.body.getReader();
+  // Length unknown: the parts as they come, up to the limit.
+  if (!total) {
+    const parts = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > MAX_DOWNLOAD_BYTES) {
+        reader.cancel().catch(() => {});
+        throw new Error('Attachment too big');
+      }
+      parts.push(value);
+    }
+    const out = new Uint8Array(size);
+    let offset = 0;
+    for (const part of parts) {
+      out.set(part, offset);
+      offset += part.length;
+    }
+    return out.buffer;
+  }
   const out = new Uint8Array(total);
   let received = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    if (received + value.length > out.length) throw new Error('Download larger than expected');
+    if (received + value.length > out.length) {
+      reader.cancel().catch(() => {});
+      throw new Error('Download larger than expected');
+    }
     out.set(value, received);
     received += value.length;
-    onProgress(received / total);
+    onProgress?.(received / total);
   }
   return out.buffer.slice(0, received);
 }
@@ -101,7 +139,9 @@ export function loadDecryptedAttachment(url, meta, onProgress) {
     .then((plain) => URL.createObjectURL(new Blob([plain], { type: meta.type })));
 
   // Don't cache failures, so a later render can retry.
-  promise.catch(() => cache.get(url) === promise && forget(url));
+  promise.catch(() => {
+    if (cache.get(url) === promise) forget(url);
+  });
   return remember(url, promise, meta.size ?? 0);
 }
 

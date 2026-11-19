@@ -7,7 +7,7 @@ vi.mock('./contactKeys', () => ({ getPinnedContact: vi.fn(), checkContactKeys: v
 
 import { notificationFromPush } from './pushNotifications';
 import { loadEncryptionKey, loadOwnPublicKeys } from './keyStore';
-import { recallGroup } from './groupCache';
+import { recallGroup, rememberGroupName } from './groupCache';
 import { getSetting } from './settingsStore';
 import { checkContactKeys, getPinnedContact } from './contactKeys';
 import {
@@ -230,11 +230,20 @@ describe('group notifications', () => {
     expect(title).toBe('Group');
     expect(options.body).toBe('New message from alice');
 
-    recallGroup.mockResolvedValue({ userId: String(BOB), epochs: { 3: epochKey }, identityKeys: { [ALICE]: alice.public.identityKey }, members: [], name: null });
+    const saved = { userId: String(BOB), epochs: { 3: epochKey }, identityKeys: { [ALICE]: alice.public.identityKey }, members: [{ id: ALICE, name: 'alice' }, { id: BOB, name: 'bob' }], name: null };
+    recallGroup.mockResolvedValue(saved);
     const push = await groupPush('');
     const call = await notificationFromPush({ type: 'call', title: 'Group call', body: 'alice started a call', groupId: GROUP, nameCiphertext: push.nameCiphertext, nameEpoch: 3 });
     expect(call.title).toBe('Climbing');
     expect(call.options.body).toBe('alice started a call');
+
+    // A name signed by someone who has left (still in the log's keys, sealed under an epoch they
+    // had) isn't taken.
+    rememberGroupName.mockClear();
+    recallGroup.mockResolvedValue({ ...saved, members: [{ id: BOB, name: 'bob' }, { id: 9, name: 'cleo' }] });
+    const fromFormer = await notificationFromPush({ type: 'call', title: 'Group call', body: 'alice started a call', groupId: GROUP, nameCiphertext: push.nameCiphertext, nameEpoch: 3 });
+    expect(fromFormer.title).toBe('cleo');
+    expect(rememberGroupName).not.toHaveBeenCalled();
   });
 });
 

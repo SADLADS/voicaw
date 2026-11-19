@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db');
 const editHistory = require('../editHistory');
 const { CALL_LOG } = require('../callLog');
-const { maxPlaintextLength, getMaxEncryptedLength, MAX_LINK_PREVIEWS_BYTES } = require('../config');
+const { maxPlaintextLength, getMaxEncryptedLength, MAX_LINK_PREVIEWS_BYTES, MESSAGE_HEADER_BYTES } = require('../config');
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
 const { sendPushToUser, buildGroupPushPayload, clearNotifications } = require('../push');
@@ -35,10 +35,13 @@ const router = express.Router();
 const MAX_REACTIONS_PER_USER_PER_MESSAGE = 50;
 // Messages, edits and reactions are signed inside their encryption (client groupCrypto.js):
 // "v2." envelopes, whose plaintext starts with a 64-byte signature. (Older "v1." ones, from
-// before signing, are still served; new ones must be signed.)
+// before signing, are still served; new ones must be signed.) Messages and edits are "v3." now:
+// signed too, with a header in front of the text (client groupCrypto.js); "v2." ones from older
+// apps are still taken. Reactions and link previews stay "v2.".
 const SIGNED_PREFIX = 'v2.';
+const MESSAGE_PREFIXES = ['v2.', 'v3.'];
 const SIGNATURE_BYTES = 64;
-const MAX_MESSAGE_LENGTH = getMaxEncryptedLength(maxPlaintextLength + SIGNATURE_BYTES);
+const MAX_MESSAGE_LENGTH = getMaxEncryptedLength(maxPlaintextLength + SIGNATURE_BYTES + MESSAGE_HEADER_BYTES);
 const MAX_PREVIEWS_LENGTH = getMaxEncryptedLength(MAX_LINK_PREVIEWS_BYTES + SIGNATURE_BYTES);
 // A signed reaction is always one of these long: signature + 512 padded bytes (256 or 64 from
 // older apps; see DM reactions).
@@ -48,7 +51,7 @@ const OUTDATED = 'Please update the app (group messages are signed now)';
 // A new message or edit's content: signed, and not too long. -> an error message, or null.
 function contentError(content) {
   if (typeof content !== 'string' || !content.trim()) return 'Missing content';
-  if (!content.startsWith(SIGNED_PREFIX)) return OUTDATED;
+  if (!MESSAGE_PREFIXES.some((prefix) => content.startsWith(prefix))) return OUTDATED;
   if (content.length > MAX_MESSAGE_LENGTH) return `Message too long. Max allowed characters: ${maxPlaintextLength}`;
   return null;
 }
@@ -336,10 +339,14 @@ router.post('/group-dms/:groupId/messages', member, deduplicated('group', (req, 
   });
 
   const senderName = await displayNameOf(req.user.id, req.user.username);
+  // The members now, not as read before the insert: someone removed meanwhile (keeping the
+  // old epoch's key until the next one) mustn't get it.
+  const members = await groups.memberIds(groupId);
   // Those who blocked the sender still get the message (collapsed in their app), not a push.
-  const blockers = await require('../blocks').blockersAmong(req.user.id, [...state.members]);
-  for (const userId of state.members) {
+  const blockers = await require('../blocks').blockersAmong(req.user.id, members);
+  for (const userId of members) {
     const message = await messageFor(userId, lastID);
+    if (!message) continue;
     sendToUserSockets(userId, { type: 'group_dm_message_new', groupId, message });
     if (userId !== req.user.id && !blockers.has(userId) && !isViewingConversation(userId, `group-${groupId}`) && !(await isConversationMuted(userId, 'group', groupId))) {
       sendPushToUser(userId, await buildGroupPushPayload(groupId, message, userId, senderName), {
@@ -383,7 +390,7 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
     await linkListed('group', req.message.id, uploads, { edit: true });
   });
   releaseUploads();
-  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
+  await groups.sendToEpochHolders(req.message.group_id, req.message.epoch, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });
   res.json({ success: true });
 });
 
@@ -404,7 +411,7 @@ router.put('/group-dm-messages/:messageId/link-previews', authenticateJWT, findM
   if (req.message.sender_id !== req.user.id) return res.status(403).json({ error: 'Not your message' });
   if (req.message.system) return res.status(403).json({ error: "This message can't be changed" });
   await db.run('UPDATE group_dm_messages SET link_previews = ? WHERE id = ?', [previews, req.message.id]);
-  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_link_previews', groupId: req.message.group_id, messageId: req.message.id, link_previews: previews });
+  await groups.sendToEpochHolders(req.message.group_id, req.message.epoch, { type: 'group_dm_message_link_previews', groupId: req.message.group_id, messageId: req.message.id, link_previews: previews });
   res.json({ success: true });
 });
 
@@ -419,7 +426,7 @@ router.delete('/group-dm-messages/:messageId', authenticateJWT, findMessage, not
   });
   releaseUploads();
   for (const id of [req.message.id, ...removed]) {
-    await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_delete', groupId: req.message.group_id, messageId: id });
+    await groups.sendToEpochHolders(req.message.group_id, req.message.epoch, { type: 'group_dm_message_delete', groupId: req.message.group_id, messageId: id });
   }
   res.json({ success: true });
 });
@@ -439,7 +446,7 @@ router.post('/group-dm-messages/:messageId/reactions', authenticateJWT, findMess
     [req.message.id, req.user.id, content]
   );
   const reaction = await db.get('SELECT id, message_id, user_id, content, timestamp FROM group_dm_reactions WHERE id = ?', [lastID]);
-  await groups.sendToGroup(req.message.group_id, { type: 'group_dm_reaction_add', groupId: req.message.group_id, reaction });
+  await groups.sendToEpochHolders(req.message.group_id, req.message.epoch, { type: 'group_dm_reaction_add', groupId: req.message.group_id, reaction });
   notifyGroupReaction(req.message, reaction);
   res.status(201).json(reaction);
 });
@@ -461,7 +468,7 @@ async function pinRoute(req, res, pinned) {
   const result = await setPinned('group_dm_messages', req.message.id, req.user.id, pinned, 'group_id = ?', [groupId]);
   if (result.error) return res.status(result.status).json({ error: result.error });
   const pin = { messageId: req.message.id, pinned_at: result.pinned_at, pinned_by: result.pinned_by };
-  if (result.changed) await groups.sendToGroup(groupId, { type: 'group_dm_message_pin', groupId, ...pin });
+  if (result.changed) await groups.sendToEpochHolders(groupId, req.message.epoch, { type: 'group_dm_message_pin', groupId, ...pin });
   await announcePin('group_dm_messages', result.rowId);
   res.json(pin);
 }
@@ -472,9 +479,9 @@ router.delete('/group-dm-messages/:messageId/pin', authenticateJWT, findMessage,
 router.delete('/group-dm-reactions/:reactionId', authenticateJWT, async (req, res) => {
   const reaction = await db.get('SELECT id, message_id, user_id FROM group_dm_reactions WHERE id = ?', [Number(req.params.reactionId)]);
   if (!reaction || reaction.user_id !== req.user.id) return res.status(404).json({ error: 'Reaction not found' });
-  const message = await db.get('SELECT group_id FROM group_dm_messages WHERE id = ?', [reaction.message_id]);
+  const message = await db.get('SELECT group_id, epoch FROM group_dm_messages WHERE id = ?', [reaction.message_id]);
   await db.run('DELETE FROM group_dm_reactions WHERE id = ?', [reaction.id]);
-  await groups.sendToGroup(message.group_id, { type: 'group_dm_reaction_remove', groupId: message.group_id, messageId: reaction.message_id, reactionId: reaction.id });
+  await groups.sendToEpochHolders(message.group_id, message.epoch, { type: 'group_dm_reaction_remove', groupId: message.group_id, messageId: reaction.message_id, reactionId: reaction.id });
   res.json({ success: true });
 });
 

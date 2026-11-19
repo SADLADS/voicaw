@@ -140,6 +140,8 @@
       "unsignedTitle": "Sent before group messages were signed: who sent it can't be verified",
       "unverified": "⚠ unverified sender",
       "unverifiedTitle": "The signature doesn't match the sender: it may be forged",
+      "misplaced": "⚠ out of place",
+      "misplacedTitle": "This message's own record of when it was sent, what it replies to or which message it edits doesn't match where it's shown: the server may have delivered it again or moved it",
       "editLabel": "Edit message",
       "editHint": "Escape to <cancel>cancel</cancel> • Enter to <save>save</save>",
       "hiddenSpoiler": "[spoiler]",

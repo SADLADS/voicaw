@@ -11,7 +11,7 @@ vi.mock('./encryptionService', () => ({
   deriveConversationKey: vi.fn(async (mine, theirs) => `dm:${theirs}`),
   deriveNotesKey: vi.fn(async () => 'notes-key'),
   dmContext: (a, b) => `${a}>${b}`,
-  encryptMessage: vi.fn(async (text, key, context) => `enc(${text}|${key}|${context})`),
+  encryptDmMessage: vi.fn(async (text, key, context) => `enc(${text}|${key}|${context})`),
 }));
 vi.mock('./keyStore', () => ({
   loadEncryptionKey: vi.fn(async () => 'my-key'),

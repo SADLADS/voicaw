@@ -56,7 +56,9 @@ export default function GroupMembers({ group, user, users, onClose }) {
   const closeCard = useCallback(() => setCardFor(null), []);
   const cardStyle = useFloatingCard(cardFor, { listRef, cardRef, rowSelector: '.group-member-open', onClose: closeCard });
   const { detail, log } = group;
-  const pictureUrl = useGroupPicture(detail.id, group.name?.picture);
+  // A name from someone who has left that this device never saw isn't shown (groupKeys readName).
+  const shownName = group.name?.untrusted ? null : group.name;
+  const pictureUrl = useGroupPicture(detail.id, shownName?.picture);
 
   useEffect(() => () => { if (newPicture?.preview) URL.revokeObjectURL(newPicture.preview); }, [newPicture]);
   const names = new Map(detail.users.map((u) => [u.id, nameOf(u)]));
@@ -166,7 +168,7 @@ export default function GroupMembers({ group, user, users, onClose }) {
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'add' })} disabled={room <= 0}>
           <Icon icon={faUserPlus} /> {t('groups.members.addPeople')}
         </button>
-        <button type="button" className="group-action" onClick={() => { setName(group.name?.name ?? ''); setDialog({ type: 'rename' }); }}>
+        <button type="button" className="group-action" onClick={() => { setName(shownName?.name ?? ''); setDialog({ type: 'rename' }); }}>
           <Icon icon={faPen} /> {t('groups.members.rename')}
         </button>
         <button type="button" className="group-action" onClick={() => setDialog({ type: 'picture' })}>

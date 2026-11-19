@@ -22,7 +22,7 @@ import { mergeNewestPage } from '../utils/catchUp';
 import {
   decryptGroupMessage,
   decryptGroupReaction,
-  encryptGroupMessage,
+  encryptGroupChatMessage,
   encryptGroupReaction,
   groupMessageContext,
   groupReactionContext,
@@ -30,6 +30,7 @@ import {
   openGroupName,
   reactionSignatureContext,
 } from '../services/groupCrypto';
+import { markRepeatedMessages, messageMisplaced } from '../services/encryptionService';
 import { loadIdentityKey } from '../services/keyStore';
 import { groupPreviewsContext, groupPreviewsSignatureContext, openGroupPreviews, sealGroupPreviews } from '../services/linkPreviewCrypto';
 import { previewsFor } from '../services/linkPreviewService';
@@ -52,7 +53,9 @@ const FORGED = t('groups.messages.forged');
 // Everything is signed by its sender (groupCrypto.js) and checked against their identity key
 // from the group's checked log: a message whose signature doesn't match isn't shown
 // (`unverified`), one from before signing is marked `unsigned`, reactions that don't match are
-// dropped.
+// dropped, and so are unsigned (`v1.`) reactions on a signed message (it was sent after signing
+// came in, so everything since is signed). A message whose header doesn't fit its row
+// (messageMisplaced: delivered again, or moved) is `misplaced`, shown with a warning.
 // `saveReaction` / `deleteReaction`, and `reload()`. Membership changes show in the timeline
 // as system rows ({ system: true, text }), renames too (rows from the server, `system`
 // 'group_name', with the signed name they set, checked like a message).
@@ -114,16 +117,22 @@ export function useGroupConversation({ groupId, user, onRead }) {
     groupId, epoch: row.epoch, senderId: row.sender_id, replyTo: row.parent_message_id ?? null, editOf: row.edited ? row.id : null,
   });
 
-  // -> { plaintext, unsigned?, unverified? }. `verify` false for a reply's preview (whose own
-  // signature context the server doesn't send; the message itself is checked where it's shown).
-  async function decryptText(content, epoch, senderId, signatureContext, verify = true) {
+  // -> { plaintext, unsigned?, unverified?, misplaced?, sent_id? }. `bound`: { row, now } to check
+  // the header against (messageMisplaced; then `misplaced` is always set, so it replaces an
+  // earlier value), for a message shown in the list.
+  async function decryptText(content, epoch, senderId, signatureContext, bound = null) {
     const key = await keyFor(epoch);
     if (!key) return { plaintext: UNREADABLE };
     try {
-      const identityKey = verify ? groupRef.current?.log.identityKeys.get(senderId) ?? 'unknown' : null;
-      const { text, signed, verified } = await decryptGroupMessage(content, key, groupMessageContext(groupId, epoch, senderId), identityKey, signatureContext);
+      const identityKey = groupRef.current?.log.identityKeys.get(senderId) ?? 'unknown';
+      const { text, signed, verified, sent } = await decryptGroupMessage(content, key, groupMessageContext(groupId, epoch, senderId), identityKey, signatureContext);
       if (signed && verified === false) return { plaintext: FORGED, unverified: true };
-      return { plaintext: text, unsigned: !signed };
+      const out = { plaintext: text, unsigned: !signed };
+      if (bound) {
+        out.misplaced = messageMisplaced(sent, bound.row, { now: bound.now ?? null });
+        out.sent_id = sent?.id ?? null;
+      }
+      return out;
     } catch {
       return { plaintext: UNREADABLE };
     }
@@ -140,8 +149,12 @@ export function useGroupConversation({ groupId, user, onRead }) {
     );
   }
 
-  async function decryptReactions(messageId, epoch, reactions) {
+  // `messageContent`: the message's envelope. A signed one (`v2.`, `v3.`) was sent after signing
+  // came in, so an unsigned reaction to it can't be genuine (the server refuses new ones; a
+  // member working with it could still make one in someone else's name).
+  async function decryptReactions(messageId, epoch, reactions, messageContent) {
     const key = await keyFor(epoch);
+    const signedMessage = typeof messageContent === 'string' && /^v[23]\./.test(messageContent);
     const out = [];
     for (const r of reactions ?? []) {
       try {
@@ -150,7 +163,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
           groupRef.current?.log.identityKeys.get(r.user_id) ?? 'unknown',
           reactionSignatureContext({ groupId, epoch, messageId, reactorId: r.user_id })
         );
-        if (signed && !verified) continue;
+        if ((signed && !verified) || (!signed && signedMessage)) continue;
         out.push({ id: r.id, user_id: r.user_id, emoji, timestamp: r.timestamp });
       } catch {
         // Skip one that doesn't open.
@@ -171,8 +184,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
       ...row,
       plaintext: null,
       parent_plaintext: poll && !poll.unverified && !poll.unsigned ? poll.plaintext : null,
-      reactions: await decryptReactions(row.id, row.epoch, row.reactions),
-      poll_reactions: row.parent_content != null ? await decryptReactions(row.parent_message_id, row.parent_epoch, row.poll_reactions) : [],
+      reactions: await decryptReactions(row.id, row.epoch, row.reactions, row.content),
+      poll_reactions: row.parent_content != null ? await decryptReactions(row.parent_message_id, row.parent_epoch, row.poll_reactions, row.parent_content) : [],
     };
   }
 
@@ -200,16 +213,21 @@ export function useGroupConversation({ groupId, user, onRead }) {
     if (row.system === 'call') return { ...row, plaintext: null, reactions: [] };
     // A pin (server pins.js): only who pinned which message, no content of its own.
     if (row.system === 'pin') return { ...row, plaintext: null, parent_plaintext: null, reactions: [] };
-    const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row));
+    const text = await decryptText(row.content, row.epoch, row.sender_id, signatureContextOf(row), { row });
     const readable = text.plaintext !== UNREADABLE && !text.unverified;
+    // The quoted message is checked against its author's signature too (the server sends what
+    // it was signed with: what it replied to, whether it's an edit); a quote that doesn't check
+    // out isn't shown.
+    const parent = row.parent_content ? await decryptText(row.parent_content, row.parent_epoch, row.parent_sender_id, signatureContextOf({
+      id: row.parent_message_id, epoch: row.parent_epoch, sender_id: row.parent_sender_id,
+      parent_message_id: row.parent_reply_to, edited: row.parent_edited,
+    })) : null;
     return {
       ...row,
       ...text,
       link_embeds: readable ? await openPreviews(row.link_previews, row, text.plaintext) : null,
-      parent_plaintext: row.parent_content
-        ? (await decryptText(row.parent_content, row.parent_epoch, row.parent_sender_id, null, false)).plaintext
-        : null,
-      reactions: await decryptReactions(row.id, row.epoch, row.reactions),
+      parent_plaintext: parent && !parent.unverified ? parent.plaintext : null,
+      reactions: await decryptReactions(row.id, row.epoch, row.reactions, row.content),
     };
   }
 
@@ -270,7 +288,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
           setLoadedFor(chatKey);
           return;
         }
-        const rows = await Promise.all(page.map(decryptRow));
+        const rows = markRepeatedMessages(await Promise.all(page.map(decryptRow)));
         if (cancelled) return;
         setMessages(rows);
         setHasMore(page.length >= GROUP_PAGE_SIZE);
@@ -309,7 +327,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
       if (activeGroupId.current !== requestedFor) return;
       const known = new Set(messagesRef.current.map((m) => m.id));
       const fresh = rows.filter((m) => !known.has(m.id));
-      if (fresh.length) setMessages((prev) => [...fresh, ...prev]);
+      if (fresh.length) setMessages((prev) => markRepeatedMessages([...fresh, ...prev]));
       setHasMore(page.length >= GROUP_PAGE_SIZE);
     } catch (e) {
       console.error('Failed to load older messages:', e);
@@ -325,7 +343,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
     const rows = await Promise.all(page.map(decryptRow));
     if (activeGroupId.current !== requestedFor) return;
     const { gap, added } = mergeNewestPage(messagesRef.current, rows, GROUP_PAGE_SIZE);
-    setMessages((prev) => mergeNewestPage(prev, rows, GROUP_PAGE_SIZE).messages);
+    setMessages((prev) => markRepeatedMessages(mergeNewestPage(prev, rows, GROUP_PAGE_SIZE).messages));
     if (gap) setHasMore(true);
     if (added.some((m) => m.sender_id !== user.id)) markRead(rows[rows.length - 1].id);
   }, loadedFor === chatKey && chatKey != null && !fromCopy);
@@ -339,7 +357,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
         updated[pending] = { ...message, clientKey: prev[pending].clientKey ?? prev[pending].id };
         return updated;
       }
-      return [...prev, message];
+      // The same message delivered again (by its header's id) shows a warning.
+      return markRepeatedMessages([...prev, message]);
     });
     if (message.sender_id !== user.id) markRead(message.id);
   }
@@ -403,7 +422,10 @@ export function useGroupConversation({ groupId, user, onRead }) {
     const context = messageSignatureContext({
       groupId, epoch: original.epoch, senderId: user.id, replyTo: original.parent_message_id ?? null, editOf: messageId,
     });
-    const content = await encryptGroupMessage(text, key, groupMessageContext(groupId, original.epoch, user.id), await loadIdentityKey(), context);
+    const content = await encryptGroupChatMessage(
+      text, key, groupMessageContext(groupId, original.epoch, user.id), await loadIdentityKey(), context,
+      { replyTo: original.parent_message_id ?? null, editOf: messageId }
+    );
     await editGroupMessage(messageId, content, uploadNamesIn(text));
     // An edit clears the previews (the server too); this device makes them again.
     updateMessage(messageId, () => ({ plaintext: text, content, edited: 1, link_embeds: null }));
@@ -499,7 +521,8 @@ export function useGroupConversation({ groupId, user, onRead }) {
         case 'group_dm_message_edit': {
           const original = messagesRef.current.find((m) => m.id === event.messageId);
           if (!original) break;
-          const text = await decryptText(event.content, original.epoch, original.sender_id, signatureContextOf({ ...original, edited: 1 }));
+          const edited = { ...original, edited: 1 };
+          const text = await decryptText(event.content, original.epoch, original.sender_id, signatureContextOf(edited), { row: edited, now: Math.floor(Date.now() / 1000) });
           updateMessage(event.messageId, () => ({ ...text, content: event.content, edited: 1, link_embeds: null }));
           break;
         }
@@ -516,7 +539,7 @@ export function useGroupConversation({ groupId, user, onRead }) {
         case 'group_dm_reaction_add': {
           const msg = messagesRef.current.find((m) => m.id === event.reaction.message_id);
           if (!msg) break;
-          const [reaction] = await decryptReactions(msg.id, msg.epoch, [event.reaction]);
+          const [reaction] = await decryptReactions(msg.id, msg.epoch, [event.reaction], msg.content);
           if (reaction) setMessageReactions(msg.id, (list) => (list.some((r) => r.id === reaction.id) ? list : [...list, reaction]));
           break;
         }

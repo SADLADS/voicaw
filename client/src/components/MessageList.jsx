@@ -714,6 +714,10 @@ const MessageRow = memo(function MessageRow({
           {msg.unverified ? (
             <em className="message-signature unverified" title={t('chat.message.unverifiedTitle')}>{t('chat.message.unverified')}</em>
           ) : null}
+          {/* DMs and groups: its header doesn't fit this row (delivered again, or moved). */}
+          {msg.misplaced && !msg.unverified ? (
+            <em className="message-signature unverified" title={t('chat.message.misplacedTitle')}>{t('chat.message.misplaced')}</em>
+          ) : null}
         </small>
         </>
         )}

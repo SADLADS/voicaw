@@ -32,6 +32,8 @@ function getMaxEncryptedLength(maxPlaintextLength) {
 }
 
 const maxPlaintextLength = parseInt(process.env.MAX_MESSAGE_LENGTH, 10) || 5000;
+// The most a message's header (in `v2.` DM and `v3.` group envelopes) takes: see maxMessageLength.
+const MESSAGE_HEADER_BYTES = 160;
 
 // Voice channels (a LiveKit server, see README.md). Optional: without these, voice channels
 // exist but can't be joined. LIVEKIT_URL is what browsers connect to (wss://); the API talks
@@ -93,8 +95,11 @@ module.exports = {
   // Login/registration attempt limits (see routes/auth.js). Tests turn them off, since they
   // register and log in dozens of users from one address.
   rateLimitsEnabled: process.env.DISABLE_RATE_LIMITS !== '1',
-  // What a message of maxPlaintextLength is once encrypted (the server only sees that).
-  maxMessageLength: getMaxEncryptedLength(maxPlaintextLength),
+  // What a message of maxPlaintextLength is once encrypted (the server only sees that), with
+  // room for the header newer envelopes put in front of the text (client encryptionService.js
+  // MESSAGE_HEADER_BYTES: the sender's own id for it, when it was written, what it replies to).
+  maxMessageLength: getMaxEncryptedLength(maxPlaintextLength + MESSAGE_HEADER_BYTES),
+  MESSAGE_HEADER_BYTES,
   getMaxEncryptedLength,
   // A message's link previews (made by the sender's app in encrypted chats), before encryption.
   MAX_LINK_PREVIEWS_BYTES: 16 * 1024,

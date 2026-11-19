@@ -344,6 +344,19 @@ async function sendToGroup(groupId, payload, exceptUserId = null) {
   }
 }
 
+// To the members who hold epoch `epoch`'s key: what concerns a message of that epoch (an edit,
+// reaction, pin...). Members added later have no key for it and are never served the message,
+// so they don't hear that it exists either.
+async function sendToEpochHolders(groupId, epoch, payload) {
+  const rows = await db.all(
+    `SELECT m.user_id FROM group_dm_members m
+     JOIN group_dm_epoch_keys k ON k.group_id = m.group_id AND k.user_id = m.user_id AND k.epoch = ?
+     WHERE m.group_id = ?`,
+    [epoch, groupId]
+  );
+  for (const { user_id: userId } of rows) sendToUserSockets(userId, payload);
+}
+
 // Tells everyone a stored log entry concerns: whoever it took out gets `group_dm_remove`,
 // whoever it added `group_dm_add`, everyone else `group_dm_update` with the entry. `before`:
 // the members before it; `state`: after it.
@@ -392,5 +405,6 @@ module.exports = {
   announceEntry,
   memberIds,
   sendToGroup,
+  sendToEpochHolders,
   deleteGroup,
 };

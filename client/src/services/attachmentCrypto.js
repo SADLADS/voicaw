@@ -109,6 +109,14 @@ function positiveInt(value) {
   return /^[1-9]\d*$/.test(value ?? '') ? Number(value) : null;
 }
 
+// Whether an address is in this server's file store (`s3Endpoint`, from its config; false while
+// that isn't known). Only those are treated as attachments: anything else is another site,
+// which would learn who opened the message and when, so it's shown like any other site's picture
+// (behind Settings → Privacy's option).
+export function inOwnStore(url, s3Endpoint) {
+  return Boolean(s3Endpoint) && typeof url === 'string' && url.startsWith(`${s3Endpoint.replace(/\/+$/, '')}/`);
+}
+
 // Returns { version, fileUrl, key, type, size, width, height, spoiler } for an encrypted
 // attachment URL, or null for any other URL (legacy unencrypted uploads, external images, …).
 // v2 adds { nonce, duration, voice (a voice message), waveform (its Uint8Array, or null) }. `posterUrl` is a video's poster (v2) or an image's thumbnail

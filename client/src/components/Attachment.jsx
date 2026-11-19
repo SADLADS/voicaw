@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { faFile, faDownload } from '@fortawesome/free-solid-svg-icons';
-import { parseAttachmentUrl } from '../services/attachmentCrypto';
+import { inOwnStore, parseAttachmentUrl } from '../services/attachmentCrypto';
 import {
   loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
 } from '../services/attachmentCache';
@@ -10,7 +10,7 @@ import { saveAttachment } from '../services/attachmentSave';
 import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 import { triggerDownload } from '../utils/saveFile';
-import { ImageViewerContext } from '../contexts';
+import { ConfigContext, ImageViewerContext } from '../contexts';
 import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { parseGifUrl } from '../utils/gifMarkup';
 import { usePrivacyPrefs } from '../utils/privacy';
@@ -21,6 +21,7 @@ import { t } from '../i18n';
 import VideoPlayer from './VideoPlayer';
 import VoiceMessage from './VoiceMessage';
 import MediaCover from './MediaCover';
+import SiteMediaGate from './SiteMediaGate';
 
 // `size` and `hasThumbnail`: an image too big to show whole (and with nothing smaller to show)
 // is a file to download.
@@ -375,6 +376,7 @@ export function ExternalImage({ src, item, style, onError }) {
 // external images).
 export default function Attachment({ src, alt, localAttachments }) {
   const name = alt || t('media.attachment.defaultName');
+  const s3Endpoint = useContext(ConfigContext)?.s3Endpoint;
 
   const placeholderId = placeholderIdFromUrl(src);
   if (placeholderId !== null) {
@@ -389,7 +391,15 @@ export default function Attachment({ src, alt, localAttachments }) {
   if (gif) return <GifView src={src} name={name} width={gif.width} height={gif.height} />;
 
   const meta = parseAttachmentUrl(src);
-  if (!meta) return <ExternalImage src={src} item={{ src, name }} />;
+  const ours = inOwnStore(src, s3Endpoint);
+  // An encrypted attachment waits for the server's config to say where its files are.
+  if (meta && !s3Endpoint) return <span className="attachment-missing">📎 {name}</span>;
+  // Another site's picture (or an "attachment" there): held back like any link's picture.
+  if (!meta || !ours) {
+    return ours
+      ? <ExternalImage src={src} item={{ src, name }} />
+      : <SiteMediaGate url={src}><ExternalImage src={src} item={{ src, name }} /></SiteMediaGate>;
+  }
 
   if (meta.voice) return <EncryptedVoice url={src} meta={meta} name={name} />;
   if (kindOf(meta.type) === 'video') return <EncryptedVideo url={src} meta={meta} name={name} />;

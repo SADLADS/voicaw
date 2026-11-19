@@ -198,4 +198,29 @@ describe('group names', () => {
     expect((await openGroup(b, GROUP)).name.name).toBe('Trip');
     expect(await groupProfileOf(b, { id: GROUP, name: 'Read this', name_version: 0 })).toMatchObject({ name: 'Trip' });
   });
+
+  it("doesn't show a name signed by someone who has left, sealed under an epoch they still have", async () => {
+    // c was removed (entry 3) but still has epoch 1's key; with the server's help, c signs a
+    // newer name and seals it under epoch 1.
+    const log = await buildLog(steps());
+    const before = await makeEpoch(1, 2, a, [a, b, c]);
+    const after = await makeEpoch(2, 3, a, [a, b]);
+    const real = await signGroupName({ groupId: GROUP, version: 1, renamerId: a.id, name: 'Trip', initial: true }, a.sign);
+    const forged = await signGroupName({ groupId: GROUP, version: 5, renamerId: c.id, name: 'Send money here' }, c.sign);
+    const forgedDetail = detailFor(log, [before, after], { name_version: 5, name_epoch: 1, name_ciphertext: await sealGroupName(forged, before.key, GROUP, 1) });
+
+    // A device that never saw a name shows none (and doesn't save it), but can still carry it.
+    fetchGroup.mockResolvedValue(forgedDetail);
+    const group = await openGroup(b, GROUP);
+    expect(group.name).toMatchObject({ untrusted: true, renamerId: c.id });
+    expect(await groupProfileOf(b, { id: GROUP, name_version: 5, name_epoch: 1, name_ciphertext: forgedDetail.name_ciphertext })).toEqual({ name: '', picture: null });
+
+    // One that saw the real name keeps it.
+    await forgetGroups();
+    fetchGroup.mockResolvedValue(detailFor(log, [before, after], { name_version: 1, name_epoch: 2, name_ciphertext: await sealGroupName(real, after.key, GROUP, 2) }));
+    expect((await openGroup(b, GROUP)).name.name).toBe('Trip');
+    fetchGroup.mockResolvedValue(forgedDetail);
+    expect((await openGroup(b, GROUP)).name).toMatchObject({ name: 'Trip', version: 1 });
+    expect(await groupProfileOf(b, { id: GROUP, name_version: 5, name_epoch: 1, name_ciphertext: forgedDetail.name_ciphertext })).toMatchObject({ name: 'Trip' });
+  });
 });

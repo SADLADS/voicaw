@@ -10,6 +10,7 @@ import {
   encryptGroupPicture,
   makeRecord,
   openGroupName,
+  renamerIsMember,
   sealGroupName,
   signGroupName,
   signRecord,
@@ -126,7 +127,7 @@ export async function openGroup(me, groupId) {
     return { id, name: user ? user.display_name || user.username : '' };
   });
   await rememberGroup(me.id, groupId, {
-    keys, identityKeys: log.identityKeys, members, name, log: { length: log.nextSeq, hash: log.prevHash },
+    keys, identityKeys: log.identityKeys, members, name: name?.untrusted ? null : name, log: { length: log.nextSeq, hash: log.prevHash },
   });
   return { detail, log, keys, epochs, problems, encryptionKeyOf, name };
 }
@@ -154,7 +155,9 @@ export function epochStillPrivate(group, epoch) {
 // The group's name, checked: { name ('' for none), version, renamerId, initial, signed } (the
 // newest this device has seen: an older one from the server is ignored); null if it can't be
 // read. A plaintext name from the server (groups from before names were encrypted, none left)
-// is never shown: anyone could have written it.
+// is never shown: anyone could have written it. A name from someone who has left that this
+// device hasn't seen comes back `untrusted`: not shown or saved, only carried into new epochs
+// (it stays its renamer's, so it never becomes trusted that way).
 async function readName(me, groupId, detail, keys, log) {
   let name = null;
   const key = detail.name_version ? keys.get(detail.name_epoch) : null;
@@ -169,6 +172,10 @@ async function readName(me, groupId, detail, keys, log) {
   if (seen && (!name || seen.version > name.version)) {
     if (name) console.warn(`Group ${groupId}: the server sent an older name than this device has seen`);
     return { ...seen, initial: false };
+  }
+  if (name && !renamerIsMember(name, log.members) && seen?.version !== name.version) {
+    console.warn(`Group ${groupId}: its name is from someone who has left, not seen here before`);
+    return seen ? { ...seen, initial: false } : { ...name, untrusted: true };
   }
   return name;
 }
@@ -333,12 +340,15 @@ async function updateGroup(me, groupId, change) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const current = await currentEpoch(me, groupId, group);
     group = current.group;
-    const unreadable = (isPicture && group.detail.name_version > 0 && !group.name)
-      || (!isPicture && group.detail.picture_id && group.name?.picture?.id !== group.detail.picture_id);
+    // A name that isn't trusted (readName) isn't carried over under my signature: a rename
+    // drops its picture, a new picture its name.
+    const trusted = group.name?.untrusted ? null : group.name;
+    const unreadable = !group.name?.untrusted && ((isPicture && group.detail.name_version > 0 && !trusted)
+      || (!isPicture && group.detail.picture_id && trusted?.picture?.id !== group.detail.picture_id));
     if (unreadable) throw new GroupKeyProblem(t('groups.errors.cantReadName'));
     const version = group.detail.name_version + 1;
-    const name = isPicture ? group.name?.name ?? '' : change.name;
-    const picture = isPicture ? upload?.picture ?? null : group.name?.picture ?? null;
+    const name = isPicture ? trusted?.name ?? '' : change.name;
+    const picture = isPicture ? upload?.picture ?? null : trusted?.picture ?? null;
     const signed = await signGroupName(
       { groupId, version, renamerId: me.id, name, initial: false, picture, change: isPicture ? 'picture' : 'name' },
       await loadIdentityKey()
@@ -383,13 +393,17 @@ export async function groupProfileOf(me, summary) {
   if (key) {
     try {
       const name = await openGroupName(summary.name_ciphertext, key, summary.id, summary.name_epoch, (id) => saved.identityKeys[id]);
-      await rememberGroupName(me.id, summary.id, name);
-      return { name: name.name, picture: name.picture };
+      if (renamerIsMember(name, saved.members)) {
+        await rememberGroupName(me.id, summary.id, name);
+        return { name: name.name, picture: name.picture };
+      }
     } catch {
       // Renamed by someone this device hasn't seen in the group yet, say: open it.
     }
   }
+  // (Also when the renamer isn't among the members saved here: openGroup checks the current log.)
   const { name } = await openGroup(me, summary.id);
+  if (name?.untrusted) return { name: '', picture: null };
   return name ? { name: name.name, picture: name.picture ?? null } : null;
 }
 
