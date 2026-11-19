@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('./keyStore', () => ({ loadEncryptionKey: vi.fn(), loadOwnPublicKeys: vi.fn() }));
 vi.mock('./groupCache', () => ({ recallGroup: vi.fn(), rememberGroupName: vi.fn() }));
 vi.mock('./settingsStore', () => ({ getSetting: vi.fn() }));
-vi.mock('./contactKeys', () => ({ getPinnedContact: vi.fn() }));
+vi.mock('./contactKeys', () => ({ getPinnedContact: vi.fn(), checkContactKeys: vi.fn() }));
 
 import { notificationFromPush } from './pushNotifications';
 import { loadEncryptionKey, loadOwnPublicKeys } from './keyStore';
 import { recallGroup } from './groupCache';
 import { getSetting } from './settingsStore';
-import { getPinnedContact } from './contactKeys';
+import { checkContactKeys, getPinnedContact } from './contactKeys';
 import {
   generateUserKeys, importEncryptionPrivateKey, importIdentityPrivateKey, deriveConversationKey, encryptMessage, dmContext,
   encryptReaction, reactionContext,
@@ -40,6 +40,7 @@ beforeEach(async () => {
   loadEncryptionKey.mockResolvedValue(await importEncryptionPrivateKey(bob.private.encryptionKey));
   getPinnedContact.mockResolvedValue({ identityKey: alice.public.identityKey, encryptionKey: alice.public.encryptionKey, verified: false });
   getSetting.mockResolvedValue(true);
+  checkContactKeys.mockReset();
 });
 
 describe('notificationFromPush', () => {
@@ -77,6 +78,49 @@ describe('notificationFromPush', () => {
     getPinnedContact.mockResolvedValue(null);
     const { options } = await notificationFromPush(await dmPushFromAlice('hi'));
     expect(options.body).toBe('New message');
+  });
+
+  describe("with the sender's keys in the push", () => {
+    const senderKeys = () => ({
+      identityKey: alice.public.identityKey, encryptionKey: alice.public.encryptionKey,
+      encryptionKeySignature: alice.public.encryptionKeySignature,
+    });
+    beforeEach(() => {
+      loadOwnPublicKeys.mockResolvedValue({ userId: String(BOB) });
+      getPinnedContact.mockResolvedValue(null); // never opened the chat on this device
+    });
+
+    it('checks them as opening the chat would, then shows the text', async () => {
+      checkContactKeys.mockResolvedValue({ status: 'trusted', encryptionKey: alice.public.encryptionKey });
+      const { options } = await notificationFromPush(await dmPushFromAlice('first message', { senderKeys: senderKeys() }));
+      expect(checkContactKeys).toHaveBeenCalledWith(BOB, {
+        id: ALICE, identity_key: alice.public.identityKey, encryption_key: alice.public.encryptionKey,
+        encryption_key_signature: alice.public.encryptionKeySignature,
+      });
+      expect(options.body).toBe('first message');
+    });
+
+    it('falls back to the remembered key when they do not check out (changed identity, bad signature)', async () => {
+      checkContactKeys.mockResolvedValue({ status: 'changed', encryptionKey: null });
+      const push = await dmPushFromAlice('hi', { senderKeys: { ...senderKeys(), encryptionKey: bob.public.encryptionKey } });
+      expect((await notificationFromPush(push)).options.body).toBe('New message');
+
+      getPinnedContact.mockResolvedValue({ identityKey: alice.public.identityKey, encryptionKey: alice.public.encryptionKey });
+      expect((await notificationFromPush(push)).options.body).toBe('hi');
+    });
+
+    it('a key that is not the real sender\'s gets nothing', async () => {
+      checkContactKeys.mockResolvedValue({ status: 'trusted', encryptionKey: bob.public.encryptionKey });
+      const push = await dmPushFromAlice('hi', { senderKeys: { ...senderKeys(), encryptionKey: bob.public.encryptionKey } });
+      expect((await notificationFromPush(push)).options.body).toBe('New message');
+    });
+
+    it('never remembers keys for an account other than the one logged in here', async () => {
+      loadOwnPublicKeys.mockResolvedValue({ userId: '99' });
+      const { options } = await notificationFromPush(await dmPushFromAlice('hi', { senderKeys: senderKeys() }));
+      expect(checkContactKeys).not.toHaveBeenCalled();
+      expect(options.body).toBe('New message');
+    });
   });
 
   it('fails closed if the server swapped sender and recipient', async () => {

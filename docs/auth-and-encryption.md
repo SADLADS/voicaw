@@ -325,7 +325,10 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   `SafetyNumberDialog`) and can mark contacts verified. That badge and dialog show only with
   Settings → Privacy's "Show safety numbers in DMs" (`safetyNumbers` in `utils/privacy.js`, per
   device, off by default since 2026-10-17: too confusing for non-technical users; it was hidden
-  for everyone before); the pinning and the key-changed block apply either way. Safety numbers
+  for everyone before); the pinning and the key-changed block apply either way. A DM push also
+  goes through `checkContactKeys` with the sender's published keys it carries (`senderKeys`,
+  2026-11-19), so a device that never opened the chat pins them as opening it would and can
+  show the text (see Push notifications in `docs/realtime.md`). Safety numbers
   come from public keys, so they aren't secret: comparing them catches a swapped key, not
   changed app code (the server delivering the web app's code stays the gap).
 - **DMs:** `deriveConversationKey` (ECDH → HKDF → AES-GCM) uses the *pinned* contact key.

@@ -50,8 +50,14 @@ describe('push notifications', () => {
       type: 'dm', title: 'push-alice', body: 'New message', url: `/dm/${alice.id}`, tag: `dm-${alice.id}`,
       senderId: alice.id, recipientId: bob.id, recipientName: 'push-bob', ciphertext: 'SMALL-CIPHERTEXT',
     });
-    // The service worker only uses keys it has already checked; the push carries none.
-    expect(JSON.stringify(push.payload)).not.toMatch(/key/i);
+    // The sender's public keys as the server publishes them, for the device to check as opening
+    // the chat would; nothing secret.
+    const published = (await request(app).get('/api/dms-list').set(authed(bob.token))).body.find((u) => u.id === alice.id);
+    expect(push.payload.senderKeys).toEqual({
+      identityKey: published.identity_key, encryptionKey: published.encryption_key,
+      encryptionKeySignature: published.encryption_key_signature,
+    });
+    expect(Object.keys(push.payload).filter((k) => /key/i.test(k))).toEqual(['senderKeys']);
     expect(push.options).toMatchObject({ urgency: 'high', topic: `dm${alice.id}` });
   });
 
@@ -64,6 +70,7 @@ describe('push notifications', () => {
     await send(alice, bob, 'x'.repeat(3000));
     const [push] = await waitForPushes(1, before);
     expect(push.payload.ciphertext).toBeUndefined();
+    expect(push.payload.senderKeys).toBeUndefined();
     expect(push.payload.title).toBe('push-alice2');
   });
 
