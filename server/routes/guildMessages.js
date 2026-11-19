@@ -437,13 +437,18 @@ const messageTarget = (message) => (message.webhook_id
   ? { targetType: 'webhook', targetId: message.webhook_id }
   : { targetType: 'user', targetId: message.sender_id });
 
+// System rows that are their person's (sender_id) but only Manage Messages deletes.
+const MODERATED_SYSTEM = ['member_join', 'member_leave', 'thread'];
+
 // The author, or anyone with Manage Messages there, can delete; its reactions go with it. It
-// goes in the audit log (not "poll ended" rows, which go with their poll). `message` needs id,
-// sender_id, system, timestamp and webhook_id/_name; `permissions` are `actorId`'s in `channel`.
+// goes in the audit log (not "poll ended" rows, which go with their poll). Join log and "started
+// a thread" rows (MODERATED_SYSTEM) aren't logged, so only Manage Messages deletes them, whoever
+// they belong to. `message` needs id, sender_id, system, timestamp and webhook_id/_name; `permissions` are `actorId`'s in `channel`.
 // Shared with the bot API (routes/botApi.js). Throws ActionError.
 async function deleteMessage(message, channel, actorId, permissions) {
   const { id, sender_id: senderId } = message;
-  if (senderId !== actorId && !has(permissions, PERMISSIONS.MANAGE_MESSAGES)) {
+  const moderatorsOnly = senderId !== actorId || MODERATED_SYSTEM.includes(message.system);
+  if (moderatorsOnly && !has(permissions, PERMISSIONS.MANAGE_MESSAGES)) {
     throw new ActionError(403, 'Not authorized to delete this message');
   }
   // A poll takes its "poll ended" row with it, a pinned message its "pinned" rows.

@@ -33,9 +33,12 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
   (`sendToChannel`), not in unread counts.
-- **Hierarchy:** you only manage roles, and kick, ban or change the roles of members, below
-  your own highest role (the owner is above all; `outranks`), only reorder roles below yours,
-  and never give a permission (to a role or an override) you don't have yourself.
+- **Hierarchy:** you only manage roles, and kick, ban, change the roles of or set channel
+  overrides for members, below your own highest role (yourself too; the owner is above all;
+  `outranks`), only reorder roles below yours, and never give a permission (to a role or an
+  override) you don't have yourself. Nor a role that holds one (security audit, 2026-11-19;
+  stricter than Discord, which only looks at the order): a "Helper" with Manage Roles placed
+  above a "Mods" role with Ban Members can't give Mods to anyone, only take it away.
 - `server/guilds.js` has the member context (`getMember`: roles, `permissions`, `highest`),
   `getChannelAccess`, the per-member layout and the send helpers; `routes/guildRoles.js` the
   role, member-role and override routes. Guilds from before roles get their @everyone on start.
@@ -163,7 +166,10 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   they were. Kept for good (deleted with the guild); the owner alone (not Administrator: they
   could hide their own doings) can clear entries older than 30/90/365 days or all (`POST
   /guilds/:id/audit-log/clear { olderThanDays }`, `clearAuditLog`), which logs an
-  `audit_log_clear` entry.
+  `audit_log_clear` entry. An entry about a channel shows only to those who can see it; once
+  the channel is deleted (who could see it goes with it), only administrators and the owner see
+  its entries, but for its `channel_delete`, which everyone reading the log sees unless
+  @everyone was denied View Channel there (security audit, 2026-11-19).
   Reading (`GET /guilds/:id/audit-log?before&limit&actions=a,b&userId`, `{ entries, users,
   webhooks, next }`) needs View Audit Log (owner and Administrator have it); an entry about a
   channel shows only to those who can see it, and once the channel is deleted, only to
@@ -292,7 +298,7 @@ pushes. Over a limit the request gets a 429 with Retry-After and the app shows t
 
 Discord's join messages, off until a guild turns them on, plus leaves if it wants.
 - **Settings** (`guilds.join_log_channel_id`, null = off, and `join_log_leaves`): Manage Guild
-  picks one of the guild's text channels in Guild Settings → Overview → Join log
+  picks one of the guild's text channels they can see (a hidden one is refused like a wrong id) in Guild Settings → Overview → Join log
   (`GuildSettingsDialog` `JoinLog`, saved as soon as it changes) or turns it off, and whether
   leaves are posted too (`PATCH /guilds/:id { joinLog: { channelId, leaves } }`, either left
   out = unchanged; `server/joinLog.js` `setJoinLog`, an action that throws `ActionError`).
@@ -306,7 +312,9 @@ Discord's join messages, off until a guild turns them on, plus leaves if it want
   vanity code) and bots being added; the owner creating the guild isn't one. Leaves are
   everything through `removeMember`: leaving, a kick, a ban, a deleted account. All are worded
   "left", on purpose: the channel would otherwise tell everyone who can see it what moderators
-  did, which only View Audit Log may see. Guild search leaves the rows out.
+  did, which only View Audit Log may see. Guild search leaves the rows out. Deleting one needs
+  Manage Messages, even your own (deletes of system rows aren't in the audit log; the same for
+  "started a thread" rows).
 - **Client:** `guild/JoinLogNotice.jsx` (from `MessageList`): a green arrow (red for a leave),
   "**Name** joined the guild." and the time; the name opens the profile card.
 - **Bots:** joins are Discord's message type 7 (USER_JOIN), leaves type 0 with no content
@@ -361,7 +369,8 @@ its own, that opens beside the channel. Not encrypted, like the rest of a guild.
 - **Starting one** (`server/threads.js`, `routes/threads.js`): `POST /channels/:id/threads
   { name (1–100 characters, free text), messageId? }`. From a message: one thread per message
   (409), not from a system row. On its own: a `"thread"` system row goes in the channel as its
-  starter (its content is the name at the time; "X started a thread: name. See all threads").
+  starter (its content is the name at the time; "X started a thread: name. See all threads"),
+  which only Manage Messages deletes (its starter can't: system rows' deletes aren't logged).
   Starting one is in the audit log (`thread_create`; also `thread_update` with what changed,
   and `thread_delete`), under the channel.
 - **Members** (`guild_thread_members`): whoever started it, posted in it, was mentioned in it by
@@ -476,7 +485,9 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   addresses, as the read view's react-markdown does: any other link is drawn without its address
   (it stays in the markdown, so nothing is lost), isn't taken from pasted HTML, and the toolbar's
   Link does nothing with one. Otherwise a `javascript:` link would run as the app when clicked in
-  a locked editor (connecting, or the document deleted).
+  a locked editor (connecting, or the document deleted). Live editing's server refuses a step
+  bringing such a link, or a picture whose address isn't http(s) or relative
+  (`documentCollab.js` `unsafeAddress`, 2026-11-19); one already in the markdown stays.
 - **Server** (`server/guildDocuments.js`, `routes/guildDocuments.js`; tables
   `guild_documents`, `guild_document_reactions`): `GET/POST /channels/:id/documents` (cards: no
   `content`, `content_start` = its first 1000 characters, `reply_count`, `last_reply_at`,
@@ -976,7 +987,8 @@ files); others can be added as adapters on the client.
 - **Server** (`server/guildImports.js`, `routes/guildImports.js`; tables in `db.js` HISTORY
   IMPORTS): `guild_imports` (label, the archive's guild name, status), `guild_import_authors`
   (archive id, name, stored picture, the member `user_id` or null, and `unlinked_user_id`: who
-  said "This wasn't me", never shown), `guild_import_channels` (archive channel → our channel),
+  said "This wasn't me", never shown), `guild_import_unlinks` (who said it in which guild: no
+  import there links them again; deleted with the guild or the account), `guild_import_channels` (archive channel → our channel),
   `guild_import_messages` (archive message id → ours: replies, and batches sent again are
   skipped), `guild_import_emojis` (archive emoji → this guild's, or text). Imported messages are `guild_messages` with `import_id`, `import_author_id`, the
   archive's `timestamp`, `sender_id` the member or 0 (as webhooks), read-only `import_reactions`
@@ -1010,7 +1022,10 @@ files); others can be added as adapters on the client.
 - **The person linked:** "This wasn't me" in their own imported message's menus, and Settings →
   Privacy → **Imported messages** (each guild's links with Unlink, Unlink me from all, and
   "Don't let imports link me": the preference `importOptOut`, off by default, which mapping
-  refuses). Unlinked, they show exactly as an author nobody linked.
+  refuses). Unlinked, they show exactly as an author nobody linked, and no import of that guild
+  can link them again (`guild_import_unlinks`, guild and person; the importer's picker lists
+  them as not linkable; security audit, 2026-11-19). They aren't told when they're linked:
+  there's nowhere to say it yet (the inbox is worked out from messages).
 - **Order:** guild history is now paged by `(timestamp, id)`, not id (see Message list in
   `docs/messages.md`).
 - `e2e/history-import.mjs` checks it in a browser.

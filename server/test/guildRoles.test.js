@@ -157,6 +157,37 @@ describe('roles', () => {
     expect((await api.delete(alice, `/guilds/${guild.id}/members/${carol.id}`)).status).toBe(200);
   });
 
+  it("won't give a lower role holding permissions the giver lacks", async () => {
+    const { owner, members: [alice, bob], guild } = await setUp(2);
+    const helpers = await createRole(owner, guild.id, { name: 'Helpers', permissions: P.MANAGE_ROLES });
+    const mods = await createRole(owner, guild.id, { name: 'Mods', permissions: P.BAN_MEMBERS });
+    const plain = await createRole(owner, guild.id, { name: 'Plain' });
+    await api.put(owner, `/guilds/${guild.id}/roles/order`, { roleIds: [helpers.id, mods.id, plain.id] });
+    await giveRoles(owner, guild.id, alice, [helpers.id]);
+    await giveRoles(owner, guild.id, bob, [mods.id]);
+
+    expect((await giveRoles(alice, guild.id, alice, [helpers.id, mods.id])).status).toBe(403);
+    expect((await giveRoles(alice, guild.id, alice, [helpers.id, plain.id])).status).toBe(200);
+    // Taking one away is still fine.
+    expect((await giveRoles(alice, guild.id, bob, [])).status).toBe(200);
+  });
+
+  it("won't set a channel override on a member as high or higher", async () => {
+    const { owner, members: [alice, bob, carol], guild, general } = await setUp(3);
+    const seniors = await createRole(owner, guild.id, { name: 'Seniors', permissions: P.MANAGE_ROLES });
+    const juniors = await createRole(owner, guild.id, { name: 'Juniors', permissions: P.MANAGE_ROLES });
+    await api.put(owner, `/guilds/${guild.id}/roles/order`, { roleIds: [seniors.id, juniors.id] });
+    await giveRoles(owner, guild.id, alice, [seniors.id]);
+    await giveRoles(owner, guild.id, bob, [juniors.id]);
+    const base = `/guilds/${guild.id}/channels/${general.id}/overrides/member`;
+
+    expect((await api.put(bob, `${base}/${alice.id}`, { deny: P.VIEW_CHANNEL })).status).toBe(403);
+    expect((await api.put(bob, `${base}/${owner.id}`, { deny: P.SEND_MESSAGES })).status).toBe(403);
+    expect((await api.put(bob, `${base}/${carol.id}`, { deny: P.SEND_MESSAGES })).status).toBe(200);
+    expect((await api.put(bob, `${base}/${bob.id}`, { deny: P.SEND_MESSAGES })).status).toBe(200);
+    expect((await api.put(alice, `${base}/${bob.id}`, { deny: P.SEND_MESSAGES })).status).toBe(200);
+  });
+
   it('lets Manage Messages delete anyone\'s messages', async () => {
     const { owner, members: [alice, bob], guild, general } = await setUp(2);
     const msg = (await api.post(bob, `/channels/${general.id}/messages`, { content: 'spam' })).body;

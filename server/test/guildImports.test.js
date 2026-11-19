@@ -282,6 +282,12 @@ describe('unlinking and undoing', () => {
     expect((await api.get(owner, `/guilds/${guild.id}/imports/${imp.id}`)).body.authors.find((a) => a.id === sam.id)).not.toHaveProperty('unlinked_user_id');
     const relink = await api.put(owner, `/guilds/${guild.id}/imports/${imp.id}/mapping`, { authors: [{ id: sam.id, userId: member.id }] });
     expect(relink.status).toBe(400);
+
+    // Nor through a new import of the same guild, whose picker says so; another guild still can.
+    const second = await startImport(owner, guild, general);
+    expect(second.opted_out).toContain(member.id);
+    const again = await api.put(owner, `/guilds/${guild.id}/imports/${second.id}/mapping`, { authors: [{ id: authorOf(second, '111').id, userId: member.id }] });
+    expect(again.status).toBe(400);
   });
 
   it('lets a linked member delete their imported messages, not once unlinked; deleted ones never come back', async () => {

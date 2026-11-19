@@ -84,6 +84,16 @@ describe('join log', () => {
     expect(JSON.parse(audit.details)).toEqual({ changes: { join_log: [null, 'arrivals'] } });
   });
 
+  it("lets only Manage Messages delete a join row, even the joiner's own", async () => {
+    const { owner, guild, log } = await setUp();
+    await api.patch(owner, `/guilds/${guild.id}`, { joinLog: { channelId: log.id } });
+    const alice = await makeUser();
+    await join(guild, owner, alice);
+    const row = await db.get("SELECT id FROM guild_messages WHERE channel_id = ? AND system = 'member_join'", [log.id]);
+    expect((await api.delete(alice, `/guild-messages/${row.id}`)).status).toBe(403);
+    expect((await api.delete(owner, `/guild-messages/${row.id}`)).status).toBe(200);
+  });
+
   it('posts leaves, kicks and bans alike only when asked', async () => {
     const { owner, guild, log } = await setUp();
     await api.patch(owner, `/guilds/${guild.id}`, { joinLog: { channelId: log.id } });
@@ -114,6 +124,14 @@ describe('join log', () => {
     const member = await makeUser();
     await join(guild, owner, member);
     expect((await api.patch(member, `/guilds/${guild.id}`, { joinLog: { channelId: log.id } })).status).toBe(403);
+
+    // With Manage Guild, still only a channel they can see (a hidden one looks like none).
+    const managers = (await api.post(owner, `/guilds/${guild.id}/roles`, { name: 'Managers', permissions: P.MANAGE_GUILD })).body;
+    await api.put(owner, `/guilds/${guild.id}/members/${member.id}/roles`, { roleIds: [managers.id] });
+    const secret = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'secret', type: 'text', private: true })).body;
+    expect((await api.patch(member, `/guilds/${guild.id}`, { joinLog: { channelId: secret.id } })).status).toBe(400);
+    expect((await api.patch(member, `/guilds/${guild.id}`, { joinLog: { channelId: log.id } })).status).toBe(200);
+    expect((await api.patch(owner, `/guilds/${guild.id}`, { joinLog: { channelId: secret.id } })).status).toBe(200);
 
     await api.patch(owner, `/guilds/${guild.id}`, { joinLog: { channelId: log.id, leaves: true } });
     await api.delete(owner, `/guilds/${guild.id}/channels/${log.id}`);

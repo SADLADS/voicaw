@@ -870,7 +870,9 @@ addColumn('ALTER TABLE guild_messages ADD COLUMN link_urls TEXT');
 // `import_author_id`, `sender_id` the mapped member or 0, the archive's own `timestamp`, and
 // the archive's reactions as read-only `import_reactions` (JSON [{ emoji, count }]).
 // `unlinked_user_id`: the member who said "This wasn't me" (never shown; the importer can't
-// map them to that author again). Each custom emoji the archive uses is a row of
+// map them to that author again); guild_import_unlinks remembers it for the whole guild, so no
+// later import there can link them either (kept until the guild or the account is deleted).
+// Each custom emoji the archive uses is a row of
 // guild_import_emojis: once the importer chose (`mapped` 1), `emoji_id` is the guild's emoji it
 // becomes, or null for plain `:name:`; until then the guild's emoji of the same name is used.
 sqlite.exec(`
@@ -910,6 +912,11 @@ CREATE TABLE IF NOT EXISTS guild_import_messages (
   source_id TEXT NOT NULL,
   message_id INTEGER NOT NULL,
   PRIMARY KEY (import_id, source_id)
+);
+CREATE TABLE IF NOT EXISTS guild_import_unlinks (
+  guild_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS guild_import_emojis (
   import_id INTEGER NOT NULL,
@@ -1348,6 +1355,10 @@ const MIGRATIONS = [
   // 21. Events' RSVPs: interest in one occurrence alone becomes Going to it (a series' interest
   // is Going by the column's default). Nothing to do on a new database (its tables come later).
   () => eventOccurrenceRsvps(),
+  // 22. "This wasn't me" counts for the whole guild (guild_import_unlinks), not only that author.
+  () => sqlite.exec(`INSERT OR IGNORE INTO guild_import_unlinks (guild_id, user_id)
+    SELECT i.guild_id, a.unlinked_user_id FROM guild_import_authors a JOIN guild_imports i ON i.id = a.import_id
+    WHERE a.unlinked_user_id IS NOT NULL`),
 ];
 for (let version = sqlite.prepare('PRAGMA user_version').get().user_version; version < MIGRATIONS.length; version++) {
   sqlite.exec('BEGIN IMMEDIATE');

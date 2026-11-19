@@ -4,8 +4,9 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 // A guild's audit log, like Discord's: who did what, to what, and when (guild_audit_log, see
 // db.js). Routes call logAudit, inside their transaction when they have one. Only members with
 // View Audit Log read it (routes/auditLog.js), and an entry about a channel only shows to
-// those who can see that channel (or, once it's deleted, to everyone reading the log if it
-// wasn't private, else only administrators and the owner).
+// those who can see that channel. Once it's deleted, only administrators and the owner see its
+// entries (who could see it is gone with it), except its channel_delete, which everyone reading
+// the log sees unless the channel was private.
 //
 // Actions (`details` holds the names as they were, since the things themselves may be gone):
 //   guild_update { changes: { name: [before, after] }, icon: 'changed' | 'removed' }
@@ -97,7 +98,10 @@ function diff(before, after) {
 // Whether `member` may see the entry (see the top of this file).
 function visibleTo(member, entry, channels, overrides) {
   if (entry.channel_id == null) return true;
-  if (!channels.has(entry.channel_id)) return !entry.private || has(member.permissions, PERMISSIONS.ADMINISTRATOR);
+  if (!channels.has(entry.channel_id)) {
+    if (has(member.permissions, PERMISSIONS.ADMINISTRATOR)) return true;
+    return entry.action === 'channel_delete' && !entry.private;
+  }
   return has(channelPermissions(member, member.userId, overrides.get(entry.channel_id) ?? []), PERMISSIONS.VIEW_CHANNEL);
 }
 

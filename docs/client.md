@@ -1001,9 +1001,10 @@ use (voicaw.com/terms/) say rules are enforced.
   (`data-webhook-id`): Block Webhook (asks first) / Unblock Webhook, Copy Webhook ID; or "Also
   block" when reporting one of its messages. Its messages are collapsed like a blocked person's
   and its mentions aren't pushed (`webhookBlockersAmong` in `mentions.js`); nothing else (it has
-  no DMs or calls). Only a webhook that has posted in a guild you're in (404 otherwise, so ids
-  can't be probed for names). Kept after the webhook is deleted, since its messages stay (the
-  list shows the name it had); deleted with the guild or your account. Settings → Blocked users
+  no DMs or calls). Only a webhook posting in a channel you can see, or that has posted in one
+  (404 otherwise, so ids can't be probed for names). The list shows its name now while you're in
+  its guild, else the one it had when you blocked it. Kept after the webhook is deleted, since
+  its messages stay (the list shows the name it had); deleted with the guild or your account. Settings → Blocked users
   lists them under the people, with their guild.
 - **Reports** (`server/reports.js`, `routes/reports.js`, `reports` table): Report Message in the
   message menu and sheet (anyone else's message) and Report on a person (`ReportDialog.jsx`): a

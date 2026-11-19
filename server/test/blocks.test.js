@@ -139,6 +139,24 @@ describe('blocking webhooks', () => {
     expect((await api.put(ann, '/blocks/webhooks/nope')).status).toBe(400);
   });
 
+  it("refuses a webhook in a channel you can't see, and drops its new names once you've left", async () => {
+    const { guild, hook } = await setUp();
+    const secret = (await api.post(bob, `/guilds/${guild.id}/channels`, { name: 'secret', private: true })).body;
+    const hidden = (await api.post(bob, `/channels/${secret.id}/webhooks`, { name: 'Hidden Hook' })).body;
+    expect((await api.put(ann, `/blocks/webhooks/${hidden.id}`)).status).toBe(404);
+    // A message of it in a channel ann can see is enough.
+    const moved = (await api.post(bob, `/channels/${secret.id}/webhooks`, { name: 'Mover' })).body;
+    await api.patch(bob, `/webhooks/${moved.id}`, { channel_id: String(guild.channels[0].id) });
+    await request(app).post(`/api/webhooks/${moved.id}/${moved.token}`).send({ content: 'hi' });
+    await api.patch(bob, `/webhooks/${moved.id}`, { channel_id: String(secret.id) });
+    expect((await api.put(ann, `/blocks/webhooks/${moved.id}`)).status).toBe(200);
+
+    await api.put(ann, `/blocks/webhooks/${hook.id}`);
+    expect((await api.delete(ann, `/guilds/${guild.id}/members/me`)).status).toBe(200);
+    await api.patch(bob, `/webhooks/${hook.id}`, { name: 'Secret Plans' });
+    expect((await api.get(ann, '/blocks')).body.webhooks.map((w) => w.name)).not.toContain('Secret Plans');
+  });
+
   it('keeps the block (and its name) once the webhook is deleted, as its messages stay', async () => {
     const { hook, post } = await setUp();
     expect((await post({ content: 'hello' })).status).toBe(204);

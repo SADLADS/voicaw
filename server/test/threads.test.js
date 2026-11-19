@@ -98,6 +98,13 @@ describe('threads', () => {
     expect((await api.post(bob, `/channels/${general.id}/threads`, { name: 'x', messageId: row.id })).status).toBe(400);
   });
 
+  it('the "started a thread" row is deleted only with Manage Messages, not by its starter', async () => {
+    const { owner, members: [bob], general } = await setUp();
+    const thread = (await api.post(bob, `/channels/${general.id}/threads`, { name: 'Bob only' })).body;
+    expect((await api.delete(bob, `/guild-messages/${thread.starter_message_id}`)).status).toBe(403);
+    expect((await api.delete(owner, `/guild-messages/${thread.starter_message_id}`)).status).toBe(200);
+  });
+
   it('messages in a thread: members join by posting or being mentioned, and only members get unread counts', async () => {
     const { owner, members: [bob, carol], general } = await setUp();
     const thread = (await api.post(owner, `/channels/${general.id}/threads`, { name: 'Side chat' })).body;

@@ -149,7 +149,7 @@ describe('guild audit log', () => {
     expect(third.next).toBeNull();
   });
 
-  it("hides entries about channels the reader can't see; a deleted private channel's only from administrators", async () => {
+  it("hides entries about channels the reader can't see; a deleted channel's only from administrators", async () => {
     const { owner, members: [reader, admin], guild } = await setUp();
     await grant(owner, guild.id, reader, P.VIEW_AUDIT_LOG);
     await grant(owner, guild.id, admin, P.ADMINISTRATOR);
@@ -172,11 +172,20 @@ describe('guild audit log', () => {
     expect((await actions(admin))[0]).toBe('channel_delete');
     expect((await actions(owner))[0]).toBe('channel_delete');
 
-    // A public channel's entries stay visible after it's deleted.
+    // A public channel's deletion stays visible after it's deleted, its other entries only to
+    // administrators (who could see it is gone with it).
     const open = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'open' })).body;
     await api.delete(owner, `/guilds/${guild.id}/channels/${open.id}`);
-    const seen = (await auditLog(reader, guild.id)).entries.filter((e) => e.channel_id === open.id).map((e) => e.action);
-    expect(seen).toEqual(['channel_delete', 'channel_create']);
+    const seen = async (user) => (await auditLog(user, guild.id)).entries.filter((e) => e.channel_id === open.id).map((e) => e.action);
+    expect(await seen(reader)).toEqual(['channel_delete']);
+    expect(await seen(admin)).toEqual(['channel_delete', 'channel_create']);
+
+    // Hidden another way (a member deny, not @everyone's): also admins only once deleted.
+    const hidden = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'hidden' })).body;
+    await api.put(owner, `/guilds/${guild.id}/channels/${hidden.id}/overrides/member/${reader.id}`, { deny: P.VIEW_CHANNEL });
+    await api.delete(owner, `/guilds/${guild.id}/channels/${hidden.id}`);
+    const hiddenSeen = (await auditLog(reader, guild.id)).entries.filter((e) => e.channel_id === hidden.id && e.action !== 'channel_delete');
+    expect(hiddenSeen).toEqual([]);
   });
 
   it('records webhooks, and a webhook deleting its own message with its token', async () => {

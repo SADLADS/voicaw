@@ -14,9 +14,9 @@
 //
 // An archive author is mapped to a member (shown as them) or not (shown by the archive's name
 // and picture, as webhooks are: sender_id 0). A member can unlink themselves ("This wasn't
-// me", or all at once in Settings → Privacy); then they show as unmapped, and the importer
-// can't map them to that author again (`unlinked_user_id`, never shown). With the preference
-// `importOptOut` nobody can map them at all.
+// me", or all at once in Settings → Privacy); then they show as unmapped, and no import of that
+// guild can map them again (guild_import_unlinks; `unlinked_user_id` says which author, never
+// shown). With the preference `importOptOut` nobody can map them anywhere.
 const crypto = require('crypto');
 const db = require('./db');
 const config = require('./config');
@@ -112,11 +112,18 @@ async function importView(importId) {
     [importId]
   );
   const { count } = await db.get('SELECT COUNT(*) AS count FROM guild_import_messages WHERE import_id = ?', [importId]);
-  // Members who don't want to be linked (the preference importOptOut), so the picker says so.
-  const members = row ? await db.all('SELECT user_id FROM guild_members WHERE guild_id = ?', [row.guild_id]) : [];
-  const optedOut = [];
-  for (const { user_id: userId } of members) if ((await getPreferences(userId)).importOptOut) optedOut.push(userId);
+  // Members who can't be linked (importOptOut, or unlinked here before), so the picker says so.
+  const optedOut = row ? [...await unlinkable(row.guild_id)] : [];
   return { ...row, message_count: count, authors, channels, emojis, opted_out: optedOut };
+}
+
+// The guild's members nobody may link: the preference importOptOut, or "This wasn't me" in one
+// of the guild's imports (guild_import_unlinks).
+async function unlinkable(guildId) {
+  const members = await db.all('SELECT user_id FROM guild_members WHERE guild_id = ?', [guildId]);
+  const ids = new Set((await db.all('SELECT user_id FROM guild_import_unlinks WHERE guild_id = ?', [guildId])).map((r) => r.user_id));
+  for (const { user_id: userId } of members) if ((await getPreferences(userId)).importOptOut) ids.add(userId);
+  return ids;
 }
 
 async function listImports(member) {
@@ -130,8 +137,7 @@ async function suggestions(guildId, authors) {
     `SELECT u.id, u.username, u.display_name FROM guild_members gm JOIN users u ON u.id = gm.user_id WHERE gm.guild_id = ?`,
     [guildId]
   );
-  const optedOut = new Set();
-  for (const m of members) if ((await getPreferences(m.id)).importOptOut) optedOut.add(m.id);
+  const optedOut = await unlinkable(guildId);
   const byName = new Map();
   for (const m of members) {
     if (optedOut.has(m.id)) continue;
@@ -210,11 +216,13 @@ async function createImport(member, { source, sourceGuildName, label, authors, c
 }
 
 // Who may be shown as `authorRow`: a member of the guild who hasn't opted out or unlinked
-// themselves from it.
+// themselves from one of its imports.
 async function checkMappable(guildId, authorRow, userId) {
   if (userId == null) return;
   if (!Number.isInteger(userId) || !(await getMember(guildId, userId))) throw new ActionError(400, 'Not a member of this guild');
-  if (authorRow.unlinked_user_id === userId) throw new ActionError(400, 'That member has asked not to be linked to this author');
+  if (authorRow.unlinked_user_id === userId || await db.get('SELECT 1 FROM guild_import_unlinks WHERE guild_id = ? AND user_id = ?', [guildId, userId])) {
+    throw new ActionError(400, 'That member has asked not to be linked to imported messages here');
+  }
   if ((await getPreferences(userId)).importOptOut) throw new ActionError(400, "That member doesn't want to be linked to imported messages");
 }
 
@@ -668,6 +676,7 @@ async function deletePictures(urls) {
 async function deleteGuildImports(guildId) {
   const urls = [];
   for (const { id } of await db.all('SELECT id FROM guild_imports WHERE guild_id = ?', [guildId])) urls.push(...await removeImportRows(id));
+  await db.run('DELETE FROM guild_import_unlinks WHERE guild_id = ?', [guildId]);
   return urls;
 }
 
@@ -685,7 +694,7 @@ async function linkedTo(userId) {
 }
 
 // "This wasn't me": `userId` stops being shown as author `authorId` (null: every one), and
-// can't be linked to it again.
+// can't be linked again by any import of that guild.
 async function unlink(userId, authorId = null) {
   const rows = authorId == null
     ? await db.all('SELECT a.id, i.guild_id FROM guild_import_authors a JOIN guild_imports i ON i.id = a.import_id WHERE a.user_id = ?', [userId])
@@ -695,6 +704,7 @@ async function unlink(userId, authorId = null) {
     const byGuild = new Map();
     for (const row of rows) {
       await db.run('UPDATE guild_import_authors SET user_id = NULL, unlinked_user_id = ? WHERE id = ?', [userId, row.id]);
+      await db.run('INSERT OR IGNORE INTO guild_import_unlinks (guild_id, user_id) VALUES (?, ?)', [row.guild_id, userId]);
       if (!byGuild.has(row.guild_id)) byGuild.set(row.guild_id, new Set());
       for (const id of await reassignAuthor(row.id, null)) byGuild.get(row.guild_id).add(id);
     }
@@ -707,6 +717,7 @@ async function unlink(userId, authorId = null) {
 // Someone leaving a guild stays linked (as people's old messages stay theirs); deleting an
 // account unlinks them everywhere (accounts.js).
 async function unlinkDeletedUser(userId) {
+  await db.run('DELETE FROM guild_import_unlinks WHERE user_id = ?', [userId]);
   await db.run('UPDATE guild_import_authors SET user_id = NULL WHERE user_id = ?', [userId]);
   await db.run('UPDATE guild_messages SET sender_id = 0 WHERE sender_id = ? AND import_id IS NOT NULL', [userId]);
 }

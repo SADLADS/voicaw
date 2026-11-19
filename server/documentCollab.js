@@ -53,11 +53,22 @@ async function loadProseMirror() {
       import('prosemirror-transform'),
       import('../client/src/documents/documentSchema.js'),
       import('../client/src/documents/documentSerializer.js'),
-    ]).then(([model, transform, { schema }, { docToMarkdown }]) => ({
-      Node: model.Node, Step: transform.Step, schema, docToMarkdown,
+    ]).then(([model, transform, { schema, safeHref }, { docToMarkdown }]) => ({
+      Node: model.Node, Step: transform.Step, schema, safeHref, docToMarkdown,
     }));
   }
   return proseMirror;
+}
+
+// Whether step JSON `json` brings a link or picture whose address isn't safe (safeHref: http(s),
+// mailto or relative; pictures not mailto). The editors draw such a link without its address,
+// but it shouldn't get in through a step at all; one already in the markdown (saved whole) stays.
+function unsafeAddress(json, safeHref) {
+  if (Array.isArray(json)) return json.some((item) => unsafeAddress(item, safeHref));
+  if (!json || typeof json !== 'object') return false;
+  if (json.type === 'link' && json.attrs && !safeHref(json.attrs.href)) return true;
+  if (json.type === 'image' && json.attrs && (!safeHref(json.attrs.src) || /^mailto:/i.test(json.attrs.src))) return true;
+  return Object.values(json).some((value) => unsafeAddress(value, safeHref));
 }
 
 // documentId -> session
@@ -245,7 +256,7 @@ async function receiveSteps(documentId, userId, { session: sessionId, clientID, 
   const { session } = editorSession(documentId, sessionId, userId, clientID);
   if (!Array.isArray(steps) || !steps.length || steps.length > MAX_STEPS_PER_REQUEST) throw collabError(400, 'Invalid steps');
   if (version !== session.version) throw collabError(409, 'Behind the session', { version: session.version });
-  const { Step, schema, docToMarkdown } = await loadProseMirror();
+  const { Step, schema, safeHref, docToMarkdown } = await loadProseMirror();
   let doc = session.doc;
   // What is kept and sent on is each step as ProseMirror writes it back, never the JSON as it
   // came: fromJSON ignores keys it doesn't know, so a sender could pad steps with anything.
@@ -256,7 +267,9 @@ async function receiveSteps(documentId, userId, { session: sessionId, clientID, 
       const result = step.apply(doc);
       if (result.failed || !result.doc) throw new Error(result.failed);
       doc = result.doc;
-      clean.push(step.toJSON());
+      const written = step.toJSON();
+      if (unsafeAddress(written, safeHref)) throw new Error('unsafe address');
+      clean.push(written);
     }
     doc.check();
   } catch {

@@ -257,4 +257,17 @@ describe('live document editing', () => {
     expect(res.status).toBe(400);
     expect(collab.sessions.get(document.id).version).toBe(0);
   });
+
+  it('refuses steps bringing a link or picture with an unsafe address', async () => {
+    const { owner, document } = await setUp(0, 'hello');
+    const a = (await join(owner, document, 'tab-a')).body;
+    const send = (steps) => sendSteps(owner, document, { session: a.session, clientID: 'tab-a', version: 0, steps });
+    const link = (href) => [{ stepType: 'addMark', from: 1, to: 3, mark: { type: 'link', attrs: { href, title: null } } }];
+    const image = (src) => [{ stepType: 'replace', from: 1, to: 1, slice: { content: [{ type: 'image', attrs: { src, alt: '', title: null } }] } }];
+    for (const steps of [link('javascript:alert(1)'), link('data:text/html,x'), image('javascript:x'), image('mailto:a@b.c')]) {
+      expect((await send(steps)).status).toBe(400);
+    }
+    expect(collab.sessions.get(document.id).version).toBe(0);
+    expect((await send(link('https://example.com'))).status).toBe(200);
+  });
 });

@@ -1,4 +1,5 @@
 const db = require('./db');
+const { PERMISSIONS, has } = require('./permissions');
 
 // Blocking (the `user_blocks` table): when someone blocks another person, neither can DM, call
 // or add the other to a group DM (the server refuses either side; the blocked person is only
@@ -50,12 +51,14 @@ async function unblock(blockerId, blockedId) {
 }
 
 // The webhooks `userId` has blocked, newest first: [{ id, name, guild_id, guild_name }] (the
-// webhook's name now, or the one it had if it's been deleted).
+// webhook's name now while they're in its guild, else the one it had when they blocked it).
 async function webhooksBlockedBy(userId) {
   return db.all(
-    `SELECT wb.webhook_id AS id, COALESCE(w.name, wb.name) AS name, wb.guild_id, g.name AS guild_name
+    `SELECT wb.webhook_id AS id, CASE WHEN gm.user_id IS NULL THEN wb.name ELSE COALESCE(w.name, wb.name) END AS name,
+       wb.guild_id, g.name AS guild_name
      FROM webhook_blocks wb
      LEFT JOIN guild_webhooks w ON w.id = wb.webhook_id
+     LEFT JOIN guild_members gm ON gm.guild_id = wb.guild_id AND gm.user_id = wb.user_id
      LEFT JOIN guilds g ON g.id = wb.guild_id
      WHERE wb.user_id = ? ORDER BY wb.created_at DESC, wb.webhook_id DESC`,
     [userId]
@@ -78,19 +81,29 @@ async function webhookBlockersAmong(webhookId, userIds) {
   return new Set(rows.map((r) => r.user_id));
 }
 
-// Blocks webhook `webhookId` for `userId`, if it has posted in a guild they're in (it may since
-// have been deleted). False if not: no such webhook as far as they can tell.
+// Blocks webhook `webhookId` for `userId`, if it posts in a channel they can see, or has posted
+// in one (it may since have been deleted). False if not: no such webhook as far as they can tell.
 async function blockWebhook(userId, webhookId) {
-  const hook = await db.get(
-    'SELECT w.guild_id, w.name FROM guild_webhooks w JOIN guild_members gm ON gm.guild_id = w.guild_id AND gm.user_id = ? WHERE w.id = ?',
-    [userId, webhookId]
-  ) ?? await db.get(
-    `SELECT c.guild_id, m.webhook_name AS name FROM guild_messages m
-     JOIN guild_channels c ON c.id = m.channel_id
-     JOIN guild_members gm ON gm.guild_id = c.guild_id AND gm.user_id = ?
-     WHERE m.webhook_id = ? ORDER BY m.id DESC LIMIT 1`,
-    [userId, webhookId]
-  );
+  const { getChannelAccess } = require('./guilds');
+  const canSee = async (channelId) => has((await getChannelAccess(channelId, userId))?.permissions ?? 0, PERMISSIONS.VIEW_CHANNEL);
+  let hook = await db.get('SELECT guild_id, channel_id, name FROM guild_webhooks WHERE id = ?', [webhookId]);
+  if (hook && !(await canSee(hook.channel_id))) hook = null;
+  if (!hook) {
+    const posted = await db.all(
+      `SELECT c.guild_id, m.channel_id, m.webhook_name AS name FROM guild_messages m
+       JOIN guild_channels c ON c.id = m.channel_id
+       JOIN guild_members gm ON gm.guild_id = c.guild_id AND gm.user_id = ?
+       WHERE m.webhook_id = ? AND m.id IN (SELECT MAX(id) FROM guild_messages WHERE webhook_id = ? GROUP BY channel_id)
+       ORDER BY m.id DESC`,
+      [userId, webhookId, webhookId]
+    );
+    for (const row of posted) {
+      if (await canSee(row.channel_id)) {
+        hook = row;
+        break;
+      }
+    }
+  }
   if (!hook) return false;
   await db.run(
     'INSERT INTO webhook_blocks (user_id, webhook_id, guild_id, name, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING',

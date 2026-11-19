@@ -20,7 +20,7 @@ function settingsOf(row) {
 }
 
 // `actor` (a member context with Manage Guild) sets the join log: `channelId` a text channel of
-// the guild or null (off), `leaves` whether leaves are posted too; either may be left out. Logged
+// the guild they can see, or null (off), `leaves` whether leaves are posted too; either may be left out. Logged
 // as guild_update with what changed. Throws ActionError.
 async function setJoinLog(actor, { channelId, leaves }) {
   if (!has(actor.permissions, PERMISSIONS.MANAGE_GUILD)) throw new ActionError(403, "You don't have permission to do that");
@@ -33,7 +33,11 @@ async function setJoinLog(actor, { channelId, leaves }) {
       "SELECT id, name FROM guild_channels WHERE id = ? AND guild_id = ? AND type = 'text'",
       [channelId, guildId]
     );
-    if (!channel) throw new ActionError(400, 'The join log has to be one of the guild\'s text channels');
+    // One the actor can't see is refused as if it weren't there.
+    const access = channel && await require('./guilds').getChannelAccess(channel.id, actor.userId);
+    if (!channel || !has(access?.permissions ?? 0, PERMISSIONS.VIEW_CHANNEL)) {
+      throw new ActionError(400, 'The join log has to be one of the guild\'s text channels');
+    }
   }
   const nextChannelId = channelId === undefined ? before.join_log_channel_id : (channel?.id ?? null);
   const nextLeaves = leaves === undefined ? Boolean(before.join_log_leaves) : leaves;

@@ -196,7 +196,8 @@ router.put('/guilds/:guildId/roles/order', manageRoles, withActionErrors(async (
 }));
 
 // Sets member `userId`'s roles (`roleIds`, without @everyone). Only roles below yours can be
-// added or taken away, and only from members below you (or yourself).
+// added or taken away, and only from members below you (or yourself); a role added can't hold a
+// permission you don't have (stricter than Discord, which only looks at the order).
 async function setMemberRoles(actor, userId, roleIds) {
   requireManageRoles(actor);
   const target = await getMember(actor.guild.id, userId);
@@ -215,6 +216,9 @@ async function setMemberRoles(actor, userId, roleIds) {
   if (changed.some((id) => roles.get(id).bot_id)) throw new ActionError(400, "A bot's role can't be given or taken away");
   if (changed.some((id) => roles.get(id).position >= actor.highest)) {
     throw new ActionError(403, "You can't give or take roles as high as yours or higher");
+  }
+  if (changed.some((id) => after.has(id) && !mayGrant(actor, roles.get(id).permissions))) {
+    throw new ActionError(403, "You can't give permissions you don't have");
   }
 
   await db.transaction(async () => {
@@ -268,7 +272,8 @@ router.get('/guilds/:guildId/channels/:channelId/overrides', manageRoles, requir
 
 // Sets (or, with nothing allowed or denied, removes) `channel`'s override for a role or member
 // (`targetType` 'role' or 'member'). `channelPermissions` are the actor's in the channel. Only
-// channel permissions can be overridden, only ones you have here, and only for roles below yours.
+// channel permissions can be overridden, only ones you have here, and only for roles and members
+// below yours (or yourself).
 async function setOverride(actor, channel, channelPermissions, targetType, targetId, { allow = 0, deny = 0 }) {
   requireManageRoles(actor);
   if (!validBits(allow, CHANNEL_PERMISSIONS) || !validBits(deny, CHANNEL_PERMISSIONS) || (allow & deny)) {
@@ -282,6 +287,7 @@ async function setOverride(actor, channel, channelPermissions, targetType, targe
     targetName = role.name;
   } else if (targetType === 'member') {
     if (!(await getMember(actor.guild.id, targetId))) throw new ActionError(404, 'Not a member', 10007);
+    if (targetId !== actor.userId && !(await outranks(actor, targetId))) throw new ActionError(403, 'Their role is as high as yours or higher');
   } else {
     throw new ActionError(400, 'Invalid target');
   }
