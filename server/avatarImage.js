@@ -1,4 +1,5 @@
 const sharp = require('sharp');
+const { imageJob, ImageBusyError } = require('./imageQueue');
 
 // Turns an uploaded profile picture (up to MAX_AVATAR_UPLOAD_BYTES, any size) into what's
 // served: a square AVATAR_SIZE×AVATAR_SIZE WebP, cut from the square the uploader chose in the
@@ -11,9 +12,28 @@ const MAX_AVATAR_UPLOAD_BYTES = 8 * 1024 * 1024;
 const AVATAR_SIZE = 256;
 const MAX_AVATAR_BYTES = 1024 * 1024;
 const MAX_PIXELS = 60 * 1000 * 1000; // all frames together
+// Animations take far longer per pixel (each frame is decoded, resized and encoded): 30 M is,
+// say, 120 frames of 500×500.
+const MAX_ANIMATED_PIXELS = 30 * 1000 * 1000;
 const MAX_FRAMES = 300;
 
-class AvatarImageError extends Error {}
+// `status`: 429 when the server is too busy with pictures (imageQueue.js), else 400.
+class AvatarImageError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// Runs `task` in the shared picture queue, its "busy" as an AvatarImageError.
+async function queued(task) {
+  try {
+    return await imageJob(task);
+  } catch (err) {
+    if (err instanceof ImageBusyError) throw new AvatarImageError(err.message, 429);
+    throw err;
+  }
+}
 
 // The part of the picture to keep, as the cropper sends it: { x, y, width, height }, fractions
 // of the picture as shown (after its EXIF rotation). Returns null when there's none (the
@@ -38,7 +58,11 @@ function cropRect(crop, width, height) {
   return { left, top, width: side, height: side };
 }
 
-async function processAvatar(input, crop = null) {
+function processAvatar(input, crop = null) {
+  return queued(() => avatarJob(input, crop));
+}
+
+async function avatarJob(input, crop) {
   let meta;
   try {
     meta = await sharp(input, { animated: true, limitInputPixels: false }).metadata();
@@ -51,7 +75,7 @@ async function processAvatar(input, crop = null) {
   const frameHeight = frames > 1 ? meta.pageHeight : (meta.autoOrient?.height ?? meta.height);
   if (!width || !frameHeight) throw new AvatarImageError("That file isn't an image we can read");
   if (frames > MAX_FRAMES) throw new AvatarImageError(`Animated pictures can have at most ${MAX_FRAMES} frames`);
-  if (width * frameHeight * frames > MAX_PIXELS) throw new AvatarImageError('That image is too large');
+  if (width * frameHeight * frames > (frames > 1 ? MAX_ANIMATED_PIXELS : MAX_PIXELS)) throw new AvatarImageError('That image is too large');
   const animated = frames > 1;
   const rect = crop && cropRect(crop, width, frameHeight);
   const side = Math.min(AVATAR_SIZE, rect ? rect.width : Math.min(width, frameHeight));
@@ -85,7 +109,11 @@ const BANNER_WIDTH = 960;
 const BANNER_HEIGHT = 384;
 const MAX_BANNER_BYTES = 2 * 1024 * 1024;
 
-async function processBanner(input, crop = null) {
+function processBanner(input, crop = null) {
+  return queued(() => bannerJob(input, crop));
+}
+
+async function bannerJob(input, crop) {
   let meta;
   try {
     meta = await sharp(input, { animated: true, limitInputPixels: false }).metadata();
@@ -97,7 +125,7 @@ async function processBanner(input, crop = null) {
   const frameHeight = frames > 1 ? meta.pageHeight : (meta.autoOrient?.height ?? meta.height);
   if (!width || !frameHeight) throw new AvatarImageError("That file isn't an image we can read");
   if (frames > MAX_FRAMES) throw new AvatarImageError(`Animated pictures can have at most ${MAX_FRAMES} frames`);
-  if (width * frameHeight * frames > MAX_PIXELS) throw new AvatarImageError('That image is too large');
+  if (width * frameHeight * frames > (frames > 1 ? MAX_ANIMATED_PIXELS : MAX_PIXELS)) throw new AvatarImageError('That image is too large');
   const animated = frames > 1;
   let rect = null;
   if (crop) {

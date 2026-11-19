@@ -50,6 +50,59 @@ async function connect() {
 const presence = (fields) => JSON.stringify({ type: 'presence', visible: true, chatId: null, ...fields });
 const isStatus = (userId, status) => (e) => e.type === 'user_status' && e.userId === String(userId) && e.status === status;
 
+describe('limits for sockets', () => {
+  // A server of its own, with a short wait for identify.
+  async function quickServer() {
+    const httpServer = http.createServer(app);
+    const sockets = attachWebSocketServer(httpServer, { identifyWithinMs: 300 });
+    await new Promise((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
+    return { url: `ws://127.0.0.1:${httpServer.address().port}`, close: () => { sockets.close(); httpServer.close(); } };
+  }
+  const closed = (ws) => new Promise((resolve) => ws.on('close', (code, reason) => resolve({ code, reason: String(reason) })));
+
+  it('closes a socket that sends a message bigger than any the app sends', async () => {
+    const { ws } = await connect();
+    const done = closed(ws);
+    ws.send(JSON.stringify({ type: 'presence', junk: 'x'.repeat(300 * 1024) }));
+    expect((await done).code).toBe(1009);
+  });
+
+  it('closes a socket that never identifies, and keeps one that does', async () => {
+    const quick = await quickServer();
+    try {
+      const idle = new WebSocket(quick.url);
+      const done = closed(idle);
+      expect(await done).toEqual({ code: 1008, reason: 'Not identified' });
+
+      const user = await makeUser();
+      const ok = new WebSocket(quick.url);
+      await new Promise((resolve) => ok.on('open', resolve));
+      ok.send(JSON.stringify({ type: 'identify', token: user.token }));
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(ok.readyState).toBe(WebSocket.OPEN);
+      ok.close();
+    } finally {
+      quick.close();
+    }
+  });
+
+  it('refuses more than 20 sockets from one address that have not identified', async () => {
+    const sockets = Array.from({ length: 21 }, () => new WebSocket(url));
+    const results = await Promise.all(sockets.map((ws) => new Promise((resolve) => {
+      ws.on('close', (code, reason) => resolve(String(reason)));
+      setTimeout(() => resolve('open'), 500);
+    })));
+    expect(results.filter((r) => r === 'Too many connections')).toHaveLength(1);
+    for (const ws of sockets) ws.close();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Closed ones no longer count.
+    const { ws, next } = await connect();
+    ws.send(JSON.stringify({ type: 'ping' }));
+    expect(await next((e) => e.type === 'pong')).toEqual({ type: 'pong' });
+    ws.close();
+  });
+});
+
 describe('connection check', () => {
   it('answers a ping with a pong, identified or not', async () => {
     const { ws, next } = await connect();

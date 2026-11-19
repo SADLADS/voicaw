@@ -373,6 +373,12 @@ async function connectGateway({ compress = false } = {}) {
 const dispatch = (t) => (p) => p.op === 0 && p.t === t;
 
 describe('the gateway', () => {
+  it('closes a connection that sends more than 8 kB in one message, before Identify', async () => {
+    const g = await connectGateway();
+    g.send({ op: 2, d: { token: 'x'.repeat(10 * 1024) } });
+    expect(await g.closed).toBe(1009);
+  });
+
   it('says hello, identifies, sends READY and GUILD_CREATE, then the guild\'s events', async () => {
     const { owner, member, guild, general, bot } = await setUp();
     const gw = await connectGateway();

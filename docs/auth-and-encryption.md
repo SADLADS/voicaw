@@ -162,6 +162,14 @@ Optional, off until someone turns it on (Settings → My Account → Two-factor 
 
 ## Sign-ups (open, invite only, approval)
 
+**Usernames** (security audit, 2026-11-18): a new one is 2 to 32 of a-z, 0-9, `_`, `-` and `.` (no
+two dots running), after lower-casing (capitals typed become the display name, as before):
+no spaces, invisible characters or look-alike letters to pass as someone else
+(`usernames.js` `isValidNewUsername`, checked by `/initiateregister` with `signup: true`, so
+before any keys are made, and again by `/finaliseregister`; 400 `code: 'username'`, which the
+login screen words itself and also checks before sending). Only sign-ups: accounts from before
+keep their names and log in as always.
+
 Who can make an account is the app-wide setting `signupMode` (Settings → Admin; `SIGNUP_MODE`
 in `server/.env` as the fallback, `open` when neither is set), handled by `server/signups.js`:
 - **`open`**: anyone (as before). An invite sent along is ignored.

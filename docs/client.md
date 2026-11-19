@@ -747,7 +747,10 @@ even when there is no display name).
   /profile/avatar { type, size }` signs an upload of the original (image, up to 8 MB) to
   `profile-pics/src/<user id>/<upload id>`; `POST /profile/avatar/:uploadId/ready { crop }` has
   the server cut out the square chosen in the cropper (or the middle without one) and shrink it
-  (`sharp`: 256×256 at most, never enlarged, WebP, animation kept, pixel/frame limits), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
+  (`sharp`: 256×256 at most, never enlarged, WebP, animation kept, pixel/frame limits) (60 M
+  pixels for a still, 30 M for all of an animation's frames; every picture the server processes,
+  emoji, icons and bots' included, goes through one queue, `imageQueue.js`: 2 at a time, 20
+  waiting, then 429; `/ready` takes 30 a person per 10 minutes, emoji 60), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
   each time, so it's cacheable forever), delete the original and the previous picture, set
   `users.avatar` and send `user_profile`. `DELETE /profile/avatar` goes back to the default. Push
   images use `users.avatar` (no requests to the store). Client: the profile store has `avatar`,

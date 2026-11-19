@@ -546,7 +546,7 @@ async function storeAuthorAvatar(member, importId, authorId, body) {
   try {
     image = await processAvatar(body);
   } catch (err) {
-    if (err instanceof AvatarImageError) throw new ActionError(400, err.message);
+    if (err instanceof AvatarImageError) throw new ActionError(err.status, err.message);
     throw err;
   }
   const key = avatarKey(imp.id, author.id, crypto.randomBytes(6).toString('hex'));

@@ -56,6 +56,9 @@ const RSVPS = ['going', 'maybe', 'declined'];
 // Discord's Interested.
 const isInterested = (rsvp) => rsvp === 'going' || rsvp === 'maybe';
 const MAX_AHEAD_SECONDS = 5 * 366 * 86400;
+// How many single dates of one repeating event one person may answer differently from the rest
+// (each answer is a row, and rides along in every read and broadcast of their answers).
+const MAX_RSVP_DATES = 100;
 const UNATTENDED_SECONDS = 12 * 3600;
 const EMPTY_SECONDS = 5 * 60;
 const SWEEP_MS = 15 * 1000;
@@ -385,6 +388,7 @@ function timesOf(event, original, exception = null) {
 function checkOriginal(event, original) {
   if (!event.recurrence) throw badRequest("That event doesn't repeat");
   if (!Number.isInteger(original) || original < event.occurrence_start || (event.until != null && original >= event.until) ||
+    original > now() + MAX_AHEAD_SECONDS ||
     !isOccurrence(ruleOf(event), event.timezone || 'UTC', event.occurrence_start, original)) {
     throw badRequest("That isn't one of the event's dates");
   }
@@ -1012,6 +1016,13 @@ async function setRsvp(member, eventId, rsvp, { occurrence = null } = {}) {
       "SELECT 1 AS yes FROM guild_event_occurrences WHERE event_id = ? AND original_start = ? AND status = 'canceled'", [event.id, original]
     );
     if (cancelled) throw badRequest('That occurrence was cancelled');
+    if (rsvp !== before.rsvp_all) {
+      const { count } = await db.get(
+        'SELECT COUNT(*) AS count FROM guild_event_occurrence_users WHERE event_id = ? AND user_id = ? AND original_start != ?',
+        [event.id, userId, original]
+      );
+      if (count >= MAX_RSVP_DATES) throw badRequest(`You can answer at most ${MAX_RSVP_DATES} single dates of an event differently`);
+    }
     if (rsvp === before.rsvp_all) {
       await db.run('DELETE FROM guild_event_occurrence_users WHERE event_id = ? AND user_id = ? AND original_start = ?', [event.id, userId, original]);
     } else {

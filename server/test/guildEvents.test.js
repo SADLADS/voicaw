@@ -679,6 +679,23 @@ describe('scheduled events', () => {
       expect((await api.put(alice, url, { rsvp: 'maybe' })).body).toMatchObject({ rsvp: 'maybe', rsvp_all: 'maybe', my_rsvps: {} });
     });
 
+    it('refuses answers to dates over five years ahead, and over 100 single dates', async () => {
+      const { members: [alice], guild, owner } = await setUp(1);
+      const monday = nextMonday();
+      const { id } = (await series(owner, guild, monday)).body;
+      const url = `/guild-events/${id}/rsvp`;
+      const all = dates(monday, 6 * 53);
+      expect((await api.put(alice, url, { rsvp: 'going', occurrence: all.at(-1) })).status).toBe(400);
+      for (const original of all.slice(0, 100)) {
+        expect((await api.put(alice, url, { rsvp: 'maybe', occurrence: original })).status).toBe(200);
+      }
+      const over = await api.put(alice, url, { rsvp: 'maybe', occurrence: all[100] });
+      expect(over.status).toBe(400);
+      expect(over.body.error).toMatch(/at most 100/);
+      // Changing one already answered still works.
+      expect((await api.put(alice, url, { rsvp: 'declined', occurrence: all[5] })).status).toBe(200);
+    });
+
     it('changes this and following as a new series, which old links follow once the old one ends', async () => {
       const { owner, members: [alice], guild } = await setUp(1);
       const monday = nextMonday();

@@ -7,6 +7,10 @@ const { sendToAllSockets } = require('../sockets');
 const { PROFILE_COLUMNS } = require('../profiles');
 const { BUCKET, sourceKey, setAvatarFrom, removeAvatar, setBannerFrom, removeBanner } = require('../avatars');
 const { AvatarImageError, MAX_AVATAR_UPLOAD_BYTES, parseCrop } = require('../avatarImage');
+const { createLimiter, limitRequests } = require('../rateLimit');
+
+// Processing a picture is slow (imageQueue.js): this many per person, pictures and banners together.
+const processing = createLimiter({ windowMs: 10 * 60 * 1000, max: 30 });
 
 // Your profile picture and banner (see avatars.js): upload the original, then say it's ready;
 // or remove it.
@@ -47,7 +51,7 @@ for (const [kind, { set, remove, noun }] of Object.entries(KINDS)) {
   // Step 2: the original is uploaded, with `crop` from the app's cropper (optional: the
   // middle). It's processed into your new picture or banner (the original is deleted either
   // way); returns your profile, and everyone gets `user_profile`.
-  router.post(`/profile/${kind}/:uploadId/ready`, authenticateJWT, async (req, res) => {
+  router.post(`/profile/${kind}/:uploadId/ready`, authenticateJWT, limitRequests(processing), async (req, res) => {
     const { uploadId } = req.params;
     const upload = pending.get(uploadId);
     if (!upload || upload.userId !== req.user.id || upload.kind !== kind || upload.expires < Date.now()) {
@@ -64,7 +68,7 @@ for (const [kind, { set, remove, noun }] of Object.entries(KINDS)) {
     try {
       await set(req.user.id, original, parseCrop(req.body?.crop));
     } catch (err) {
-      if (err instanceof AvatarImageError) return res.status(400).json({ error: err.message });
+      if (err instanceof AvatarImageError) return res.status(err.status).json({ error: err.message });
       throw err;
     } finally {
       await deleteObject(BUCKET, source);

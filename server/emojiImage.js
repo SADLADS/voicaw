@@ -1,4 +1,5 @@
 const sharp = require('sharp');
+const { imageJob, ImageBusyError } = require('./imageQueue');
 
 // Turns an uploaded custom emoji (up to MAX_EMOJI_UPLOAD_BYTES, any size in pixels) into what's
 // served: at most 128×128 (like Discord), never enlarged, as WebP. Animated GIFs and WebPs stay
@@ -13,9 +14,24 @@ const MAX_EMOJI_BYTES = 512 * 1024;
 const MAX_PIXELS = 50 * 1000 * 1000; // all frames together
 const MAX_FRAMES = 300;
 
-class EmojiImageError extends Error {}
+// `status`: 429 when the server is too busy with pictures (imageQueue.js), else 400.
+class EmojiImageError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
 
 async function shrinkEmoji(input) {
+  try {
+    return await imageJob(() => emojiJob(input));
+  } catch (err) {
+    if (err instanceof ImageBusyError) throw new EmojiImageError(err.message, 429);
+    throw err;
+  }
+}
+
+async function emojiJob(input) {
   let meta;
   try {
     meta = await sharp(input, { animated: true, limitInputPixels: false }).metadata();

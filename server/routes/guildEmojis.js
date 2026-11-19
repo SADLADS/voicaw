@@ -4,6 +4,10 @@ const { authenticateJWT } = require('../auth');
 const { sendToUserSockets } = require('../sockets');
 const { getUploadUrl, getObject, putObject, deleteObject } = require('../s3');
 const { shrinkEmoji, EmojiImageError, MAX_EMOJI_UPLOAD_BYTES } = require('../emojiImage');
+const { createLimiter, limitRequests } = require('../rateLimit');
+
+// Processing an emoji is slow (imageQueue.js): this many per person.
+const processing = createLimiter({ windowMs: 10 * 60 * 1000, max: 60 });
 const { PERMISSIONS, has } = require('../permissions');
 const { getMember, getMemberIds } = require('../guilds');
 const { logAudit } = require('../auditLog');
@@ -141,7 +145,7 @@ router.post('/guilds/:guildId/emojis', manage, async (req, res) => {
 
 // The original is uploaded: shrink it into the emoji and make that available to everyone. If
 // it's not a usable image, the emoji is dropped (400 with the reason).
-router.post('/guilds/:guildId/emojis/:emojiId/ready', manage, async (req, res) => {
+router.post('/guilds/:guildId/emojis/:emojiId/ready', manage, limitRequests(processing), async (req, res) => {
   const emoji = await findEmoji(req);
   if (!emoji) return res.status(404).json({ error: 'Emoji not found' });
   if (emoji.available) return res.json({ id: emoji.id, guild_id: emoji.guild_id, name: emoji.name, animated: emoji.animated });
@@ -161,7 +165,7 @@ router.post('/guilds/:guildId/emojis/:emojiId/ready', manage, async (req, res) =
   } catch (err) {
     await db.run('DELETE FROM guild_emojis WHERE id = ?', [emoji.id]);
     await deleteObject('emojis', source);
-    if (err instanceof EmojiImageError) return res.status(400).json({ error: err.message });
+    if (err instanceof EmojiImageError) return res.status(err.status).json({ error: err.message });
     throw err;
   }
 

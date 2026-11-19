@@ -25,6 +25,19 @@ describe('registration', () => {
     expect(decoded.id).toBe(response.body.id);
   });
 
+  it('takes only usernames of 2 to 32 of a-z, 0-9, _, - and . (capitals become the display name)', async () => {
+    for (const bad of ['a', 'x'.repeat(33), ' alice', 'alice\u200b', 'al ice', 'аlice', 'al+ice', 'al..ice', 'bot#1234', 'ali\nce']) {
+      const { response, failedAt } = await registerUser(app, request, bad, 'password123');
+      expect(response.status, JSON.stringify(bad)).toBe(400);
+      expect(response.body.code).toBe('username');
+      // Refused before the client makes its keys.
+      expect(failedAt).toBe('initiate');
+    }
+    const { response } = await registerUser(app, request, 'Ok_name.2-x', 'password123');
+    expect(response.status).toBe(201);
+    expect(response.body.username).toBe('ok_name.2-x');
+  });
+
   it('rejects a duplicate username with 409', async () => {
     await registerUser(app, request, 'bob', 'password123');
     const { response } = await registerUser(app, request, 'bob', 'different-password');

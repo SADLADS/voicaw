@@ -102,6 +102,22 @@ describe('live document editing', () => {
     }));
   });
 
+  it('keeps and passes on steps as ProseMirror writes them, not padding sent with them', async () => {
+    const { owner, members: [alice], document } = await setUp(1);
+    await api.patch(owner, `/documents/${document.id}`, { version: document.version, open_editing: true });
+    const a = (await join(owner, document, 'owner-1')).body;
+    const b = (await join(alice, document, 'alice-1')).body;
+    const aliceEvents = listen(alice);
+    const step = typing(a.doc, 7, 'x');
+    const padded = step.steps.map((json) => ({ ...json, junk: 'y'.repeat(100000) }));
+    expect((await sendSteps(owner, document, { session: a.session, clientID: 'owner-1', version: 0, steps: padded })).body).toEqual({ version: 1 });
+    const sent = aliceEvents.find((e) => e.type === 'guild_document_steps');
+    expect(sent.steps).toEqual(step.steps);
+    const missed = await api.get(alice, `/documents/${document.id}/collab/steps?session=${b.session}&clientID=alice-1&since=0`);
+    expect(missed.body.steps).toEqual(step.steps);
+    await collab.saveAll();
+  });
+
   it('applies steps in order, passes them to the other editors and refuses stale or broken ones', async () => {
     const { owner, members: [alice], document } = await setUp(1);
     await api.patch(owner, `/documents/${document.id}`, { version: document.version, open_editing: true });
