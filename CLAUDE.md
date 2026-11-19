@@ -221,7 +221,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   carries the renamer's signed name, and an add always comes with its epoch so the person added
   can read it; group keys are kept on the device (IndexedDB) for notifications.
   Group messages, edits and reactions are signed inside the encryption; DMs deliberately
-  aren't (two people, so no one else could have written it; stays deniable). Don't change identity keys or the safety-number derivation
+  aren't (two people, so no one else could have written it; stays deniable). Since 2026-11-19
+  (security audit; the user chose it, knowing older apps can't read new messages until updated)
+  DM and group message text carries a sender's header inside the encryption (DMs `v2.`, groups
+  `v3.`: random id, time, reply, edited message), checked by readers, so the server can't replay
+  or move messages unnoticed (Message headers in `docs/auth-and-encryption.md`). Don't change identity keys or the safety-number derivation
   casually: every contact would get a "key changed" warning. The server delivering the web app's code stays the
   unfixable gap until native apps.
 - **Guilds aren't encrypted** (decided 2026-09-29): encrypted channels inside guilds were

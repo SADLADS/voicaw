@@ -65,6 +65,35 @@ let finished = new Set();
 // group page does when its members change, often just as a call ends) don't bring one back.
 let ended = new Set();
 
+// 1:1 calls this device has answered (their ids, the newest last), kept across reloads: a call's
+// key is bound to its id (callKeyContext), and nothing else makes an id single-use, so a server
+// ringing again with a recorded call (same id and key) could play that call back as a live one.
+// One answered here never rings or is answered again. Per device (localStorage), at most
+// ANSWERED_CALLS_KEPT.
+const ANSWERED_CALLS_KEY = 'answeredCalls';
+const ANSWERED_CALLS_KEPT = 300;
+
+function answeredCalls() {
+  try {
+    const list = JSON.parse(localStorage.getItem(ANSWERED_CALLS_KEY) ?? '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export const wasAnswered = (callId) => answeredCalls().includes(callId);
+
+function rememberAnswered(callId) {
+  try {
+    const list = answeredCalls().filter((id) => id !== callId);
+    list.push(callId);
+    localStorage.setItem(ANSWERED_CALLS_KEY, JSON.stringify(list.slice(-ANSWERED_CALLS_KEPT)));
+  } catch {
+    // Storage blocked: only this page remembers (`finished`).
+  }
+}
+
 // How long Answer on a notification keeps trying while the server can't be reached (the phone
 // may be just waking up), and how often.
 const ANSWER_WAIT_MS = 15000;
@@ -141,6 +170,7 @@ function handleEvent(event) {
   }
   if (event.type === 'call_incoming') {
     if (current) return; // busy on this device
+    if (!event.call.group_id && wasAnswered(event.call.id)) return; // a call already answered here, again
     incoming = event.call;
     set(localCall(event.call, { outgoing: false, state: 'ringing' }));
     // The Android app rings itself, from the call's push (one ringtone, also when closed).
@@ -457,10 +487,12 @@ export async function acceptCall() {
   set({ ...call, state: 'connecting' });
   let accepted = false;
   try {
+    if (wasAnswered(offer.id)) throw new Error('This call was already answered on this device');
     const peer = await findUser(offer.caller_id);
     const key = await decryptCallKey(offer.key_envelope, await conversationKey(peer), callKeyContext(offer.id, offer.caller_id, me.id));
     const { url, token, streamLimit, call: answered } = await acceptCallRequest(offer.id);
     accepted = true;
+    rememberAnswered(offer.id);
     if (snapshot.call?.id !== offer.id) return;
     set({ ...snapshot.call, state: 'active', answeredAt: localTime(answered.answered_at, answered) });
     await joinRoom(offer.id, { url, token, streamLimit, key });

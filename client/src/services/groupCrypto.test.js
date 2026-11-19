@@ -8,6 +8,7 @@ import {
   decryptGroupPicture,
   decryptGroupReaction,
   encryptGroupCallKey,
+  encryptGroupChatMessage,
   encryptGroupMessage,
   encryptGroupPicture,
   encryptGroupReaction,
@@ -132,7 +133,7 @@ describe('signed messages', () => {
     const envelope = await encryptGroupMessage('hi all', epochKey, groupMessageContext(GROUP, 1, a.id), a.sign, sigContext(a.id));
     expect(envelope.startsWith(SIGNED_PREFIX)).toBe(true);
     expect(await decryptGroupMessage(envelope, epochKey, groupMessageContext(GROUP, 1, a.id), a.keys.public.identityKey, sigContext(a.id)))
-      .toEqual({ text: 'hi all', signed: true, verified: true });
+      .toEqual({ text: 'hi all', signed: true, verified: true, sent: null });
     expect((await decryptGroupMessage(envelope, epochKey, groupMessageContext(GROUP, 1, a.id), b.keys.public.identityKey, sigContext(a.id))).verified).toBe(false);
   });
 
@@ -155,11 +156,26 @@ describe('signed messages', () => {
     expect((await decryptGroupMessage(edit, epochKey, aad, a.keys.public.identityKey, sigContext(a.id))).verified).toBe(false);
   });
 
+  it('put a header in v3 messages, signed with the rest, and still read v2', async () => {
+    const [a, b] = people;
+    const aad = groupMessageContext(GROUP, 1, a.id);
+    const context = sigContext(a.id, { replyTo: 10 });
+    const envelope = await encryptGroupChatMessage('yes!', epochKey, aad, a.sign, context, { replyTo: 10 });
+    expect(envelope.startsWith('v3.')).toBe(true);
+    const opened = await decryptGroupMessage(envelope, epochKey, aad, a.keys.public.identityKey, context);
+    expect(opened).toMatchObject({ text: 'yes!', signed: true, verified: true, sent: { replyTo: 10, editOf: null } });
+    expect(opened.sent.id).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    expect(Math.abs(opened.sent.at - Date.now() / 1000)).toBeLessThan(5);
+    expect((await decryptGroupMessage(envelope, epochKey, aad, b.keys.public.identityKey, context)).verified).toBe(false);
+    // The server can't pass it off as a v2 envelope (the version is in the additional data).
+    await expect(decryptGroupMessage(`v2.${envelope.slice(3)}`, epochKey, aad, a.keys.public.identityKey, context)).rejects.toThrow();
+  });
+
   it('still read messages from before signing, as unsigned', async () => {
     const [a] = people;
     const old = await encryptMessage('from before', epochKey, groupMessageContext(GROUP, 1, a.id));
     expect(await decryptGroupMessage(old, epochKey, groupMessageContext(GROUP, 1, a.id), a.keys.public.identityKey, sigContext(a.id)))
-      .toEqual({ text: 'from before', signed: false, verified: false });
+      .toEqual({ text: 'from before', signed: false, verified: false, sent: null });
   });
 
   it('sign reactions too, at a fixed size', async () => {

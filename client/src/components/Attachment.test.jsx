@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render as renderPlain, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 vi.mock('../services/attachmentCache', () => ({
   loadDecryptedAttachment: vi.fn(),
@@ -20,7 +20,11 @@ vi.mock('../services/videoStream', () => ({
 import Attachment from './Attachment';
 import { setPrivacyPref } from '../utils/privacy';
 import { applyPreferences } from '../utils/preferences';
-import { NsfwChannelContext } from '../contexts';
+import { ConfigContext, NsfwChannelContext } from '../contexts';
+
+// The app's config names its file store: only files there are attachments (else another site's).
+const STORE = 'https://s3.test';
+const render = (ui) => renderPlain(<ConfigContext.Provider value={{ s3Endpoint: STORE }}>{ui}</ConfigContext.Provider>);
 import {
   loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
 } from '../services/attachmentCache';
@@ -71,6 +75,23 @@ describe('Attachment', () => {
     render(<Attachment src="https://media.voicaw.com/uploads/old.png" alt="old" />);
 
     expect(screen.getByRole('img', { name: 'old' })).toHaveAttribute('src', 'https://media.voicaw.com/uploads/old.png');
+    expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+  });
+
+  it("treats an \"attachment\" on another site as that site's picture: not decrypted, held back by the privacy option", () => {
+    const elsewhere = buildAttachmentUrl('https://tracker.example/uploads/abc.bin', { key: 'KEY', type: 'image/png', size: 10 });
+    setPrivacyPref('linkPreviews', false);
+    try {
+      const { container } = render(<Attachment src={elsewhere} alt="cat.png" />);
+      expect(screen.getByText('Picture from tracker.example')).toBeInTheDocument();
+      expect(container.querySelector('img')).toBeNull();
+      expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+    } finally {
+      setPrivacyPref('linkPreviews', true);
+    }
+    // Before the config says where the store is, nothing is loaded.
+    renderPlain(<Attachment src={encryptedUrl('image/png')} alt="early.png" />);
+    expect(screen.getByText(/early\.png/)).toBeInTheDocument();
     expect(loadDecryptedAttachment).not.toHaveBeenCalled();
   });
 

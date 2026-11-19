@@ -20,8 +20,11 @@ import { useOfflineChat } from './useOfflineChat';
 import { useCatchUp } from './useCatchUp';
 import { mergeNewestPage } from '../utils/catchUp';
 import {
-  encryptMessage,
-  decryptMessage,
+  encryptDmMessage,
+  decryptDmText,
+  openDmMessage,
+  markRepeatedMessages,
+  messageMisplaced,
   decryptMessageRow,
   decryptMessagesBatch,
   decryptReaction,
@@ -249,7 +252,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       // render twice under the same key.
       const known = new Set(messagesRef.current.map((m) => m.id));
       const fresh = decrypted.filter((m) => !known.has(m.id));
-      if (fresh.length > 0) setMessages((prev) => [...fresh, ...prev]);
+      if (fresh.length > 0) setMessages((prev) => markRepeatedMessages([...fresh, ...prev]));
       setHasMore(page.length > 0);
     } catch (e) {
       // Keep the conversation on screen; scrolling back to the top retries.
@@ -286,7 +289,8 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         updated[pendingIndex] = { ...message, clientKey: prev[pendingIndex].clientKey ?? prev[pendingIndex].id };
         return updated;
       }
-      return [...prev, message];
+      // The same message delivered again (by its header's id) shows a warning.
+      return markRepeatedMessages([...prev, message]);
     });
     if (fromChatUser) markRead();
   }
@@ -322,7 +326,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
         updateMessage(tempId, () => ({ plaintext: finalText }));
       }
 
-      const encrypted = await encryptMessage(finalText, sharedKey, dmContext(user.id, chatUser.id));
+      const encrypted = await encryptDmMessage(finalText, sharedKey, dmContext(user.id, chatUser.id), { replyTo: replyTo?.id ?? null });
       const saved = await sendMessageToUser(chatUser.id, encrypted, replyTo?.id ?? null, uploadNamesIn(finalText), nonce);
 
       // The websocket echo may already have replaced it, or (a retry of one that did arrive) a
@@ -350,7 +354,9 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   }
 
   async function editMessage(messageId, text) {
-    const encrypted = await encryptMessage(text, sharedKey, dmContext(user.id, chatUser.id));
+    // An edit keeps the message's reply, and says which message it edits (see messageMisplaced).
+    const replyTo = messagesRef.current.find((m) => m.id === messageId)?.parent_message_id ?? null;
+    const encrypted = await encryptDmMessage(text, sharedKey, dmContext(user.id, chatUser.id), { replyTo, editOf: messageId });
     await saveEditedMessage(messageId, encrypted, uploadNamesIn(text));
     // An edit clears the previews (the server too); this device makes them again.
     updateMessage(messageId, () => ({ plaintext: text, content: encrypted, link_embeds: null }));
@@ -391,7 +397,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
   async function loadEdits(msg) {
     const { versions, edited_at } = await fetchEditHistory(msg.id);
     const context = dmContext(msg.sender_id, msg.recipient_id);
-    const open = (content) => decryptMessage(content, sharedKey, context).catch(() => null);
+    const open = (content) => decryptDmText(content, sharedKey, context).catch(() => null);
     return { versions: await Promise.all(versions.map(async (v) => ({ ...v, plaintext: await open(v.content) }))), edited_at };
   }
 
@@ -406,7 +412,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
     const rows = await decryptRows(await fetchMessagesForUser(chatId, { limit: PAGE_SIZE }), key);
     if (activeChatId.current !== chatId) return;
     const { gap, added } = mergeNewestPage(messagesRef.current, rows, PAGE_SIZE);
-    setMessages((prev) => mergeNewestPage(prev, rows, PAGE_SIZE).messages);
+    setMessages((prev) => markRepeatedMessages(mergeNewestPage(prev, rows, PAGE_SIZE).messages));
     if (gap) setHasMore(true);
     if (added.some((m) => String(m.sender_id) === String(chatUser.id) && !notes)) markRead();
   }, Boolean(sharedKey) && loadedFor === chatKey && !fromCopy);
@@ -431,7 +437,7 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       // Only the text: no replies, reactions or previews. Calls and poll ends have none.
       toEntries: async (rows) => (await Promise.all(rows.filter((r) => !r.system).map(async (r) => {
         try {
-          return { i: r.id, s: r.sender_id, t: r.timestamp, p: await decryptMessage(r.content, key, dmContext(r.sender_id, r.recipient_id)) };
+          return { i: r.id, s: r.sender_id, t: r.timestamp, p: await decryptDmText(r.content, key, dmContext(r.sender_id, r.recipient_id)) };
         } catch {
           return null;
         }
@@ -456,8 +462,9 @@ export function useConversation({ id, user, chatUser, onRead, notes = false }) {
       const original = messagesRef.current.find((m) => m.id === messageId);
       if (!original) return;
       try {
-        const plaintext = await decryptMessage(content, sharedKey, dmContext(original.sender_id, original.recipient_id));
-        updateMessage(messageId, () => ({ plaintext, content, edited: 1, link_embeds: null }));
+        const { text: plaintext, sent } = await openDmMessage(content, sharedKey, dmContext(original.sender_id, original.recipient_id));
+        const misplaced = messageMisplaced(sent, { ...original, edited: 1 }, { now: Math.floor(Date.now() / 1000) });
+        updateMessage(messageId, () => ({ plaintext, content, edited: 1, link_embeds: null, misplaced, sent_id: sent?.id ?? null }));
       } catch (err) {
         console.error('Failed to decrypt edited message', err);
       }

@@ -23,6 +23,7 @@ import {
   groupKeyContext,
   groupMessageContext,
   encryptGroupMessage,
+  encryptGroupChatMessage,
   decryptGroupMessage,
   messageSignatureContext,
   encryptGroupReaction,
@@ -277,6 +278,54 @@ describe('group DMs', () => {
     expect(await readAll(ann, groupId)).toEqual(['before dan', 'hi dan', 'still here']);
   });
 
+  it("doesn't tell members added later about edits, reactions, pins or deletes of messages they can't read", async () => {
+    const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const old = (await send(ann, groupId, 'before dan')).body;
+    expect((await change(ann, groupId, 'add', dan, [ann, bea, cal, dan])).status).toBe(200);
+    const danEvents = listen(dan);
+    const beaEvents = listen(bea);
+    const key = await keyOf(bea, groupId, 1);
+    const reaction = await encryptGroupReaction(
+      '👍', key, groupReactionContext(groupId, old.id, bea.id), bea.signingKey,
+      reactionSignatureContext({ groupId, epoch: 1, messageId: old.id, reactorId: bea.id })
+    );
+    const added = await api.post(bea, `/group-dm-messages/${old.id}/reactions`, { content: reaction });
+    expect(added.status).toBe(201);
+    expect((await api.put(ann, `/group-dm-messages/${old.id}`, { content: 'v2.edited' })).status).toBe(200);
+    expect((await api.put(bea, `/group-dm-messages/${old.id}/pin`)).status).toBe(200);
+    expect((await api.delete(bea, `/group-dm-reactions/${added.body.id}`)).status).toBe(200);
+    expect((await api.delete(ann, `/group-dm-messages/${old.id}`)).status).toBe(200);
+    const types = ['group_dm_reaction_add', 'group_dm_message_edit', 'group_dm_message_pin', 'group_dm_reaction_remove', 'group_dm_message_delete'];
+    expect(beaEvents.map((e) => e.type)).toEqual(expect.arrayContaining(types));
+    expect(danEvents.filter((e) => types.includes(e.type))).toEqual([]);
+  });
+
+  it("doesn't send a message to someone removed while it was being sent", async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const calEvents = listen(cal);
+    const key = await keyOf(ann, groupId, 1);
+    const content = await encryptGroupMessage(
+      'after cal', key, groupMessageContext(groupId, 1, ann.id), ann.signingKey,
+      messageSignatureContext({ groupId, epoch: 1, senderId: ann.id })
+    );
+    const groups = require('../groupDms.js');
+    const original = groups.memberState;
+    // The removal lands just after the send read the members (cal still has epoch 1's key).
+    groups.memberState = async (...args) => {
+      const state = await original(...args);
+      await db.run('DELETE FROM group_dm_members WHERE group_id = ? AND user_id = ?', [groupId, cal.id]);
+      return state;
+    };
+    try {
+      expect((await api.post(ann, `/group-dms/${groupId}/messages`, { epoch: 1, content })).status).toBe(201);
+    } finally {
+      groups.memberState = original;
+    }
+    expect(calEvents.filter((e) => e.type === 'group_dm_message_new')).toEqual([]);
+  });
+
   it('lets the owner remove people and anyone leave; the owner leaving leaves no owner', async () => {
     const [ann, bea, cal, dan] = [await makeUser(), await makeUser(), await makeUser(), await makeUser()];
     const { groupId } = await createGroup(ann, [bea, cal, dan]);
@@ -433,6 +482,26 @@ describe('group DMs', () => {
     const res = await api.post(ann, `/group-dms/${groupId}/messages`, { epoch: 1, content });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/update the app/);
+  });
+
+  it('takes v3 messages (with their header) up to the longest text, and serves them as sent', async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const key = await keyOf(ann, groupId, 1);
+    const longest = 'é'.repeat(require('../config.js').maxPlaintextLength / 2);
+    const content = await encryptGroupChatMessage(
+      longest, key, groupMessageContext(groupId, 1, ann.id), ann.signingKey,
+      messageSignatureContext({ groupId, epoch: 1, senderId: ann.id }), {}
+    );
+    expect(content.startsWith('v3.')).toBe(true);
+    const sent = await api.post(ann, `/group-dms/${groupId}/messages`, { epoch: 1, content });
+    expect(sent.status).toBe(201);
+    const [row] = (await api.get(bea, `/group-dms/${groupId}/messages`)).body;
+    const opened = await decryptGroupMessage(
+      row.content, await keyOf(bea, groupId, 1), groupMessageContext(groupId, 1, ann.id), ann.keys.public.identityKey,
+      messageSignatureContext({ groupId, epoch: 1, senderId: ann.id })
+    );
+    expect(opened).toMatchObject({ text: longest, verified: true, sent: { replyTo: null, editOf: null } });
   });
 
   describe('names', () => {

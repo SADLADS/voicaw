@@ -2,7 +2,7 @@ import { sendMessageToUser, setLinkPreviews } from './dmService';
 import { setGroupLinkPreviews } from './groupService';
 import { sendChannelMessage } from './guildService';
 import { sendGroupText } from './groupSend';
-import { deriveConversationKey, deriveNotesKey, dmContext, encryptMessage } from './encryptionService';
+import { deriveConversationKey, deriveNotesKey, dmContext, encryptDmMessage } from './encryptionService';
 import { loadEncryptionKey, loadIdentityKey, loadOwnPublicKeys } from './keyStore';
 import { checkContactKeys } from './contactKeys';
 import { dmPreviewsContext, groupPreviewsContext, groupPreviewsSignatureContext, sealDmPreviews, sealGroupPreviews } from './linkPreviewCrypto';
@@ -49,7 +49,7 @@ async function sendDm(me, person, text, nonce) {
     if (!check.encryptionKey) throw new Error(t('chat.share.keysChanged'));
     key = await deriveConversationKey(myKey, check.encryptionKey);
   }
-  const content = await encryptMessage(text, key, dmContext(me.id, person.id));
+  const content = await encryptDmMessage(text, key, dmContext(me.id, person.id));
   const saved = await sendMessageToUser(person.id, content, null, uploadNamesIn(text), nonce);
   attachDmPreviews(me, person, saved, key, text);
   return saved;

@@ -139,6 +139,8 @@
       "unsignedTitle": "グループメッセージに署名が付く前に送信されたため、送信者を検証できません",
       "unverified": "⚠ 未検証の送信者",
       "unverifiedTitle": "署名が送信者と一致しません。偽造されている可能性があります",
+      "misplaced": "⚠ 場所が不一致",
+      "misplacedTitle": "このメッセージ自身に記録された送信時刻、返信先、編集対象が表示位置と一致しません。サーバーが再送または移動した可能性があります",
       "editLabel": "メッセージを編集",
       "editHint": "Escape で<cancel>キャンセル</cancel> • Enter で<save>保存</save>",
       "hiddenSpoiler": "[ネタバレ]",

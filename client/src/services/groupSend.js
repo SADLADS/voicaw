@@ -1,5 +1,5 @@
 import { sendGroupMessage } from './groupService';
-import { encryptGroupMessage, groupMessageContext, messageSignatureContext } from './groupCrypto';
+import { encryptGroupChatMessage, groupMessageContext, messageSignatureContext } from './groupCrypto';
 import { loadIdentityKey } from './keyStore';
 import { currentEpoch } from './groupKeys';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
@@ -15,9 +15,9 @@ export async function sendGroupText(me, groupId, text, { replyToId = null, nonce
   for (let attempt = 0; ; attempt++) {
     const { epoch, key, group: current } = await currentEpoch(me, groupId, group);
     onOpened?.(current);
-    const content = await encryptGroupMessage(
+    const content = await encryptGroupChatMessage(
       text, key, groupMessageContext(groupId, epoch, me.id), await loadIdentityKey(),
-      messageSignatureContext({ groupId, epoch, senderId: me.id, replyTo: replyToId })
+      messageSignatureContext({ groupId, epoch, senderId: me.id, replyTo: replyToId }), { replyTo: replyToId }
     );
     try {
       return { message: await sendGroupMessage(groupId, epoch, content, replyToId, uploadNamesIn(text), nonce), key };

@@ -857,7 +857,13 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
 - **Key:** the caller makes 32 random bytes per call (`generateCallKey`) and a call id (UUID),
   and encrypts the key with the DM conversation key (`encryptCallKey`, additional data
   `callKeyContext(callId, callerId, calleeId)`, so it can't be moved to another call or have
-  the roles swapped). The server passes on only that envelope (`key_envelope`). Both clients
+  the roles swapped). Each device remembers the last 300 1:1 calls it answered (`answeredCalls`
+  in localStorage, kept across reloads and logins; 2026-11-19, security audit) and never rings
+  for or answers one of them again: nothing else made a call id single-use, so the server could
+  ring again with a recorded call (same id and envelope) and play that call's frames back as
+  live. (Another device of yours could still be fooled once; the callee adding its own half of
+  the key was considered and left out, since older apps couldn't call newer ones.) The server
+  passes on only that envelope (`key_envelope`). Both clients
   give the key to LiveKit's E2EE (`ExternalE2EEKeyProvider` + its worker, in `voiceClient`
   `connect`), which encrypts every audio frame before it leaves: LiveKit sees GCM-encrypted
   tracks (`calls.mjs` checks with LiveKit's API). No E2EE in the browser: no call (never a

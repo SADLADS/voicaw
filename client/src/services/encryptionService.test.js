@@ -11,6 +11,11 @@ import {
   encryptMessage,
   decryptMessage,
   decryptMessagesBatch,
+  encryptDmMessage,
+  openDmMessage,
+  messageMisplaced,
+  markRepeatedMessages,
+  MESSAGE_TIME_TOLERANCE_S,
   encryptReaction,
   decryptReaction,
   reactionContext,
@@ -149,6 +154,60 @@ describe('direct messages', () => {
 
     expect(out.map((m) => m.plaintext)).toEqual(['question?', 'answer', null]);
     expect(out[1].parent_plaintext).toBe('question?');
+  });
+});
+
+describe('message headers (v2 DMs)', () => {
+  const now = () => Math.floor(Date.now() / 1000);
+
+  it('carry a random id, the time, the reply and the edited message, inside the encryption', async () => {
+    const { aliceKey, bobKey } = await conversationKeys();
+    const envelope = await encryptDmMessage('line one\nline two', aliceKey, dmContext(1, 2), { replyTo: 7 });
+    expect(envelope.startsWith('v2.')).toBe(true);
+    const { text, sent } = await openDmMessage(envelope, bobKey, dmContext(1, 2));
+    expect(text).toBe('line one\nline two');
+    expect(sent).toMatchObject({ replyTo: 7, editOf: null });
+    expect(sent.id).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    expect(Math.abs(sent.at - now())).toBeLessThan(5);
+    await expect(openDmMessage(envelope, bobKey, dmContext(2, 1))).rejects.toThrow();
+    // A v1 message has no header.
+    const old = await encryptMessage('older', aliceKey, dmContext(1, 2));
+    expect(await openDmMessage(old, bobKey, dmContext(1, 2))).toEqual({ text: 'older', sent: null });
+    // The version is in the additional data: it can't be read as a v1 message.
+    await expect(decryptMessage(`v1.${envelope.slice(3)}`, bobKey, dmContext(1, 2))).rejects.toThrow();
+  });
+
+  it('show when the server moves a message, points a reply elsewhere, or passes one off as an edit', async () => {
+    const t = now();
+    const sent = { id: 'AAAAAAAAAAAAAAAA', at: t, replyTo: 7, editOf: null };
+    const row = { id: 20, parent_message_id: 7, edited: 0, timestamp: t + 30 };
+    expect(messageMisplaced(sent, row)).toBe(false);
+    expect(messageMisplaced(null, row)).toBe(false); // older envelope: nothing to check
+    expect(messageMisplaced(sent, { ...row, parent_message_id: 8 })).toBe(true);
+    expect(messageMisplaced(sent, { ...row, parent_message_id: null })).toBe(true);
+    // An old message delivered again as new.
+    expect(messageMisplaced(sent, { ...row, timestamp: t + MESSAGE_TIME_TOLERANCE_S + 60 })).toBe(true);
+    // A message shown as another's edit, or an edit shown as an original.
+    expect(messageMisplaced(sent, { ...row, edited: 1, edited_at: t })).toBe(true);
+    const edit = { ...sent, editOf: 20 };
+    expect(messageMisplaced(edit, { ...row, edited: 1, edited_at: t + 10 })).toBe(false);
+    expect(messageMisplaced(edit, { ...row, id: 21, edited: 1, edited_at: t })).toBe(true);
+    expect(messageMisplaced(edit, row)).toBe(true);
+    // A live edit, checked against now.
+    expect(messageMisplaced(edit, { ...row, edited: 1 }, { now: t })).toBe(false);
+  });
+
+  it('mark the same message delivered twice', async () => {
+    const { aliceKey } = await conversationKeys();
+    const envelope = await encryptDmMessage('pay me', aliceKey, dmContext(1, 2));
+    const t = now();
+    const rows = await decryptMessagesBatch([
+      { id: 30, sender_id: 1, recipient_id: 2, content: envelope, timestamp: t },
+      { id: 31, sender_id: 1, recipient_id: 2, content: envelope, timestamp: t },
+    ], aliceKey);
+    expect(rows.map((r) => Boolean(r.misplaced))).toEqual([false, true]);
+    // Across pages, against what's already shown.
+    expect(markRepeatedMessages([rows[0]], new Map([[rows[0].sent_id, 29]]))[0].misplaced).toBe(true);
   });
 });
 

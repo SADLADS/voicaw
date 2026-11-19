@@ -287,6 +287,8 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   (greyed out).
 - **Settings → Privacy's "Show pictures and videos from links straight away"** (`linkPreviews`,
   per device, on by default): off, other sites' pictures (link previews', links to pictures,
+  pictures in a message's text that aren't in our file store, encrypted-looking "attachments"
+  included (see Only this server's files are attachments in `uploads.md`),
   webhook and bot embeds' unless they're the message's own files; their small author and
   footer icons are left out) wait behind Show (`SiteMediaGate.jsx`, "Picture from <site>"),
   and videos are given nothing to load before Play. A guild card's text still shows: it comes

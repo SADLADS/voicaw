@@ -54,8 +54,12 @@ vi.mock('../services/encryptionService', () => {
   const decryptMessage = vi.fn(async (content) => `dec(${content})`);
   const dmContext = (sender, recipient) => `ctx:${sender}->${recipient}`;
   return {
-    encryptMessage: vi.fn(async (text) => `enc(${text})`),
+    encryptDmMessage: vi.fn(async (text) => `enc(${text})`),
     decryptMessage,
+    decryptDmText: decryptMessage,
+    openDmMessage: vi.fn(async (content, key, context) => ({ text: await decryptMessage(content, key, context), sent: null })),
+    markRepeatedMessages: (rows) => rows,
+    messageMisplaced: () => false,
     deriveConversationKey: vi.fn(async () => 'shared-key'),
     dmContext,
     reactionContext: (messageId, reactorId) => `rctx:${messageId}:${reactorId}`,
@@ -151,7 +155,7 @@ import {
   fetchMessagesForUser, sendMessageToUser, markMessagesRead, addReaction, removeReaction, deleteMessage, editMessage,
   fetchPins, setMessagePinned,
 } from '../services/dmService';
-import { deriveConversationKey, encryptMessage, decryptMessage, encryptReaction } from '../services/encryptionService';
+import { deriveConversationKey, encryptDmMessage as encryptMessage, decryptMessage, encryptReaction } from '../services/encryptionService';
 import { checkContactKeys, acceptContactKeys } from '../services/contactKeys';
 import { uploadAttachment } from '../services/attachmentUpload';
 import { readMediaDimensions } from '../utils/mediaDimensions';
@@ -633,7 +637,7 @@ describe('Dm attachments', () => {
     await act(async () => finishUpload(finalUrl));
 
     expect(await screen.findByText(`hi ![cat.png](${finalUrl}) [sent]`)).toBeInTheDocument();
-    expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key', 'ctx:1->2');
+    expect(encryptMessage).toHaveBeenCalledWith(`hi ![cat.png](${finalUrl})`, 'shared-key', 'ctx:1->2', expect.anything());
     expect(sendMessageToUser).toHaveBeenCalledWith(2, `enc(hi ![cat.png](${finalUrl}))`, null, ['abc.bin'], expect.any(String));
   });
 
@@ -804,7 +808,7 @@ describe('Dm contact keys', () => {
     setBoxText('hello');
     fireEvent.submit(document.getElementById('dm-chat-form'));
     await screen.findByText('hello [sent]');
-    expect(encryptMessage).toHaveBeenCalledWith('hello', 'shared-key', 'ctx:1->2');
+    expect(encryptMessage).toHaveBeenCalledWith('hello', 'shared-key', 'ctx:1->2', expect.anything());
 
     await waitFor(() => expect(dmListeners.newDm.length).toBeGreaterThan(0));
     await act(async () => {
@@ -959,7 +963,7 @@ describe('Dm emoji', () => {
       fireEvent.click(screen.getByRole('button', { name: ':blob:' }));
       expect(boxText()).toBe('hey <:blob:10>');
       fireEvent.submit(document.getElementById('dm-chat-form'));
-      await waitFor(() => expect(encryptMessage).toHaveBeenCalledWith('hey <:blob:10>', 'shared-key', expect.anything()));
+      await waitFor(() => expect(encryptMessage).toHaveBeenCalledWith('hey <:blob:10>', 'shared-key', expect.anything(), expect.anything()));
     });
   });
 

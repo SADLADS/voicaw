@@ -374,6 +374,23 @@ are `v1.<base64>`, key backups are `{v:1,...}`, and derivations/signatures are b
   `encryptMessage`/`decryptMessage` take `dmContext(senderId, recipientId)` as AES-GCM additional
   data, so the server can't re-attribute or move messages. Replies and edits use the original
   message's sender/recipient.
+- **Message headers** (2026-11-19, after the security audit): binding to the two people alone
+  let the server deliver an old message again as a new one, show a message as another's edit, or
+  point a reply at a different message. DMs and notes are now `v2.` envelopes
+  (`encryptDmMessage`/`openDmMessage`, the version in the additional data too), group messages
+  `v3.` (`docs/group-dms.md`): the text follows a one-line JSON header made by the sender, `{ id
+  (12 random bytes), at (their clock, Unix seconds), r (the replied-to message's id), e (the
+  edited message's id, null for an original) }`. The reader checks it against the row
+  (`messageMisplaced`): `r` must be the row's reply, `e` the row's own id exactly when it's edited,
+  and `at` within 15 minutes of the server's time (the send's, the edit's, or now for a live
+  edit); a header id seen on another row already shown (`markRepeatedMessages`) is a copy. A
+  message that fails shows its text with "⚠ out of place" (not hidden: the words are still the
+  sender's, and a device with a wrong clock would otherwise lose its messages). Older envelopes
+  (`v1.`) are still read, unchecked; apps from before this can't read `v2.` messages until
+  updated. What it can't catch: the server undoing an edit by serving the original (with the
+  edited flag cleared), or a copy within 15 minutes when the first isn't loaded. The server leaves
+  `MESSAGE_HEADER_BYTES` (160) for the header in its length limits. Link previews, reactions and
+  call keys keep their own formats.
 - **Reactions** (`dm_reactions`): the emoji is encrypted (`encryptReaction`) with the conversation
   key, zero-padded to `REACTION_PLAINTEXT_BYTES` (512, room for a 110-character answer added to
   an open poll, see Polls in `messages.md`) so every envelope is 723 chars (the server rejects any

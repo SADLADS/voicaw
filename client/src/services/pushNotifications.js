@@ -1,7 +1,7 @@
 import { loadEncryptionKey, loadOwnPublicKeys } from './keyStore';
-import { deriveConversationKey, decryptMessage, decryptReaction, dmContext, reactionContext } from './encryptionService';
+import { deriveConversationKey, decryptDmText, decryptReaction, dmContext, reactionContext } from './encryptionService';
 import {
-  decryptGroupMessage, decryptGroupReaction, groupMessageContext, groupReactionContext, messageSignatureContext, openGroupName,
+  decryptGroupMessage, decryptGroupReaction, groupMessageContext, groupReactionContext, messageSignatureContext, openGroupName, renamerIsMember,
   reactionSignatureContext,
 } from './groupCrypto';
 import { checkContactKeys, getPinnedContact } from './contactKeys';
@@ -63,7 +63,7 @@ async function dmPreview(data) {
     const senderKey = await dmSenderKey(data);
     if (!senderKey) return null;
     const key = await deriveConversationKey(myKey, senderKey);
-    const plaintext = await decryptMessage(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
+    const plaintext = await decryptDmText(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
     // A DM can only name its two people: the sender (the title) and the recipient.
     return previewText(plaintext, { [data.senderId]: data.title, [data.recipientId]: data.recipientName });
   } catch (err) {
@@ -96,7 +96,8 @@ async function groupNotification(data) {
   if (data.nameCiphertext && nameKey) {
     try {
       const pushed = await openGroupName(data.nameCiphertext, nameKey, data.groupId, data.nameEpoch, identityKeyOf);
-      if (!name || pushed.version > name.version) {
+      // Only from someone in the group as this device last saw it (see renamerIsMember).
+      if (renamerIsMember(pushed, saved.members) && (!name || pushed.version > name.version)) {
         name = pushed;
         await rememberGroupName(own.userId, data.groupId, pushed);
       }
@@ -146,7 +147,7 @@ async function dmReaction(data, previews) {
   let text = null;
   if (previews && data.ciphertext) {
     try {
-      const plaintext = await decryptMessage(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
+      const plaintext = await decryptDmText(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
       text = previewText(plaintext, { [data.senderId]: data.authorName, [data.recipientId]: data.title });
     } catch (err) {
       console.warn('Could not decrypt notification preview', err);
@@ -214,7 +215,7 @@ async function openSystemMessage(data) {
     const other = myKey && await getPinnedContact(data.recipientId, data.senderId);
     if (!other) return null;
     const key = await deriveConversationKey(myKey, other.encryptionKey);
-    const plaintext = await decryptMessage(data.messageCiphertext, key, dmContext(data.messageSenderId, data.messageRecipientId));
+    const plaintext = await decryptDmText(data.messageCiphertext, key, dmContext(data.messageSenderId, data.messageRecipientId));
     return { plaintext, names: { [data.senderId]: data.title, [data.recipientId]: data.recipientName } };
   }
   const own = await loadOwnPublicKeys();

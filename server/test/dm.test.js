@@ -84,7 +84,9 @@ describe('direct messages', () => {
   it('enforces the max encrypted message length', async () => {
     const alice = await makeAuthedUser('dm-alice3', 'pw-alice-123');
     const bob = await makeAuthedUser('dm-bob3', 'pw-bob-123');
-    const limit = maxEncryptedLength(parseInt(process.env.MAX_MESSAGE_LENGTH, 10));
+    // Room for the longest text and its header (`v2.` envelopes, config MESSAGE_HEADER_BYTES).
+    const limit = require('../config.js').maxMessageLength;
+    expect(limit).toBe(maxEncryptedLength(parseInt(process.env.MAX_MESSAGE_LENGTH, 10) + 160));
 
     const tooLong = await request(app)
       .post('/api/dm-send')
@@ -100,7 +102,7 @@ describe('direct messages', () => {
   });
 
   it('accepts the longest message the client can actually produce', async () => {
-    const { generateUserKeys, importEncryptionPrivateKey, deriveConversationKey, encryptMessage, dmContext } =
+    const { generateUserKeys, importEncryptionPrivateKey, deriveConversationKey, encryptDmMessage, dmContext } =
       await import('../../client/src/services/encryptionService.js');
     const alice = await makeAuthedUser('dm-alice-max', 'pw-alice-123');
     const bob = await makeAuthedUser('dm-bob-max', 'pw-bob-123');
@@ -108,7 +110,10 @@ describe('direct messages', () => {
     const b = await generateUserKeys();
     const key = await deriveConversationKey(await importEncryptionPrivateKey(a.private.encryptionKey), b.public.encryptionKey);
 
-    const envelope = await encryptMessage('a'.repeat(parseInt(process.env.MAX_MESSAGE_LENGTH, 10)), key, dmContext(alice.id, bob.id));
+    // A `v2.` envelope with the biggest header: a reply that's an edit, both ids long.
+    const envelope = await encryptDmMessage('a'.repeat(parseInt(process.env.MAX_MESSAGE_LENGTH, 10)), key, dmContext(alice.id, bob.id), {
+      replyTo: Number.MAX_SAFE_INTEGER, editOf: Number.MAX_SAFE_INTEGER,
+    });
     const res = await request(app).post('/api/dm-send').set(authed(alice.token)).send({ recipient_id: bob.id, content: envelope });
 
     expect(res.status).toBe(201);

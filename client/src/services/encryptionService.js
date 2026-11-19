@@ -270,6 +270,101 @@ export async function decryptMessage(envelope, key, context) {
   return td.decode(plaintext);
 }
 
+// ---------------------------------------------------------------- message headers
+
+// A message's text (DMs `v2.`, group messages `v3.` in groupCrypto.js) starts with a header the
+// sender writes, inside the encryption: one line of JSON `{ id, at, r, e }`, then "\n" and the
+// text. `id` is random (the server's id isn't known yet when it's encrypted), `at` the sender's
+// time (Unix seconds), `r` the server id of the message it replies to, `e` that of the message an
+// edit changes (null for an original). The reader checks them against the row (messageMisplaced),
+// so the server can't deliver an old message again as a new one, show a message as another's
+// edit, or point a reply at another message, without the message showing a warning. The server
+// leaves room for it (config.js MESSAGE_HEADER_BYTES).
+export const BOUND_MESSAGE_PREFIX = 'v2.';
+export const MESSAGE_HEADER_BYTES = 160;
+// How far a header's time may be from the server's, either way (clocks drift; an unsent message
+// is encrypted again when it's retried).
+export const MESSAGE_TIME_TOLERANCE_S = 15 * 60;
+
+const idOrNull = (value) => (value == null ? null : Number(value));
+
+export function messageHeaderText(text, { replyTo = null, editOf = null, at = Math.floor(Date.now() / 1000) } = {}) {
+  const id = toBase64(crypto.getRandomValues(new Uint8Array(12))).replace(/\+/g, '-').replace(/\//g, '_');
+  const header = JSON.stringify({ id, at, r: idOrNull(replyTo), e: idOrNull(editOf) });
+  if (te.encode(header).length > MESSAGE_HEADER_BYTES) throw new Error('Invalid message header');
+  return `${header}\n${text}`;
+}
+
+// -> { text, sent: { id, at, replyTo, editOf } }. Throws if there's no valid header.
+export function parseMessageHeader(plain) {
+  const end = plain.indexOf('\n');
+  if (end === -1) throw new Error('Missing message header');
+  const h = JSON.parse(plain.slice(0, end));
+  const okId = (v) => v === null || Number.isSafeInteger(v);
+  if (typeof h?.id !== 'string' || !/^[A-Za-z0-9_-]{16}$/.test(h.id) || !Number.isSafeInteger(h.at) || !okId(h.r) || !okId(h.e)) {
+    throw new Error('Invalid message header');
+  }
+  return { text: plain.slice(end + 1), sent: { id: h.id, at: h.at, replyTo: h.r, editOf: h.e } };
+}
+
+// Whether a message's header (`sent`; null for an older envelope, which has none) doesn't fit the
+// row it came in: `row` { id, parent_message_id, edited, timestamp, edited_at }. `now` instead
+// of the row's time for an edit just heard of (the event has no time).
+export function messageMisplaced(sent, row, { now = null } = {}) {
+  if (!sent) return false;
+  const editOf = row.edited ? Number(row.id) : null;
+  if (sent.editOf !== editOf || sent.replyTo !== idOrNull(row.parent_message_id)) return true;
+  const serverTime = now ?? (row.edited ? row.edited_at : row.timestamp);
+  return serverTime != null && Math.abs(Number(serverTime) - sent.at) > MESSAGE_TIME_TOLERANCE_S;
+}
+
+// Marks rows (decrypted, with `sent_id` from their header) whose header id another row already
+// has (`seen`: ids from rows already shown, Map id -> row id): the same message delivered twice.
+// The first one stays; later copies are `misplaced`.
+export function markRepeatedMessages(rows, seen = new Map()) {
+  return rows.map((row) => {
+    if (!row.sent_id) return row;
+    const first = seen.get(row.sent_id);
+    if (first == null) {
+      seen.set(row.sent_id, row.id);
+      return row;
+    }
+    return first === row.id ? row : { ...row, misplaced: true };
+  });
+}
+
+// A DM (or note) with its header: "v2." + base64(IV || AES-GCM(header "\n" text)), the version
+// in the additional data too. `meta`: { replyTo, editOf }.
+export async function encryptDmMessage(text, key, context, meta = {}) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: te.encode(`${context}|v2`) },
+    key,
+    te.encode(messageHeaderText(text, meta))
+  );
+  return BOUND_MESSAGE_PREFIX + toBase64(concat(iv, new Uint8Array(ciphertext)));
+}
+
+// A DM's text and header: { text, sent } (`sent` null for a "v1." message, from before headers).
+// Throws if it doesn't decrypt.
+export async function openDmMessage(envelope, key, context) {
+  if (typeof envelope === 'string' && envelope.startsWith(BOUND_MESSAGE_PREFIX)) {
+    const bytes = fromBase64(envelope.slice(BOUND_MESSAGE_PREFIX.length));
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: bytes.slice(0, 12), additionalData: te.encode(`${context}|v2`) },
+      key,
+      bytes.slice(12)
+    );
+    return parseMessageHeader(td.decode(plain));
+  }
+  return { text: await decryptMessage(envelope, key, context), sent: null };
+}
+
+// Just a DM's text, either envelope (notifications, search, edit history).
+export async function decryptDmText(envelope, key, context) {
+  return (await openDmMessage(envelope, key, context)).text;
+}
+
 // ---------------------------------------------------------------- reactions
 
 // Every reaction is padded to this many bytes before encryption, so the server can't tell
@@ -452,11 +547,17 @@ function otherParticipant(msg, participantId) {
 export async function decryptMessageRow(msg, key) {
   let plaintext = null;
   let parentPlaintext = null;
+  // From its header (see messageMisplaced): `sent_id` for markRepeatedMessages.
+  let sentId = null;
+  let misplaced = false;
 
   // A "poll ended" row has no content of its own (see decryptPollEndRow).
   if (!msg.system) {
     try {
-      plaintext = await decryptMessage(msg.content, key, dmContext(msg.sender_id, msg.recipient_id));
+      const { text, sent } = await openDmMessage(msg.content, key, dmContext(msg.sender_id, msg.recipient_id));
+      plaintext = text;
+      sentId = sent?.id ?? null;
+      misplaced = messageMisplaced(sent, msg);
     } catch (e) {
       console.warn('Failed to decrypt message', msg.id, e);
     }
@@ -466,7 +567,7 @@ export async function decryptMessageRow(msg, key) {
     try {
       // The parent is in the same conversation, so its recipient is the other participant.
       const parentRecipient = otherParticipant(msg, msg.parent_sender_id);
-      parentPlaintext = await decryptMessage(
+      parentPlaintext = await decryptDmText(
         msg.parent_content, key, dmContext(msg.parent_sender_id, parentRecipient)
       );
     } catch (e) {
@@ -476,6 +577,8 @@ export async function decryptMessageRow(msg, key) {
 
   const reactions = await decryptReactions(msg, msg.reactions, key);
   const row = { ...msg, plaintext, parent_plaintext: parentPlaintext, reactions };
+  if (sentId) row.sent_id = sentId;
+  if (misplaced) row.misplaced = true;
   if (msg.system === 'poll_end') {
     // Its poll's votes, bound to the poll (the parent), not this row.
     const poll = { id: msg.parent_message_id, sender_id: msg.parent_sender_id, recipient_id: otherParticipant(msg, msg.parent_sender_id) };
@@ -485,6 +588,6 @@ export async function decryptMessageRow(msg, key) {
 }
 
 // Decrypts a page of DM rows.
-export function decryptMessagesBatch(messages, key) {
-  return Promise.all(messages.map((msg) => decryptMessageRow(msg, key)));
+export async function decryptMessagesBatch(messages, key) {
+  return markRepeatedMessages(await Promise.all(messages.map((msg) => decryptMessageRow(msg, key))));
 }

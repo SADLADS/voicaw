@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render as renderPlain, screen, fireEvent, act } from '@testing-library/react';
 
 
 vi.mock('../services/attachmentCache', () => ({
@@ -10,7 +10,11 @@ vi.mock('../services/attachmentCache', () => ({
 
 import MessageList from './MessageList';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { ChannelMentionContext } from '../contexts';
+import { ChannelMentionContext, ConfigContext } from '../contexts';
+// Attachments are only this server's files (the config's file store).
+const WithConfig = ({ children }) => <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>{children}</ConfigContext.Provider>;
+const render = (ui, options) => renderPlain(ui, { wrapper: WithConfig, ...options });
+
 import { clearProfiles, mergeProfiles } from '../utils/profiles';
 import { editorFor } from '../editor/editorRegistry';
 import emojiData from '@emoji-mart/data/sets/15/twitter.json';

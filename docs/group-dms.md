@@ -43,7 +43,11 @@ deletes it. Messages, reactions, edits, call keys and the group's name and pictu
   the server could leave out a removal, and the app would go on sending under a key the removed
   person has. A device that never saw the group (or forgot it) can't tell.
 - **Who reads what:** the server only returns messages (and reply previews) of epochs you have a
-  key for, and unread counts only count those. So someone added never sees what was said before
+  key for, and unread counts only count those (and since 2026-11-19 edits, link previews, deletes,
+  reactions and pins of a message only go to members holding its epoch's key,
+  `groups.sendToEpochHolders`: someone added later doesn't even learn the message exists; a send
+  reads the members again after storing the message, so someone removed meanwhile doesn't get
+  it). So someone added never sees what was said before
   (they never get those keys), someone removed never gets new keys, and someone re-added keeps
   their old keys: they see the times they were a member, not the gap (decided 2026-09-30;
   "fresh start on rejoin" would be deleting their old `group_dm_epoch_keys` rows on re-add).
@@ -61,9 +65,21 @@ deletes it. Messages, reactions, edits, call keys and the group's name and pictu
   `useGroupConversation` checks it against the sender's identity key from the checked log: a
   mismatch isn't shown ("⚠ unverified sender"), a reaction that doesn't match is dropped, and
   `v1.` messages from before signing show as "not signed" (a signature can't be told apart
-  from one the server removed). The server takes only `v2.` for anything new (an older app gets
-  "Please update the app"). A reply's preview isn't checked (the server doesn't send the
-  parent's own signed context; the parent is checked where it's shown). Group call keys are
+  from one the server removed). The server takes only signed envelopes for anything new (an
+  older app gets "Please update the app"). A reply's preview is checked against its author's
+  signature too (2026-11-19; the server sends what it was signed with, `parent_reply_to` and
+  `parent_edited`), and not shown if it doesn't match. A `v1.` reaction on a signed message is
+  dropped (2026-11-19): that message was sent after signing came in, so a genuine reaction to it
+  is signed; one on an old `v1.` message still shows (the rule is the message's own envelope,
+  which the server can't change, not an epoch date, which it picks).
+- **Headers** (`v3.`, 2026-11-19): messages and edits are `v3.` envelopes
+  (`encryptGroupChatMessage`): signed like `v2.`, with the header DMs have in front of the text
+  (the sender's random id for it, their time, the reply and the edited message; see Message
+  headers in `auth-and-encryption.md`), the version in the additional data too. The signature
+  already stopped a reply or edit being moved; the header lets the reader see the server
+  delivering a message again as new, or the pre-edit version as current ("⚠ out of place").
+  `v2.` messages are still read; link previews and reactions stay `v2.`. Apps from before this
+  can't read `v3.` messages until updated. Group call keys are
   signed the same way (since 2026-10-03, see Group calls in `voice-and-calls.md`). DMs aren't signed on purpose: only the
   two people hold the key, so a message can only be from the other one, and unsigned messages
   stay deniable. Pushes are decrypted on the device (see Group names).
@@ -99,7 +115,16 @@ before).
   512-byte records; the server checks).
   `version` counts renames from 1 (the name given at creation, possibly '' for none, is version 1
   and `initial`). Clients check the group, and the signature against the renamer's identity key
-  from the checked log.
+  from the checked log. Since 2026-11-19 the renamer must also be in the group now
+  (`renamerIsMember`; the members of the checked log, or for pushes and the conversation list the
+  members this device saved): the log keeps former members' keys, and someone removed could sign
+  a newer name and, with the server, seal it under an old epoch they still hold. A name from
+  someone who has left is only shown if this device saw it while they were in (it's saved then);
+  otherwise the group shows its members' names, and the record (`untrusted`) is only carried into
+  new epochs, still its renamer's, so it never becomes trusted that way. A rename or new picture
+  made then doesn't carry it over: a rename drops its picture, a new picture its name. (A group
+  renamed by someone who then left shows no name on a device that never saw it, until the next
+  rename.)
 - **Always under the latest epoch** (`group_dms.name_ciphertext`, `name_epoch`, `name_version`).
   Every new epoch (creation, add, remove, after a leave) carries the current name sealed again
   with the new key: the same signed record, so it stays the renamer's words. That needs whoever

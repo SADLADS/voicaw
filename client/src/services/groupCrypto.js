@@ -3,6 +3,8 @@ import {
   decryptReaction,
   encryptMessage,
   fromBase64,
+  messageHeaderText,
+  parseMessageHeader,
   REACTION_PLAINTEXT_BYTES,
   toBase64,
 } from './encryptionService';
@@ -21,6 +23,9 @@ import {
 //   post as someone else. The signature is inside the encryption (only members see it), in a
 //   `v2.` envelope: "v2." + base64(IV || AES-GCM(signature (64 bytes) || content)). Messages
 //   from before signing are `v1.` (plain encryptMessage / encryptReaction) and show as unsigned.
+//   Messages and edits are `v3.` now: the same, with a header in front of the text (the sender's
+//   id for it and time, see messageHeaderText in encryptionService.js), so the server can't
+//   deliver one again as new; the version is in the additional data too.
 // - Call keys: the same signed envelope, so a call can only start under its caller's name.
 
 const te = new TextEncoder();
@@ -39,6 +44,7 @@ const REACTION_SIGNATURE_CONTEXT = 'voicaw/group-reaction-sig/v1';
 const CALL_KEY_SIGNATURE_CONTEXT = 'voicaw/group-call-key-sig/v1';
 
 export const SIGNED_PREFIX = 'v2.';
+export const MESSAGE_PREFIX_V3 = 'v3.';
 // ECDSA P-256 signatures from WebCrypto are r || s.
 export const SIGNATURE_BYTES = 64;
 
@@ -227,14 +233,15 @@ export function callKeySignatureContext({ callId, groupId, epoch, callerId }) {
   return `${CALL_KEY_SIGNATURE_CONTEXT}|${callId}|${groupId}|${epoch}|${callerId}`;
 }
 
-async function seal(bytes, epochKey, aad, signingKey, signatureContext) {
+async function seal(bytes, epochKey, aad, signingKey, signatureContext, prefix = SIGNED_PREFIX) {
   const signature = new Uint8Array(await crypto.subtle.sign(SIGN, signingKey, concatBytes(te.encode(`${signatureContext}\n`), bytes)));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: te.encode(aad) }, epochKey, concatBytes(signature, bytes));
-  return SIGNED_PREFIX + toBase64(concatBytes(iv, new Uint8Array(ciphertext)));
+  return prefix + toBase64(concatBytes(iv, new Uint8Array(ciphertext)));
 }
 
 // -> { bytes, verified } (`verified` null when no identity key was given to check against).
+// `envelope` is "v2." or "v3." (both prefixes are three characters).
 async function open(envelope, epochKey, aad, identityKey, signatureContext) {
   const data = fromBase64(envelope.slice(SIGNED_PREFIX.length));
   const plain = new Uint8Array(await crypto.subtle.decrypt(
@@ -255,21 +262,32 @@ async function open(envelope, epochKey, aad, identityKey, signatureContext) {
   return { bytes, verified };
 }
 
-// A group message (or edit), encrypted with the epoch key and signed with `signingKey` (the
-// sender's identity private key).
+// Signed text in a `v2.` envelope, encrypted with the epoch key and signed with `signingKey`
+// (the sender's identity private key): link previews (and messages from before headers).
 export function encryptGroupMessage(text, epochKey, aad, signingKey, signatureContext) {
   return seal(te.encode(text), epochKey, aad, signingKey, signatureContext);
 }
 
-// -> { text, signed, verified }: `signed` false for a message from before signing (`v1.`);
+// A group message (or edit): `v3.`, with its header (`meta`: { replyTo, editOf }, as in the
+// signature context), signed and encrypted like encryptGroupMessage.
+export function encryptGroupChatMessage(text, epochKey, aad, signingKey, signatureContext, meta = {}) {
+  return seal(te.encode(messageHeaderText(text, meta)), epochKey, `${aad}|v3`, signingKey, signatureContext, MESSAGE_PREFIX_V3);
+}
+
+// -> { text, signed, verified, sent }: `signed` false for a message from before signing (`v1.`);
 // `verified` whether the signature is the sender's (`identityKey`: their key from the group's
-// checked log; null skips the check, as for a reply's preview). Throws if it doesn't decrypt.
+// checked log; null skips the check); `sent` the header of a `v3.` message (else null; see
+// messageMisplaced). Throws if it doesn't decrypt.
 export async function decryptGroupMessage(envelope, epochKey, aad, identityKey, signatureContext) {
+  if (typeof envelope === 'string' && envelope.startsWith(MESSAGE_PREFIX_V3)) {
+    const { bytes, verified } = await open(envelope, epochKey, `${aad}|v3`, identityKey, signatureContext);
+    return { ...parseMessageHeader(new TextDecoder().decode(bytes)), signed: true, verified };
+  }
   if (typeof envelope === 'string' && envelope.startsWith(SIGNED_PREFIX)) {
     const { bytes, verified } = await open(envelope, epochKey, aad, identityKey, signatureContext);
-    return { text: new TextDecoder().decode(bytes), signed: true, verified };
+    return { text: new TextDecoder().decode(bytes), signed: true, verified, sent: null };
   }
-  return { text: await decryptMessage(envelope, epochKey, aad), signed: false, verified: false };
+  return { text: await decryptMessage(envelope, epochKey, aad), signed: false, verified: false, sent: null };
 }
 
 // A reaction: the emoji padded to REACTION_PLAINTEXT_BYTES (every signed reaction is the same
@@ -415,6 +433,15 @@ export async function openGroupName(envelope, epochKey, groupId, epoch, identity
     change: r.change === 'picture' ? 'picture' : 'name',
     signed: { record, signature },
   };
+}
+
+// Whether a name record (openGroupName's) is from someone in the group now (`memberIds`: a Set
+// or array of ids). Anyone who was ever in it can sign one and, with the server, seal it under an
+// old epoch they still have: one from someone who has left is only trusted if this device saw
+// it while they were in (it's saved then).
+export function renamerIsMember(name, memberIds) {
+  const ids = memberIds instanceof Set || memberIds instanceof Map ? memberIds : new Set((memberIds ?? []).map((m) => m.id ?? m));
+  return ids.has(name.renamerId) || ids.has(String(name.renamerId));
 }
 
 // ---------------------------------------------------------------- the group's picture
