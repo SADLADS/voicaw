@@ -178,6 +178,8 @@ describe('adding messages', () => {
 
     await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/finish`);
     expect(memberEvents).toContainEqual({ type: 'guild_history_changed', guildId: guild.id, channelId: general.id });
+    // A finished import takes no more files.
+    expect((await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/files`, { name: 'late.png', size: 10 })).status).toBe(400);
     // Imported messages can't be edited, even by the member shown as their author.
     expect((await api.put(member, `/guild-messages/${first.id}`, { content: 'rewritten' })).status).toBe(403);
   });
@@ -216,6 +218,10 @@ describe('adding messages', () => {
     expect(prepared.body.attachment).toMatchObject({ filename: 'cat_pic.png', size: 1234, content_type: 'image/png', width: 40, height: 20 });
     expect(prepared.body.attachment.url.startsWith(`${s3Endpoint}/uploads/imports/${imp.id}/`)).toBe(true);
     expect((await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/files`, { name: 'huge.mp4', size: 200 * 1024 * 1024 })).status).toBe(413);
+    // Never over Settings → Admin's File size limit either.
+    await setSetting('uploadLimit', '25');
+    expect((await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/files`, { name: 'big.mp4', size: 30 * 1024 * 1024 })).status).toBe(413);
+    await setSetting('uploadLimit', '500');
 
     await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/messages`, {
       channelSourceId: '900',

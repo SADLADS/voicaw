@@ -1,4 +1,5 @@
 import './helpers/mockS3.js';
+import { objects } from './helpers/mockS3.js';
 import './helpers/mockWebPush.js';
 import { describe, it, expect, afterAll } from 'vitest';
 import request from 'supertest';
@@ -135,6 +136,31 @@ describe('application commands', () => {
     expect((await discord.get(bot, `/applications/12345/commands`)).status).toBe(403);
   });
 
+  it('keep localizations only as short texts per locale, and component ids only as integers', async () => {
+    const { general, bot } = await setUp();
+    const ok = await discord.post(bot, `/applications/${bot.id}/commands`, {
+      name: 'hello', description: 'Hi', name_localizations: { ru: 'привет' }, description_localizations: { 'en-GB': 'Hello' },
+      options: [{ type: 3, name: 'who', description: 'Who', name_localizations: { ja: 'だれ' }, choices: [{ name: 'Me', value: 'me', name_localizations: { th: 'ฉัน' } }] }],
+    });
+    expect(ok.status).toBe(201);
+    expect(ok.body).toMatchObject({ name_localizations: { ru: 'привет' }, options: [{ name_localizations: { ja: 'だれ' }, choices: [{ name_localizations: { th: 'ฉัน' } }] }] });
+    const big = 'x'.repeat(200_000);
+    for (const body of [
+      { name: 'a', description: 'b', name_localizations: { ru: big } },
+      { name: 'a', description: 'b', description_localizations: { 'not a locale': 'x' } },
+      { name: 'a', description: 'b', options: [{ type: 3, name: 'o', description: 'o', description_localizations: { ru: { nested: big } } }] },
+      { name: 'a', description: 'b', options: [{ type: 3, name: 'o', description: 'o', choices: [{ name: 'c', value: 'c', name_localizations: { ru: big } }] }] },
+    ]) {
+      expect((await discord.post(bot, `/applications/${bot.id}/commands`, body)).body).toMatchObject({ code: 50035 });
+    }
+
+    const button = (id) => ({ components: [{ type: 1, components: [{ type: 2, style: 1, label: 'Go', custom_id: 'go', id }] }] });
+    expect((await discord.post(bot, `/channels/${general.id}/messages`, button(7))).status).toBe(200);
+    for (const id of [big, { a: 1 }, -1, 1.5]) {
+      expect((await discord.post(bot, `/channels/${general.id}/messages`, button(id))).body).toMatchObject({ code: 50035 });
+    }
+  });
+
   it('show people only the ones they may use there', async () => {
     const { owner, member, guild, general, bot } = await setUp();
     await discord.put(bot, `/applications/${bot.id}/commands`, [
@@ -155,6 +181,32 @@ describe('application commands', () => {
 });
 
 describe('interactions', () => {
+  it("stores a command's files only for a usable command's attachment options", async () => {
+    const { member, general, bot } = await setUp();
+    const [cmd] = (await discord.put(bot, `/applications/${bot.id}/commands`, [{ name: 'plain', description: 'No files' }])).body;
+    const uploadCount = () => [...objects.keys()].filter((k) => k.startsWith('uploads/webhooks/')).length;
+    const before = uploadCount();
+    const send = (body) => request(app).post(`/api/channels/${general.id}/command-interactions`).set(authed(member))
+      .field('payload_json', JSON.stringify(body)).attach('files[0]', Buffer.from('hello'), 'a.txt');
+    expect((await send({ command_id: 0 })).status).toBe(404);
+    // A command without an attachment option: the file isn't one of its options either.
+    expect((await send({ command_id: cmd.id, options: [{ name: 'file', type: 11, value: 0 }] })).status).toBe(400);
+    expect(uploadCount()).toBe(before);
+    // One that has one stores the file it names, and gives it to the bot.
+    const [withFile] = (await discord.put(bot, `/applications/${bot.id}/commands`, [{
+      name: 'upload', description: 'A file', options: [{ type: 11, name: 'file', description: 'It', required: true }],
+    }])).body;
+    const gw = await connectBot(bot, (i) => hook.callback(i, { type: 4, data: { content: 'Got it' } }));
+    expect((await send({ command_id: withFile.id, options: [{ name: 'file', type: 11, value: 0 }] })).body).toEqual({ ok: true });
+    gw.close();
+    expect(uploadCount()).toBe(before + 1);
+    expect(Object.values(gw.received[0].data.resolved.attachments)[0]).toMatchObject({ filename: 'a.txt', size: 5 });
+    // And the interaction callback's body isn't read for an interaction that doesn't exist.
+    const callback = await request(app).post('/api/v10/interactions/1/nothing/callback')
+      .field('payload_json', JSON.stringify({ type: 4, data: { content: 'x' } })).attach('files[0]', Buffer.from('hi'), 'b.txt');
+    expect(callback.body).toMatchObject({ code: 10062 });
+  });
+
   it('delivers a slash command with its options and resolved users; the reply says who used it', async () => {
     const { owner, member, general, bot } = await setUp();
     const [cmd] = (await discord.put(bot, `/applications/${bot.id}/commands`, [{

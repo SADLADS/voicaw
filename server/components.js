@@ -18,6 +18,12 @@ function formError(path, message, code = 'BASE_TYPE_INVALID') {
   return new FormError(path, message, code);
 }
 
+// A component's own `id`: Discord's 32-bit integer.
+function componentId(value, path) {
+  if (!Number.isInteger(value) || value < 0 || value > 2 ** 31 - 1) throw formError(path, 'Value is not int.', 'NUMBER_TYPE_COERCE');
+  return value;
+}
+
 function text(value, path, { max, min = 0, required = false }) {
   if (value == null || value === '') {
     if (required) throw formError(path, 'This field is required', 'BASE_TYPE_REQUIRED');
@@ -73,7 +79,7 @@ function button(raw, path) {
     out.custom_id = customId(raw.custom_id, [...path, 'custom_id']);
   }
   if (raw.disabled) out.disabled = true;
-  if (raw.id != null) out.id = raw.id;
+  if (raw.id != null) out.id = componentId(raw.id, [...path, 'id']);
   return out;
 }
 
@@ -121,7 +127,7 @@ function select(raw, path, { inModal = false } = {}) {
   }
   if (inModal) out.required = raw.required !== false;
   if (raw.disabled) out.disabled = true;
-  if (raw.id != null) out.id = raw.id;
+  if (raw.id != null) out.id = componentId(raw.id, [...path, 'id']);
   return out;
 }
 

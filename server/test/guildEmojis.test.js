@@ -211,6 +211,15 @@ describe('emoji images', () => {
     expect((await upload(owner, guild.id, 'junk', await png(10, 10), 'image/png')).ready.status).toBe(200);
   });
 
+  it("deletes an unfinished emoji's original with it", async () => {
+    const owner = await makeUser();
+    const guild = await guildWith(owner, 'Halfway');
+    const start = await api.post(owner, `/guilds/${guild.id}/emojis`, { name: 'halfway', type: 'image/png', size: 100 });
+    putMockObject('emojis', `src/${start.body.emoji.id}`, await png(64, 64), 'image/png');
+    expect((await api.delete(owner, `/guilds/${guild.id}/emojis/${start.body.emoji.id}`)).status).toBe(200);
+    expect(objects.has(`emojis/src/${start.body.emoji.id}`)).toBe(false);
+  });
+
   it('says so if the upload never arrived, keeping the emoji to retry', async () => {
     const owner = await makeUser();
     const guild = await guildWith(owner, 'Missing');

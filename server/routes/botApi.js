@@ -559,11 +559,19 @@ router.delete(COMMAND, auth, commandBucket, ownCommands, route(async (req, res) 
 
 // ---- Interactions (interactions.js) ----
 
-// The bot's answer to an interaction, with its token (no bot token, as in Discord), within 3
-// seconds. `?with_response=true` answers with what it made.
-router.post('/interactions/:interactionId/:token/callback', limit('callback', 20, 1000), webhooks.parseBody, route(async (req, res) => {
+// The interaction of the URL's id and token, before anything else (its body is only read and
+// limited per application once it's known to be real).
+async function byInteraction(req, res, next) {
   const row = await interactions.findInteraction(req.params.interactionId, req.params.token);
   if (!row || row.expired) return fail(res, 404, 10062, 'Unknown interaction');
+  req.interaction = row;
+  next();
+}
+
+// The bot's answer to an interaction, with its token (no bot token, as in Discord), within 3
+// seconds. `?with_response=true` answers with what it made.
+router.post('/interactions/:interactionId/:token/callback', byInteraction, limit('callback', 20, 1000), webhooks.parseBody, route(async (req, res) => {
+  const row = req.interaction;
   const result = await interactions.callback(row, req);
   if (!['true', '1'].includes(String(req.query.with_response).toLowerCase())) return res.status(204).end();
   const message = result.message ? await D.messageObjects([result.message], { botId: row.application_id }) : [];
@@ -1492,7 +1500,11 @@ async function eventFields(req, body, before = null) {
     fields.recurrence = body.recurrence_rule;
     fields.timezone = body.recurrence_rule ? (before?.timezone ?? 'UTC') : null;
   }
-  if (body.image !== undefined) fields.image = body.image ? await guildEvents.storeImageData(body.image, req.bot.id) : null;
+  if (body.image !== undefined) {
+    // Checked first, so a refused request leaves no stored cover behind.
+    if (body.image) await guildEvents.checkMayChange(req.member, before, { entity_type: fields.entityType, channel_id: fields.channelId });
+    fields.image = body.image ? await guildEvents.storeImageData(body.image, req.bot.id) : null;
+  }
   return fields;
 }
 

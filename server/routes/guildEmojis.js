@@ -29,6 +29,8 @@ const EMOJI_TYPES = new Set(['image/png', 'image/gif', 'image/webp', 'image/jpeg
 const EMOJI_NAME = /^[A-Za-z0-9_]{2,32}$/;
 // An upload that never finished stops counting after this long.
 const PENDING_TTL_SECONDS = 60 * 60;
+// A little longer than a signed upload URL works (s3.js getUploadUrl).
+const UPLOAD_URL_MS = 65 * 1000;
 
 const EMOJI_COLUMNS = 'e.id, e.guild_id, e.name, e.animated';
 
@@ -207,6 +209,11 @@ router.delete('/guilds/:guildId/emojis/:emojiId', manage, async (req, res) => {
     if (emoji.available) await audit(req, 'emoji_delete', emoji.id, { name: emoji.name });
   });
   await deleteObject('emojis', String(emoji.id));
+  if (!emoji.available) {
+    // Its original too, and again once its upload URL has run out (it may be put again until then).
+    await deleteObject('emojis', `src/${emoji.id}`);
+    setTimeout(() => deleteObject('emojis', `src/${emoji.id}`).catch(() => {}), UPLOAD_URL_MS).unref();
+  }
   await announceEmojis(req.guild.id);
   res.json({ success: true });
 });

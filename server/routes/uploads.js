@@ -37,8 +37,10 @@ function checkUploadSize(size, max) {
   return null;
 }
 
-// A guild's icon (Manage Guild), stored as guild-icons/<guild id>. Once it's uploaded the
-// client sends PATCH /guilds/:id { iconUploaded: true }, which bumps the icon's version.
+// A guild's icon (Manage Guild). The original goes to guild-icons/src/<guild id> (never the live
+// guild-icons/<guild id>, so an unprocessed file is never shown as the icon); once it's
+// uploaded the client sends PATCH /guilds/:id { iconUploaded: true }, which processes it into
+// the icon, deletes the original and bumps the icon's version.
 router.get('/upload_guild_icon', authenticateJWT, async (req, res) => {
   const { type } = req.query;
   const size = Number(req.query.size);
@@ -52,7 +54,7 @@ router.get('/upload_guild_icon', authenticateJWT, async (req, res) => {
   if (sizeError) return res.status(sizeError.status).json({ error: sizeError.error });
 
   try {
-    const url = await getUploadUrl(`${guild.id}`, 'guild-icons', type, size);
+    const url = await getUploadUrl(`src/${guild.id}`, 'guild-icons', type, size);
     res.status(201).json({ url });
   } catch (err) {
     console.error(err);

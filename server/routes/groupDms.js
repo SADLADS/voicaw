@@ -326,7 +326,7 @@ router.post('/group-dms/:groupId/messages', member, deduplicated('group', (req, 
        VALUES (?, ?, ?, ?, ?, strftime('%s','now'))`,
       [groupId, epoch, req.user.id, content.trim(), parentId]
     );
-    await linkListed('group', id, uploads, req.user.id);
+    await linkListed('group', id, uploads);
     await db.run(
       `INSERT INTO group_dm_reads (user_id, group_id, last_read_id) VALUES (?, ?, ?)
        ON CONFLICT(user_id, group_id) DO UPDATE SET last_read_id = excluded.last_read_id`,
@@ -380,7 +380,7 @@ router.put('/group-dm-messages/:messageId', authenticateJWT, findMessage, async 
   await db.transaction(async () => {
     await editHistory.keepVersion('group', req.message, content.trim());
     await db.run("UPDATE group_dm_messages SET content = ?, edited = 1, edited_at = strftime('%s','now'), link_previews = NULL WHERE id = ?", [content.trim(), req.message.id]);
-    await linkListed('group', req.message.id, uploads, req.user.id, { edit: true });
+    await linkListed('group', req.message.id, uploads, { edit: true });
   });
   releaseUploads();
   await groups.sendToGroup(req.message.group_id, { type: 'group_dm_message_edit', groupId: req.message.group_id, messageId: req.message.id, content: content.trim() });

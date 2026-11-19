@@ -12,14 +12,27 @@ const { createLimiter, limitRequests } = require('../rateLimit');
 
 // Processing a picture is slow (imageQueue.js): this many per person, pictures and banners together.
 const processing = createLimiter({ windowMs: 10 * 60 * 1000, max: 30 });
+// Starting uploads: a few more than are processed (some are cancelled in the cropper).
+const starts = createLimiter({ windowMs: 10 * 60 * 1000, max: 60 });
 
 // Your profile picture and banner (see avatars.js): upload the original, then say it's ready;
 // or remove it.
 const router = express.Router();
 
-// A pending upload is only valid for its uploader, for this long.
+// A pending upload is only valid for its uploader, for this long. Entries (readied ones too,
+// since a signed URL can be put again for a minute) stay until then, when sweepPending deletes
+// whatever original is left, so nothing unprocessed outlives them.
 const UPLOAD_TTL_MS = 10 * 60 * 1000;
-const pending = new Map(); // upload id -> { userId, kind, expires }
+const pending = new Map(); // upload id -> { userId, kind, expires, done? }
+
+async function sweepPending(at = Date.now()) {
+  for (const [uploadId, upload] of pending) {
+    if (upload.expires >= at) continue;
+    pending.delete(uploadId);
+    await deleteObject(BUCKET, sourceKey(upload.userId, uploadId)).catch(() => {});
+  }
+}
+setInterval(() => sweepPending(), 60 * 1000).unref();
 
 async function announce(userId) {
   const profile = await db.get(`SELECT id, username, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [userId]);
@@ -36,7 +49,7 @@ const KINDS = {
 for (const [kind, { set, remove, noun }] of Object.entries(KINDS)) {
   // Step 1: { type, size } of the image; returns { uploadId, url } (PUT the file there: its type
   // and size are signed into the URL).
-  router.post(`/profile/${kind}`, authenticateJWT, async (req, res) => {
+  router.post(`/profile/${kind}`, authenticateJWT, limitRequests(starts), async (req, res) => {
     const { type } = req.body ?? {};
     const size = Number(req.body?.size);
     if (!isPictureType(type)) return res.status(400).json({ error: `${noun} must be images` });
@@ -55,10 +68,10 @@ for (const [kind, { set, remove, noun }] of Object.entries(KINDS)) {
   router.post(`/profile/${kind}/:uploadId/ready`, authenticateJWT, limitRequests(processing), async (req, res) => {
     const { uploadId } = req.params;
     const upload = pending.get(uploadId);
-    if (!upload || upload.userId !== req.user.id || upload.kind !== kind || upload.expires < Date.now()) {
+    if (!upload || upload.done || upload.userId !== req.user.id || upload.kind !== kind || upload.expires < Date.now()) {
       return res.status(404).json({ error: 'Upload not found' });
     }
-    pending.delete(uploadId);
+    upload.done = true;
     const source = sourceKey(req.user.id, uploadId);
     let original;
     try {
@@ -84,4 +97,5 @@ for (const [kind, { set, remove, noun }] of Object.entries(KINDS)) {
   });
 }
 
+router.sweepPending = sweepPending;
 module.exports = router;
