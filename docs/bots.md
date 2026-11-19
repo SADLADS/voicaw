@@ -160,7 +160,8 @@ gives, so the server never makes requests to addresses bots choose).
   in the guild count (`guildCommands`). Per-command permission overrides aren't in Voicaw.
 - **Using them** (`routes/interactions.js`, logged in): `GET /channels/:id/commands` (the
   picker's list), `POST /channels/:id/command-interactions` (options in Discord's shape;
-  multipart `files[n]` for attachment options, stored like webhook files), `POST
+  multipart `files[n]` for attachment options, stored like webhook files only once the command
+  is known to be usable and one of its attachment options names that n), `POST
   /channels/:id/autocomplete`, `POST /guild-messages/:id/component-interactions` (a button or
   a select's values, also on ephemeral messages), `POST /modals/:id` (a form's answers),
   `DELETE /ephemeral-messages/:id` (dismissed). Everything is checked before the bot hears of

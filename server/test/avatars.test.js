@@ -138,6 +138,21 @@ describe('profile pictures', () => {
     expect(await sharp(stored(hal, res.body.avatar), { animated: true }).metadata()).toMatchObject({ pages: 3, width: 20, pageHeight: 20 });
   });
 
+  it('deletes originals never readied (or put again after) once their upload runs out', async () => {
+    const sweep = require('../routes/avatars.js').sweepPending;
+    const hana = await makeUser();
+    const start = await post(hana, '/profile/avatar', { type: 'image/png', size: 10 });
+    putMockObject('profile-pics', signedUploads.at(-1).filename, Buffer.from('never ready'), 'image/png');
+    const done = await upload(hana, await png(300, 300));
+    expect(done.status).toBe(200);
+    // The readied one's URL, put again.
+    putMockObject('profile-pics', signedUploads.at(-1).filename, Buffer.from('again'), 'image/png');
+    expect([...objects.keys()].filter((k) => k.startsWith(`profile-pics/src/${hana.id}/`))).toHaveLength(2);
+    await sweep(Date.now() + 11 * 60 * 1000);
+    expect([...objects.keys()].some((k) => k.startsWith(`profile-pics/src/${hana.id}/`))).toBe(false);
+    expect((await post(hana, `/profile/avatar/${start.body.uploadId}/ready`)).status).toBe(404);
+  });
+
   it("crops bots' pictures too", async () => {
     const owner = await makeUser();
     const created = await post(owner, '/applications', { name: 'Cropped bot' });

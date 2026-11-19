@@ -33,7 +33,7 @@ const voiceRegions = require('../voiceRegions');
 const { channelEvents, announceDeleted } = require('../guildEvents');
 const { xpByMember } = require('../guildLevels');
 const { JOIN, setJoinLog, logMembership } = require('../joinLog');
-const { getObject, putObject } = require('../s3');
+const { getObject, putObject, deleteObject } = require('../s3');
 const { processAvatar, parseCrop, AvatarImageError } = require('../avatarImage');
 
 // Guilds: creating and managing them, members, bans, invites, categories and
@@ -195,13 +195,15 @@ async function changeCategoryMute(req, res, muted) {
 router.put('/guilds/:guildId/categories/:categoryId/mute', member, (req, res) => changeCategoryMute(req, res, true));
 router.delete('/guilds/:guildId/categories/:categoryId/mute', member, (req, res) => changeCategoryMute(req, res, false));
 
-// The icon just uploaded to guild-icons/<id> (see /upload_guild_icon), as it came, becomes a
-// square WebP cut to `crop` (from the app's cropper; null: the middle), like profile pictures
-// (avatarImage.js). Throws ActionError if it isn't there or isn't a usable image.
+// The icon just uploaded to guild-icons/src/<id> (see /upload_guild_icon), as it came, becomes
+// a square WebP at guild-icons/<id> cut to `crop` (from the app's cropper; null: the middle),
+// like profile pictures (avatarImage.js); the original is deleted either way. Throws
+// ActionError if it isn't there or isn't a usable image (the icon before stays).
 async function processGuildIcon(guildId, crop) {
+  const source = `src/${guildId}`;
   let original;
   try {
-    original = await getObject('guild-icons', String(guildId));
+    original = await getObject('guild-icons', source);
   } catch {
     throw new ActionError(400, "The icon wasn't uploaded");
   }
@@ -211,6 +213,8 @@ async function processGuildIcon(guildId, crop) {
   } catch (err) {
     if (err instanceof AvatarImageError) throw new ActionError(err.status, err.message);
     throw err;
+  } finally {
+    await deleteObject('guild-icons', source);
   }
 }
 
@@ -236,6 +240,7 @@ router.patch('/guilds/:guildId', withPermission(PERMISSIONS.MANAGE_GUILD), withA
     details.icon = 'changed';
   } else if (icon === null) {
     await db.run('UPDATE guilds SET icon_version = 0 WHERE id = ?', [req.guild.id]);
+    await deleteObject('guild-icons', String(req.guild.id));
     if (req.guild.icon_version > 0) details.icon = 'removed';
   }
   if (Object.keys(details).length) await audit(req, { action: 'guild_update', details });

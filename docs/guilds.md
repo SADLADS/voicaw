@@ -95,10 +95,13 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   person.
 - Unread: `guild_channel_reads` holds each member's last read message per channel;
   `GET /guild-unread` counts newer messages by others. Sending marks your own channel read.
-- Icons: `GET /upload_guild_icon` (Manage Guild, image, 8MB) signs `guild-icons/<guild id>`; then
+- Icons: `GET /upload_guild_icon` (Manage Guild, image, 8MB) signs `guild-icons/src/<guild id>`
+  (never the live key, so an unprocessed file is never shown as the icon); then
   `PATCH /guilds/:id {iconUploaded: true, iconCrop}` has the server make it a square WebP like a
   profile picture (`avatarImage.js`: cut to `iconCrop` from the cropper, or the middle; animation
-  kept), written back to the same key, and bumps `icon_version` (use it as `?v=` to bust caches).
+  kept), written to `guild-icons/<guild id>`, deletes the original (a refused one too, leaving
+  the icon as it was) and bumps `icon_version` (use it as `?v=` to bust caches). `icon: null`
+  deletes the icon's file.
   Guild Settings opens a picked icon in the cropper first (see Picture cropper in `docs/client.md`).
 - **Client:** routes `/guild/:guildId/:channelId?` (`guild/GuildView.jsx`; without a channel it
   opens the last one viewed there, `localStorage guildChannel:<id>`, or the first text one) and
@@ -199,7 +202,8 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   at most 128×128, never enlarged, WebP; animated GIF/WebP stay animated; limits on pixels and
   frames so a small file can't decode into something huge), store it as `emojis/<id>`, delete
   the original and send `guild_emojis_update`. Not an image: the emoji is dropped (400).
-  Unfinished uploads (and their originals) are cleared after an hour. Limits: 200 per guild,
+  Unfinished uploads (and their originals) are cleared after an hour; deleting one deletes its
+  original at once (and again once its upload URL has run out). Limits: 200 per guild,
   PNG/GIF/WebP/JPEG/AVIF, names 2–32 of `[A-Za-z0-9_]`, unique per guild. Manage Emoji (`MANAGE_EMOJIS`) adds, renames and deletes; members of a guild can use
   its emoji anywhere. The client keeps them in `useGuildList` (`emojis`: all of them fetched at
   login, again when a guild new to the list is added, as on joining one, and after the websocket
@@ -961,7 +965,8 @@ files); others can be added as adapters on the client.
   the guild's chosen one or `:name:`), `POST .../known`, `POST .../files` (a signed PUT straight
   to the object store, `uploads/imports/<import>/<id>/<name>`, typed by its extension as
   webhooks' files, registered so it's deleted unless a message links it within a day; 90 MB at
-  most, since the object store's nginx takes 100 MB a request and the API's 26), `PUT
+  most, since the object store's nginx takes 100 MB a request and the API's 26, and never over
+  Settings → Admin's File size limit; 100,000 files an import; refused once it's finished), `PUT
   .../authors/:id/avatar` (the archive's picture, made a profile picture in `profile-pics/
   imports/`), `POST .../finish`, `DELETE`. Every change sends `guild_history_changed` to the
   channel's viewers, whose apps load it again. Audit log: `import_create`, `import_mapping`,

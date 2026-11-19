@@ -9,6 +9,8 @@ const { parseDuration } = require('./channelMutes');
 
 const KINDS = ['dm', 'group', 'bot'];
 const MAX_PINNED = 50;
+// Rows per person (pinned or muted conversations; mutes that ran out don't count).
+const MAX_SETTINGS = 1000;
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -62,6 +64,14 @@ async function changeSetting(userId, kind, target, { pinned, mute }) {
       muted = 1;
       muteUntil = duration == null ? null : now() + duration;
     }
+    if (!current.user_id && (pinnedAt != null || muted)) {
+      await db.run(
+        'DELETE FROM conversation_settings WHERE user_id = ? AND pinned_at IS NULL AND mute_until IS NOT NULL AND mute_until <= ?',
+        [userId, now()]
+      );
+      const { n } = await db.get('SELECT COUNT(*) AS n FROM conversation_settings WHERE user_id = ?', [userId]);
+      if (n >= MAX_SETTINGS) return `You can pin or mute up to ${MAX_SETTINGS} conversations`;
+    }
     if (pinnedAt == null && !muted) {
       await db.run('DELETE FROM conversation_settings WHERE user_id = ? AND kind = ? AND target = ?', [userId, kind, target]);
     } else {
@@ -80,4 +90,4 @@ async function isConversationMuted(userId, kind, target) {
   return (await getSetting(userId, kind, target)).muted;
 }
 
-module.exports = { KINDS, MAX_PINNED, listSettings, getSetting, changeSetting, isConversationMuted };
+module.exports = { KINDS, MAX_PINNED, MAX_SETTINGS, listSettings, getSetting, changeSetting, isConversationMuted };

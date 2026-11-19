@@ -199,7 +199,7 @@ async function checkValue(spec, value, ctx) {
       if (!(await addChannel(ctx, value, spec.channel_types))) throw bad();
       return String(value);
     case OPTION.ATTACHMENT: {
-      const attachment = ctx.attachments?.[Number(value)];
+      const attachment = Number.isInteger(Number(value)) && value !== null && value !== '' ? await ctx.attachment(Number(value)) : null;
       if (!attachment) throw bad();
       ctx.resolved.attachments ??= {};
       ctx.resolved.attachments[attachment.id] = attachment;
@@ -261,16 +261,16 @@ async function addChannel(ctx, value, channelTypes) {
 }
 
 // Someone (`member`, `permissions` in `access.channel`) uses command `commandId` with `options`
-// (Discord's shape), or a context-menu command on `targetId`; `attachments` are the files given
-// for attachment options (stored like webhook files). `autocomplete` asks for suggestions
+// (Discord's shape), or a context-menu command on `targetId`; `attachment(n)` resolves to the
+// file given as n for an attachment option (stored like webhook files when first asked for). `autocomplete` asks for suggestions
 // instead (one option is focused). Resolves to what the app shows: { ok } , { modal }, { choices }.
-async function useCommand({ access, commandId, options, targetId, attachments = [], autocomplete = false }) {
+async function useCommand({ access, commandId, options, targetId, attachment = async () => null, autocomplete = false }) {
   const { channel, member, permissions } = access;
   const row = await db.get('SELECT * FROM bot_commands WHERE id = ?', [Number(commandId)]);
   const usable = row && (row.guild_id === 0 || row.guild_id === channel.guild_id) && await getMember(channel.guild_id, row.application_id);
   if (!usable) throw new ActionError(404, 'Unknown command', 10063);
   if (!commands.mayUse(row, member, permissions, channel)) throw new ActionError(403, "You can't use this command here");
-  const ctx = { guildId: channel.guild_id, channel, member, resolved: {}, attachments, path: [row.name] };
+  const ctx = { guildId: channel.guild_id, channel, member, resolved: {}, attachment, path: [row.name] };
   const data = { id: String(row.id), name: row.name, type: row.type, ...(row.guild_id ? { guild_id: String(row.guild_id) } : {}) };
   if (row.type === commands.TYPES.CHAT_INPUT) {
     const definition = commands.parse(row.options, []);

@@ -16,13 +16,18 @@ router.get('/conversation-settings', authenticateJWT, async (req, res) => {
 // false`) a conversation of yours: a DM with someone (`dm`, their id) or a group you're in
 // (`group`, its id). Your other devices get `conversation_settings`.
 router.put('/conversation-settings/:kind/:target', authenticateJWT, async (req, res) => {
-  const { kind, target } = req.params;
+  const { kind } = req.params;
+  let { target } = req.params;
   if (!KINDS.includes(kind)) return res.status(400).json({ error: 'Invalid conversation' });
+  if (kind === 'dm' || kind === 'bot') {
+    // Stored as the plain number, so 7, 7.0 and 0x7 are one conversation.
+    const id = Number(target);
+    target = String(id);
+    if (!Number.isSafeInteger(id)) return res.status(404).json({ error: kind === 'dm' ? 'User not found' : 'Conversation not found' });
+  }
   if (kind === 'dm') {
     const id = Number(target);
-    const other = Number.isInteger(id) && id !== req.user.id
-      ? await db.get('SELECT id FROM users WHERE id = ?', [id])
-      : null;
+    const other = id !== req.user.id ? await db.get('SELECT id FROM users WHERE id = ?', [id]) : null;
     if (!other) return res.status(404).json({ error: 'User not found' });
   } else if (kind === 'bot') {
     if (!(await db.get('SELECT 1 FROM bot_dms WHERE id = ? AND user_id = ?', [Number(target), req.user.id]))) {
@@ -33,7 +38,7 @@ router.put('/conversation-settings/:kind/:target', authenticateJWT, async (req, 
   }
   const { pinned, mute } = req.body ?? {};
   if (pinned !== undefined && typeof pinned !== 'boolean') return res.status(400).json({ error: 'Invalid pinned' });
-  const setting = await changeSetting(req.user.id, kind, String(target), { pinned, mute });
+  const setting = await changeSetting(req.user.id, kind, target, { pinned, mute });
   if (typeof setting === 'string') return res.status(400).json({ error: setting });
   sendToUserSockets(req.user.id, { type: 'conversation_settings', setting });
   res.json(setting);

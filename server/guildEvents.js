@@ -671,6 +671,14 @@ async function checkCanCreate(member, fields) {
   }
 }
 
+// Throws unless `member` may change `event` (a row), or, without one, make an event of
+// `fields`' type and channel. For what's stored before createEvent / updateEvent check (a bot's
+// cover), which check again.
+async function checkMayChange(member, event, fields) {
+  if (event) await managedAccess(member, event.id);
+  else await checkCanCreate(member, fields);
+}
+
 // Links the event to the upload its cover is (uploads.js). Inside the transaction.
 async function linkImage(eventId, image) {
   const { linkUploads } = require('./uploads');
@@ -1362,6 +1370,7 @@ module.exports = {
   announceDeleted,
   forgetMember,
   storeImageData,
+  checkMayChange,
   sweepEvents,
   startEventTimers,
 };

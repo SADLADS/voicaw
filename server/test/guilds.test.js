@@ -115,25 +115,31 @@ describe('guilds', () => {
 
     const upload = await api.get(owner, `/upload_guild_icon?guildId=${guild.id}&type=image/png&size=100`);
     expect(upload.status).toBe(201);
-    expect(signedUploads.at(-1)).toEqual({ filename: String(guild.id), bucket: 'guild-icons', contentType: 'image/png', contentLength: 100 });
+    // The original never goes where the icon is shown from.
+    expect(signedUploads.at(-1)).toEqual({ filename: `src/${guild.id}`, bucket: 'guild-icons', contentType: 'image/png', contentLength: 100 });
     expect((await api.get(owner, `/upload_guild_icon?guildId=${guild.id}&type=text/html&size=100`)).status).toBe(400);
 
     // Not uploaded yet.
     expect((await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true })).status).toBe(400);
     // It becomes a square WebP, from the middle or the part chosen in the cropper.
     const icon = () => sharp({ create: { width: 600, height: 300, channels: 3, background: '#3a3' } }).png().toBuffer();
-    putMockObject('guild-icons', String(guild.id), await icon(), 'image/png');
+    putMockObject('guild-icons', `src/${guild.id}`, await icon(), 'image/png');
     expect((await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true })).body.icon_version).toBe(1);
     const stored = objects.get(`guild-icons/${guild.id}`);
     expect(stored.contentType).toBe('image/webp');
     expect(await sharp(stored.body).metadata()).toMatchObject({ format: 'webp', width: 256, height: 256 });
-    putMockObject('guild-icons', String(guild.id), await icon(), 'image/png');
+    expect(objects.has(`guild-icons/src/${guild.id}`)).toBe(false);
+    putMockObject('guild-icons', `src/${guild.id}`, await icon(), 'image/png');
     const cropped = await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true, iconCrop: { x: 0, y: 0, width: 0.1, height: 0.2 } });
     expect(cropped.body.icon_version).toBe(2);
     expect(await sharp(objects.get(`guild-icons/${guild.id}`).body).metadata()).toMatchObject({ width: 60, height: 60 });
-    putMockObject('guild-icons', String(guild.id), Buffer.from('not an image'), 'image/png');
+    // Something that isn't an image leaves the icon as it was, and goes.
+    putMockObject('guild-icons', `src/${guild.id}`, Buffer.from('not an image'), 'image/png');
     expect((await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true })).status).toBe(400);
+    expect(await sharp(objects.get(`guild-icons/${guild.id}`).body).metadata()).toMatchObject({ format: 'webp', width: 60 });
+    expect(objects.has(`guild-icons/src/${guild.id}`)).toBe(false);
     expect((await api.patch(owner, `/guilds/${guild.id}`, { icon: null })).body.icon_version).toBe(0);
+    expect(objects.has(`guild-icons/${guild.id}`)).toBe(false);
   });
 
   it('deletes a guild and everything in it', async () => {
@@ -334,7 +340,7 @@ describe('invite embeds for link previewers', () => {
 
     // Vanity codes in any case, and the guild's icon once it has one.
     await api.put(owner, `/guilds/${guild.id}/vanity-url`, { code: 'embed-me' });
-    await putMockObject('guild-icons', String(guild.id), await sharp({
+    await putMockObject('guild-icons', `src/${guild.id}`, await sharp({
       create: { width: 8, height: 8, channels: 3, background: '#f00' },
     }).png().toBuffer(), 'image/png');
     await api.patch(owner, `/guilds/${guild.id}`, { iconUploaded: true });

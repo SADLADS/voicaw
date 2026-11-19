@@ -53,6 +53,12 @@ describe('account preferences', () => {
     expect((await api.put(ann, '/preferences', { blurNsfw: 'no' })).status).toBe(400);
     expect((await api.put(ann, '/preferences', { somethingElse: true })).status).toBe(400);
     expect((await api.put(ann, '/preferences', [true])).status).toBe(400);
+    // Not Object.prototype's members either (they'd be "in" any object).
+    for (const key of ['constructor', 'toString', 'valueOf', 'hasOwnProperty']) {
+      expect((await api.put(ann, '/preferences', { [key]: 'x'.repeat(1000) })).status).toBe(400);
+    }
+    const raw = await request(app).put('/api/preferences').set(authed(ann)).set('Content-Type', 'application/json').send('{"__proto__":1}');
+    expect(raw.status).toBe(400);
     expect((await api.get(ann, '/preferences')).body).toEqual({ blurNsfw: true, adultConfirmed: false, botDms: true, reactionNotifications: 'all', ...SHOWN });
   });
 

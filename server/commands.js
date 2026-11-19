@@ -30,10 +30,22 @@ function formError(path, message, code = 'BASE_TYPE_INVALID') {
   return new FormError(path, message, code);
 }
 
-function cleanLocalizations(value, path) {
+// { locale: text } (Discord's locales, such as "en-GB"), each text within `max` characters as
+// the field itself is. Nothing reads them yet, but they're kept and sent with the command.
+const LOCALE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,4})?$/;
+const MAX_LOCALES = 40;
+function cleanLocalizations(value, path, max) {
   if (value == null) return undefined;
   if (typeof value !== 'object' || Array.isArray(value)) throw formError(path, 'Must be an object.', 'MODEL_TYPE_CONVERT');
-  return value;
+  const entries = Object.entries(value);
+  if (entries.length > MAX_LOCALES) throw formError(path, `Must be ${MAX_LOCALES} or fewer in length.`, 'BASE_TYPE_MAX_LENGTH');
+  for (const [locale, text] of entries) {
+    if (!LOCALE.test(locale)) throw formError([...path, locale], 'Invalid locale', 'LOCALE_INVALID');
+    if (typeof text !== 'string' || text.length < 1 || text.length > max) {
+      throw formError([...path, locale], `Must be between 1 and ${max} in length.`, 'BASE_TYPE_BAD_LENGTH');
+    }
+  }
+  return Object.fromEntries(entries);
 }
 
 function cleanName(value, path, type = TYPES.CHAT_INPUT) {
@@ -75,8 +87,8 @@ function cleanOption(raw, path, depth) {
     name: cleanName(raw.name, [...path, 'name']),
     description: cleanDescription(raw.description, [...path, 'description'], true),
   };
-  const nameLocalizations = cleanLocalizations(raw.name_localizations, [...path, 'name_localizations']);
-  const descriptionLocalizations = cleanLocalizations(raw.description_localizations, [...path, 'description_localizations']);
+  const nameLocalizations = cleanLocalizations(raw.name_localizations, [...path, 'name_localizations'], 32);
+  const descriptionLocalizations = cleanLocalizations(raw.description_localizations, [...path, 'description_localizations'], 100);
   if (nameLocalizations) option.name_localizations = nameLocalizations;
   if (descriptionLocalizations) option.description_localizations = descriptionLocalizations;
 
@@ -99,7 +111,8 @@ function cleanOption(raw, path, depth) {
       if (type === OPTION.STRING && (typeof value !== 'string' || value.length < 1 || value.length > 100)) {
         throw formError([...at, 'value'], 'Must be between 1 and 100 in length.', 'BASE_TYPE_BAD_LENGTH');
       }
-      return { name: c.name, value, ...(c.name_localizations ? { name_localizations: c.name_localizations } : {}) };
+      const nameLocalizations = cleanLocalizations(c.name_localizations, [...at, 'name_localizations'], 100);
+      return { name: c.name, value, ...(nameLocalizations ? { name_localizations: nameLocalizations } : {}) };
     });
   }
   if (raw.autocomplete) {
@@ -178,7 +191,7 @@ function cleanCommand(raw, base = null) {
   if (!chat && merged.options?.length) throw formError(['options'], 'Context menu commands cannot have options', 'APPLICATION_COMMAND_OPTIONS_TYPE_INVALID');
   const localizations = {};
   for (const key of ['name_localizations', 'description_localizations']) {
-    const value = cleanLocalizations(merged[key], [key]);
+    const value = cleanLocalizations(merged[key], [key], key === 'name_localizations' ? 32 : 100);
     if (value) localizations[key] = value;
   }
   command.localizations = localizations;

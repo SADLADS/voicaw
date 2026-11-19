@@ -130,16 +130,22 @@ describe('upload cleanup', () => {
     expect(await registered(file.key)).toBe(false);
   });
 
-  it("keeps what an older client (no upload list) sent: its sender's unsent uploads", async () => {
+  it("doesn't keep its sender's unsent uploads for a message without an upload list", async () => {
     const [ann, bea] = [await makeUser(), await makeUser()];
     const file = await upload(ann);
-    const sent = (await api.post(ann, '/dm-send', { recipient_id: bea.id, content: 'v1.old' })).body;
-    // Its edits don't change what it shows either.
-    await api.put(ann, `/update-message/${sent.id}`, { content: 'v1.old-edit' });
+    await api.post(ann, '/dm-send', { recipient_id: bea.id, content: 'v1.old' });
     await age(file.key);
     await cleanUpUploads();
-    expect(exists(file.key)).toBe(true);
-    await api.delete(ann, `/messages/${sent.id}`);
+    expect(exists(file.key)).toBe(false);
+    expect(await db.get("SELECT 1 FROM upload_refs WHERE kind = 'kept'")).toBeUndefined();
+  });
+
+  it('keeps what a message links when an edit sends no list', async () => {
+    const [ann, bea] = [await makeUser(), await makeUser()];
+    const file = await upload(ann);
+    const sent = (await api.post(ann, '/dm-send', { recipient_id: bea.id, content: 'v1.c', uploads: [file.key] })).body;
+    await api.put(ann, `/update-message/${sent.id}`, { content: 'v1.edit' });
+    await age(file.key);
     await cleanUpUploads();
     expect(exists(file.key)).toBe(true);
   });

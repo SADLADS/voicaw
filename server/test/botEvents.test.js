@@ -113,6 +113,15 @@ describe('scheduled events in the bot API', () => {
     });
     expect(res.status).toBe(403);
     expect(res.body.code).toBe(50013);
+    // A cover with it is refused before it's stored.
+    const before = [...objects.keys()].filter((k) => k.startsWith('uploads/')).length;
+    const png = await sharp({ create: { width: 8, height: 8, channels: 3, background: '#336699' } }).png().toBuffer();
+    const covered = await discord.post(bot, `/guilds/${guild.id}/scheduled-events`, {
+      name: 'x', entity_type: 3, entity_metadata: { location: 'Online' }, scheduled_start_time: iso(soon()), scheduled_end_time: iso(soon() + 60),
+      image: `data:image/png;base64,${png.toString('base64')}`,
+    });
+    expect(covered.status).toBe(403);
+    expect([...objects.keys()].filter((k) => k.startsWith('uploads/')).length).toBe(before);
   });
 
   it('takes a cover as image data, and repeating rules', async () => {

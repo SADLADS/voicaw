@@ -367,6 +367,7 @@ async function deleteGuild(guildId) {
   await require('./soundboard').deleteGuildSoundFiles(guildId);
   const guild = await db.get('SELECT icon_version FROM guilds WHERE id = ?', [guildId]);
   if (guild?.icon_version > 0) await deleteObject('guild-icons', String(guildId));
+  await deleteObject('guild-icons', `src/${guildId}`);
   const importPictures = await db.transaction(async () => {
     const pictures = await require('./guildImports').deleteGuildImports(guildId);
     await deleteChannelContents('SELECT id FROM guild_channels WHERE guild_id = ?', [guildId]);

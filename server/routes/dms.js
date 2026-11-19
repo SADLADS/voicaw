@@ -172,7 +172,7 @@ router.post('/dm-send', authenticateJWT, deduplicated('dm', (req, id) => db.get(
        VALUES (?, ?, ?, ?, strftime('%s','now'))`,
       [senderId, recipientId, content.trim(), parentMessageId]
     );
-    await linkListed('dm', id, uploads, senderId);
+    await linkListed('dm', id, uploads);
     if (!notes) await db.run(
       `INSERT INTO dm_unread (user_id, from_user_id, count, first_unread_id) VALUES (?, ?, 1, ?)
        ON CONFLICT(user_id, from_user_id) DO UPDATE SET count = count + 1`,
@@ -282,7 +282,7 @@ router.put('/update-message/:id', authenticateJWT, async (req, res) => {
   await db.transaction(async () => {
     await editHistory.keepVersion('dm', row, content);
     await db.run("UPDATE direct_messages SET content = ?, edited = 1, edited_at = strftime('%s','now'), link_previews = NULL WHERE id = ?", [content, messageId]);
-    await linkListed('dm', messageId, uploads, req.user.id, { edit: true });
+    await linkListed('dm', messageId, uploads, { edit: true });
   });
   releaseUploads();
 

@@ -754,7 +754,8 @@ even when there is no display name).
   emoji, icons and bots' included, goes through one queue, `imageQueue.js`: 2 at a time, 20
   waiting, then 429; `/ready` takes 30 a person per 10 minutes, emoji 60), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
   each time, so it's cacheable forever), delete the original and the previous picture, set
-  `users.avatar` and send `user_profile`. `DELETE /profile/avatar` goes back to the default. Push
+  `users.avatar` and send `user_profile`. An original never readied (or put again after) is
+  deleted when its 10 minutes run out; starting uploads takes 60 a person per 10 minutes. `DELETE /profile/avatar` goes back to the default. Push
   images use `users.avatar` (no requests to the store). Client: the profile store has `avatar`,
   `avatarUrl(id)` gives the URL (null: default), and **`Avatar` (`components/Avatar.jsx`) draws
   every profile picture** (`voice/UserAvatar` adds the speaking ring); nothing builds picture

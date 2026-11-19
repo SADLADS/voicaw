@@ -20,7 +20,8 @@ const MAX_LISTED = 100;
 const MAX_KEY_LENGTH = 200;
 
 // What links to files: a kind and the table its id is in. 'kept' (owner 0) is files sent by a
-// client too old to list them: they stay for good, like files from before the registry.
+// client too old to list them, until 2026-11-19 (linkListed): they stay for good, like files
+// from before the registry.
 const OWNERS = {
   dm: 'direct_messages',
   group: 'group_dm_messages',
@@ -64,21 +65,14 @@ function listedKeys(value) {
   return new Set(value);
 }
 
-// Links an encrypted message to what its client listed. An older client lists nothing, so
-// whatever its sender uploaded lately and hasn't sent yet must be in it: those are kept.
-// `edit`: an edit from an older client changes nothing.
-async function linkListed(kind, messageId, keys, userId, { edit = false } = {}) {
+// Links an encrypted message to what its client listed. A message without a list (only apps
+// from before 2026-10-02 sent those) links nothing, so its files go after a day like any unsent
+// upload: keeping its sender's recent unsent uploads for good, as was done until 2026-11-19,
+// let anyone park unlimited files with one bare message. `edit`: an edit without a list
+// changes nothing.
+async function linkListed(kind, messageId, keys, { edit = false } = {}) {
   if (keys) return linkUploads(kind, messageId, keys);
-  if (edit) return;
-  const recent = await db.all(
-    `SELECT key FROM uploads u WHERE user_id = ? AND linked = 0 AND created_at > ?
-       AND NOT EXISTS (SELECT 1 FROM upload_refs r WHERE r.key = u.key)`,
-    [userId, now() - UNSENT_SECONDS]
-  );
-  for (const { key } of recent) {
-    await db.run("INSERT OR IGNORE INTO upload_refs (kind, owner_id, key) VALUES ('kept', 0, ?)", [key]);
-    await db.run('UPDATE uploads SET linked = 1 WHERE key = ?', [key]);
-  }
+  if (!edit) await linkUploads(kind, messageId, []);
 }
 
 // One pass: drops links whose owner is gone, then deletes the files nothing links to. The rows

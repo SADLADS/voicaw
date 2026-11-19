@@ -22,7 +22,7 @@ const db = require('./db');
 const config = require('./config');
 const { PERMISSIONS, has } = require('./permissions');
 const { getMember, getChannelViewers } = require('./guilds');
-const { getSetting } = require('./appSettings');
+const { getSetting, uploadLimitBytes } = require('./appSettings');
 const { getPreferences } = require('./preferences');
 const { logAudit } = require('./auditLog');
 const { ActionError } = require('./actionError');
@@ -47,7 +47,8 @@ const LIMITS = {
   reactions: 20,
   emoji: 64,
   emojis: 2000,
-  file: 90 * 1024 * 1024, // under nginx's 100M a request
+  file: 90 * 1024 * 1024, // under nginx's 100M a request (and never over Settings → Admin's File size limit)
+  files: 100000, // per import, counting those not yet deleted
   avatar: 8 * 1024 * 1024,
 };
 const CHAT_TYPES = ['text', 'voice'];
@@ -560,8 +561,12 @@ async function knownMessages(member, importId, sourceIds) {
 // deleted unless a message links to it within a day (uploads.js).
 async function prepareImportFile(member, importId, { name, size, width, height } = {}) {
   const imp = await getImport(member.guild.id, importId);
+  if (imp.status === 'done') throw new ActionError(400, 'This import is finished');
   if (!Number.isSafeInteger(size) || size <= 0) throw new ActionError(400, 'Invalid file');
-  if (size > LIMITS.file) throw new ActionError(413, 'That file is too large');
+  if (size > Math.min(LIMITS.file, await uploadLimitBytes())) throw new ActionError(413, 'That file is too large');
+  // Its files are named imports/<id>/…: the registry's rows in that range (unused ones go in a day).
+  const { count } = await db.get('SELECT COUNT(*) AS count FROM uploads WHERE key >= ? AND key < ?', [`imports/${imp.id}/`, `imports/${imp.id}0`]);
+  if (count >= LIMITS.files) throw new ActionError(400, `An import can have at most ${LIMITS.files} files`);
   const { cleanFilename, EXTENSION_TYPES } = require('./routes/webhooks');
   const filename = cleanFilename(name, 0);
   const contentType = EXTENSION_TYPES[filename.split('.').pop().toLowerCase()] ?? 'application/octet-stream';

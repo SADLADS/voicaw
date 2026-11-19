@@ -114,4 +114,25 @@ describe('conversation settings', () => {
     expect((await api.put(ann, '/conversation-settings/group/00000000-0000-4000-8000-000000000000', { pinned: true })).status).toBe(404);
     expect((await api.get(ann, '/conversation-settings')).body).toEqual([]);
   });
+
+  it('keeps one setting per conversation however its id is written, and caps how many', async () => {
+    const db = require('../db');
+    const { MAX_SETTINGS } = require('../conversationSettings');
+    const [ann, bob] = [await makeUser(), await makeUser()];
+    for (const written of [`${bob.id}`, `${bob.id}.0`, `${bob.id}e0`, `0x${bob.id.toString(16)}`]) {
+      const res = await api.put(ann, `/conversation-settings/dm/${written}`, { mute: { duration: null } });
+      expect(res.status).toBe(200);
+      expect(res.body.target).toBe(String(bob.id));
+    }
+    expect((await api.get(ann, '/conversation-settings')).body).toHaveLength(1);
+
+    // Full: no new ones, but changing one you have still works, and run-out mutes make room.
+    const rows = Array.from({ length: MAX_SETTINGS - 1 }, (_, i) => `(${ann.id}, 'group', 'g${i}', NULL, 1, ${i === 0 ? 1 : 'NULL'})`);
+    await db.run(`INSERT INTO conversation_settings (user_id, kind, target, pinned_at, muted, mute_until) VALUES ${rows.join(', ')}`);
+    const carl = await makeUser();
+    const dave = await makeUser();
+    expect((await api.put(ann, `/conversation-settings/dm/${carl.id}`, { mute: { duration: null } })).status).toBe(200);
+    expect((await api.put(ann, `/conversation-settings/dm/${dave.id}`, { mute: { duration: null } })).status).toBe(400);
+    expect((await api.put(ann, `/conversation-settings/dm/${bob.id}`, { pinned: true })).status).toBe(200);
+  });
 });

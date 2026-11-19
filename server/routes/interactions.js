@@ -46,13 +46,17 @@ router.get('/channels/:channelId/commands', authenticateJWT, inChannel, async (r
 // or multipart (payload_json, and files[n] for attachment options, whose value is n).
 router.post('/channels/:channelId/command-interactions', authenticateJWT, limit, webhooks.parseBody, inChannel, withActionErrors(async (req, res) => {
   const { body, files } = await webhooks.readBody(req);
-  // Uploaded like a webhook's files; attachment options name them by their n.
-  const attachments = [];
-  for (const [i, entry] of files.entries()) {
-    attachments[Number(entry.field.match(/\d+/)?.[0] ?? i)] = (await webhooks.storeFiles([entry]))[0];
-  }
+  // Attachment options name files by their n. Each is stored (like a webhook's files) only once
+  // the command is known to be usable and one of its attachment options names it.
+  const entries = new Map(files.map((entry, i) => [Number(entry.field.match(/\d+/)?.[0] ?? i), entry]));
+  const stored = new Map();
+  const attachment = async (n) => {
+    if (!entries.has(n)) return null;
+    if (!stored.has(n)) stored.set(n, (await webhooks.storeFiles([entries.get(n)]))[0]);
+    return stored.get(n);
+  };
   res.json(await interactions.useCommand({
-    access: req.access, commandId: body.command_id, options: body.options, targetId: body.target_id, attachments,
+    access: req.access, commandId: body.command_id, options: body.options, targetId: body.target_id, attachment,
   }));
 }));
 

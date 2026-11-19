@@ -87,9 +87,11 @@ emoji are deleted by their own code (a deleted guild takes its icon and emoji im
   links whose owner is gone are dropped, then every file that was linked and isn't any more, or
   was never linked within a day (a send that failed or never happened), is deleted, row first;
   a file the object store fails to delete gets its row back and is tried again next time.
-- **Older clients** (a cached web app, an older desktop app) send no list: such a send keeps
-  every upload of its sender from the last day that isn't linked yet, for good (`kept`), and
-  their edits change nothing.
+- **Older clients** (apps from before 2026-10-02) send no list: such a send links nothing, so
+  its files are deleted after a day like any unsent upload, and their edits change nothing.
+  Until 2026-11-19 such a send kept every upload of its sender from the last day that wasn't
+  linked yet, for good (`kept`), which let anyone keep unlimited files with one bare message;
+  those `kept` files still stay.
 - **Files from before the registry** have no row and are never deleted. Migration 9 registered
   and linked the files guild messages and documents showed; DMs', notes' and group DMs' stay
   untracked (the server can't read those messages). A guild file from before that someone also
