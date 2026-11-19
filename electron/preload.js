@@ -13,6 +13,12 @@ function listen(channel) {
 contextBridge.exposeInMainWorld('voicawDesktop', {
     platform: process.platform,
     getInfo: () => ipcRenderer.invoke('desktop:info'),
+    // The saved login, kept in the app's own file (loginStore.js): get() is { known, token },
+    // set(token or null). Synchronous, so it's on disk before the page goes on.
+    login: {
+        get: () => ipcRenderer.sendSync('desktop:login-get'),
+        set: (token) => ipcRenderer.sendSync('desktop:login-set', token),
+    },
     notify: (notification) => ipcRenderer.send('desktop:notify', notification),
     // Takes down the notification tagged `tag` (its chat was read).
     closeNotification: (tag) => ipcRenderer.send('desktop:close-notification', tag),

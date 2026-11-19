@@ -83,6 +83,11 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `onUpdateReady`. The main process only answers the app's own frames (`fromApp`: the main
   page's, never the overlay's, which shares its origin) and checks what it's given
   (`cleanNotification`, `cleanChanges`, `cleanVoiceState`).
+- **The saved login** (`loginStore.js`, bridge `login.get` / `login.set`, synchronous IPC; built
+  2026-11-19): the page's login token in `login.json` in the app's data folder, written by
+  Node (a temporary file moved over it), and preferred to localStorage once it holds one. A
+  Windows PC's Chromium storage kept going back to an expired month-old token after every
+  login; see The saved login in `docs/auth-and-encryption.md`.
 - **Download popup** (`downloads.js`, client `DownloadsPopup.jsx` and `hooks/useDesktopDownloads.js`;
   2026-10-29, as a browser's download bubble): every file the app saves shows "Download
   complete" under the title bar's right-hand corner, with the file's name and folder and Open

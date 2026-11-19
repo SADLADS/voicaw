@@ -15,6 +15,7 @@ const nodeNet = require('net');
 const { setUpSpellcheck, syncSpellingWords } = require('./spellcheck');
 const { ORIGIN, isAppOrigin, registerScheme, handleScheme } = require('./protocol');
 const { createSettingsStore } = require('./desktopSettings');
+const { createLoginStore } = require('./loginStore');
 const { createTray } = require('./tray');
 const { createNotifier, cleanNotification } = require('./notifications');
 const { applyShortcuts } = require('./shortcuts');
@@ -59,6 +60,7 @@ let splash = null; // while the app starts
 const streamWindows = new WeakSet();
 let quitting = false;
 let settings;
+let login;
 let tray;
 let notifier;
 let updater;
@@ -453,6 +455,9 @@ function setUpIpc() {
             else win.maximize();
         } else if (action === 'close') win.close();
     });
+    // The saved login (loginStore.js), synchronous: the page reads it before every request.
+    ipcMain.on('desktop:login-get', (event) => { event.returnValue = fromApp(event) ? login.get() : null; });
+    ipcMain.on('desktop:login-set', (event, token) => { event.returnValue = fromApp(event) ? login.set(token) : false; });
     ipcMain.handle('desktop:info', (event) => (fromApp(event) ? { version: app.getVersion(), packaged: app.isPackaged } : null));
     ipcMain.handle('desktop:settings', (event) => (fromApp(event) ? settings.get() : null));
     ipcMain.handle('desktop:update-settings', (event, changes) => {
@@ -538,6 +543,7 @@ function setUpIpc() {
 
 function start() {
     settings = createSettingsStore(app.getPath('userData'));
+    login = createLoginStore(app.getPath('userData'));
     handleScheme(protocol, net, path.resolve(BUILD_DIR));
     streamSound = createStreamSound({
         platform: process.platform,

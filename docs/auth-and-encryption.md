@@ -101,8 +101,14 @@ the session exists, and only shown to the account itself.
   app's storage did that on its own (2026-11-16): after every login it went back to a month-old,
   expired token, so the chats said "Invalid token" and the app logged out, while the server
   never refused the new login. Another account's token, a newer one (another tab logging in) or
-  none (logged out) is taken as it is. Only within a page's life: a store that loses writes
-  still opens on the old token at the next start (refused, so the login screen).
+  none (logged out) is taken as it is. That memory only lasts a page's life, and it wasn't
+  enough there (2026-11-19): every reload (App reloads onto a replaced login, updates) and
+  restart opened on the old token again. So **the desktop app keeps the login in its own
+  file** (`electron/loginStore.js`, `login.json` in its data folder, written by Node: `{ v: 1,
+  token }`, null for logged out), read and written synchronously through the bridge
+  (`voicawDesktop.login`); once it holds one, it wins over localStorage, which is still
+  written beside it (older app versions read it). No file yet (the first start after updating)
+  falls back to localStorage. Checked in the real app under Xvfb by `e2e/desktoplogin.mjs`.
   **Known limit** (security audit, 2026-11-19): a script injected into the page (an XSS) could
   read the token and use the account from elsewhere until it's logged out (Settings → Devices,
   or a password change, which logs out every other device). Private keys can't be copied
