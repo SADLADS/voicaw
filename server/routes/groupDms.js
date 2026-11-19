@@ -210,6 +210,8 @@ router.post('/group-dms/:groupId/log', member, handle(async (req, res) => {
   const before = new Set(state.members);
   const r = await groups.checkEntry(state, entry, req.user.id);
   if (r.type === 'add' && !epoch) return res.status(400).json({ error: 'Adding someone needs the new key' });
+  // The one leaving can't hand in the next key (they would know it): a remaining member makes it.
+  if (r.type === 'leave' && epoch) return res.status(400).json({ error: "Leaving can't come with a new key" });
   groups.applyToState(state, entry, r);
   await db.transaction(async () => {
     await groups.storeEntry(groupId, entry, r);

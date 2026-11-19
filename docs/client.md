@@ -974,7 +974,9 @@ use (voicaw.com/terms/) say rules are enforced.
 - **Blocking** (`server/blocks.js`, `user_blocks`; `GET /blocks`, `PUT` / `DELETE /blocks/:id`, the
   `blocks` event to your other devices; `utils/blocks.js` kept by `hooks/useBlocksSync.js` in
   Layout): neither person can DM, call or add the other to a group (403 `code: 'blocked'`, "Your
-  message couldn't be delivered": never says who blocked whom), and the blocker isn't pushed
+  message couldn't be delivered": never says who blocked whom; since 2026-11-18 also no edits,
+  link previews, pins or new reactions in their DM, either way, while deleting your own things and
+  unpinning still work), and the blocker isn't pushed
   about the other's group messages, guild mentions or group calls (`blockersAmong`). In the app,
   their messages are collapsed ("Blocked message · Show", `BlockedMessage.jsx` in `MessageList`),
   they don't show as typing, and a DM with them is closed ("You've blocked …" with Unblock in
@@ -1010,7 +1012,9 @@ use (voicaw.com/terms/) say rules are enforced.
   push subscriptions deleted, calls and voice ended, open apps told `account_suspended` (they log
   out, and the login page says why), every token refused (`verifyToken`), and logging in or
   recovering refused with 403 `code: 'suspended'` and the reason. Admins and yourself can't be
-  suspended. Messages and memberships stay. Lifting it lets them log in again.
+  suspended. Messages and memberships stay. Lifting it lets them log in again. Their bots are
+  paused with them (2026-11-18): gateway sessions closed (4004) and taken out of voice, bot
+  tokens and the applications' OAuth secrets refused until it's lifted.
 - **Admin items in people's menus** (built 2026-10-26): a global admin's person menu (anywhere a
   person is right-clicked or held: Friends rows, member lists, messages; `utils/personMenu.js`
   `adminItems`) and the DM list's menu (`DmMenu`) have Make Admin (asks) and Suspend Account

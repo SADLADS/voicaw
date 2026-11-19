@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const { isPictureType } = require('../uploadTypes');
 const { s3Endpoint } = require('../config');
 const { authenticateJWT } = require('../auth');
 const {
@@ -46,7 +47,7 @@ router.get('/upload_guild_icon', authenticateJWT, async (req, res) => {
   if (!has(member.permissions, PERMISSIONS.MANAGE_GUILD)) return res.status(403).json({ error: "You don't have permission to do that" });
   const { guild } = member;
   if (!type) return res.status(400).json({ error: 'Missing content type' });
-  if (!type.startsWith('image/')) return res.status(400).json({ error: 'Guild icons must be images' });
+  if (!isPictureType(type)) return res.status(400).json({ error: 'Guild icons must be images' });
   const sizeError = checkUploadSize(size, MAX_ICON_BYTES);
   if (sizeError) return res.status(sizeError.status).json({ error: sizeError.error });
 
@@ -63,6 +64,7 @@ router.get('/upload_file', authenticateJWT, async (req, res) => {
   const { type } = req.query;
   const size = Number(req.query.size);
   if (!type) return res.status(400).json({ error: 'Missing content type' });
+  if (type !== ATTACHMENT_TYPE) return res.status(400).json({ error: ATTACHMENT_TYPE_ERROR });
   const sizeError = checkUploadSize(size, Math.min(MAX_SINGLE_UPLOAD_BYTES, await uploadLimitBytes()));
   if (sizeError) return res.status(sizeError.status).json({ error: sizeError.error });
 
@@ -78,7 +80,11 @@ router.get('/upload_file', authenticateJWT, async (req, res) => {
   }
 });
 
-// Attachments are encrypted client-side and uploaded as opaque binary blobs.
+// Attachments are encrypted client-side and uploaded as opaque binary blobs, and nothing else
+// is signed here: any other type would be served as given (uploadTypes.js).
+const ATTACHMENT_TYPE = 'application/octet-stream';
+const ATTACHMENT_TYPE_ERROR = 'Uploads must be application/octet-stream (attachments are encrypted)';
+
 function newFilename(type) {
   const ext = type === 'application/octet-stream' ? 'bin' : (type.split('/')[1] || 'bin');
   return `${crypto.randomUUID()}.${ext}`;
@@ -117,6 +123,7 @@ router.post('/upload_file/multipart', authenticateJWT, async (req, res) => {
   const type = req.body?.type;
   const size = Number(req.body?.size);
   if (typeof type !== 'string' || !type) return res.status(400).json({ error: 'Missing content type' });
+  if (type !== ATTACHMENT_TYPE) return res.status(400).json({ error: ATTACHMENT_TYPE_ERROR });
   const sizeError = checkUploadSize(size, await uploadLimitBytes());
   if (sizeError) return res.status(sizeError.status).json({ error: sizeError.error });
   forgetOldUploads();

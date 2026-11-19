@@ -244,6 +244,16 @@ router.delete('/messages/:id', authenticateJWT, async (req, res) => {
   res.json({ success: true, deletedId: messageId });
 });
 
+// Once either of the two has blocked the other, nothing more reaches the conversation (security
+// audit, 2026-11-18): not new messages (/dm-send), and not edits, link previews, pins or new
+// reactions either, which would arrive just the same. Deleting your own messages and reactions
+// stays allowed. Answers 403 as /dm-send does and resolves true when blocked.
+async function blockedReply(res, row) {
+  if (!(await blocks.blockedBetween(row.sender_id, row.recipient_id))) return false;
+  res.status(403).json({ error: blocks.NOT_DELIVERED, code: 'blocked' });
+  return true;
+}
+
 // Only the sender can edit a message (`content` is the new ciphertext, `uploads` what it
 // shows now).
 router.put('/update-message/:id', authenticateJWT, async (req, res) => {
@@ -261,6 +271,7 @@ router.put('/update-message/:id', authenticateJWT, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'Message not found' });
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
   if (row.system) return res.status(403).json({ error: "This message can't be edited" });
+  if (await blockedReply(res, row)) return;
 
   await db.transaction(async () => {
     await editHistory.keepVersion('dm', row, content);
@@ -294,6 +305,7 @@ router.put('/dm-messages/:id/link-previews', authenticateJWT, async (req, res) =
   if (!row) return res.status(404).json({ error: 'Message not found' });
   if (row.sender_id !== req.user.id) return res.status(403).json({ error: 'Not authorized' });
   if (row.system) return res.status(403).json({ error: "This message can't be changed" });
+  if (await blockedReply(res, row)) return;
   await db.run('UPDATE direct_messages SET link_previews = ? WHERE id = ?', [previews, messageId]);
   sendToConversation(row, { type: 'dm_link_previews', messageId, link_previews: previews });
   res.json({ success: true });
@@ -323,6 +335,8 @@ async function pinRoute(req, res, pinned) {
     return res.status(404).json({ error: 'Message not found' });
   }
   if (row.system === CALL_LOG) return res.status(403).json({ error: "A call in the chat can't be changed" });
+  // Unpinning stays allowed: it adds nothing to the other's chat.
+  if (pinned && await blockedReply(res, row)) return;
   const result = await setPinned(
     'direct_messages', messageId, req.user.id, pinned,
     '((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))',

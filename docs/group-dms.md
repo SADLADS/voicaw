@@ -29,7 +29,9 @@ deletes it. Messages, reactions, edits, call keys and the group's name and pictu
   (400 without; if the epoch loses a race the add fails with 409 too, and is retried), so the
   person added can read the name. The server only takes a message
   for the newest epoch when that's for the current membership (else 409 `stale_epoch`), and only
-  one epoch per number (the loser of a race gets 409 and uses the winner's).
+  one epoch per number (the loser of a race gets 409 and uses the winner's). Only a member makes
+  an epoch, and a leave can't carry one (400): someone leaving must never know a key the others
+  send under (security audit, 2026-11-18); a remaining member makes the next one.
 - **Who reads what:** the server only returns messages (and reply previews) of epochs you have a
   key for, and unread counts only count those. So someone added never sees what was said before
   (they never get those keys), someone removed never gets new keys, and someone re-added keeps

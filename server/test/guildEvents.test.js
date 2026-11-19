@@ -303,7 +303,7 @@ describe('scheduled events', () => {
 
   it('links its cover to the upload, and lets it go when the event does', async () => {
     const { owner, guild } = await setUp(0);
-    const upload = (await api.get(owner, '/upload_file?type=image/png&size=100')).body;
+    const upload = (await api.get(owner, '/upload_file?type=application/octet-stream&size=100')).body;
     const event = (await create(owner, guild, external({ image: upload.fileUrl }))).body;
     expect(event.image).toBe(upload.fileUrl);
     const key = upload.fileUrl.split('/uploads/')[1];

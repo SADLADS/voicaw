@@ -323,6 +323,21 @@ describe('the bot API', () => {
     expect(entries.some((e) => e.action === 'member_ban_add' && e.actor_id === bot.id)).toBe(true);
   });
 
+  it("is paused while its owner is suspended, and works again once that's lifted", async () => {
+    const { owner, bot } = await setUp();
+    const suspensions = require('../suspensions.js');
+    expect((await discord.get(bot, '/users/@me')).status).toBe(200);
+    const g = await connectGateway();
+    await g.next((p) => p.op === 10);
+    g.send({ op: 2, d: { token: bot.token, intents: 0, properties: {} } });
+    await g.next(dispatch('READY'));
+    await suspensions.suspend(owner.id, 0, 'test');
+    expect(await g.closed).toBe(4004);
+    expect((await discord.get(bot, '/users/@me')).status).toBe(401);
+    await suspensions.lift(owner.id);
+    expect((await discord.get(bot, '/users/@me')).status).toBe(200);
+  });
+
   it('describes its application', async () => {
     const { bot } = await setUp();
     expect((await discord.get(bot, '/oauth2/applications/@me')).body).toMatchObject({ id: String(bot.id), bot_public: true });
