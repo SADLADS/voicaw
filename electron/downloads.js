@@ -8,6 +8,11 @@ const path = require('path');
 // How many saved files are remembered (the oldest forgotten first).
 const KEEP = 50;
 
+// Files the system would run rather than open: Open shows them in their folder instead, so a
+// script in the page (the page can call open itself) never starts a program, even one it got
+// the person to save (security audit, 2026-11-18). Running one stays the person's own double-click.
+const PROGRAM = /\.(exe|msi|msix|msp|appx|appxbundle|bat|cmd|com|scr|pif|cpl|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|jar|lnk|url|reg|inf|application|appref-ms|gadget|sh|bash|zsh|csh|command|tool|run|bin|appimage|desktop|deb|rpm|snap|flatpak|flatpakref|app|pkg|mpkg|dmg|workflow|scpt|py|pyw|pl|rb|php)$/i;
+
 // `shell` is Electron's; `fs` node:fs; `send(download)` tells the page of a new one.
 function createDownloads({ shell, fs, send }) {
     const saved = new Map(); // id -> filePath
@@ -28,10 +33,15 @@ function createDownloads({ shell, fs, send }) {
             send({ id, name: path.basename(filePath), folder: path.basename(path.dirname(filePath)) });
             return id;
         },
-        // Resolves to '' once opened in the app for its type, else why not (shell.openPath's).
+        // Resolves to '' once opened in the app for its type (a program: shown in its folder),
+        // else why not (shell.openPath's).
         async open(id) {
             const filePath = pathOf(id);
             if (!fs.existsSync(filePath)) return 'missing';
+            if (PROGRAM.test(filePath)) {
+                shell.showItemInFolder(filePath);
+                return '';
+            }
             return shell.openPath(filePath);
         },
         showInFolder(id) {

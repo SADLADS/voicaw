@@ -5,6 +5,17 @@ import { tableNodes } from 'prosemirror-tables';
 // hold, and nothing more, so every document saves as markdown with nothing lost. Text
 // colours, sizes and alignment aren't here on purpose: markdown has no way to keep them.
 
+// A link's address if it's safe to put in the page: http(s), mailto, or relative (no scheme), as
+// the read view's react-markdown allows; otherwise null. ProseMirror draws links itself, so
+// nothing else stops a `javascript:` one running when it's clicked (security audit, 2026-11-18).
+export function safeHref(href) {
+  if (typeof href !== 'string') return null;
+  const colon = href.indexOf(':');
+  const firstOf = (chars) => Math.min(...[...chars].map((c) => (href.indexOf(c) === -1 ? Infinity : href.indexOf(c))));
+  if (colon === -1 || colon > firstOf('/?#')) return href;
+  return /^(https?|mailto)$/i.test(href.slice(0, colon)) ? href : null;
+}
+
 const table = tableNodes({
   tableGroup: 'block',
   // GFM table cells hold one line of text.
@@ -105,8 +116,13 @@ export const schema = new Schema({
     link: {
       attrs: { href: {}, title: { default: null } },
       inclusive: false,
-      parseDOM: [{ tag: 'a[href]', getAttrs: (dom) => ({ href: dom.getAttribute('href'), title: dom.getAttribute('title') }) }],
-      toDOM: (mark) => ['a', { href: mark.attrs.href, title: mark.attrs.title, rel: 'noreferrer noopener' }, 0],
+      // (A pasted link to anything else is kept as its text; one already in a document, from its
+      // markdown or a collaborator, is drawn without its address.)
+      parseDOM: [{
+        tag: 'a[href]',
+        getAttrs: (dom) => (safeHref(dom.getAttribute('href')) ? { href: dom.getAttribute('href'), title: dom.getAttribute('title') } : false),
+      }],
+      toDOM: (mark) => ['a', { href: safeHref(mark.attrs.href), title: mark.attrs.title, rel: 'noreferrer noopener' }, 0],
     },
     em: {
       parseDOM: [{ tag: 'i' }, { tag: 'em' }, { style: 'font-style=italic' }],

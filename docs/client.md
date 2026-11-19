@@ -638,7 +638,9 @@ files. A page opened from a `blob:` URL inherits the policy, so a script in one 
 second line behind Attachment types in `docs/uploads.md`). The dev server has none (Vite adds
 inline scripts of its own); `e2e/attachmenttypes.mjs` checks a production build. Anything new
 that needs `eval`, an inline script added at run time or a script from another site will be
-refused: give it a file of its own instead.
+refused: give it a file of its own instead. `public/popout.html` (Watch Together popped out; not
+built, so no plugin) has its own meta tag allowing no script at all: the opener draws into it.
+The desktop app also sends the policy as a header (Desktop app in `docs/desktop-and-site.md`).
 
 ## Errors
 

@@ -16,9 +16,19 @@ const isBotInvite = (scope) => {
   return !scopes.length || scopes.includes('bot');
 };
 
-// Sends the page to the site (`location`, from the server: one of the application's redirect URIs).
+// Sends the page to the site (`location`, from the server: one of the application's redirect
+// URIs). Only to a website: with another server chosen on the login screen, the server could
+// send anything, and a `javascript:` address would run as the app (security audit, 2026-11-18).
+// Throws otherwise.
 function goTo(location, setLeaving) {
-  setLeaving(new URL(location).host);
+  let url = null;
+  try {
+    url = new URL(location);
+  } catch {
+    // Not an address at all.
+  }
+  if (url?.protocol !== 'https:' && url?.protocol !== 'http:') throw new Error(t('developers.login.badRedirect'));
+  setLeaving(url.host);
   window.location.assign(location);
 }
 
@@ -66,7 +76,11 @@ function LoginConsent() {
         if (cancelled) return;
         rememberBots([data], [data.owner]);
         if (data.authorized && prompt === 'none') {
-          goTo((await answerLogin(request)).location, setLeaving);
+          try {
+            goTo((await answerLogin(request)).location, setLeaving);
+          } catch (err) {
+            if (!cancelled) setError(errorMessage(err));
+          }
           return;
         }
         setInfo(data);
@@ -75,7 +89,11 @@ function LoginConsent() {
         if (cancelled) return;
         // The site's own mistake (a scope, the response type): it hears about it.
         const back = err?.response?.data?.redirect;
-        if (back) return goTo(back, setLeaving);
+        try {
+          if (back) return goTo(back, setLeaving);
+        } catch (badRedirect) {
+          return setError(errorMessage(badRedirect));
+        }
         setError(t('developers.login.badLink', { error: errorMessage(err) }));
       });
     return () => { cancelled = true; };

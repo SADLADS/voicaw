@@ -173,11 +173,12 @@ final class Notifications {
         return tag.isEmpty() ? payload.optString("type", "voicaw") : tag;
     }
 
-    /** Opens the app at `url` (a path such as /dm/5). */
+    /** Opens the app at `url` (a path such as /dm/5), with the app's IntentKey. */
     static Intent openApp(Context context, String url) {
         return new Intent(context, MainActivity.class)
             .setAction(Intent.ACTION_VIEW)
             .putExtra(EXTRA_URL, url)
+            .putExtra(IntentKey.EXTRA, IntentKey.get(context))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     }
 
