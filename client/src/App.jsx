@@ -29,6 +29,7 @@ import EmojiProvider from './emoji/EmojiProvider';
 import UpdateBanner from './components/UpdateBanner';
 import DownloadsPopup from './components/DownloadsPopup';
 import OfflineBanner from './components/OfflineBanner';
+import TwoFactorAlert from './components/TwoFactorAlert';
 import Toasts from './components/Toasts';
 import ImageViewerProvider from './components/ImageViewerProvider';
 import PageMenus from './components/PageMenus';
@@ -202,6 +203,7 @@ export default function App() {
           <UpdateBanner />
           <DownloadsPopup />
           <OfflineBanner />
+          <TwoFactorAlert />
           <Toasts />
           {user && !user.pending && <ImageLinkAccount user={user} onLogout={handleLogout} />}
           {/* Waiting for an admin's approval (server/signups.js): only that, whatever the address. */}

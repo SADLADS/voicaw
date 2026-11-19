@@ -46,14 +46,16 @@ export async function registerUser(app, request, username, password, { recoveryC
   return { response: finaliseRes, keys, exportKey };
 }
 
-export async function loginUser(app, request, username, password) {
+// As the app does (each login its own `loginId`); `{ legacy: true }` as apps from before
+// 2026-11-19 did (one login state per username).
+export async function loginUser(app, request, username, password, { legacy = false } = {}) {
   await opaque.ready;
 
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
 
   const initiateRes = await request(app)
     .post('/api/initiatelogin')
-    .send({ userIdentifier: username, startLoginRequest });
+    .send({ userIdentifier: username, startLoginRequest, ...(!legacy && { perAttempt: true }) });
   if (initiateRes.body.error) {
     return { response: initiateRes, failedAt: 'initiate' };
   }
@@ -72,7 +74,7 @@ export async function loginUser(app, request, username, password) {
 
   const finaliseRes = await request(app)
     .post('/api/finaliselogin')
-    .send({ finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username });
+    .send({ finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username, loginId: initiateRes.body.loginId });
 
   // As the client does: open the key backup with this login's exportKey.
   const keys = finaliseRes.body.keyBackup ? await unwrapKeyBackup(exportKey, finaliseRes.body.keyBackup) : null;
@@ -87,15 +89,17 @@ export async function recoveryFields(code, keys) {
   };
 }
 
-// A fresh OPAQUE login proof ({ finishLoginRequest, clientSessionKey }, plus the exportKey),
+// A fresh OPAQUE login proof ({ finishLoginRequest, clientSessionKey, loginId }, plus the exportKey),
 // as sent with changes that need the current password. null if the client rejects it.
 export async function passwordProof(app, request, username, password) {
   await opaque.ready;
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
-  const started = await request(app).post('/api/initiatelogin').send({ userIdentifier: username, startLoginRequest });
+  const started = await request(app).post('/api/initiatelogin').send({ userIdentifier: username, startLoginRequest, perAttempt: true });
   const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.body.loginResponse, password });
   if (!result) return null;
-  return { finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey, exportKey: result.exportKey };
+  return {
+    finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey, loginId: started.body.loginId, exportKey: result.exportKey,
+  };
 }
 
 // A new password's { registrationRecord, keyBackup } (the keys encrypted with its exportKey).

@@ -37,7 +37,7 @@ describe('AccountSecuritySettings', () => {
     changePassword.mockResolvedValue();
     renderSettings();
     fillPasswords('old password', 'new password!');
-    expect(await screen.findByText('Password changed.')).toBeInTheDocument();
+    expect(await screen.findByText('Password changed. Your other devices have been logged out.')).toBeInTheDocument();
     expect(changePassword).toHaveBeenCalledWith('me', 'old password', 'new password!');
     expect(screen.getByPlaceholderText('Current password')).toHaveValue('');
   });

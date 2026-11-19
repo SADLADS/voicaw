@@ -57,6 +57,8 @@ export function AuthProvider({ children }) {
             // false: the terms of use must be accepted first (TermsGate). An older server
             // doesn't say, which counts as accepted.
             termsAccepted: res.data.termsAccepted !== false,
+            // Wrong two-factor codes someone tried since the warning was dismissed (TwoFactorAlert).
+            twoFactorFailures: res.data.twoFactorFailures ?? 0,
           });
         } else {
           setUser(null);

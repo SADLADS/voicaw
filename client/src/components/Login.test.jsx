@@ -74,7 +74,7 @@ function mockLoginExchange(finaliseResponse) {
   opaque.client.startLogin.mockReturnValue({ clientLoginState: 'CLS', startLoginRequest: 'SLR' });
   opaque.client.finishLogin.mockReturnValue({ finishLoginRequest: 'FLR', sessionKey: 'SK', exportKey: 'EXPORT-KEY' });
   api.post.mockImplementation(async (url) => {
-    if (url === '/initiatelogin') return { data: { loginResponse: 'LR' } };
+    if (url === '/initiatelogin') return { data: { loginResponse: 'LR', loginId: 'LID' } };
     if (url === '/finaliselogin') return { data: finaliseResponse };
     throw new Error(`unexpected url ${url}`);
   });
@@ -107,9 +107,10 @@ describe('Login - login form', () => {
     expect(storeUserKeys).toHaveBeenCalledWith(5, KEYS);
     expect(localStorage.getItem('token')).toBe('jwt123');
     expect(connectWebSocket).toHaveBeenCalled();
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true, twoFactorFailures: 0 });
     // The client's OPAQUE login state is its secret: it must never be sent to the server.
-    expect(api.post).toHaveBeenCalledWith('/initiatelogin', { startLoginRequest: 'SLR', userIdentifier: 'alice' });
+    expect(api.post).toHaveBeenCalledWith('/initiatelogin', { startLoginRequest: 'SLR', userIdentifier: 'alice', perAttempt: true });
+    expect(api.post).toHaveBeenCalledWith('/finaliselogin', { finishLoginRequest: 'FLR', clientSessionKey: 'SK', userIdentifier: 'alice', loginId: 'LID' });
     for (const [, body] of api.post.mock.calls) expect(body).not.toHaveProperty('clientLoginState');
   });
 
@@ -171,7 +172,7 @@ describe('Login - two-factor', () => {
     opaque.client.startLogin.mockReturnValue({ clientLoginState: 'CLS', startLoginRequest: 'SLR' });
     opaque.client.finishLogin.mockReturnValue({ finishLoginRequest: 'FLR', sessionKey: 'SK', exportKey: 'EXPORT-KEY' });
     api.post.mockImplementation(async (url, body) => {
-      if (url === '/initiatelogin') return { data: { loginResponse: 'LR' } };
+      if (url === '/initiatelogin') return { data: { loginResponse: 'LR', loginId: 'LID' } };
       if (url === '/finaliselogin') return { data: { twoFactor: true, ticket: 'TICKET' } };
       if (url === '/login/two-factor') return onCode(body);
       throw new Error(`unexpected url ${url}`);
@@ -241,11 +242,11 @@ describe('Login - account without a recovery code', () => {
     api.put.mockResolvedValue({ data: { ok: true } });
     fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true, twoFactorFailures: 0 }));
 
     // Stored with a fresh proof of the password, from the keys opened on this device.
     expect(api.put).toHaveBeenCalledWith('/recovery-code', {
-      finishLoginRequest: 'FLR', clientSessionKey: 'SK', recoveryVerifier: 'REC-VERIFIER', recoveryBackup: 'REC-BACKUP',
+      finishLoginRequest: 'FLR', clientSessionKey: 'SK', loginId: 'LID', recoveryVerifier: 'REC-VERIFIER', recoveryBackup: 'REC-BACKUP',
     });
     expect(api.post.mock.calls.filter(([url]) => url === '/initiatelogin')).toHaveLength(2);
     expect(connectWebSocket).toHaveBeenCalled();
@@ -259,7 +260,7 @@ describe('Login - account without a recovery code', () => {
 
     expect(await screen.findByText(/Too many attempts\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }));
-    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false, pending: false, termsAccepted: true });
+    expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'jwt123', id: 5, username: 'alice', hasRecoveryCode: false, pending: false, termsAccepted: true, twoFactorFailures: 0 });
   });
 });
 
@@ -506,7 +507,7 @@ describe('Login - forgot password', () => {
 
     fireEvent.click(screen.getByLabelText("I've saved my recovery code"));
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true }));
+    await waitFor(() => expect(onLoginSuccess).toHaveBeenCalledWith({ token: 'rec-jwt', id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true, twoFactorFailures: 0 }));
 
     expect(wrapKeyBackup).toHaveBeenCalledWith('NEW-EXPORT', KEYS);
     expect(wrapRecoveryBackup).toHaveBeenCalledWith(NEW_CODE, KEYS);

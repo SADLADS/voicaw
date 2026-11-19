@@ -6,6 +6,8 @@ import WebSocket from 'ws';
 import opaque from '@serenity-kit/opaque';
 import { registerUser, loginUser } from './helpers/authFlow.js';
 
+import { generateUserKeys } from '../../client/src/services/encryptionService.js';
+
 const app = require('../index.js');
 const db = require('../db');
 const { attachWebSocketServer } = require('../sockets.js');
@@ -65,6 +67,17 @@ describe('invite-only sign-ups', () => {
 
     const bad = await registerUser(app, request, name(), PASSWORD, { invite: 'nope' });
     expect(bad.response.body.code).toBe('invalid_invite');
+  });
+
+  it("doesn't say which usernames are taken to someone without an invite", async () => {
+    await setMode('invite');
+    const keys = await generateUserKeys();
+    const res = await request(app).post('/api/finaliseregister').send({
+      userIdentifier: 'signup-member', registrationRecord: 'x', keyBackup: '{}', ...keys.public,
+      acceptedTerms: require('../terms').TERMS_VERSION,
+    });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('invite_required');
   });
 
   it('lets an invite in, as many times as it allows', async () => {

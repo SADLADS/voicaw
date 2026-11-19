@@ -195,6 +195,7 @@ async function removePending(userId, adminId = null) {
       await db.run(sql, [userId]);
     }
     await db.run('DELETE FROM login_states WHERE username = ?', [user.username]);
+    await db.run('DELETE FROM login_attempts WHERE username = ?', [user.username]);
     await db.run('DELETE FROM users WHERE id = ?', [userId]);
   });
   closePendingSockets(userId);

@@ -82,25 +82,15 @@ async function verifyToken(token, req = null) {
     });
   });
   if (!payload) return refused(failure?.name === 'TokenExpiredError' ? 'expired' : `not valid (${failure?.message})`, jwt.decode(token), req);
-  const row = await db.get('SELECT deleted_at, suspended_at, sessions_reset_at, pending FROM users WHERE id = ?', [payload.id]);
+  const row = await db.get('SELECT deleted_at, suspended_at, pending FROM users WHERE id = ?', [payload.id]);
   // Deleted or suspended (Settings → Admin): the token no longer works anywhere.
   if (!row || row.deleted_at || row.suspended_at) return refused('account deleted or suspended', payload, req);
 
   const t = now();
-  let sid = payload.sid;
-  if (!sid) {
-    // A token from before login sessions: it becomes one, named after the token so the
-    // requests a device sends at once share it, and is renewed with it. Logging any session
-    // out from Settings refuses the ones that haven't been used since.
-    if (row.sessions_reset_at != null && payload.iat <= row.sessions_reset_at) return refused('from before sessions, reset', payload, req);
-    sid = crypto.createHash('sha256').update(token).digest('base64url').slice(0, 24);
-    const { userAgent, ip } = deviceOf(req);
-    await db.run(
-      `INSERT OR IGNORE INTO sessions (id, user_id, created_at, last_used_at, user_agent, ip)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [sid, payload.id, payload.iat, t, userAgent, ip]
-    );
-  }
+  // Tokens from before login sessions (2026-10-02) carried no session id; they lasted 30 days,
+  // so none can still be valid, and one without is refused.
+  const sid = typeof payload.sid === 'string' ? payload.sid : null;
+  if (!sid) return refused('no session', payload, req);
   const session = await db.get('SELECT last_used_at FROM sessions WHERE id = ? AND user_id = ?', [sid, payload.id]);
   if (!session) return refused('session ended', payload, req);
   if (t - session.last_used_at >= SESSION_TOUCH_SECONDS) {
@@ -115,7 +105,7 @@ async function verifyToken(token, req = null) {
     username: payload.username,
     iat: payload.iat,
     sid,
-    renew: !payload.sid || t - payload.iat > RENEW_AFTER_SECONDS,
+    renew: t - payload.iat > RENEW_AFTER_SECONDS,
     pending: Boolean(row.pending),
   };
 }

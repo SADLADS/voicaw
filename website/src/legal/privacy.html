@@ -56,7 +56,9 @@
 <p>If you turn on two-factor authentication (it's off unless you do), the server keeps the key
   your authenticator app makes its codes from (it needs it to check them; it isn't encrypted), and
   your unused backup codes, only as one-way hashes. Both are deleted when you turn it off or delete
-  your account.</p>
+  your account. It also counts wrong codes typed for your account, to slow down guessing and to
+  warn you that someone knows your password: the count goes back to zero with a right code, and
+  the number shown in the warning when you dismiss it; both are deleted with your account.</p>
 
 <h2 id="not-encrypted">What isn't encrypted</h2>
 <ul>

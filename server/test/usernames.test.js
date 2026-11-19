@@ -95,7 +95,7 @@ describe('migrating existing accounts', () => {
     const proof = await passwordProof(app, request, 'oldtimer', 'password1234');
     const fields = await newPasswordFields(app, request, 'OldTimer', 'new password 1', legacy.keys);
     const changed = await request(app).post('/api/change-password').set(auth(token))
-      .send({ finishLoginRequest: proof.finishLoginRequest, clientSessionKey: proof.clientSessionKey, ...fields });
+      .send({ finishLoginRequest: proof.finishLoginRequest, clientSessionKey: proof.clientSessionKey, loginId: proof.loginId, ...fields });
     expect(changed.status).toBe(200);
     expect((await userRow(legacy.id)).opaque_id).toBeNull();
     expect((await loginUser(app, request, 'OLDTIMER', 'new password 1')).keys.private).toEqual(legacy.keys.private);
@@ -112,8 +112,8 @@ describe('migrating existing accounts', () => {
     expect((await loginUser(app, request, 'oldtimer', 'newer password')).response.status).toBe(200);
 
     // A token from before the rename still gets the new username.
-    const { generateToken } = require('../auth');
-    const oldToken = generateToken({ id: named.id, username: 'Named' });
+    const { startSession } = require('../auth');
+    const oldToken = await startSession({ id: named.id, username: 'Named' });
     expect((await request(app).get('/api/profile').set(auth(oldToken))).body.username).toBe('named');
   });
 });

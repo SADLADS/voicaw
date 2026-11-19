@@ -64,7 +64,9 @@ export async function logIn(username, password) {
   const opaque = await loadOpaque();
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
   // clientLoginState is this device's secret half of the OPAQUE exchange: never send it.
-  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username });
+  // perAttempt: the server keeps this login under its own `loginId`, so someone else starting
+  // logins for the same name meanwhile can't break it.
+  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username, perAttempt: true });
   const loginResult = opaque.client.finishLogin({
     clientLoginState,
     loginResponse: started.loginResponse,
@@ -78,6 +80,7 @@ export async function logIn(username, password) {
     finishLoginRequest,
     clientSessionKey: sessionKey,
     userIdentifier: username,
+    loginId: started.loginId,
   });
   if (data.twoFactor) {
     // The exportKey stays in this closure (never sent, never stored) until a code is given.
@@ -109,7 +112,10 @@ async function finishLogIn(exportKey, data) {
 
   await storeUserKeys(id, keys);
   saveToken(token);
-  return { token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending), termsAccepted: data.termsAccepted !== false };
+  return {
+    token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending),
+    termsAccepted: data.termsAccepted !== false, twoFactorFailures: data.twoFactorFailures ?? 0,
+  };
 }
 
 function checkNewPassword(password) {
@@ -205,7 +211,9 @@ async function unlockWithPassword(username, password) {
   if (!password) throw new Error(t('auth.errors.currentPasswordRequired'));
   const opaque = await loadOpaque();
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
-  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username });
+  // perAttempt: the server keeps this login under its own `loginId`, so someone else starting
+  // logins for the same name meanwhile can't break it.
+  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username, perAttempt: true });
   const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.loginResponse, password });
   if (!result) throw new Error(t('auth.errors.currentPasswordIncorrect'));
 
@@ -216,10 +224,10 @@ async function unlockWithPassword(username, password) {
   } catch {
     throw new Error(t('auth.errors.keysLocked'));
   }
-  return { proof: { finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey }, keys };
+  return { proof: { finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey, loginId: started.loginId }, keys };
 }
 
-// Logged in: replaces the password. Other devices stay logged in.
+// Logged in: replaces the password. The server logs every other device out.
 export async function changePassword(username, currentPassword, newPassword) {
   checkNewPassword(newPassword);
   const { proof, keys } = await unlockWithPassword(username, currentPassword);
@@ -245,6 +253,11 @@ export async function createRecoveryCode(username, password) {
 // { enabled, backupCodesLeft }.
 export async function fetchTwoFactor() {
   return send('get', '/two-factor');
+}
+
+// Clears the warning about wrong two-factor codes (TwoFactorAlert) on every device.
+export async function dismissTwoFactorFailures() {
+  return send('post', '/two-factor/failures/seen');
 }
 
 // A new authenticator secret for setting it up: 20 random bytes in base32 (what the apps
@@ -344,7 +357,10 @@ export async function startRecovery(username, code, newPassword) {
     const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
     await storeUserKeys(done.id, keys);
     saveToken(done.token);
-    return { token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending), termsAccepted: done.termsAccepted !== false };
+    return {
+      token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending),
+      termsAccepted: done.termsAccepted !== false, twoFactorFailures: done.twoFactorFailures ?? 0,
+    };
   };
   return { newCode, twoFactor: Boolean(data.twoFactor), finish };
 }

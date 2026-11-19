@@ -10,7 +10,10 @@ operation:
 - Change password (logged in, Settings): `/initiatelogin` with the current password, `GET
   /api/key-backup`, `/initiateregister` for the new one, then `POST /api/change-password` with the
   login's `finishLoginRequest` + session key (proof of the current password, checked by
-  `checkLoginProof`) and the new record and re-encrypted backup. Other devices stay logged in.
+  `checkLoginProof`) and the new record and re-encrypted backup. Every other device is logged
+  out (`endSessions`; the answer's `loggedOutOthers` says how many, security audit 2026-11-19:
+  changing the password is how people get someone out). A recovery-code reset logs out every
+  session from before it too.
 - Recovery code: see End-to-end encryption.
 
 **Usernames are lower case** and ignore capitals everywhere (login, recovery, making an admin;
@@ -22,8 +25,14 @@ accounts (copying the old spelling into an empty display name), keeps that spell
 password change or recovery clears it. An old account whose lower-case name was already taken
 kept its capitals (an exact match wins at login).
 
-Server-side login state is stored transiently in the `login_states` table (5-minute expiry) keyed
-by (lower-case) username, cleaned up on successful login (expired rows are purged on each login attempt).
+Server-side login state is stored transiently (5-minute expiry; expired rows are purged on each
+login attempt). Since 2026-11-19 (security audit) the app sends `perAttempt: true` to
+`/initiatelogin`, which keeps each login in `login_attempts` under a random `loginId` it answers
+with; the app sends it back with `/finaliselogin` and with every password proof (change-password,
+recovery code, two-factor, deleting the account), and each works once. So someone starting logins
+for your name can't replace yours between its two steps. Apps from before send no `loginId` and
+still get the old `login_states` row keyed by (lower-case) username (the latest start wins),
+cleaned up on successful login.
 
 Logged-out visitors must not be able to tell which usernames exist. `/api/initiatelogin` answers an
 unknown username with OPAQUE's dummy response (`registrationRecord: null`), so it fails at the end
@@ -31,9 +40,13 @@ exactly like a wrong password. Logged-in users can see every user (intentional: 
 where everyone knows each other). The client must never send its `clientLoginState` to the server.
 
 Password guessing can only happen online (through the server), so `routes/auth.js` rate limits
-it (`rateLimit.js`, in memory): login starts per IP (30 / 15 min) and per username (20 / 15 min,
-applied whether or not the account exists; cleared by a successful login), registrations per IP,
-recovery attempts per IP and username.
+it (`rateLimit.js`, in memory): login starts per IP (30 / 15 min), per IP and username (10 / 15
+min) and per username from anywhere (30 / 15 min, applied whether or not the account exists;
+cleared by a successful login), registrations per IP, recovery attempts per IP and username.
+Each login started is one guess (a wrong password fails on the guesser's device, never reaching
+`/finaliselogin`), so the per-username cap has to count starts; it's three times what one
+address may use, so locking someone out of logging in takes three or more addresses (before
+2026-11-19 one address could: 20 per username against 30 per address).
 Refusals are 429 with `Retry-After` and a message the login form shows. `req.ip` comes from
 nginx's `X-Forwarded-For` (`trust proxy: 'loopback'`). A local `npm run dev` goes through vite's
 proxy to the public API, so everyone using one shares its address there. The websocket `user_status`
@@ -76,11 +89,11 @@ the session exists, and only shown to the account itself.
   `onLoginReplaced` instead (App reloads onto the new login). Before (2026-10-15) it logged out,
   and logout ends the *saved* token: the other tab's new login got 403s ("Invalid token") a few
   minutes after logging in (`e2e/stalelogout.mjs`).
-- **Tokens from before sessions** (no `sid`) still work: on first use they become a session
-  named after the token's hash (so the requests a device sends at once share one row) and are
-  renewed with a `sid` straight away. Ending any session from Settings sets
-  `users.sessions_reset_at`, which refuses the old tokens issued before it (devices not opened
-  since sessions began then have to log in again) and deletes push subscriptions with no session.
+- **Tokens from before sessions** (no `sid`) are refused (security audit, 2026-11-19). Until
+  then they became a session on first use, which a logout on that device never really ended;
+  tokens already lasted 30 days before sessions (2026-10-02), so none could still be valid.
+  `users.sessions_reset_at`, which once refused them, is no longer read or written. Ending
+  sessions from Settings still deletes the push subscriptions saved with no session.
 - **The saved login** (`localStorage` `token`) is read and written only through
   `utils/loginToken.js` (`savedToken`, `saveToken`, `forgetToken`), which keeps the newest
   token this page saved in memory and never lets the saved one go back to an *older* token of
@@ -90,6 +103,12 @@ the session exists, and only shown to the account itself.
   never refused the new login. Another account's token, a newer one (another tab logging in) or
   none (logged out) is taken as it is. Only within a page's life: a store that loses writes
   still opens on the old token at the next start (refused, so the login screen).
+  **Known limit** (security audit, 2026-11-19): a script injected into the page (an XSS) could
+  read the token and use the account from elsewhere until it's logged out (Settings → Devices,
+  or a password change, which logs out every other device). Private keys can't be copied
+  (non-extractable CryptoKeys) and password, recovery-code, two-factor and deletion changes need
+  the password. Moving the token to an HttpOnly cookie is planned as a follow-up (CSRF, the
+  desktop and Android apps and other servers make it a bigger change).
 - **The log** (pm2's, 2026-11-14): every session started (`Session started: user 1, session
   5LXenR, Voicaw/1.0.44`), ended (`Sessions ended (logout|from Settings): …`) and every token
   refused, with why (`Token refused: expired | not valid (invalid signature) | session ended |
@@ -145,8 +164,21 @@ Optional, off until someone turns it on (Settings → My Account → Two-factor 
   backup code, which is then used up) answers as `/finaliselogin` would have. Tickets live 5
   minutes in the server's memory (by hash) and die after 5 wrong codes (401 `code:
   'two_factor_expired'`: type the password again); a wrong code is 401 `two_factor_invalid`.
-  Codes are also limited per account (10 / 15 min, `twoFactorPerUser`). The client keeps the
-  login's exportKey in `logIn`'s closure meanwhile (`Login.jsx` asks for the code).
+  The client keeps the login's exportKey in `logIn`'s closure meanwhile (`Login.jsx` asks for
+  the code).
+- **Wrong codes back off** (security audit, 2026-11-19), counted in the database so a restart
+  doesn't forget them (`twoFactor.js` `checkCode` counts every code it checks, wherever it's
+  typed: logging in, recovery, turning off, new backup codes): every 10 wrong codes since the last
+  right one (`users.two_factor_failures`) lock code checking for 15 minutes, twice as long each
+  time, up to a day (`two_factor_locked_until`; 429 with `Retry-After`, even for a right code).
+  Someone who knows the password then gets about ten guesses a day. A right code starts the count
+  again. Codes typed while turning it on are checked against the new secret, so they only have an
+  in-memory limit (10 / 15 min, `twoFactorSetupPerUser`).
+- **The owner is told:** every wrong code also adds to `two_factor_failures_unseen`, sent as
+  `twoFactorFailures` in `/profile` and every login's answer. While it's above 0 the app shows a
+  banner over every page (`TwoFactorAlert.jsx`: someone typed the password and N wrong codes,
+  Change password), on every device, until it's dismissed or Change password is chosen
+  (`POST /api/two-factor/failures/seen` clears it everywhere).
 - **Recovery code:** resetting a forgotten password would otherwise get round it, so
   `/recover/start` says `twoFactor: true` and `/recover/finish` then needs `twoFactorCode` (401
   `two_factor_required` without one, before anything changes). The app asks for it last, after
@@ -155,7 +187,7 @@ Optional, off until someone turns it on (Settings → My Account → Two-factor 
   each with a password proof and a code (or backup code). `GET /api/two-factor` says `{ enabled,
   backupCodesLeft }`. Changing the password, the recovery code and deleting the account still
   need only the password (as before), and turning it on doesn't log other devices out (Settings →
-  Devices does).
+  Devices, or changing the password, does).
 - **Lost everything** (app and backup codes): an admin on the host runs `cd server && npm run
   admin -- <username> --remove-two-factor`. Deleting an account clears all three columns.
 - Bots never log in with a password, so it doesn't apply to them.
@@ -177,7 +209,8 @@ in `server/.env` as the fallback, `open` when neither is set), handled by `serve
   send it: password changes and recovery use the same route) refuses without a working one
   (403 `code: 'invite_required'` / `'invalid_invite'`) before the client makes any keys;
   `/finaliseregister` checks again and uses the invite up in the transaction that makes the
-  account.
+  account. Both check the invite before whether the username is taken (409), so someone without
+  an invite can't find out which usernames exist (security audit, 2026-11-19).
 - **`request`**: anyone, but the account is made with `users.pending = 1` until an admin approves
   it. A working invite skips the wait.
 

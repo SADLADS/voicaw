@@ -251,7 +251,7 @@
       "newPassword": "新しいパスワード",
       "newPasswordAgain": "新しいパスワード（確認）",
       "passwordHint_other": "{{count}} 文字以上。他の端末はログインしたままです。",
-      "passwordChanged": "パスワードを変更しました。",
+      "passwordChanged": "パスワードを変更しました。他のデバイスはログアウトされました。",
       "hasRecoveryCode": "リカバリーコードを持っています。紛失した場合は新しいコードを作成してください。古いコードは使えなくなります。",
       "noRecoveryCode": "まだリカバリーコードがありません。コードがないと、パスワードを忘れた場合にアカウントとメッセージを失います。",
       "makeRecoveryCode": "リカバリーコードを作成",

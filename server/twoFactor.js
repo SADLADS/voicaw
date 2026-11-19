@@ -140,7 +140,8 @@ async function enable(userId, secret, step) {
 
 async function disable(userId) {
   await db.run(
-    'UPDATE users SET two_factor_secret = NULL, two_factor_backup_codes = NULL, two_factor_last_step = NULL WHERE id = ?',
+    `UPDATE users SET two_factor_secret = NULL, two_factor_backup_codes = NULL, two_factor_last_step = NULL,
+       two_factor_failures = 0, two_factor_locked_until = NULL WHERE id = ?`,
     [userId]
   );
 }
@@ -152,30 +153,80 @@ async function replaceBackupCodes(userId) {
   return codes;
 }
 
+// Wrong codes back off per account, counted in the database (users.two_factor_failures, since
+// the last right code) so a restart doesn't forget them: every FAILURES_PER_LOCK wrong codes lock
+// code checking for LOCK_SECONDS, twice as long each time, up to MAX_LOCK_SECONDS. Someone who
+// knows the password then gets about ten guesses a day, not a thousand. Wrong codes also add to
+// `two_factor_failures_unseen`, which the owner's apps show (TwoFactorAlert) until dismissed.
+const FAILURES_PER_LOCK = 10;
+const LOCK_SECONDS = 15 * 60;
+const MAX_LOCK_SECONDS = 24 * 60 * 60;
+
+const unixNow = () => Math.floor(Date.now() / 1000);
+
+// How long until `userId` may try a code again: 0 if they may now.
+async function lockedForMs(userId) {
+  const row = await db.get('SELECT two_factor_locked_until FROM users WHERE id = ?', [userId]);
+  const until = row?.two_factor_locked_until;
+  return until && until > unixNow() ? (until - unixNow()) * 1000 : 0;
+}
+
+async function recordFailure(userId) {
+  await db.run(
+    `UPDATE users SET two_factor_failures = COALESCE(two_factor_failures, 0) + 1,
+       two_factor_failures_unseen = COALESCE(two_factor_failures_unseen, 0) + 1 WHERE id = ?`,
+    [userId]
+  );
+  const { two_factor_failures: failures } = await db.get('SELECT two_factor_failures FROM users WHERE id = ?', [userId]);
+  if (failures % FAILURES_PER_LOCK !== 0) return;
+  const seconds = Math.min(LOCK_SECONDS * 2 ** (failures / FAILURES_PER_LOCK - 1), MAX_LOCK_SECONDS);
+  await db.run('UPDATE users SET two_factor_locked_until = ? WHERE id = ?', [unixNow() + seconds, userId]);
+  console.warn(`Two-factor locked: user ${userId}, ${failures} wrong codes, ${seconds / 60} min`);
+}
+
+const recordSuccess = (userId) => db.run(
+  'UPDATE users SET two_factor_failures = 0, two_factor_locked_until = NULL WHERE id = ?', [userId]
+);
+
+// Wrong codes tried since the owner last dismissed the warning about them.
+async function unseenFailures(userId) {
+  const row = await db.get('SELECT two_factor_failures_unseen FROM users WHERE id = ?', [userId]);
+  return row?.two_factor_failures_unseen ?? 0;
+}
+
+const markFailuresSeen = (userId) => db.run('UPDATE users SET two_factor_failures_unseen = 0 WHERE id = ?', [userId]);
+
 // Checks `code` (the app's six digits, or a backup code, which is then used up) for a user
-// with two-factor on. Resolves to 'totp', 'backup' or null (wrong, or a code already used).
+// with two-factor on. Resolves to 'totp', 'backup' or null (wrong, or a code already used), and
+// counts it (above); callers check lockedForMs first.
 async function checkCode(userId, code) {
-  if (typeof code !== 'string' || code.length > 32) return null;
   return db.transaction(async () => {
-    const user = await db.get(
-      'SELECT two_factor_secret, two_factor_backup_codes, two_factor_last_step FROM users WHERE id = ?', [userId]
-    );
-    if (!user?.two_factor_secret) return null;
-    const step = matchTotp(user.two_factor_secret, code, user.two_factor_last_step);
-    if (step != null) {
-      await db.run('UPDATE users SET two_factor_last_step = ? WHERE id = ?', [step, userId]);
-      return 'totp';
-    }
-    const normalised = normaliseBackupCode(code);
-    if (normalised.length !== 8) return null;
-    const hash = hashBackupCode(normalised);
-    const hashes = parseHashes(user.two_factor_backup_codes);
-    const index = hashes.findIndex((h) => h.length === hash.length && crypto.timingSafeEqual(Buffer.from(h), Buffer.from(hash)));
-    if (index < 0) return null;
-    hashes.splice(index, 1);
-    await db.run('UPDATE users SET two_factor_backup_codes = ? WHERE id = ?', [JSON.stringify(hashes), userId]);
-    return 'backup';
+    const result = await matchCode(userId, code);
+    await (result ? recordSuccess(userId) : recordFailure(userId));
+    return result;
   });
+}
+
+async function matchCode(userId, code) {
+  if (typeof code !== 'string' || code.length > 32) return null;
+  const user = await db.get(
+    'SELECT two_factor_secret, two_factor_backup_codes, two_factor_last_step FROM users WHERE id = ?', [userId]
+  );
+  if (!user?.two_factor_secret) return null;
+  const step = matchTotp(user.two_factor_secret, code, user.two_factor_last_step);
+  if (step != null) {
+    await db.run('UPDATE users SET two_factor_last_step = ? WHERE id = ?', [step, userId]);
+    return 'totp';
+  }
+  const normalised = normaliseBackupCode(code);
+  if (normalised.length !== 8) return null;
+  const hash = hashBackupCode(normalised);
+  const hashes = parseHashes(user.two_factor_backup_codes);
+  const index = hashes.findIndex((h) => h.length === hash.length && crypto.timingSafeEqual(Buffer.from(h), Buffer.from(hash)));
+  if (index < 0) return null;
+  hashes.splice(index, 1);
+  await db.run('UPDATE users SET two_factor_backup_codes = ? WHERE id = ?', [JSON.stringify(hashes), userId]);
+  return 'backup';
 }
 
 // Login tickets: a right password for an account with two-factor gets one of these instead of
@@ -212,8 +263,8 @@ function useTicket(ticket) {
 const endTicket = (ticket) => tickets.delete(ticketKey(ticket));
 
 module.exports = {
-  STEP_SECONDS, BACKUP_CODE_COUNT, TICKET_ATTEMPTS,
+  STEP_SECONDS, BACKUP_CODE_COUNT, TICKET_ATTEMPTS, FAILURES_PER_LOCK, LOCK_SECONDS, MAX_LOCK_SECONDS,
   base32Encode, base32Decode, newSecret, secretFromClient, totp, currentStep, matchTotp,
-  status, isEnabled, enable, disable, replaceBackupCodes, checkCode,
+  status, isEnabled, enable, disable, replaceBackupCodes, checkCode, lockedForMs, unseenFailures, markFailuresSeen,
   createTicket, useTicket, endTicket,
 };

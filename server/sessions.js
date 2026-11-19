@@ -23,9 +23,8 @@ async function listSessions(userId, currentId) {
 
 // Logs out `userId`'s sessions `ids`: their tokens stop working, their push subscriptions go,
 // and their open sockets are told (`session_revoked`, the app logs out) and closed.
-// `fromSettings` also refuses the old tokens without a session that haven't been used since
-// login sessions began (auth.js), and their push subscriptions: they could be the device being
-// logged out.
+// `fromSettings` also removes the push subscriptions from before login sessions (no session
+// id): they could be the device being logged out.
 async function endSessions(userId, ids, { fromSettings = true } = {}) {
   if (!ids.length) return;
   const marks = ids.map(() => '?').join(', ');
@@ -35,9 +34,6 @@ async function endSessions(userId, ids, { fromSettings = true } = {}) {
       `DELETE FROM push_subscriptions WHERE user_id = ? AND (session_id IN (${marks})${fromSettings ? ' OR session_id IS NULL' : ''})`,
       [userId, ...ids]
     );
-    if (fromSettings) {
-      await db.run('UPDATE users SET sessions_reset_at = ? WHERE id = ?', [Math.floor(Date.now() / 1000), userId]);
-    }
   });
   console.log(`Sessions ended (${fromSettings ? 'from Settings' : 'logout'}): user ${userId}, ${ids.map((id) => id.slice(0, 6)).join(', ')}`);
   const ended = new Set(ids);

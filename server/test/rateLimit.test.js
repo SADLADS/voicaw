@@ -1,6 +1,7 @@
 import './helpers/mockS3.js';
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import * as opaque from '@serenity-kit/opaque';
 import { registerUser, loginUser } from './helpers/authFlow.js';
 
 // On for this file only (see setupEnv.js). Each test uses its own addresses, since the
@@ -11,15 +12,17 @@ const app = require('../index.js');
 // As nginx sends it: the client's address last in X-Forwarded-For.
 const from = (ip) => ({ 'X-Forwarded-For': ip });
 
-function startLogin(username, ip) {
-  return request(app).post('/api/initiatelogin').set(from(ip)).send({ userIdentifier: username, startLoginRequest: 'x' });
+async function startLogin(username, ip) {
+  await opaque.ready;
+  const { startLoginRequest } = opaque.client.startLogin({ password: 'a guess' });
+  return request(app).post('/api/initiatelogin').set(from(ip)).send({ userIdentifier: username, startLoginRequest, perAttempt: true });
 }
 
 describe('rate limits', () => {
   it('limits login attempts per username, from any address, whether or not it exists', async () => {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 30; i++) {
       const res = await startLogin('nobody-here', `10.0.1.${i}`);
-      expect(res.status).not.toBe(429);
+      expect(res.status).toBe(200);
     }
     const blocked = await startLogin('nobody-here', '10.0.1.200');
     expect(blocked.status).toBe(429);
@@ -28,6 +31,13 @@ describe('rate limits', () => {
 
     // Other usernames aren't affected.
     expect((await startLogin('someone-else', '10.0.1.201')).status).not.toBe(429);
+  });
+
+  it('one address alone can only use a third of a username\'s attempts', async () => {
+    for (let i = 0; i < 10; i++) expect((await startLogin('lockout-target', '10.0.6.1')).status).toBe(200);
+    expect((await startLogin('lockout-target', '10.0.6.1')).status).toBe(429);
+    // The owner, elsewhere, still logs in.
+    expect((await startLogin('lockout-target', '10.0.6.2')).status).toBe(200);
   });
 
   it('limits login attempts per address', async () => {
@@ -40,7 +50,7 @@ describe('rate limits', () => {
 
   it('clears the username count on a successful login', async () => {
     await registerUser(app, request, 'limited-alice', 'correct horse battery');
-    for (let i = 0; i < 19; i++) await startLogin('limited-alice', `10.0.3.${i}`);
+    for (let i = 0; i < 29; i++) await startLogin('limited-alice', `10.0.3.${i}`);
 
     const { response } = await loginUser(app, request, 'limited-alice', 'correct horse battery');
     expect(response.status).toBe(200);

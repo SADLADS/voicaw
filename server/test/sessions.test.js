@@ -10,9 +10,9 @@ const db = require('../db');
 
 const auth = (token) => ({ Authorization: `Bearer ${token}` });
 const now = () => Math.floor(Date.now() / 1000);
-// A token for `user` made `age` seconds ago, lasting the usual time from then.
+// A token for `user`'s session made `age` seconds ago, lasting the usual time from then.
 const tokenFrom = (user, age) => jwt.sign(
-  { id: user.id, username: user.username, iat: now() - age },
+  { id: user.id, username: user.username, sid: jwt.decode(user.token).sid, iat: now() - age },
   process.env.JWT_SECRET,
   { expiresIn: SESSION_SECONDS },
 );
@@ -177,44 +177,14 @@ describe('devices (login sessions)', () => {
 });
 
 describe('tokens from before login sessions', () => {
-  const legacy = (user, age = 60) => jwt.sign(
-    { id: user.id, username: user.username, iat: now() - age }, process.env.JWT_SECRET, { expiresIn: SESSION_SECONDS },
-  );
-
-  it('become a session on first use, and are renewed with it at once', async () => {
-    const user = (await registerUser(app, request, 'legacy-convert', 'pw')).response.body;
-    const old = legacy(user);
-    const res = await request(app).get('/api/profile').set(auth(old)).set('User-Agent', 'OldDevice/1');
-    expect(res.status).toBe(200);
-    const renewed = res.headers['x-voicaw-token'];
-    expect(jwt.decode(renewed).sid).toBeTruthy();
-    const sessions = await list(renewed);
-    expect(sessions).toHaveLength(2);
-    expect(sessions.find((s) => s.current).user_agent).toBe('OldDevice/1');
+  it('are refused, and make no session', async () => {
+    const user = (await registerUser(app, request, 'legacy-refused', 'pw')).response.body;
+    const old = jwt.sign({ id: user.id, username: user.username, iat: now() - 60 }, process.env.JWT_SECRET, { expiresIn: SESSION_SECONDS });
+    const res = await request(app).get('/api/profile').set(auth(old));
+    expect(res.status).toBe(403);
+    expect(res.headers['x-voicaw-token']).toBeUndefined();
+    expect((await db.get('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?', [user.id])).n).toBe(1);
   });
-
-  it('requests sent at once share one session', async () => {
-    const user = (await registerUser(app, request, 'legacy-parallel', 'pw')).response.body;
-    const old = legacy(user);
-    await Promise.all([1, 2, 3].map(() => request(app).get('/api/profile').set(auth(old))));
-    expect((await db.get('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ?', [user.id])).n).toBe(2);
-  });
-
-  it('are refused once a session has been logged out from Settings', async () => {
-    const user = (await registerUser(app, request, 'legacy-reset', 'pw')).response.body;
-    const used = legacy(user, 120);
-    const unused = legacy(user, 60);
-    const renewed = (await request(app).get('/api/profile').set(auth(used))).headers['x-voicaw-token'];
-    await request(app).delete('/api/sessions').set(auth(user.token));
-    expect((await request(app).get('/api/profile').set(auth(unused))).status).toBe(403);
-    expect((await request(app).get('/api/profile').set(auth(used))).status).toBe(403);
-    expect((await request(app).get('/api/profile').set(auth(renewed))).status).toBe(403);
-    expect((await request(app).get('/api/profile').set(auth(user.token))).status).toBe(200);
-  });
-
-  async function list(token) {
-    return (await request(app).get('/api/sessions').set(auth(token))).body;
-  }
 });
 
 describe('forgetting old sessions', () => {

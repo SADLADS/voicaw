@@ -129,6 +129,52 @@ describe('two-factor', () => {
     expect(after.body.code).toBe('two_factor_expired');
   });
 
+  it('backs off after wrong codes, kept in the database, and warns the owner', async () => {
+    const { token, secret } = await userWithTwoFactor('tf-backoff');
+    const db = require('../db');
+    const wrongCodes = async (n) => {
+      const statuses = [];
+      while (statuses.length < n) {
+        const { ticket } = (await loginUser(app, request, 'tf-backoff', 'password1234')).response.body;
+        for (let i = 0; i < twoFactor.TICKET_ATTEMPTS - 1 && statuses.length < n; i++) {
+          statuses.push((await request(app).post('/api/login/two-factor').send({ ticket, code: 'aaaa-aaaa' })).status);
+        }
+      }
+      return statuses;
+    };
+    expect(await wrongCodes(twoFactor.FAILURES_PER_LOCK)).toEqual(Array(twoFactor.FAILURES_PER_LOCK).fill(401));
+
+    // Locked: even the right code isn't checked, for 15 minutes.
+    nextStep();
+    const { ticket } = (await loginUser(app, request, 'tf-backoff', 'password1234')).response.body;
+    const locked = await request(app).post('/api/login/two-factor').send({ ticket, code: codeNow(secret) });
+    expect(locked.status).toBe(429);
+    expect(Number(locked.headers['retry-after'])).toBeGreaterThan(14 * 60);
+    const row = await db.get("SELECT two_factor_failures, two_factor_locked_until FROM users WHERE username = 'tf-backoff'");
+    expect(row.two_factor_failures).toBe(10);
+
+    // The owner's app is told, until they dismiss it.
+    expect((await request(app).get('/api/profile').set(auth(token))).body.twoFactorFailures).toBe(10);
+
+    // The next lock is twice as long.
+    clock += twoFactor.LOCK_SECONDS * 1000;
+    nextStep();
+    await wrongCodes(twoFactor.FAILURES_PER_LOCK);
+    const second = (await db.get("SELECT two_factor_locked_until FROM users WHERE username = 'tf-backoff'")).two_factor_locked_until;
+    expect(second - Math.floor(clock / 1000)).toBeGreaterThan(29 * 60);
+
+    // After it, a right code works and starts the count again; the warning stays until seen.
+    clock += 2 * twoFactor.LOCK_SECONDS * 1000;
+    nextStep();
+    const again = (await loginUser(app, request, 'tf-backoff', 'password1234')).response.body;
+    const ok = await request(app).post('/api/login/two-factor').send({ ticket: again.ticket, code: codeNow(secret) });
+    expect(ok.status).toBe(200);
+    expect(ok.body.twoFactorFailures).toBe(20);
+    expect((await db.get("SELECT two_factor_failures FROM users WHERE username = 'tf-backoff'")).two_factor_failures).toBe(0);
+    expect((await request(app).post('/api/two-factor/failures/seen').set(auth(token))).status).toBe(200);
+    expect((await request(app).get('/api/profile').set(auth(token))).body.twoFactorFailures).toBe(0);
+  });
+
   it('needs a code to reset the password with the recovery code', async () => {
     const recoveryCode = generateRecoveryCode();
     const { secret, keys } = await userWithTwoFactor('tf-recover', 'password1234', { recoveryCode });

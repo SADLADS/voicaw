@@ -553,6 +553,19 @@ CREATE TABLE IF NOT EXISTS login_states (
   FOREIGN KEY (username) REFERENCES users(username)
 );
 `);
+// One row per login started by an app that names its attempts (/initiatelogin `perAttempt`:
+// every app since 2026-11-19), keyed by a random id the app sends back, so someone else
+// starting logins for the same username can't overwrite it. login_states above is for older
+// apps. Both last LOGIN_STATE_SECONDS (routes/auth.js).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  server_login_state TEXT NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_attempts_username ON login_attempts (username);
+`);
 
 // PUSH SUBSCRIPTIONS
 sqlite.exec(`
@@ -591,8 +604,8 @@ addColumn('ALTER TABLE users ADD COLUMN opaque_id TEXT');
 // When the account was deleted (unix s; accounts.js), else NULL. The row stays as a tombstone.
 addColumn('ALTER TABLE users ADD COLUMN deleted_at INTEGER');
 // LOGIN SESSIONS (sessions.js): one row per logged-in device; a token is only good while its
-// row is there. Tokens from before this table carry no session id: they're refused once issued
-// before sessions_reset_at (set whenever a session is logged out from Settings).
+// row is there. Tokens from before this table carried no session id and are refused (auth.js);
+// users.sessions_reset_at, once used for them, is no longer read or written.
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
@@ -734,6 +747,11 @@ CREATE TABLE IF NOT EXISTS app_invites (
 addColumn('ALTER TABLE users ADD COLUMN two_factor_secret TEXT');
 addColumn('ALTER TABLE users ADD COLUMN two_factor_backup_codes TEXT');
 addColumn('ALTER TABLE users ADD COLUMN two_factor_last_step INTEGER');
+// Wrong codes since the last right one, when code checking unlocks again (unix s), and wrong
+// codes the owner hasn't been told about yet (twoFactor.js, backing off).
+addColumn('ALTER TABLE users ADD COLUMN two_factor_failures INTEGER');
+addColumn('ALTER TABLE users ADD COLUMN two_factor_locked_until INTEGER');
+addColumn('ALTER TABLE users ADD COLUMN two_factor_failures_unseen INTEGER');
 
 // VOICE REGIONS (voiceRegions.js, Settings → Admin): the LiveKit servers voice can use, each with a
 // name and a flag (an emoji). The `builtin` one is server/.env's LiveKit (its url and keys stay

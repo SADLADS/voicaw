@@ -253,7 +253,7 @@
       "newPasswordAgain": "New password again",
       "passwordHint_one": "At least {{count}} character. Your other devices stay logged in.",
       "passwordHint_other": "At least {{count}} characters. Your other devices stay logged in.",
-      "passwordChanged": "Password changed.",
+      "passwordChanged": "Password changed. Your other devices have been logged out.",
       "hasRecoveryCode": "You have a recovery code. If you've lost it, make a new one: the old one stops working.",
       "noRecoveryCode": "You don't have a recovery code yet. Without one, a forgotten password means losing your account and messages.",
       "makeRecoveryCode": "Make a recovery code",

@@ -4,6 +4,7 @@ const opaque = require('@serenity-kit/opaque');
 const db = require('../db');
 const { opaqueServerSetup } = require('../config');
 const { startSession, authenticateJWT, authenticatePending } = require('../auth');
+const { endSessions } = require('../sessions');
 const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
 const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile, cleanBannerColor } = require('../profiles');
@@ -16,7 +17,8 @@ const terms = require('../terms');
 const twoFactor = require('../twoFactor');
 
 // Registration and login use OPAQUE (the password never reaches the server), each in two
-// round trips. Login state between them lives in login_states for 5 minutes.
+// round trips. Login state between them lives in login_attempts (or, for apps from before
+// 2026-11-19, login_states) for 5 minutes.
 const router = express.Router();
 
 // What a suspended account is told when logging in (with the admin's reason, if they gave one).
@@ -27,30 +29,42 @@ const LOGIN_STATE_SECONDS = 300;
 
 const now = () => Math.floor(Date.now() / 1000);
 
-// Password guessing has to go through the server (OPAQUE gives nothing to guess offline), so
-// attempts are limited per address and per username. The username limit applies whether or
-// not the account exists, so it can't be used to find out which ones do. A successful login
-// clears its username's count.
+// Password guessing has to go through the server (OPAQUE gives nothing to guess offline): each
+// login started is one guess (a wrong password fails on the guesser's own device). So starting
+// logins is limited per address, per address and username, and per username from anywhere, the
+// last cap above what one address may try for a name: locking someone out takes three or more
+// addresses (and each login has its own state, so others starting logins can't break theirs).
+// These apply whether or not the account exists, so they can't be used to find out which ones
+// do. A successful login clears its username's count.
 const MINUTE = 60 * 1000;
 const limits = {
   loginPerIp: createLimiter({ windowMs: 15 * MINUTE, max: 30 }),
-  loginPerUsername: createLimiter({ windowMs: 15 * MINUTE, max: 20 }),
+  loginPerIpUsername: createLimiter({ windowMs: 15 * MINUTE, max: 10 }),
+  loginPerUsername: createLimiter({ windowMs: 15 * MINUTE, max: 30 }),
   registerStartPerIp: createLimiter({ windowMs: 60 * MINUTE, max: 30 }),
   registerPerIp: createLimiter({ windowMs: 60 * MINUTE, max: 10 }),
   // Recovery codes can't be guessed (125 bits), so these only stop pointless hammering.
   recoverPerIp: createLimiter({ windowMs: 15 * MINUTE, max: 30 }),
   recoverPerUsername: createLimiter({ windowMs: 15 * MINUTE, max: 20 }),
-  // Two-factor codes, per account (a ticket also dies after a few wrong ones): 3 right codes
-  // in a million at a time, so this keeps guessing hopeless.
-  twoFactorPerUser: createLimiter({ windowMs: 15 * MINUTE, max: 10 }),
+  // Codes typed when turning two-factor on (checked against the new secret, so nothing to
+  // guess: this only stops hammering). Codes for an account that has it on back off in the
+  // database instead (twoFactor.js lockedForMs), and a ticket also dies after a few wrong ones.
+  twoFactorSetupPerUser: createLimiter({ windowMs: 15 * MINUTE, max: 10 }),
 };
 
-// Counts a two-factor code attempt for `userId`; false (and 429 sent) once they're used up.
-function twoFactorAttemptAllowed(res, userId) {
+function twoFactorSetupAllowed(res, userId) {
   if (!rateLimitsEnabled) return true;
-  const { allowed, retryAfterMs } = limits.twoFactorPerUser.hit(String(userId));
+  const { allowed, retryAfterMs } = limits.twoFactorSetupPerUser.hit(String(userId));
   if (!allowed) tooManyAttempts(res, retryAfterMs);
   return allowed;
+}
+
+// Whether `userId`'s two-factor codes may be checked now; false (and 429 sent) while too many
+// wrong ones have locked it (twoFactor.js).
+async function twoFactorUnlocked(res, userId) {
+  const ms = await twoFactor.lockedForMs(userId);
+  if (ms > 0) tooManyAttempts(res, ms);
+  return ms === 0;
 }
 
 const WRONG_TWO_FACTOR = { error: 'That code is wrong or has been used already', code: 'two_factor_invalid' };
@@ -70,6 +84,8 @@ function limit(...limiters) {
 
 const byIp = (req) => req.ip;
 const byUsername = (req) => normalizeUsername(req.body?.userIdentifier).slice(0, 100);
+const byIpUsername = (req) => `${req.ip}\n${byUsername(req)}`;
+const usernameKey = (username) => String(username).slice(0, 100);
 
 // ECDSA P-256 / SHA-256 over "voicaw/encryption-key/v1\n<encryptionKey>" (see the client's
 // encryptionService); keys and signature are base64.
@@ -89,13 +105,19 @@ async function isValidEncryptionKeySignature(identityKey, encryptionKey, signatu
   }
 }
 
-router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerUsername, byUsername]), async (req, res) => {
+// { startLoginRequest, userIdentifier, perAttempt } -> { loginResponse, loginId }. With
+// `perAttempt` (apps since 2026-11-19), the state is kept under a new random `loginId`, which
+// the app sends back with the finished login (or the password proof of the routes below), so
+// logins started for the same name by anyone else don't replace it. Without it, as before: one
+// state per username, the latest one.
+router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerIpUsername, byIpUsername], [limits.loginPerUsername, byUsername]), async (req, res) => {
   const { startLoginRequest, userIdentifier } = req.body;
   if (!startLoginRequest || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing startLoginRequest or userIdentifier' });
   await opaque.ready;
 
-  // Forget abandoned login attempts (states are only removed on successful login).
+  // Forget abandoned login attempts (states are otherwise removed when they're used).
   await db.run('DELETE FROM login_states WHERE expires_at < ?', [now()]);
+  await db.run('DELETE FROM login_attempts WHERE expires_at < ?', [now()]);
 
   const user = await findUserByName(userIdentifier, 'username, password, opaque_id');
   const username = user?.username ?? normalizeUsername(userIdentifier);
@@ -109,6 +131,14 @@ router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerU
     startLoginRequest,
   });
 
+  if (req.body.perAttempt === true) {
+    const loginId = crypto.randomBytes(18).toString('base64url');
+    await db.run(
+      'INSERT INTO login_attempts (id, username, server_login_state, expires_at) VALUES (?, ?, ?, ?)',
+      [loginId, username, JSON.stringify(serverLoginState), now() + LOGIN_STATE_SECONDS]
+    );
+    return res.json({ loginResponse, loginId });
+  }
   await db.run(
     `INSERT INTO login_states (username, server_login_state, expires_at)
      VALUES (?, ?, ?)
@@ -120,13 +150,26 @@ router.post('/initiatelogin', limit([limits.loginPerIp, byIp], [limits.loginPerU
   res.json({ loginResponse });
 });
 
+// The saved half of the login `loginId` started for `username` (used up: each works once), or,
+// without a `loginId` (an older app), that username's latest one.
+async function takeLoginState(username, loginId) {
+  if (loginId === undefined || loginId === null) {
+    return db.get('SELECT * FROM login_states WHERE username = ?', [username]);
+  }
+  if (typeof loginId !== 'string' || loginId.length > 64) return null;
+  const state = await db.get('SELECT * FROM login_attempts WHERE id = ? AND username = ?', [loginId, username]);
+  if (state) await db.run('DELETE FROM login_attempts WHERE id = ?', [loginId]);
+  return state;
+}
+
 // Checks the second half of an OPAQUE login for `username` (started with /initiatelogin; the
-// account's username, or the lower-cased name typed for an unknown one).
-// Resolves to null when it's right, otherwise to [status, error] to answer with.
-async function checkLoginProof(username, finishLoginRequest, clientSessionKey) {
+// account's username, or the lower-cased name typed for an unknown one): a request body's
+// { finishLoginRequest, clientSessionKey, loginId }. Resolves to null when it's right,
+// otherwise to [status, error] to answer with.
+async function checkLoginProof(username, { finishLoginRequest, clientSessionKey, loginId } = {}) {
   if (!finishLoginRequest || !clientSessionKey) return [400, 'Missing data'];
   await opaque.ready;
-  const state = await db.get('SELECT * FROM login_states WHERE username = ?', [username]);
+  const state = await takeLoginState(username, loginId);
   if (!state) return [401, 'Invalid credentials'];
   if (now() > state.expires_at) return [401, 'Login state expired'];
 
@@ -142,8 +185,8 @@ async function checkLoginProof(username, finishLoginRequest, clientSessionKey) {
   }
   if (!sessionKey || sessionKey !== clientSessionKey) return [401, 'Login failed'];
 
-  await db.run('DELETE FROM login_states WHERE username = ?', [username]);
-  limits.loginPerUsername.reset(String(username).slice(0, 100));
+  if (loginId == null) await db.run('DELETE FROM login_states WHERE username = ?', [username]);
+  limits.loginPerUsername.reset(usernameKey(username));
   return null;
 }
 
@@ -154,6 +197,7 @@ const LOGIN_USER_COLUMNS = 'id, username, identity_key, encryption_key, encrypti
 async function loggedIn(user, req) {
   return {
     token: await startSession(user, req),
+    twoFactorFailures: await twoFactor.unseenFailures(user.id),
     id: user.id,
     username: user.username,
     hasRecoveryCode: Boolean(user.recovery_verifier),
@@ -171,7 +215,7 @@ router.post('/finaliselogin', async (req, res) => {
   if (!finishLoginRequest || !clientSessionKey || !userIdentifier || typeof userIdentifier !== 'string') return res.status(400).json({ error: 'Missing data' });
 
   const user = await findUserByName(userIdentifier, LOGIN_USER_COLUMNS);
-  const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), finishLoginRequest, clientSessionKey);
+  const failed = await checkLoginProof(user?.username ?? normalizeUsername(userIdentifier), req.body);
   if (failed) return res.status(failed[0]).json({ error: failed[1] });
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   // Suspended by an admin (reports.js): said only once the password is right.
@@ -189,13 +233,12 @@ router.post('/login/two-factor', async (req, res) => {
   const { ticket, code } = req.body ?? {};
   const userId = twoFactor.useTicket(ticket);
   if (!userId) return res.status(401).json({ error: 'Please log in again', code: 'two_factor_expired' });
-  if (!twoFactorAttemptAllowed(res, userId)) return;
+  if (!(await twoFactorUnlocked(res, userId))) return;
   if (!(await twoFactor.checkCode(userId, code))) return res.status(401).json(WRONG_TWO_FACTOR);
   twoFactor.endTicket(ticket);
   const user = await db.get(`SELECT ${LOGIN_USER_COLUMNS} FROM users WHERE id = ? AND deleted_at IS NULL`, [userId]);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   if (user.suspended_at) return res.status(403).json(suspendedError(user));
-  limits.twoFactorPerUser.reset(String(userId));
   res.json(await loggedIn(user, req));
 });
 
@@ -253,9 +296,9 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   const displayName = username === userIdentifier ? null : cleanProfile('display_name', userIdentifier) ?? null;
   // (This also keeps out '#', which is kept for bots' names: bots.js "name#1234".)
   if (!isValidNewUsername(username)) return res.status(400).json(BAD_USERNAME);
-  if (await findUserByName(username, 'id')) return res.status(409).json({ error: 'Username already exists' });
   // Sign-ups (signups.js): refused without an invite when they need one; waiting for an admin
-  // when they need approval, with why they want to join (`reason`).
+  // when they need approval, with why they want to join (`reason`). Checked before the name is
+  // looked up, so that without an invite nobody learns which usernames are taken.
   let signup;
   try {
     signup = await signups.checkSignup(req.body.invite, req.body.reason);
@@ -263,6 +306,7 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
     if (err instanceof signups.SignupError) return res.status(err.status).json({ error: err.message, code: err.code });
     throw err;
   }
+  if (await findUserByName(username, 'id')) return res.status(409).json({ error: 'Username already exists' });
   let lastID;
   try {
     await db.transaction(async () => {
@@ -305,6 +349,8 @@ router.get('/profile', authenticatePending, async (req, res) => {
   res.json({
     // The username from the database: a token from before usernames were lower-cased has the old one.
     token, id: req.user.id, username: user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
+    // Wrong two-factor codes tried since the owner last dismissed the warning (TwoFactorAlert).
+    twoFactorFailures: await twoFactor.unseenFailures(req.user.id),
     pending: Boolean(user.pending),
     // false: the app asks them to accept the current terms before going on (TermsGate).
     termsAccepted: terms.hasAccepted(user),
@@ -396,14 +442,17 @@ router.post('/change-password', authenticatePending, async (req, res) => {
   const password = newPassword(req.body);
   if (password.error) return res.status(400).json({ error: password.error });
   const { username } = await usernameOf(req);
-  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  const failed = await checkLoginProof(username, req.body);
   if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Current password is incorrect' : failed[1] });
 
   await db.run(
     'UPDATE users SET password = ?, key_backup = ?, opaque_id = ? WHERE id = ?',
     [password.record, password.backup, newOpaqueId(username), req.user.id]
   );
-  res.json({ ok: true });
+  // Every other device is logged out: changing the password is how people get someone out.
+  const others = await db.all('SELECT id FROM sessions WHERE user_id = ? AND id != ?', [req.user.id, req.user.sid]);
+  await endSessions(req.user.id, others.map((row) => row.id));
+  res.json({ ok: true, loggedOutOthers: others.length });
 });
 
 // Sets up a recovery code, or replaces the old one (which then stops working).
@@ -411,7 +460,7 @@ router.put('/recovery-code', authenticatePending, async (req, res) => {
   const recovery = parseRecovery(req.body);
   if (recovery.error) return res.status(400).json({ error: recovery.error });
   const { username } = await usernameOf(req);
-  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  const failed = await checkLoginProof(username, req.body);
   if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
 
   await db.run(
@@ -438,7 +487,7 @@ router.delete('/account', authenticatePending, async (req, res) => {
     throw err;
   }
   const { username } = await usernameOf(req);
-  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  const failed = await checkLoginProof(username, req.body);
   if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
 
   // Still waiting for approval: nothing of it is kept, not even the "Deleted User" row.
@@ -500,7 +549,7 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
   if (recovery.verifier === user.recovery_verifier) return res.status(400).json({ error: 'The new recovery code must be a new one' });
   if (await twoFactor.isEnabled(user.id)) {
     if (!req.body.twoFactorCode) return res.status(401).json({ error: 'Enter a two-factor code', code: 'two_factor_required' });
-    if (!twoFactorAttemptAllowed(res, user.id)) return;
+    if (!(await twoFactorUnlocked(res, user.id))) return;
     if (!(await twoFactor.checkCode(user.id, req.body.twoFactorCode))) return res.status(401).json(WRONG_TWO_FACTOR);
   }
 
@@ -514,13 +563,18 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
       [recovery.verifier, recovery.backup, now(), user.id]
     );
     await db.run('DELETE FROM login_states WHERE username = ?', [user.username]);
+    await db.run('DELETE FROM login_attempts WHERE username = ?', [user.username]);
   });
-  limits.loginPerUsername.reset(byUsername(req));
+  limits.loginPerUsername.reset(usernameKey(user.username));
+  // Whoever had the old password (or a stolen login) is logged out everywhere.
+  const sessions = await db.all('SELECT id FROM sessions WHERE user_id = ?', [user.id]);
+  await endSessions(user.id, sessions.map((row) => row.id));
   res.json({
     token: await startSession(user, req),
     id: user.id,
     username: user.username,
     hasRecoveryCode: true,
+    twoFactorFailures: await twoFactor.unseenFailures(user.id),
     pending: Boolean(user.pending),
     termsAccepted: await terms.acceptedTerms(user.id),
   });
@@ -541,11 +595,11 @@ router.post('/two-factor/enable', authenticatePending, async (req, res) => {
   const secret = twoFactor.secretFromClient(req.body?.secret);
   if (!secret) return res.status(400).json({ error: 'Invalid secret' });
   if (await twoFactor.isEnabled(req.user.id)) return res.status(409).json({ error: 'Two-factor is already on' });
-  if (!twoFactorAttemptAllowed(res, req.user.id)) return;
+  if (!twoFactorSetupAllowed(res, req.user.id)) return;
   const step = twoFactor.matchTotp(secret, req.body.code);
   if (step == null) return res.status(400).json({ error: "That code doesn't match: check the app and try again", code: 'two_factor_invalid' });
   const { username } = await usernameOf(req);
-  const failed = await checkLoginProof(username, req.body.finishLoginRequest, req.body.clientSessionKey);
+  const failed = await checkLoginProof(username, req.body);
   if (failed) return res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
   res.json({ backupCodes: await twoFactor.enable(req.user.id, secret, step) });
 });
@@ -557,9 +611,9 @@ async function checkPasswordAndCode(req, res) {
     res.status(409).json({ error: 'Two-factor is off' });
     return false;
   }
-  if (!twoFactorAttemptAllowed(res, req.user.id)) return false;
+  if (!(await twoFactorUnlocked(res, req.user.id))) return false;
   const { username } = await usernameOf(req);
-  const failed = await checkLoginProof(username, req.body?.finishLoginRequest, req.body?.clientSessionKey);
+  const failed = await checkLoginProof(username, req.body);
   if (failed) {
     res.status(failed[0]).json({ error: failed[0] === 401 ? 'Password is incorrect' : failed[1] });
     return false;
@@ -582,6 +636,13 @@ router.post('/two-factor/disable', authenticatePending, async (req, res) => {
 router.post('/two-factor/backup-codes', authenticatePending, async (req, res) => {
   if (!(await checkPasswordAndCode(req, res))) return;
   res.json({ backupCodes: await twoFactor.replaceBackupCodes(req.user.id) });
+});
+
+// The warning about wrong two-factor codes (`twoFactorFailures` in /profile and logins) has been
+// seen: it goes away on every device.
+router.post('/two-factor/failures/seen', authenticatePending, async (req, res) => {
+  await twoFactor.markFailuresSeen(req.user.id);
+  res.json({ ok: true });
 });
 
 // Accepts the terms of use shown (`version`, which must be the current one: if they changed

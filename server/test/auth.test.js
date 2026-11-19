@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { registerUser, loginUser } from './helpers/authFlow.js';
+import * as opaque from '@serenity-kit/opaque';
 import { generateUserKeys } from '../../client/src/services/encryptionService.js';
 
 const app = require('../index.js');
@@ -107,9 +108,53 @@ describe('login', () => {
     for (const attempt of [unknown, wrongPassword]) {
       expect(attempt.failedAt).toBe('finishLogin-client');
       expect(attempt.response.status).toBe(200);
-      expect(Object.keys(attempt.response.body)).toEqual(['loginResponse']);
+      expect(Object.keys(attempt.response.body).sort()).toEqual(['loginId', 'loginResponse']);
     }
     expect(unknown.response.body.loginResponse.length).toBe(wrongPassword.response.body.loginResponse.length);
+  });
+
+  it("isn't broken by someone else starting a login for the same name meanwhile", async () => {
+    await registerUser(app, request, 'attempt-owner', 'owner password');
+    await opaque.ready;
+    const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password: 'owner password' });
+    const started = await request(app).post('/api/initiatelogin').send({ userIdentifier: 'attempt-owner', startLoginRequest, perAttempt: true });
+    expect(started.body.loginId).toMatch(/^[\w-]{24}$/);
+
+    // Someone else, between the owner's two steps (new apps and old).
+    for (const perAttempt of [true, undefined]) {
+      const other = opaque.client.startLogin({ password: 'a guess' });
+      await request(app).post('/api/initiatelogin').send({ userIdentifier: 'attempt-owner', startLoginRequest: other.startLoginRequest, perAttempt });
+    }
+
+    const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.body.loginResponse, password: 'owner password' });
+    const finish = (loginId) => request(app).post('/api/finaliselogin').send({
+      userIdentifier: 'attempt-owner', finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey, loginId,
+    });
+    const res = await finish(started.body.loginId);
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeTruthy();
+    // Each login works once.
+    expect((await finish(started.body.loginId)).status).toBe(401);
+  });
+
+  it('only finishes a login for the name it was started for', async () => {
+    await registerUser(app, request, 'attempt-a', 'password a');
+    await registerUser(app, request, 'attempt-b', 'password b');
+    await opaque.ready;
+    const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password: 'password a' });
+    const started = await request(app).post('/api/initiatelogin').send({ userIdentifier: 'attempt-a', startLoginRequest, perAttempt: true });
+    const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.body.loginResponse, password: 'password a' });
+    const res = await request(app).post('/api/finaliselogin').send({
+      userIdentifier: 'attempt-b', finishLoginRequest: result.finishLoginRequest, clientSessionKey: result.sessionKey, loginId: started.body.loginId,
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('still logs in apps from before login ids', async () => {
+    await registerUser(app, request, 'attempt-legacy', 'legacy password');
+    const { response } = await loginUser(app, request, 'attempt-legacy', 'legacy password', { legacy: true });
+    expect(response.status).toBe(200);
+    expect(response.body.token).toBeTruthy();
   });
 
   it('rejects a forged finaliselogin for an unknown user without saying why', async () => {

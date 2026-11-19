@@ -200,6 +200,12 @@
       "loading": "Loading…",
       "empty": "Nothing in the last 30 days.",
       "failed": "Couldn't load your inbox."
+    },
+    "twoFactorAlert": {
+      "title": "Someone tried to log in to your account",
+      "text_one": "They knew your password, but {{count}} wrong two-factor code was typed. Change your password.",
+      "text_other": "They knew your password, but {{count}} wrong two-factor codes were typed. Change your password.",
+      "changePassword": "Change password"
     }
   }
 }

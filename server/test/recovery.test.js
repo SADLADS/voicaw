@@ -64,7 +64,8 @@ describe('recovering an account', () => {
 
   it('sets a new password with the code, keeping the keys, and replaces the code', async () => {
     const code = generateRecoveryCode();
-    const { keys } = await registerUser(app, request, 'rec-user', 'old password 1', { recoveryCode: code });
+    const { keys, response: registered } = await registerUser(app, request, 'rec-user', 'old password 1', { recoveryCode: code });
+    const stolen = registered.body.token;
 
     const { start, keys: recovered, finish, newCode } = await recover('rec-user', code, 'new password 1');
     expect(start.status).toBe(200);
@@ -72,6 +73,10 @@ describe('recovering an account', () => {
     expect(recovered).toEqual({ public: keys.public, private: keys.private });
     expect(finish.status).toBe(200);
     expect(finish.body.token).toBeTruthy();
+
+    // Logins from before (someone who had the old password) are logged out; the new one works.
+    expect((await request(app).get('/api/profile').set(auth(stolen))).status).toBe(403);
+    expect((await request(app).get('/api/profile').set(auth(finish.body.token))).status).toBe(200);
 
     expect((await loginUser(app, request, 'rec-user', 'old password 1')).failedAt).toBe('finishLogin-client');
     const login = await loginUser(app, request, 'rec-user', 'new password 1');
@@ -135,12 +140,26 @@ describe('while logged in', () => {
 
     const fields = await newPasswordFields(app, request, 'chg-user', 'new password 1', keys);
     const res = await request(app).post('/api/change-password').set(auth(token))
-      .send({ finishLoginRequest: proof.finishLoginRequest, clientSessionKey: proof.clientSessionKey, ...fields });
+      .send({ finishLoginRequest: proof.finishLoginRequest, clientSessionKey: proof.clientSessionKey, loginId: proof.loginId, ...fields });
     expect(res.status).toBe(200);
 
     expect((await loginUser(app, request, 'chg-user', 'old password 1')).failedAt).toBe('finishLogin-client');
     const login = await loginUser(app, request, 'chg-user', 'new password 1');
     expect(login.keys.private).toEqual(keys.private);
+  });
+
+  it('logs out every other device when the password changes', async () => {
+    const { response, keys } = await registerUser(app, request, 'chg-sessions', 'old password 1');
+    const token = response.body.token;
+    const other = (await loginUser(app, request, 'chg-sessions', 'old password 1')).response.body.token;
+
+    const { exportKey, ...proof } = await passwordProof(app, request, 'chg-sessions', 'old password 1');
+    const fields = await newPasswordFields(app, request, 'chg-sessions', 'new password 1', keys);
+    const res = await request(app).post('/api/change-password').set(auth(token)).send({ ...proof, ...fields });
+    expect(res.status).toBe(200);
+    expect(res.body.loggedOutOthers).toBe(1);
+    expect((await request(app).get('/api/profile').set(auth(other))).status).toBe(403);
+    expect((await request(app).get('/api/profile').set(auth(token))).status).toBe(200);
   });
 
   it("refuses without a valid proof of the current password", async () => {
@@ -155,7 +174,7 @@ describe('while logged in', () => {
     await registerUser(app, request, 'chg-other', 'password1234');
     const other = await passwordProof(app, request, 'chg-other', 'password1234');
     const wrong = await request(app).post('/api/change-password').set(auth(token))
-      .send({ finishLoginRequest: other.finishLoginRequest, clientSessionKey: other.clientSessionKey, ...fields });
+      .send({ finishLoginRequest: other.finishLoginRequest, clientSessionKey: other.clientSessionKey, loginId: other.loginId, ...fields });
     expect(wrong.status).toBe(401);
     expect(wrong.body.error).toBe('Current password is incorrect');
 
@@ -171,7 +190,7 @@ describe('while logged in', () => {
     for (const code of [first, second]) {
       const proof = await passwordProof(app, request, 'rc-setup', 'password1234');
       const res = await request(app).put('/api/recovery-code').set(auth(token))
-        .send({ finishLoginRequest: proof.finishLoginRequest, clientSessionKey: proof.clientSessionKey, ...(await recoveryFields(code, keys)) });
+        .send({ finishLoginRequest: proof.finishLoginRequest, clientSessionKey: proof.clientSessionKey, loginId: proof.loginId, ...(await recoveryFields(code, keys)) });
       expect(res.status).toBe(200);
     }
 
