@@ -6,7 +6,7 @@ const { maxPlaintextLength, maxMessageLength, getMaxEncryptedLength, MAX_LINK_PR
 const maxPreviewsLength = getMaxEncryptedLength(MAX_LINK_PREVIEWS_BYTES);
 const { authenticateJWT } = require('../auth');
 const { sendToUserSockets, getStatus, isViewingConversation } = require('../sockets');
-const { buildDmPushPayload, sendPushToUser, clearNotifications, getUserImageUrl } = require('../push');
+const { buildDmPushPayload, senderKeysFor, sendPushToUser, clearNotifications, getUserImageUrl } = require('../push');
 const { isConversationMuted } = require('../conversationSettings');
 const blocks = require('../blocks');
 const { setPinned, announcePin } = require('../pins');
@@ -184,8 +184,9 @@ router.post('/dm-send', authenticateJWT, deduplicated('dm', (req, id) => db.get(
     Promise.all([
       getUserImageUrl(senderId),
       db.get('SELECT username FROM users WHERE id = ?', [recipientId]),
-    ]).then(([imageUrl, recipient]) =>
-      sendPushToUser(recipientId, buildDmPushPayload(message, imageUrl, recipient?.username), {
+      senderKeysFor(senderId),
+    ]).then(([imageUrl, recipient, senderKeys]) =>
+      sendPushToUser(recipientId, buildDmPushPayload(message, imageUrl, recipient?.username, senderKeys), {
         urgency: 'high',
         topic: `dm${senderId}`,
       })

@@ -4,7 +4,7 @@ import {
   decryptGroupMessage, decryptGroupReaction, groupMessageContext, groupReactionContext, messageSignatureContext, openGroupName,
   reactionSignatureContext,
 } from './groupCrypto';
-import { getPinnedContact } from './contactKeys';
+import { checkContactKeys, getPinnedContact } from './contactKeys';
 import { recallGroup, rememberGroupName } from './groupCache';
 import { summarizeAttachments } from '../utils/attachmentMarkup';
 import { customEmojiToText } from '../emoji/customEmoji';
@@ -26,19 +26,43 @@ function previewText(plaintext, names) {
   return text.length > MAX_PREVIEW_LENGTH ? `${text.slice(0, MAX_PREVIEW_LENGTH - 1)}…` : text;
 }
 
+// The sender's encryption key for a DM push to decrypt with, or null. A push carries the
+// sender's public keys as the server publishes them (`senderKeys`), and they're checked exactly
+// as opening the chat checks them (checkContactKeys: signed by the identity key, remembered on
+// first sight, never used when the identity differs from the one this device remembers), so a
+// device that hasn't opened the chat yet can show the text without trusting the server any more
+// than opening the chat would. Only for the account logged in here (a pin is per account).
+// Without them (older servers), or when they don't check out, the key this device remembered.
+async function dmSenderKey(data) {
+  const keys = data.senderKeys;
+  if (keys) {
+    const own = await loadOwnPublicKeys();
+    if (own && String(own.userId) === String(data.recipientId)) {
+      const check = await checkContactKeys(data.recipientId, {
+        id: data.senderId,
+        identity_key: keys.identityKey,
+        encryption_key: keys.encryptionKey,
+        encryption_key_signature: keys.encryptionKeySignature,
+      });
+      if (check.encryptionKey) return check.encryptionKey;
+    }
+  }
+  // A remembered key that isn't the sender's current one just fails to decrypt (fails closed).
+  return (await getPinnedContact(data.recipientId, data.senderId))?.encryptionKey ?? null;
+}
+
 // DM pushes carry the end-to-end encrypted message when it fits in a push. It's decrypted
 // here, on the device, for the notification text; the server never sees the plaintext.
-// Only the sender's key this device has already checked and remembered is used (never a
-// key from the push). Returns null to fall back to a generic body.
+// Returns null to fall back to a generic body.
 async function dmPreview(data) {
   if (!data.ciphertext || data.senderId == null || data.recipientId == null) return null;
   if (!(await getSetting('notificationPreviews'))) return null;
   try {
     const myKey = await loadEncryptionKey();
     if (!myKey) return null; // logged out on this device
-    const sender = await getPinnedContact(data.recipientId, data.senderId);
-    if (!sender) return null; // never opened a chat with them here: key not checked yet
-    const key = await deriveConversationKey(myKey, sender.encryptionKey);
+    const senderKey = await dmSenderKey(data);
+    if (!senderKey) return null;
+    const key = await deriveConversationKey(myKey, senderKey);
     const plaintext = await decryptMessage(data.ciphertext, key, dmContext(data.senderId, data.recipientId));
     // A DM can only name its two people: the sender (the title) and the recipient.
     return previewText(plaintext, { [data.senderId]: data.title, [data.recipientId]: data.recipientName });

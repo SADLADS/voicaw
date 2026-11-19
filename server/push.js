@@ -7,11 +7,32 @@ webpush.setVapidDetails(vapid.email, vapid.publicKey, vapid.privateKey);
 
 // Web push payloads must stay under ~4KB, so the (end-to-end encrypted) message is only
 // included when it's small enough; the service worker decrypts it on the device for the
-// notification preview and falls back to a generic body otherwise.
-const MAX_PUSH_CIPHERTEXT_LENGTH = 2800;
+// notification preview and falls back to a generic body otherwise. (2800 until DM pushes
+// carried the sender's public keys, ~330 characters.)
+const MAX_PUSH_CIPHERTEXT_LENGTH = 2450;
 
-// `recipientName` is only for showing mentions (`<@id>`) in the preview.
-function buildDmPushPayload(message, imageUrl, recipientName) {
+// The sender's published public keys ({ identity_key, encryption_key,
+// encryption_key_signature }, as /dms-list gives them) for a DM push, or undefined.
+function pushKeys(keys) {
+  if (!keys?.identity_key || !keys.encryption_key || !keys.encryption_key_signature) return undefined;
+  return {
+    identityKey: keys.identity_key,
+    encryptionKey: keys.encryption_key,
+    encryptionKeySignature: keys.encryption_key_signature,
+  };
+}
+
+// The sender's public keys for a DM push.
+function senderKeysFor(senderId) {
+  return db.get('SELECT identity_key, encryption_key, encryption_key_signature FROM users WHERE id = ?', [senderId]);
+}
+
+// `recipientName` is only for showing mentions (`<@id>`) in the preview. `senderKeys`: the
+// sender's public keys as the server publishes them (senderKeysFor), so a device that has never
+// opened the chat can still show the text: it checks them exactly as opening the chat would
+// (contactKeys.js checkContactKeys: signed by the identity key, remembered on first sight, never
+// replacing a different identity it remembers), so it trusts no more than it would anyway.
+function buildDmPushPayload(message, imageUrl, recipientName, senderKeys) {
   const payload = {
     type: 'dm',
     title: message.sender_display_name || message.sender_username,
@@ -26,10 +47,10 @@ function buildDmPushPayload(message, imageUrl, recipientName) {
     recipientName,
     timestamp: message.timestamp,
   };
-  // The service worker decrypts with the sender's key it has already checked and remembered
-  // (never a key from the push), so only the ciphertext is included.
   if (message.content.length <= MAX_PUSH_CIPHERTEXT_LENGTH) {
     payload.ciphertext = message.content;
+    const keys = pushKeys(senderKeys);
+    if (keys) payload.senderKeys = keys;
   }
   return payload;
 }
@@ -212,4 +233,4 @@ async function getUserImageUrl(userId) {
   return require('./avatars').avatarUrl(userId, user?.avatar) ?? '/default.png';
 }
 
-module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, noteShown, noteReactionShown, clearNotifications, clearChatReactions, getUserImageUrl };
+module.exports = { MAX_PUSH_CIPHERTEXT_LENGTH, buildDmPushPayload, senderKeysFor, buildGroupPushPayload, groupNameForPush, sendPushToUser, sendToReactionApps, sendToAndroidApps, noteShown, noteReactionShown, clearNotifications, clearChatReactions, getUserImageUrl };
