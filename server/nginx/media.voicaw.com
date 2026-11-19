@@ -42,6 +42,10 @@ server {
         internal;
         if ($media_bucket = "") { return 404; }
         proxy_pass http://127.0.0.1:3902$media_key$is_args$args;
+        # Public reads are files, never pages (security audit, 2026-11-18): no guessing a type
+        # from the bytes, and anything opened as a document runs no script and loads nothing.
+        add_header X-Content-Type-Options nosniff always;
+        add_header Content-Security-Policy "sandbox; default-src 'none'" always;
         proxy_set_header Host $media_bucket.web.garage.internal;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

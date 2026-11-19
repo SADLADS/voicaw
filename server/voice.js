@@ -165,6 +165,17 @@ const canStreamWith = (access) => has(access.permissions, PERMISSIONS.STREAM) &&
 // (Stream). Hearing the others (subscribing to their tracks) with Listen: LiveKit enforces all
 // three, and they change live (enforceGuild). `canCamera` alone: the camera without screen
 // sharing (DM and group calls).
+// Sets a session's LiveKit grants to what the state says now. A session has the grants of the
+// token it joined with, which can be up to TOKEN_TTL old: someone who saved a token from before
+// a moderator took Speak, Video or Listen away would otherwise get them back by rejoining with
+// it (security audit, 2026-11-18). So every join (and every session found at start-up) is set
+// from the permissions just worked out.
+function applyGrants(state) {
+  serviceFor(state.regionId)?.updateParticipant(roomName(state.channelId), String(state.userId), {
+    permission: publishPermission(state.canSpeak, state.canStream, state.canListen),
+  }).catch((err) => logLiveKitError('setting Speak, Video and Listen on joining', err));
+}
+
 function publishPermission(canSpeak, canStream = false, canListen = true, canCamera = canStream) {
   const sources = [
     ...(canSpeak ? [TrackSource.MICROPHONE] : []),
@@ -344,6 +355,7 @@ async function participantJoined(channelId, participant, regionId) {
     joinedAt: previous?.channelId === channelId ? previous.joinedAt : Date.now(),
   };
   states.set(userId, state);
+  applyGrants(state);
   if (state.selfMute || state.selfDeaf) syncAttributes(state);
   const pending = pendingWatching.get(userId);
   pendingWatching.delete(userId);
@@ -544,6 +556,7 @@ async function restoreRegion(region) {
           isBot: Boolean(access.member?.isBot),
           joinedAt: Number(participant.joinedAt ?? 0) * 1000 || Date.now(),
         });
+        applyGrants(states.get(userId));
       }
     }
   } catch (err) {

@@ -269,6 +269,19 @@ describe('group DMs', () => {
     expect((await api.get(bea, '/group-dms')).body.map((g) => g.id)).not.toContain(groupId);
   });
 
+  it("won't take the next key from someone leaving, who would know it", async () => {
+    const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
+    const { groupId } = await createGroup(ann, [bea, cal]);
+    const before = (await api.get(ann, `/group-dms/${groupId}`)).body;
+    const res = await change(cal, groupId, 'leave', cal, [ann, bea]);
+    expect(res.status).toBe(400);
+    // Nothing changed: Cal is still in, and the newest key is still the old one.
+    const after = (await api.get(ann, `/group-dms/${groupId}`)).body;
+    expect(after.log).toHaveLength(before.log.length);
+    expect(after.latest_epoch).toEqual(before.latest_epoch);
+    expect((await change(cal, groupId, 'leave', cal)).status).toBe(200);
+  });
+
   it("deletes the files a message lists when it's deleted, and the rest when everyone has left", async () => {
     const [ann, bea, cal] = [await makeUser(), await makeUser(), await makeUser()];
     const { groupId, res: created } = await createGroup(ann, [bea, cal]);

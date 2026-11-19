@@ -304,6 +304,19 @@ describe('voice channels', () => {
     expect(await voiceOf(owner, guild, lounge)).toEqual([]);
   });
 
+  it('sets a session to the current grants when it joins, not those of an old saved token', async () => {
+    const { owner, members: [bob], guild, lounge } = await setUp(1);
+    // Bob keeps a token from while he could speak, then loses Speak and Video.
+    await join(bob, guild, lounge);
+    await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/member/${bob.id}`, { allow: 0, deny: P.SPEAK | P.STREAM });
+    calls.length = 0;
+    // He joins with the saved token: LiveKit is told at once he can't publish.
+    await webhook('participant_joined', lounge, bob);
+    expect(calls).toContainEqual(['update', `channel-${lounge.id}`, String(bob.id), {
+      permission: { canSubscribe: true, canPublish: false, canPublishSources: [], canPublishData: false, canUpdateMetadata: false },
+    }]);
+  });
+
   it('lets people hear only with Listen, in the token and live', async () => {
     const { owner, members: [alice], guild, lounge, everyone } = await setUp();
     expect(everyone.permissions & P.LISTEN).toBe(P.LISTEN);

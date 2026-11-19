@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const { isPictureType } = require('../uploadTypes');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const { getUploadUrl, getObject, deleteObject } = require('../s3');
@@ -38,7 +39,7 @@ for (const [kind, { set, remove, noun }] of Object.entries(KINDS)) {
   router.post(`/profile/${kind}`, authenticateJWT, async (req, res) => {
     const { type } = req.body ?? {};
     const size = Number(req.body?.size);
-    if (typeof type !== 'string' || !type.startsWith('image/')) return res.status(400).json({ error: `${noun} must be images` });
+    if (!isPictureType(type)) return res.status(400).json({ error: `${noun} must be images` });
     if (!Number.isInteger(size) || size <= 0) return res.status(400).json({ error: 'Missing file size' });
     if (size > MAX_AVATAR_UPLOAD_BYTES) return res.status(413).json({ error: 'That image is too large (max 8 MB).' });
 

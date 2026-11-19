@@ -142,6 +142,10 @@ async function clientFor(req) {
   const a = Buffer.from(app.client_secret_hash, 'hex');
   const b = Buffer.from(hash(secret), 'hex');
   if (!crypto.timingSafeEqual(a, b)) throw new OAuthError(401, 'invalid_client', 'Invalid client');
+  // Paused while its owner is suspended (suspensions.js), like its bot.
+  if (await db.get('SELECT 1 FROM users WHERE id = ? AND suspended_at IS NOT NULL', [app.owner_id])) {
+    throw new OAuthError(401, 'invalid_client', 'Invalid client');
+  }
   return app;
 }
 

@@ -82,6 +82,24 @@ describe('upload cleanup', () => {
     expect(await registered(one.key)).toBe(false);
   });
 
+  it('signs uploads only of types that are never served as pages', async () => {
+    const user = await makeUser();
+    for (const type of ['text/html', 'image/svg+xml', 'image/png', 'application/xhtml+xml']) {
+      expect((await api.get(user, `/upload_file?type=${encodeURIComponent(type)}&size=10`)).status).toBe(400);
+      expect((await api.post(user, '/upload_file/multipart', { type, size: 200 * 1024 * 1024 })).status).toBe(400);
+    }
+    const ok = await api.get(user, '/upload_file?type=application/octet-stream&size=10');
+    expect(ok.status).toBe(201);
+    expect(ok.body.fileUrl).toMatch(/\.bin$/);
+    for (const type of ['image/svg+xml', 'text/html']) {
+      expect((await api.post(user, '/profile/avatar', { type, size: 100 })).status).toBe(400);
+    }
+    const { isServableType, isPictureType } = require('../uploadTypes.js');
+    expect(['application/octet-stream', 'image/webp', 'audio/ogg', 'video/mp4'].every(isServableType)).toBe(true);
+    expect(['text/html', 'image/svg+xml', 'application/xml', 'video/x+xml', 'text/plain'].some(isServableType)).toBe(false);
+    expect(isPictureType('image/svg+xml')).toBe(false);
+  });
+
   it('turns down an upload list that is not one', async () => {
     const [ann, bea] = [await makeUser(), await makeUser()];
     expect((await api.post(ann, '/dm-send', { recipient_id: bea.id, content: 'v1.c', uploads: 'a.bin' })).status).toBe(400);
