@@ -143,6 +143,9 @@ describe('scheduled events in the bot API', () => {
     const cdn = await request(app).get(`/api/cdn/guild-events/${res.body.id}/${res.body.image}.png`);
     expect(cdn.status).toBe(302);
     expect(cdn.headers.location).toMatch(/\/uploads\/.+\.webp$/);
+    // Not by id alone: the hash is what a bot only learns from an event it can see.
+    expect((await request(app).get(`/api/cdn/guild-events/${res.body.id}/${'0'.repeat(32)}.png`)).status).toBe(404);
+    expect((await request(app).get(`/api/cdn/guild-events/${res.body.id}/x.png`)).status).toBe(404);
     const bad = await discord.post(bot, `/guilds/${guild.id}/scheduled-events`, {
       name: 'Bad', entity_type: 3, entity_metadata: { location: 'x' }, scheduled_start_time: iso(start), scheduled_end_time: iso(start + 60),
       recurrence_rule: { frequency: 2, interval: 5, by_weekday: [0] },

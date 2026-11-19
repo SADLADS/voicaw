@@ -407,12 +407,20 @@ function reactionEmoji(text) {
   return custom ? { id: custom[2], name: custom[1], animated: text.startsWith('<a:') } : { id: null, name: text };
 }
 
-// Discord's emoji in a URL ("😀", "name:id" or "name") as our reaction text, or null.
-async function reactionText(value) {
+// Discord's emoji in a URL ("😀", "name:id" or "name") as our reaction text, or null. With
+// `botId` (adding a reaction), a custom emoji must be an available one of a guild the bot is in,
+// as for soundboard sounds; removing or listing finds reactions already there, by id alone.
+async function reactionText(value, { botId = null } = {}) {
   const text = decodeURIComponent(String(value ?? ''));
   const custom = /^<?a?:?([A-Za-z0-9_]{2,32}):(\d+)>?$/.exec(text);
   if (custom) {
-    const emoji = await db.get('SELECT id, name FROM guild_emojis WHERE id = ?', [Number(custom[2])]);
+    const emoji = botId == null
+      ? await db.get('SELECT id, name FROM guild_emojis WHERE id = ?', [Number(custom[2])])
+      : await db.get(
+        `SELECT e.id, e.name FROM guild_emojis e JOIN guild_members gm ON gm.guild_id = e.guild_id AND gm.user_id = ?
+         WHERE e.id = ? AND e.available = 1`,
+        [botId, Number(custom[2])]
+      );
     return emoji ? `<:${emoji.name}:${emoji.id}>` : null;
   }
   if (!text || text.length > 64 || /\s/.test(text)) return null;
@@ -466,17 +474,42 @@ const MESSAGE_TYPES = { default: 0, pin: 6, member_join: 7, reply: 19, thread: 1
 
 // Messages (rows from guildMessages' MESSAGE_SELECT, after withReactions) as Discord's, seen by
 // bot `botId`. `guildId` adds guild_id (and `member` for authors who are still members), as
-// in gateway events; `references` adds the replied-to message.
-async function messageObjects(rows, { botId = null, guildId = null, references = true } = {}) {
+// in gateway events; `references` adds the replied-to message. `mentionable` (bot DMs: the bot
+// and the person) is who `<@id>` may resolve to; otherwise only members of the message's guild,
+// so a bot can't look accounts up by mentioning them.
+async function messageObjects(rows, { botId = null, guildId = null, references = true, mentionable = null } = {}) {
   if (!rows.length) return [];
   const userIds = new Set();
   const mentionIds = new Map();
   for (const m of rows) {
     if (!m.webhook_id && m.sender_id) userIds.add(m.sender_id);
-    const ids = [...parseMentions(m.content).userIds];
-    mentionIds.set(m.id, ids);
-    for (const u of ids) userIds.add(u);
+    mentionIds.set(m.id, [...parseMentions(m.content).userIds]);
   }
+  const allMentioned = [...new Set([...mentionIds.values()].flat())];
+  if (allMentioned.length) {
+    if (mentionable) {
+      for (const [mid, ids] of mentionIds) mentionIds.set(mid, ids.filter((u) => mentionable.has(u)));
+    } else {
+      const channelIds = [...new Set(rows.map((m) => m.channel_id).filter(Boolean))];
+      const guildOf = new Map((channelIds.length
+        ? await db.all(`SELECT id, guild_id FROM guild_channels WHERE id IN (${channelIds.map(() => '?').join(',')})`, channelIds)
+        : []).map((c) => [c.id, c.guild_id]));
+      const guildIds = [...new Set(guildOf.values())];
+      const memberships = guildIds.length
+        ? await db.all(
+          `SELECT guild_id, user_id FROM guild_members WHERE guild_id IN (${guildIds.map(() => '?').join(',')})
+             AND user_id IN (${allMentioned.map(() => '?').join(',')})`,
+          [...guildIds, ...allMentioned]
+        )
+        : [];
+      const isMember = new Set(memberships.map((r) => `${r.guild_id}:${r.user_id}`));
+      for (const m of rows) {
+        const g = guildOf.get(m.channel_id);
+        mentionIds.set(m.id, mentionIds.get(m.id).filter((u) => g != null && isMember.has(`${g}:${u}`)));
+      }
+    }
+  }
+  for (const ids of mentionIds.values()) for (const u of ids) userIds.add(u);
   const users = userIds.size
     ? await db.all(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id IN (${[...userIds].map(() => '?').join(',')})`, [...userIds])
     : [];

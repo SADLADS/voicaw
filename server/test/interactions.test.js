@@ -27,6 +27,7 @@ const api = {
   post: (user, url, body = {}) => request(app).post(`/api${url}`).set(authed(user)).send(body),
   put: (user, url, body = {}) => request(app).put(`/api${url}`).set(authed(user)).send(body),
   patch: (user, url, body = {}) => request(app).patch(`/api${url}`).set(authed(user)).send(body),
+  delete: (user, url) => request(app).delete(`/api${url}`).set(authed(user)),
 };
 const botAuth = (bot) => ({ Authorization: `Bot ${bot.token}` });
 const discord = {
@@ -239,6 +240,21 @@ describe('interactions', () => {
     expect((await api.post(member, `/channels/${general.id}/command-interactions`, { command_id: cmd.id, options: [{ name: 'times', type: 4, value: 9 }] })).status).toBe(400);
     // Answering twice is refused.
     expect((await hook.callback(i, { type: 4, data: { content: 'again' } })).body).toMatchObject({ code: 40060 });
+    gw.close();
+  });
+
+  it("stops a kicked bot's follow-ups", async () => {
+    const { owner, member, guild, general, bot } = await setUp();
+    const [cmd] = (await discord.put(bot, `/applications/${bot.id}/commands`, [{ name: 'later', description: 'Answers later' }])).body;
+    let interaction;
+    const gw = await connectBot(bot, (i) => { interaction = i; return hook.callback(i, { type: 4, data: { content: 'now' } }); });
+    expect((await api.post(member, `/channels/${general.id}/command-interactions`, { command_id: cmd.id })).body).toEqual({ ok: true });
+    expect((await hook.post(interaction, { content: 'still here' })).status).toBe(200);
+    expect((await api.delete(owner, `/guilds/${guild.id}/members/${bot.id}`)).status).toBe(200);
+    expect((await hook.post(interaction, { content: 'after the kick' })).status).toBe(404);
+    expect((await hook.patch(interaction, '@original', { content: 'edited after' })).status).toBe(404);
+    const history = (await api.get(owner, `/channels/${general.id}/messages`)).body.map((m) => m.content);
+    expect(history).not.toContain('after the kick');
     gw.close();
   });
 

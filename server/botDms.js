@@ -163,7 +163,13 @@ async function apiMessages(rows, botId) {
     components: [],
     reactions: [],
   }));
-  return D.messageObjects(shaped, { botId, references: false });
+  // `<@id>` resolves only to the two people in the conversation.
+  const dmIds = [...new Set(rows.map((row) => row.dm_id))];
+  const people = dmIds.length
+    ? await db.all(`SELECT bot_id, user_id FROM bot_dms WHERE id IN (${dmIds.map(() => '?').join(',')})`, dmIds)
+    : [];
+  const mentionable = new Set(people.flatMap((p) => [p.bot_id, p.user_id]));
+  return D.messageObjects(shaped, { botId, references: false, mentionable });
 }
 
 // Discord's DM channel object.

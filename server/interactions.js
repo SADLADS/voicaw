@@ -435,7 +435,8 @@ function metadataFor(row, extra = {}) {
 async function channelFor(row) {
   const access = await getChannelAccess(row.channel_id, row.application_id);
   const channel = access?.channel ?? await db.get('SELECT id, guild_id, name, type, nsfw FROM guild_channels WHERE id = ?', [row.channel_id]);
-  if (!channel) throw new ActionError(404, 'Unknown Channel', 10003);
+  // A bot kicked, banned or deleted since the interaction can't go on answering it.
+  if (!channel || !await getMember(channel.guild_id, row.application_id)) throw new ActionError(404, 'Unknown Channel', 10003);
   return { channel, permissions: access?.permissions ?? 0 };
 }
 

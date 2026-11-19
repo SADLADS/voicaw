@@ -1316,8 +1316,8 @@ router.post('/channels/:channelId/messages/bulk-delete', auth, limit('bulk-delet
 
 // ---- Reactions ----
 
-async function emojiFromUrl(req) {
-  const emoji = await D.reactionText(req.params.emoji);
+async function emojiFromUrl(req, { adding = false } = {}) {
+  const emoji = await D.reactionText(req.params.emoji, adding ? { botId: req.bot.id } : {});
   if (!emoji) throw new ActionError(400, 'Unknown Emoji', 10014);
   return emoji;
 }
@@ -1329,7 +1329,7 @@ const reactionRows = (messageId, where = '', params = []) => db.all(
 );
 
 router.put('/channels/:channelId/messages/:messageId/reactions/:emoji/@me', auth, limit('reaction', 4, 1000), inTextChannel, inMessage, route(async (req, res) => {
-  const emoji = await emojiFromUrl(req);
+  const emoji = await emojiFromUrl(req, { adding: true });
   try {
     await messages.addReaction(req.message, req.access.channel, req.bot.id, req.access.permissions, emoji);
   } catch (err) {
@@ -1693,8 +1693,10 @@ cdn.get('/icons/:guildId/:file', async (req, res) => {
   res.redirect(302, `${config.s3Endpoint}/guild-icons/${guild.id}?v=${guild.icon_version}`);
 });
 cdn.get('/guild-events/:eventId/:file', async (req, res) => {
+  // Only with the cover's hash, which a bot learns from an event it can see: ids alone count up.
   const event = await guildEvents.getEvent(D.ourId(req.params.eventId));
-  if (!event || !D.eventImageHash(event)) return res.status(404).end();
+  const hash = event && D.eventImageHash(event);
+  if (!hash || req.params.file.replace(/\.[a-z]+$/i, '') !== hash) return res.status(404).end();
   res.redirect(302, event.image);
 });
 cdn.get('/soundboard-sounds/:soundId', (req, res) => {

@@ -342,6 +342,35 @@ describe('the bot API', () => {
     const { bot } = await setUp();
     expect((await discord.get(bot, '/oauth2/applications/@me')).body).toMatchObject({ id: String(bot.id), bot_public: true });
   });
+
+  it("resolves <@id> mentions only to the guild's members", async () => {
+    const { member, general, bot } = await setUp();
+    const outsider = await makeUser('b-outsider');
+    const sent = await discord.post(bot, `/channels/${general.id}/messages`, { content: `<@${outsider.id}> <@${member.id}>` });
+    expect(sent.status).toBe(200);
+    expect(sent.body.mentions.map((u) => u.id)).toEqual([String(member.id)]);
+    const read = (await discord.get(bot, `/channels/${general.id}/messages/${sent.body.id}`)).body;
+    expect(read.mentions.map((u) => u.id)).toEqual([String(member.id)]);
+  });
+
+  it("reacts only with available custom emoji of the bot's own guilds", async () => {
+    const { owner, guild, general, bot } = await setUp();
+    const db = require('../db.js');
+    const other = (await api.post(owner, '/guilds', { name: 'Elsewhere' })).body;
+    const add = async (guildId, name, available) => (await db.run(
+      'INSERT INTO guild_emojis (guild_id, name, creator_id, available) VALUES (?, ?, ?, ?)', [guildId, name, owner.id, available]
+    )).lastID;
+    const own = await add(guild.id, 'ours', 1);
+    const pending = await add(guild.id, 'notyet', 0);
+    const foreign = await add(other.id, 'theirs', 1);
+    const msg = (await discord.post(bot, `/channels/${general.id}/messages`, { content: 'react here' })).body;
+    const react = (name, emojiId) => discord.put(bot, `/channels/${general.id}/messages/${msg.id}/reactions/${name}:${emojiId}/@me`);
+    expect((await react('em', foreign)).status).toBe(400);
+    expect((await react('em', pending)).status).toBe(400);
+    expect((await react('em', own)).status).toBe(204);
+    const seen = (await discord.get(bot, `/channels/${general.id}/messages/${msg.id}`)).body;
+    expect(seen.reactions.map((r) => r.emoji.name)).toEqual(['ours']);
+  });
 });
 
 // ---- The gateway ----

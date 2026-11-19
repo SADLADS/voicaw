@@ -184,6 +184,15 @@ describe('bot DMs', () => {
     expect(res.body).toMatchObject({ kind: 'bot', target: String(dmId), muted: true });
     expect((await api.put(await makeUser(), `/conversation-settings/bot/${dmId}`, { pinned: true })).status).toBe(404);
   });
+
+  it("resolves <@id> mentions only to the conversation's two people", async () => {
+    const { member, bot } = await setUp();
+    const outsider = await makeUser('bdm-outsider');
+    const opened = await openDm(bot, member);
+    const sent = await discord.post(bot, `/channels/${opened.body.id}/messages`, { content: `<@${outsider.id}> <@${member.id}> <@${bot.id}>` });
+    expect(sent.status).toBe(200);
+    expect(sent.body.mentions.map((u) => u.id).sort()).toEqual([String(member.id), String(bot.id)].sort());
+  });
 });
 
 // ---- The gateway ----

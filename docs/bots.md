@@ -79,7 +79,8 @@ Unknown paths get Discord's 404.
   channel or guild, with Discord's `X-RateLimit-*` headers and 429 bodies (off with
   `DISABLE_RATE_LIMITS`, as in tests).
 - **CDN**: `/api/cdn/avatars/:id/:hash.*`, `/icons/:guildId/:hash.*`, `/emojis/:id.*`, `/soundboard-sounds/:id`,
-  `/guild-events/:id/:hash.*` (a cover a bot can read: not an encrypted one from the app) redirect to
+  `/guild-events/:id/:hash.*` (a cover a bot can read: not an encrypted one from the app; only with
+  the right hash, so ids alone don't find covers) redirect to
   our pictures, so a library's CDN address can point at `https://api.voicaw.com/api/cdn`.
 
 ### Objects, ids and permissions (`server/discord.js`)
@@ -100,7 +101,8 @@ Unknown paths get Discord's 404.
   (bits 56 to 60), as are Listen (61) and Manage Levels (62, `VOICAW_MANAGE_LEVELS`). Coming in, only the bits that stand for ours count.
   The client has a copy of the mapping for the portal's checkboxes (a test checks they match).
 - **Messages**: Discord's message object, with `member` (gateway), `mentions` (users named in
-  the text), `referenced_message` for replies, reactions summed per emoji (`me` for the bot),
+  the text who are members of the message's guild; in bot DMs only the bot and the person, so
+  `<@id>` can't look accounts up), `referenced_message` for replies, reactions summed per emoji (`me` for the bot),
   embeds and attachments; system rows map to Discord's types (thread started 18, poll result
   46, a join in the join log 7; Discord has no leave, so a join log leave is type 0 with no
   content). Content is always included: there's no message content intent to need. A guild's
@@ -186,7 +188,8 @@ gives, so the server never makes requests to addresses bots choose).
 - **Follow-ups** on the interaction's webhook, `/api/v10/webhooks/:appId/:token` (the bot router
   takes paths whose token is an interaction token; anything else falls through to real
   webhooks): post (needs an answer first), get, patch and delete `messages/@original` or a
-  follow-up's id, for 15 minutes.
+  follow-up's id, for 15 minutes, while the bot is still in the guild (a kicked or deleted bot gets
+  10003). Reacting with a custom emoji takes only available ones of the bot's own guilds.
 - **Messages**: `guild_messages.components` (Discord's action rows, checked by
   `cleanMessageComponents`: 5 rows, 5 buttons or one select per row, unique custom ids, link
   buttons with http(s) URLs, no premium buttons, no Components V2) and `interaction` (JSON: the
