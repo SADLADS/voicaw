@@ -222,7 +222,10 @@ default). A paused video just stops, as before.
   decrypted or buffered again (a stream's URL and a decrypted copy are kept: `release` and
   `attachmentCache`'s `pinObjectUrl` until it's closed). The message's player, shown again (by
   `mediaKey`, the file's URL), takes it back still playing; while the video is elsewhere it says
-  "Playing in the corner" / "in its own window" with Bring back.
+  "Playing in the corner" / "in its own window" with Bring back. A player shown again makes its
+  own new element first; it counts as away by key (not only by element) from its first render,
+  so that element never takes the slot, and taking the video back throws it away (once it sat
+  over the playing video as a still frame, with the sound and time going on underneath).
 - **Go to message** opens the chat with `state.jumpToMessage: { chatId, messageId }`
   (`hooks/useLocationJump.js` in `ChatPane`, which loads older history until the message is
   there; chat and message read from the page around the player: `data-chat-id`,
