@@ -168,6 +168,7 @@ const lk = vi.hoisted(() => {
     }
     emit(event, ...args) { this.handlers[event]?.(...args); }
     async connect() {}
+    async setE2EEEnabled() {}
     async startAudio() {}
     async disconnect() {}
     removeAllListeners() {}
@@ -187,6 +188,8 @@ const lk = vi.hoisted(() => {
         Kind: { Audio: 'audio', Video: 'video' },
       },
       VideoQuality: { LOW: 0, MEDIUM: 1, HIGH: 2 },
+      isE2EESupported: () => true,
+      ExternalE2EEKeyProvider: class { async setKey() {} },
     },
   };
 });
@@ -697,6 +700,43 @@ describe('voiceClient screen share quality', () => {
     expect(saveWatching).toHaveBeenCalledTimes(2);
     await voice.leaveVoice();
     expect(voice.getVoiceSnapshot().watchers).toEqual({});
+  });
+
+  it("in a call, never plays a track that isn't end-to-end encrypted, and ends the call", async () => {
+    vi.stubGlobal('Worker', class { terminate() {} });
+    lk.state.capture = lk.deferred();
+    lk.state.capture.resolve();
+    const onUnencrypted = vi.fn();
+    await voice.joinCall({ callId: 'c1', url: 'wss://lk', token: 't', key: new Uint8Array(32), onUnencrypted });
+    const room = lk.state.room;
+    const person = (identity, publication) => ({
+      identity,
+      name: `user${identity}`,
+      attributes: {},
+      isMicrophoneEnabled: true,
+      trackPublications: new Map([['mic', publication]]),
+      audioTrackPublications: new Map([['mic', publication]]),
+      getTrackPublication: () => undefined,
+    });
+    const encrypted = { source: 'microphone', isEncrypted: true, setSubscribed: vi.fn() };
+    room.remoteParticipants.set('7', person('7', encrypted));
+    room.emit('ParticipantConnected', room.remoteParticipants.get('7'));
+    expect(encrypted.setSubscribed).toHaveBeenLastCalledWith(true);
+    await Promise.resolve();
+    expect(onUnencrypted).not.toHaveBeenCalled();
+
+    const plain = { source: 'microphone', isEncrypted: false, setSubscribed: vi.fn() };
+    room.remoteParticipants.set('8', person('8', plain));
+    room.emit('ParticipantConnected', room.remoteParticipants.get('8'));
+    expect(plain.setSubscribed).toHaveBeenLastCalledWith(false);
+    // Even when LiveKit delivers it anyway: never attached.
+    const track = new lk.RemoteAudioTrack();
+    room.emit('TrackSubscribed', track, plain, room.remoteParticipants.get('8'));
+    expect(track.attachedElements).toEqual([]);
+    await Promise.resolve();
+    expect(onUnencrypted).toHaveBeenCalledTimes(1);
+    await voice.leaveVoice();
+    vi.unstubAllGlobals();
   });
 
   it('asks for the copy of the watched stream that Stream quality picks', async () => {

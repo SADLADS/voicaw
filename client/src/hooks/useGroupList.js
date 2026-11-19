@@ -43,11 +43,11 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
     }
   }, [userId, setName]);
 
-  // A summary from the server, without its plaintext `name` field once names are encrypted
-  // (the decrypted one, already shown, stays until the new one is read). One with a name is
-  // from this device (createGroup).
+  // A summary from the server, without any plaintext `name` (anyone could have written it; the
+  // decrypted one, already shown, stays until the new one is read). One with an encrypted name
+  // and a plaintext one is from this device (createGroup).
   const withoutName = (summary) => {
-    if (!summary.name_version || summary.name != null) return summary;
+    if (summary.name_version && summary.name != null) return summary;
     const { name: _legacy, ...rest } = summary;
     return rest;
   };
@@ -56,7 +56,7 @@ export function useGroupList({ userId, activeGroupId, onRemoved }) {
     try {
       const list = await fetchGroups();
       setGroups((prev) => list.map((g) => {
-        const shown = g.name_version ? prev.find((p) => p.id === g.id) : undefined;
+        const shown = prev.find((p) => p.id === g.id);
         return shown?.name == null ? withoutName(g) : { ...withoutName(g), name: shown.name, picture: shown.picture };
       }));
       setLoaded(true);

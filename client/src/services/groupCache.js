@@ -4,7 +4,9 @@
 // { userId, epochs: { epoch: CryptoKey }, identityKeys: { userId: key from the checked log },
 //   members: [{ id, name }] (current members, for a title when the group has no name),
 //   name: { name, version, signed, picture } (the newest name seen, to refuse an older one;
-//   `picture`: the group picture it names, { id, key } or null) }
+//   `picture`: the group picture it names, { id, key } or null),
+//   log: { length, hash } (the longest membership log checked, and the hash of its last entry,
+//   so a server can't hand back a shorter log or a different one: see openGroup) }
 // Epoch keys are non-extractable CryptoKeys, like the private keys in keyStore.js (which can
 // open every one of them anyway). Logging out forgets it all.
 
@@ -46,9 +48,10 @@ export async function recallGroup(userId, groupId) {
 }
 
 // Saves what openGroup checked: `keys` (Map epoch -> CryptoKey), `identityKeys` (Map),
-// `members` (kept from before if not given), `name` (or null when it couldn't be read). Keeps epoch keys from before and the
-// newer of the two names.
-export async function rememberGroup(userId, groupId, { keys, identityKeys, members, name }) {
+// `members` (kept from before if not given), `name` (or null when it couldn't be read), `log`
+// ({ length, hash }, kept from before if not given). Keeps epoch keys from before, the newer of
+// the two names and the longer log.
+export async function rememberGroup(userId, groupId, { keys, identityKeys, members, name, log }) {
   try {
     const old = await recallGroup(userId, groupId);
     const epochs = { ...old?.epochs };
@@ -59,6 +62,7 @@ export async function rememberGroup(userId, groupId, { keys, identityKeys, membe
       epochs,
       identityKeys: Object.fromEntries(identityKeys),
       members: members ?? old?.members ?? [],
+      log: (old?.log?.length ?? 0) > (log?.length ?? 0) ? old.log : log ?? old?.log ?? null,
       name: keepOld ? old.name : name && { name: name.name, version: name.version, signed: name.signed, picture: name.picture ?? null },
     }, groupId));
   } catch (err) {

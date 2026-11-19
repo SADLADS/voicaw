@@ -13,6 +13,7 @@ import {
   sealGroupName,
   signGroupName,
   signRecord,
+  GroupLogError,
   unwrapGroupKey,
   verifyGroupLog,
   wrapGroupKey,
@@ -45,13 +46,32 @@ export class GroupKeyProblem extends Error {
   }
 }
 
-// -> { detail, log, keys: Map epoch -> CryptoKey, problems: [{ user, kind }], encryptionKeyOf }
+// Whether `log` (checked) goes on from the one this device saw last (`saved`: groupCache's
+// { length, hash }): no shorter, and the same entries up to there. The log is append-only, so
+// anything else is the server leaving out changes (a removal, say) or showing a different log.
+function continuesSavedLog(log, saved) {
+  if (!saved?.length) return true;
+  return log.nextSeq >= saved.length && log.hashes[saved.length - 1] === saved.hash;
+}
+
+// The group's log, checked, and going on from the one this device saw last. Asked for again
+// once before giving up (another tab may have just saved a newer one).
+async function fetchCheckedGroup(me, groupId) {
+  for (let attempt = 0; ; attempt++) {
+    const detail = await fetchGroup(groupId);
+    const log = await verifyGroupLog(groupId, detail.log);
+    if (continuesSavedLog(log, (await recallGroup(me.id, groupId))?.log)) return { detail, log };
+    if (attempt > 0) throw new GroupLogError(t('groups.errors.logRolledBack'));
+  }
+}
+
+// -> { detail, log, keys: Map epoch -> CryptoKey, epochs: Map epoch -> { logSeq, creatorId }
+// (of the keys opened, as bound into them), problems: [{ user, kind }], encryptionKeyOf }
 // `problems`: people whose key changed (`kind: 'changed'`, acceptable like in a DM) or doesn't
 // match the log (`'mismatch'`: they'd have to be re-added). Throws GroupLogError if the log
-// doesn't check out.
+// doesn't check out, or is older than (or not the same as) one this device has seen.
 export async function openGroup(me, groupId) {
-  const detail = await fetchGroup(groupId);
-  const log = await verifyGroupLog(groupId, detail.log);
+  const { detail, log } = await fetchCheckedGroup(me, groupId);
   const users = new Map(detail.users.map((u) => [u.id, u]));
   const own = await loadOwnPublicKeys();
 
@@ -87,12 +107,14 @@ export async function openGroup(me, groupId) {
 
   const myKey = await loadEncryptionKey();
   const keys = new Map();
+  const epochs = new Map();
   for (const e of detail.epochs) {
     const membersThen = log.membersAt[e.log_seq];
     if (!membersThen?.has(e.creator_id) || !membersThen.has(me.id)) continue;
     try {
       const context = groupKeyContext(groupId, e.epoch, e.log_seq, e.creator_id, me.id);
       keys.set(e.epoch, await unwrapGroupKey(e.envelope, myKey, await encryptionKeyOf(e.creator_id), context));
+      epochs.set(e.epoch, { logSeq: e.log_seq, creatorId: e.creator_id });
     } catch (err) {
       console.warn(`Group ${groupId}: can't open the key of epoch ${e.epoch}`, err);
     }
@@ -103,18 +125,39 @@ export async function openGroup(me, groupId) {
     const user = users.get(id);
     return { id, name: user ? user.display_name || user.username : '' };
   });
-  await rememberGroup(me.id, groupId, { keys, identityKeys: log.identityKeys, members, name: name?.legacy ? null : name });
-  return { detail, log, keys, problems, encryptionKeyOf, name };
+  await rememberGroup(me.id, groupId, {
+    keys, identityKeys: log.identityKeys, members, name, log: { length: log.nextSeq, hash: log.prevHash },
+  });
+  return { detail, log, keys, epochs, problems, encryptionKeyOf, name };
+}
+
+// The epoch made for the group as it is now (after the log's last entry, by someone still in
+// it), from the keys this device opened, or null. Decided from what's bound into each key,
+// never from the server's `latest_epoch`.
+function epochForNow(group) {
+  let found = null;
+  for (const [epoch, { logSeq, creatorId }] of group.epochs) {
+    if (logSeq === group.log.nextSeq - 1 && group.log.members.has(creatorId) && (found == null || epoch > found)) found = epoch;
+  }
+  return found;
+}
+
+// Whether epoch `epoch`'s key is still only the members': everyone it was made for (the
+// members after its log entry) is in the group now. (Later additions don't matter: they don't
+// have it.) A call keeps its epoch's key while people join, but not once someone has left.
+export function epochStillPrivate(group, epoch) {
+  const info = group.epochs.get(epoch);
+  const holders = info && group.log.membersAt[info.logSeq];
+  return Boolean(holders) && [...holders].every((id) => group.log.members.has(id));
 }
 
 // The group's name, checked: { name ('' for none), version, renamerId, initial, signed } (the
-// newest this device has seen: an older one from the server is ignored); { name, version: 0,
-// legacy: true } for a plaintext name from before names were encrypted; null if it can't be
-// read.
+// newest this device has seen: an older one from the server is ignored); null if it can't be
+// read. A plaintext name from the server (groups from before names were encrypted, none left)
+// is never shown: anyone could have written it.
 async function readName(me, groupId, detail, keys, log) {
-  if (!detail.name_version) return { name: detail.name ?? '', version: 0, legacy: true };
   let name = null;
-  const key = keys.get(detail.name_epoch);
+  const key = detail.name_version ? keys.get(detail.name_epoch) : null;
   if (key) {
     try {
       name = await openGroupName(detail.name_ciphertext, key, groupId, detail.name_epoch, (id) => log.identityKeys.get(id));
@@ -171,18 +214,19 @@ function refuseIfProblems(group) {
 export async function currentEpoch(me, groupId, opened = null) {
   let group = opened ?? await openGroup(me, groupId);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const latest = group.detail.latest_epoch;
-    const upToDate = latest && latest.log_seq === group.log.nextSeq - 1 && group.keys.has(latest.epoch);
-    if (upToDate) return { epoch: latest.epoch, key: group.keys.get(latest.epoch), group };
+    const now = epochForNow(group);
+    if (now != null) return { epoch: now, key: group.keys.get(now), group };
     refuseIfProblems(group);
-    const epoch = (latest?.epoch ?? 0) + 1;
+    // (The server's latest is only a hint for the number: it refuses a wrong one.)
+    const epoch = Math.max(group.detail.latest_epoch?.epoch ?? 0, ...group.epochs.keys()) + 1;
     const made = await makeEpoch(me, groupId, epoch, group.log.nextSeq - 1, [...group.log.members.keys()], group.encryptionKeyOf, nameToCarry(group));
     try {
       await postEpoch(groupId, made.body);
       group.keys.set(epoch, made.key);
+      group.epochs.set(epoch, { logSeq: made.body.logSeq, creatorId: me.id });
       group.detail.latest_epoch = { epoch, log_seq: made.body.logSeq, creator_id: me.id };
       if (made.body.name) Object.assign(group.detail, { name_ciphertext: made.body.name, name_epoch: epoch });
-      await rememberGroup(me.id, groupId, { keys: new Map([[epoch, made.key]]), identityKeys: group.log.identityKeys, name: group.name?.legacy ? null : group.name });
+      await rememberGroup(me.id, groupId, { keys: new Map([[epoch, made.key]]), identityKeys: group.log.identityKeys, name: group.name });
       return { epoch, key: made.key, group };
     } catch (err) {
       if (err.response?.status !== 409) throw err;
@@ -280,17 +324,15 @@ export async function changeMembership(me, groupId, type, user = null) {
 // current epoch (made first if the members changed, so nobody who's left reads it): `change`
 // is { name } (a rename; '' clears the name) or { picture } (the new picture's bytes, or null
 // to remove it). Whatever isn't changed is carried over from the current record, so it has to
-// be readable. `initial`: encrypting a name from before names were encrypted (no "renamed"
-// line; nothing to do if another member already has).
-async function updateGroup(me, groupId, change, { initial = false, opened = null } = {}) {
+// be readable.
+async function updateGroup(me, groupId, change) {
   const isPicture = 'picture' in change;
   // Encrypted once: a retry names the same picture.
   const upload = isPicture && change.picture ? await encryptGroupPicture(change.picture, groupId) : null;
-  let group = opened;
+  let group = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const current = await currentEpoch(me, groupId, group);
     group = current.group;
-    if (initial && group.detail.name_version > 0) return null;
     const unreadable = (isPicture && group.detail.name_version > 0 && !group.name)
       || (!isPicture && group.detail.picture_id && group.name?.picture?.id !== group.detail.picture_id);
     if (unreadable) throw new GroupKeyProblem(t('groups.errors.cantReadName'));
@@ -298,11 +340,11 @@ async function updateGroup(me, groupId, change, { initial = false, opened = null
     const name = isPicture ? group.name?.name ?? '' : change.name;
     const picture = isPicture ? upload?.picture ?? null : group.name?.picture ?? null;
     const signed = await signGroupName(
-      { groupId, version, renamerId: me.id, name, initial, picture, change: isPicture ? 'picture' : 'name' },
+      { groupId, version, renamerId: me.id, name, initial: false, picture, change: isPicture ? 'picture' : 'name' },
       await loadIdentityKey()
     );
     const body = {
-      name: await sealGroupName(signed, current.key, groupId, current.epoch), epoch: current.epoch, version, initial, pictureId: picture?.id ?? null,
+      name: await sealGroupName(signed, current.key, groupId, current.epoch), epoch: current.epoch, version, initial: false, pictureId: picture?.id ?? null,
     };
     if (upload) body.picture = upload.data;
     try {
@@ -315,8 +357,8 @@ async function updateGroup(me, groupId, change, { initial = false, opened = null
   throw new Error(t('groups.errors.keepsChanging'));
 }
 
-export function renameGroup(me, groupId, name, options = {}) {
-  return updateGroup(me, groupId, { name }, options);
+export function renameGroup(me, groupId, name) {
+  return updateGroup(me, groupId, { name });
 }
 
 // Sets the group's picture (`bytes`: the image, already cropped and shrunk) or removes it (null).
@@ -329,8 +371,10 @@ export function setGroupPicture(me, groupId, bytes) {
 // Uses the keys saved on this device when it can, else opens the group (which checks it all
 // again and saves them).
 export async function groupProfileOf(me, summary) {
-  if (!summary.name_version) return { name: summary.name ?? '', picture: null };
   const saved = await recallGroup(me.id, summary.id);
+  // No encrypted name (or the server left it out): the newest one this device has seen, if any,
+  // never a plaintext one from the server.
+  if (!summary.name_version) return saved?.name ? { name: saved.name.name, picture: saved.name.picture ?? null } : { name: '', picture: null };
   // Names saved before pictures existed don't say whether there's one.
   if (saved?.name && saved.name.picture !== undefined && saved.name.version >= summary.name_version) {
     return { name: saved.name.name, picture: saved.name.picture };

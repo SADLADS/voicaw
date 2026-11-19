@@ -123,17 +123,22 @@ try {
   await d.waitForTimeout(500);
   await shot(d, '07-dan-phone-group-call');
 
-  await a.click('.group-call-panel button[aria-label="Leave call"]');
-  await b.waitForFunction(() => document.querySelectorAll('.group-call-panel .call-panel-person').length === 2);
-  await b.click('.group-call-panel button[aria-label="Leave call"]');
-  await d.click('.group-call-panel button[aria-label="Leave call"]');
-  await b.waitForSelector('.group-call-panel', { state: 'detached', timeout: 10000 });
-  console.log('everyone left: the call is over');
-
-  // The owner leaves: nobody is owner.
+  // Ann leaves the group during the call: she still has the call's key, so the others leave the
+  // call too (and the next call gets a new key).
   await a.click('button:has-text("Leave group")');
   await a.click('.vc-dialog button:has-text("Leave Group")');
   await a.waitForURL('**/dm');
+  await b.waitForSelector('.voice-bar-message:has-text("left the group")', { timeout: 10000 });
+  for (const [name, p] of [['bea', b], ['dan', d]]) {
+    await p.waitForSelector('.group-call-panel .voice-view-controls', { state: 'detached', timeout: 10000 })
+      .catch(async (err) => { await shot(p, `08-${name}-still-in-call`); throw err; });
+  }
+  await b.waitForSelector('.group-call-panel', { state: 'detached', timeout: 15000 })
+    .catch(async (err) => { await shot(b, '08-bea-panel-left'); await shot(d, '08-dan-panel-left'); throw err; });
+  await shot(b, '08-bea-call-ended-ann-left');
+  console.log('ann left the group mid-call: the others left the call, which is over');
+
+  // The owner has left: nobody is owner.
   await b.waitForSelector(`.message-system:has-text("${ann.name} left the group.")`);
   if (await b.$('.group-owner-crown')) throw new Error('someone is still owner');
   await sendText(b, 'just us now');

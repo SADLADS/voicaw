@@ -95,7 +95,8 @@
       "cantReadName": "Can't read this group's name, so its key can't be renewed. Try again later.",
       "cantSend": "Can't send until {{names}}'s security key is sorted out.",
       "keyChanged": "{{name}}'s security key changed. Open your chat with them to review it.",
-      "keepsChanging": "The group keeps changing; try again."
+      "keepsChanging": "The group keeps changing; try again.",
+      "logRolledBack": "This group's member list is older than one this device has already seen, so the server may be hiding a change. It wasn't opened."
     }
   }
 }
