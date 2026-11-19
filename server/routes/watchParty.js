@@ -171,8 +171,11 @@ router.post(`${BASE}/skip`, authenticateJWT, voiceChannel, inVoice, withParty, h
   reply(res, req.channelId);
 }));
 
-// A player says how long a video is: { itemId, duration } (seconds; the first answer counts).
+// A player says how long the video playing is: { itemId, duration } (seconds; the first
+// answer counts). Only from those who could skip or queue (a length can end a video); others'
+// players are ignored without an error, as their apps report it anyway and retry on errors.
 router.put(`${BASE}/duration`, authenticateJWT, voiceChannel, inVoice, withParty, handled(async (req, res) => {
+  if (!can(req, PERMISSIONS.CONTROL_PLAYBACK) && !can(req, PERMISSIONS.QUEUE_VIDEOS)) return res.json({ success: true });
   await watchParty.setDuration(req.party, itemId(req.body?.itemId), Number(req.body?.duration));
   res.json({ success: true });
 }));

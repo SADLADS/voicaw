@@ -50,12 +50,17 @@ async function getTask(taskId) {
   return task ? (await withDetails([task]))[0] : null;
 }
 
+// The tree walks below stop even if the parents ever made a loop (which moves refuse), rather
+// than running for ever on the synchronous driver: UNION drops a task seen before, and the
+// walks that count levels stop at LEVELS_WALKED (more than any real tree has).
+const LEVELS_WALKED = MAX_DEPTH * 2 + 2;
+
 // The ids of `taskId` and everything under it.
 async function subtreeIds(taskId) {
   const rows = await db.all(
     `WITH RECURSIVE sub(id) AS (
        SELECT id FROM guild_tasks WHERE id = ?
-       UNION ALL SELECT t.id FROM guild_tasks t JOIN sub ON t.parent_id = sub.id
+       UNION SELECT t.id FROM guild_tasks t JOIN sub ON t.parent_id = sub.id
      ) SELECT id FROM sub`,
     [taskId]
   );
@@ -68,9 +73,9 @@ async function depthOf(taskId) {
   const row = await db.get(
     `WITH RECURSIVE up(id, parent_id, depth) AS (
        SELECT id, parent_id, 1 FROM guild_tasks WHERE id = ?
-       UNION ALL SELECT t.id, t.parent_id, up.depth + 1 FROM guild_tasks t JOIN up ON t.id = up.parent_id
+       UNION ALL SELECT t.id, t.parent_id, up.depth + 1 FROM guild_tasks t JOIN up ON t.id = up.parent_id WHERE up.depth < ?
      ) SELECT MAX(depth) AS depth FROM up`,
-    [taskId]
+    [taskId, LEVELS_WALKED]
   );
   return row?.depth ?? 0;
 }
@@ -80,9 +85,9 @@ async function heightOf(taskId) {
   const row = await db.get(
     `WITH RECURSIVE sub(id, level) AS (
        SELECT id, 1 FROM guild_tasks WHERE id = ?
-       UNION ALL SELECT t.id, sub.level + 1 FROM guild_tasks t JOIN sub ON t.parent_id = sub.id
+       UNION ALL SELECT t.id, sub.level + 1 FROM guild_tasks t JOIN sub ON t.parent_id = sub.id WHERE sub.level < ?
      ) SELECT MAX(level) AS height FROM sub`,
-    [taskId]
+    [taskId, LEVELS_WALKED]
   );
   return row?.height ?? 1;
 }

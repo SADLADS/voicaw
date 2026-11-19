@@ -930,7 +930,7 @@ router.delete('/guilds/:guildId/channels/:channelId', manageChannels, withAction
 async function deleteChannel(actor, channel) {
   if (!has(actor.permissions, PERMISSIONS.MANAGE_CHANNELS)) throw new ActionError(403, "You don't have permission to do that");
   // Its events go with it (guildEvents.js).
-  const events = await channelEvents(channel.id);
+  const events = await channelEvents(channel);
   await db.transaction(async () => {
     await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'channel_delete', targetType: 'channel', targetId: channel.id, channelId: channel.id, details: { name: channel.name, type: channel.type } });
     await deleteChannelContents('?', [channel.id]);

@@ -533,7 +533,10 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   (otherwise they say some changes couldn't be kept); stopping the API (SIGINT/SIGTERM) saves
   first. Offline, the editor keeps what's typed and sends it once a request goes through. The
   session's starting document has to fit the 1 MB request limit (JSON is bigger than the
-  markdown; plain 100,000-character documents fit).
+  markdown; plain 100,000-character documents fit), and its markdown the 100,000 characters.
+  It's never taken on trust: when its markdown isn't the stored text (a doctored start, or a
+  parse that writes back differently), the session is unsaved from the start with its starter
+  as the last editor, so it's saved as their change rather than put down to whoever types next.
 - **Replies are `guild_messages` with `document_id`** (null for every other message), so
   mentions, pushes (url `/guild/<g>/<c>?doc=<id>`), edits, deletes, reactions, polls (their
   "poll ended" row too) and the audit log work as in a text channel. `GET/POST

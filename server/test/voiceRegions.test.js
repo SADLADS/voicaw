@@ -173,6 +173,27 @@ describe('voice channel settings', () => {
     expect((await join(member, guild, lounge)).status).toBe(200);
     expect((await join(owner, guild, lounge)).status).toBe(200);
   });
+
+  it('turn away on arrival those who got a token while a place was free', async () => {
+    const { owner, member, guild, lounge } = await setUp();
+    const third = await makeUser('vr-third');
+    const invite = await api.post(owner, `/guilds/${guild.id}/invites`);
+    await api.post(third, `/invites/${invite.body.code}`);
+    await api.patch(owner, `/guilds/${guild.id}/channels/${lounge.id}`, { userLimit: 1 });
+    // Both ask while the channel is empty, then both join.
+    expect((await join(member, guild, lounge)).status).toBe(200);
+    expect((await join(third, guild, lounge)).status).toBe(200);
+    await webhook('participant_joined', lounge, member);
+    calls.length = 0;
+    await webhook('participant_joined', lounge, third);
+    expect(calls).toContainEqual(['remove', 'main', `channel-${lounge.id}`, String(third.id)]);
+    expect(voice.membersOf(lounge.id).map((s) => s.user_id)).toEqual([member.id]);
+    // A new session of someone already in it, and Manage Channels, stay.
+    calls.length = 0;
+    await webhook('participant_joined', lounge, member);
+    await webhook('participant_joined', lounge, owner);
+    expect(calls.filter((c) => c[0] === 'remove')).toEqual([]);
+  });
 });
 
 describe('voice regions', () => {

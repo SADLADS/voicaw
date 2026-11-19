@@ -427,8 +427,11 @@ LiveKit carries the audio.
     turned off, private) and 400/404 refuse it, and YouTube being unreachable adds it untitled.
     `duration` comes from the first player that knows it (`PUT .../duration`, first answer
     counts), and lets the server move on by itself 1 s after a video ends (paused, it doesn't);
-    a live stream has none and plays until skipped. A member could report a short duration and
-    so end a video early: people in a channel are trusted that far. 100 videos wait at most.
+    a live stream has none and plays until skipped. Only the video playing takes one, only from
+    someone with Queue Videos or Control Playback (others' reports are ignored, without an
+    error, since their players send them anyway), and nothing under 1 s, so nobody can set a
+    waiting video's length to skip it. Someone with those permissions could still report a
+    short duration and end a video early: they could skip it anyway. 100 videos wait at most.
     The party ends with its last video, or a minute after its channel empties (`voiceChanged`,
     from voice.js: a lone watcher whose connection drops comes back to it); deleting the
     channel or guild drops it.
@@ -799,7 +802,9 @@ default, also for channels made before), `user_limit` (0–99, 0: none) and `rtc
 - **User limit**: `joinToken` refuses (403 "This voice channel is full") once the others in it
   reach the limit; Manage Channels joins anyway (Discord's Move Members, which we don't have),
   and someone already in it gets a new token (a rejoin). Counted from who LiveKit says is in,
-  so two tokens handed out at the same moment can both get in. The channel list shows "02/05"
+  so two tokens handed out at the same moment can both be made: `participantJoined` checks
+  again on arrival (not for a move or a new session in the same channel) and removes whoever
+  finds it full. The channel list shows "02/05"
   (amber when full), and the channel's page says it's full above Join (and why a join failed:
   a phone has no voice bar there).
 

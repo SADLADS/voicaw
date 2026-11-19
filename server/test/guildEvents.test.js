@@ -267,8 +267,23 @@ describe('scheduled events', () => {
     await api.put(owner, `/guilds/${guild.id}/channels/${hidden.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.VIEW_CHANNEL });
     const event = (await create(owner, guild, inVoice(voice))).body;
     const heard = listen(alice);
-    expect((await api.patch(owner, `/guild-events/${event.id}`, { channelId: hidden.id })).status).toBe(200);
+    expect((await api.patch(owner, `/guild-events/${event.id}`, { channelId: hidden.id, name: 'Secret plans', description: 'Only staff' })).status).toBe(200);
     expect(heard.map((e) => e.type)).toEqual(['guild_event_delete']);
+    // As it was: not the new name, description or channel.
+    expect(heard[0].event).toMatchObject({ id: event.id, name: event.name, channel_id: voice.id });
+    expect(JSON.stringify(heard[0])).not.toMatch(/Secret plans|Only staff/);
+  });
+
+  it("deleting a private channel tells only those who could see its events", async () => {
+    const { owner, members: [alice], guild, everyone } = await setUp(1);
+    const hidden = (await api.post(owner, `/guilds/${guild.id}/channels`, { name: 'Staff', type: 'voice' })).body;
+    await api.put(owner, `/guilds/${guild.id}/channels/${hidden.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.VIEW_CHANNEL });
+    const event = (await create(owner, guild, inVoice(hidden))).body;
+    const heardAlice = listen(alice);
+    const heardOwner = listen(owner);
+    expect((await api.delete(owner, `/guilds/${guild.id}/channels/${hidden.id}`)).status).toBe(200);
+    expect(heardAlice.some((e) => e.type === 'guild_event_delete')).toBe(false);
+    expect(heardOwner).toContainEqual(expect.objectContaining({ type: 'guild_event_delete', event: expect.objectContaining({ id: event.id }) }));
   });
 
   it('deleting its channel deletes a voice event', async () => {

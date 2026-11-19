@@ -164,6 +164,21 @@ describe('list channels', () => {
     expect((await api.put(owner, `/tasks/${idC}/move`, { parentId: null, beforeId: idA })).status).toBe(400);
   });
 
+  it("walks the tree to an end even if the parents made a loop", async () => {
+    const { owner, board } = await setUp(0);
+    const a = (await addTask(owner, board, { title: 'A' })).body;
+    const b = (await addTask(owner, board, { title: 'B', parentId: a.id })).body;
+    const other = (await addTask(owner, board, { title: 'Other' })).body;
+    // A loop the moves never make, written in directly: A under B under A.
+    await db.run('UPDATE guild_tasks SET parent_id = ? WHERE id = ?', [b.id, a.id]);
+    const tasks = require('../guildTasks.js');
+    expect((await tasks.subtreeIds(a.id)).sort()).toEqual([a.id, b.id].sort());
+    expect(await tasks.depthOf(a.id)).toBeGreaterThan(5);
+    expect(await tasks.heightOf(a.id)).toBeGreaterThan(5);
+    expect((await api.put(owner, `/tasks/${other.id}/move`, { parentId: a.id })).status).toBe(400);
+    expect((await api.delete(owner, `/tasks/${a.id}`)).body.ids.sort()).toEqual([a.id, b.id].sort());
+  });
+
   it('refuses a move that would nest too deep', async () => {
     const { owner, board } = await setUp(0);
     let parentId = null;

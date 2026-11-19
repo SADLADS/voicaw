@@ -248,6 +248,29 @@ describe('Watch Together', () => {
     expect((await api.post(bob, `${base}/skip`, { itemId: second.id })).status).toBe(404);
   });
 
+  it("takes a video's length only for the one playing, from those who could skip or queue, and not too short", async () => {
+    const { owner, members: [alice, bob], base, lounge, guild, everyone } = await setUp();
+    for (const user of [alice, bob]) await enter(user, lounge);
+    await add(alice, base, VIDEO_A);
+    const { party } = (await add(alice, base, VIDEO_B)).body;
+    const waiting = party.queue[0];
+
+    // A waiting video's: ignored.
+    await api.put(alice, `${base}/duration`, { itemId: waiting.id, duration: 30 });
+    expect(watchParty.getParty(lounge.id).queue[0].duration).toBeNull();
+    // Too short to be real: ignored.
+    await api.put(alice, `${base}/duration`, { itemId: party.current.id, duration: 0.001 });
+    expect(watchParty.getParty(lounge.id).current.duration).toBeNull();
+    // Bob can neither skip nor queue: his player's report is ignored, without an error.
+    await api.put(owner, `/guilds/${guild.id}/channels/${lounge.id}/overrides/role/${everyone.id}`, { allow: 0, deny: P.CONTROL_PLAYBACK | P.QUEUE_VIDEOS });
+    expect((await api.put(bob, `${base}/duration`, { itemId: party.current.id, duration: 30 })).status).toBe(200);
+    expect(watchParty.getParty(lounge.id).current.duration).toBeNull();
+    // The owner can.
+    await enter(owner, lounge);
+    await api.put(owner, `${base}/duration`, { itemId: party.current.id, duration: 30 });
+    expect(watchParty.getParty(lounge.id).current.duration).toBe(30);
+  });
+
   it('moves on by itself when a video ends, once a player said how long it is', async () => {
     const { members: [alice], base, lounge } = await setUp(1);
     await enter(alice, lounge);

@@ -188,7 +188,7 @@ async function endSession(session, { notify = false, saveFirst = true } = {}) {
 
 // ---- What the routes call ----
 
-// The session of `document` ({ id, channel_id, title, cover, open_editing, version }), joined by
+// The session of `document` ({ id, channel_id, title, cover, open_editing, version, content }), joined by
 // `userId` as `clientID`. Without one, `doc` (the editor's parse of the document's markdown, as
 // ProseMirror JSON, `basedOn` the document's version it was parsed from) starts it; without
 // `doc`, or from an old version: 409 `needsDoc` (with the document as it is now).
@@ -199,7 +199,7 @@ async function join(document, userId, clientID, { doc, basedOn } = {}) {
     if (doc == null || basedOn !== document.version) {
       throw collabError(409, 'Start the session from the document as it is now', { needsDoc: true, document });
     }
-    const { Node, schema } = await loadProseMirror();
+    const { Node, schema, docToMarkdown } = await loadProseMirror();
     let node;
     try {
       node = Node.fromJSON(schema, doc);
@@ -208,6 +208,8 @@ async function join(document, userId, clientID, { doc, basedOn } = {}) {
       throw collabError(400, 'Invalid document');
     }
     if (node.type !== schema.topNodeType) throw collabError(400, 'Invalid document');
+    const markdown = docToMarkdown(node);
+    if (markdown.length > MAX_CONTENT) throw collabError(400, `Documents are at most ${MAX_CONTENT} characters`);
     // Another editor may have started it while this one was being checked.
     session = sessions.get(document.id);
     if (!session) {
@@ -229,6 +231,9 @@ async function join(document, userId, clientID, { doc, basedOn } = {}) {
       };
       sessions.set(document.id, session);
       ensureSweep();
+      // Not the text as stored: saved as the starter's change (lastEditor), so it isn't put
+      // down to whoever types next.
+      if (markdown !== document.content) scheduleSave(session);
     }
   }
   const existing = session.editors.get(clientID);

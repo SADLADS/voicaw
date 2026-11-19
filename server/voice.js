@@ -326,7 +326,16 @@ async function participantJoined(channelId, participant, regionId) {
     return;
   }
   const previous = states.get(userId);
-  if (moves.get(userId)?.channelId === channelId) finishMove(userId);
+  const movedHere = moves.get(userId)?.channelId === channelId;
+  // Full by now (several tokens made while one place was free, or one kept from earlier): as
+  // joinToken checks, again on arrival. Not for a move, nor a new session in the same channel.
+  if (!movedHere && previous?.channelId !== channelId && isFull(access.channel, userId, access.permissions)) {
+    rememberLeft(participant.sid);
+    serviceFor(regionId)?.removeParticipant(roomName(channelId), participant.identity)
+      .catch((err) => logLiveKitError('removing a participant', err));
+    return;
+  }
+  if (movedHere) finishMove(userId);
   if (previous && previous.channelId !== channelId) {
     states.delete(userId);
     await announce(previous.guildId, previous.channelId, userId, null);

@@ -464,14 +464,16 @@ async function viewersOf(event) {
 
 // Sends `guild_event_<kind>` ('create', 'update' or 'delete') with the event (publicEvent) to
 // whoever can see it. `before` (the row before an update): those who could see it then and
-// can't now are sent a delete.
+// can't now are sent a delete, carrying the event as it was then (not its new name,
+// description or channel) and without its answers.
 async function broadcast(kind, event, before = null) {
   const viewers = await viewersOf(event);
   for (const userId of viewers) sendToUserSockets(userId, { type: `guild_event_${kind}`, guildId: event.guild_id, event });
   if (before && before.channel_id !== event.channel_id) {
     const now_ = new Set(viewers);
+    const gone = publicEvent(before);
     for (const userId of await viewersOf(before)) {
-      if (!now_.has(userId)) sendToUserSockets(userId, { type: 'guild_event_delete', guildId: event.guild_id, event });
+      if (!now_.has(userId)) sendToUserSockets(userId, { type: 'guild_event_delete', guildId: event.guild_id, event: gone });
     }
   }
 }
@@ -1229,17 +1231,20 @@ async function deleteGuildEvents(guildId) {
   await db.run('DELETE FROM guild_event_history WHERE guild_id = ?', [guildId]);
 }
 
-// The events (publicEvent) of the channel, before it's deleted: to tell people afterwards.
-async function channelEvents(channelId) {
-  const rows = await db.all(`SELECT ${EVENT_COLUMNS} FROM guild_events WHERE channel_id = ?`, [channelId]);
-  return rows.map((r) => publicEvent(r));
+// The events (publicEvent) of `channel` ({ id, guild_id }) and who can see them, worked out
+// before it's deleted: to tell those people afterwards.
+async function channelEvents(channel) {
+  const rows = await db.all(`SELECT ${EVENT_COLUMNS} FROM guild_events WHERE channel_id = ?`, [channel.id]);
+  if (!rows.length) return { events: [], viewers: [] };
+  const { getChannelViewers } = require('./guilds');
+  return { events: rows.map((r) => publicEvent(r)), viewers: await getChannelViewers(channel) };
 }
 
-// Tells the guild that these events (channelEvents) went with their channel.
-async function announceDeleted(guildId, events) {
-  if (!events.length) return;
-  const { sendToGuild } = require('./guilds');
-  for (const event of events) await sendToGuild(guildId, { type: 'guild_event_delete', guildId, event: { ...event, status: 'canceled' } });
+// Tells those who could see these events (channelEvents) that they went with their channel.
+async function announceDeleted(guildId, { events, viewers }) {
+  for (const event of events) {
+    for (const userId of viewers) sendToUserSockets(userId, { type: 'guild_event_delete', guildId, event: { ...event, status: 'canceled' } });
+  }
 }
 
 // Someone leaving the guild stops being interested in its events. Inside the transaction;

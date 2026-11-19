@@ -248,14 +248,13 @@ router.put('/tasks/:taskId/move', authenticateJWT, requireTask, requireEdit, asy
   if (beforeId != null && (!Number.isInteger(beforeId) || beforeId === req.task.id)) {
     return res.status(400).json({ error: 'Invalid position' });
   }
-  if (parentId != null && (await subtreeIds(req.task.id)).includes(parentId)) {
-    return res.status(400).json({ error: "A task can't go inside its own subtasks" });
-  }
-  if (await depthOf(parentId) + await heightOf(req.task.id) > MAX_DEPTH) {
-    return res.status(400).json({ error: `Tasks nest at most ${MAX_DEPTH} levels deep` });
-  }
-  const placed = await db.transaction(() => placeTask(channel.id, req.task.id, parentId, beforeId));
-  if (!placed) return res.status(400).json({ error: 'Invalid position' });
+  // Checked in the transaction that moves it, so two moves at once can't make a loop.
+  const placed = await db.transaction(async () => {
+    if (parentId != null && (await subtreeIds(req.task.id)).includes(parentId)) return { error: "A task can't go inside its own subtasks" };
+    if (await depthOf(parentId) + await heightOf(req.task.id) > MAX_DEPTH) return { error: `Tasks nest at most ${MAX_DEPTH} levels deep` };
+    return await placeTask(channel.id, req.task.id, parentId, beforeId) || { error: 'Invalid position' };
+  });
+  if (placed.error) return res.status(400).json({ error: placed.error });
   await sendToChannel(channel, event(req.access, 'guild_tasks_move', { tasks: placed }));
   res.json({ tasks: placed });
 });

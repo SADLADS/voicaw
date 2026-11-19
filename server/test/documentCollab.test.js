@@ -215,6 +215,27 @@ describe('live document editing', () => {
     expect((await api.get(owner, `/documents/${document.id}`)).body.content).toBe('# Plan\n\nMore. First line.');
   });
 
+  it("saves a start that isn't the stored text as its starter's change, and refuses one that's too long", async () => {
+    const { owner, members: [alice], document } = await setUp(1);
+    await api.patch(owner, `/documents/${document.id}`, { version: document.version, open_editing: true });
+    const now = (await api.post(alice, `/documents/${document.id}/collab`, { clientID: 'tab-a' })).body.document;
+    const start = (markdown) => api.post(alice, `/documents/${document.id}/collab`, {
+      clientID: 'tab-a', doc: markdownToDoc(markdown).toJSON(), basedOn: now.version,
+    });
+    expect((await start('y'.repeat(100001))).status).toBe(400);
+    expect(collab.sessions.has(document.id)).toBe(false);
+
+    // The stored text as it is: nothing to save.
+    expect((await start(now.content)).status).toBe(200);
+    expect(collab.sessions.get(document.id).dirty).toBe(false);
+    await collab.closeSession(document.id);
+
+    expect((await start('# Plan\n\nAltered.')).status).toBe(200);
+    await collab.saveAll();
+    const saved = (await api.get(owner, `/documents/${document.id}`)).body;
+    expect(saved).toMatchObject({ content: '# Plan\n\nAltered.', updated_by: alice.id });
+  });
+
   it('drops editors who stop sending heartbeats', async () => {
     const { owner, document } = await setUp(0);
     await join(owner, document, 'tab-a');

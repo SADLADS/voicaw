@@ -33,6 +33,7 @@ const { sendToChannel } = require('./guilds');
 
 const MAX_QUEUE = 100; // videos waiting, not counting the one playing
 const MAX_DURATION = 7 * 24 * 3600; // longer than any video; anything above is a mistake
+const MIN_DURATION = 1; // a shorter length is taken as wrong, not as a video to end at once
 const END_GRACE_MS = 1000; // after a video's end, before moving on (players report a little late)
 const EMPTY_GRACE_MS = 60 * 1000;
 const VIDEO_ID = /^[\w-]{11}$/;
@@ -300,16 +301,16 @@ async function skipVideo(party, itemId, userId) {
   await advance(party, log(party, { userId, action: 'skip', item: party.current }));
 }
 
-// A player says how long a video is: the first answer counts. Live streams report 0 (no end).
+// A player says how long the video playing is: the first answer counts. Live streams report 0
+// (no end), which is ignored like anything under MIN_DURATION. Only for the video playing (a
+// player only knows that one's), so nobody can set a waiting one's to end it on arrival.
 async function setDuration(party, itemId, duration) {
-  const item = party.current.id === itemId ? party.current : party.queue.find((i) => i.id === itemId);
-  if (!item || item.duration != null) return;
-  if (!(Number.isFinite(duration) && duration > 0 && duration <= MAX_DURATION)) return;
+  const item = party.current;
+  if (item.id !== itemId || item.duration != null) return;
+  if (!(Number.isFinite(duration) && duration >= MIN_DURATION && duration <= MAX_DURATION)) return;
   item.duration = duration;
-  if (item === party.current) {
-    schedule(party);
-    await announce(party);
-  }
+  schedule(party);
+  await announce(party);
 }
 
 // Where someone's player loads `itemId` (the media server's video playing): { type: 'file' |
