@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { sameLogin, tokenClaims } from './loginToken';
 
 const tokenFor = (claims, signature = 'sig') => `h.${btoa(JSON.stringify(claims)).replace(/=+$/, '')}.${signature}`;
@@ -64,5 +64,60 @@ describe('the saved login', () => {
     expect(store.has('token')).toBe(false);
     store.set('token', old);
     expect(savedToken()).toBe(old);
+  });
+
+  describe("in the desktop app, which keeps its own copy", () => {
+    // The app's file (electron/loginStore.js), or null for none saved yet.
+    function desktop(file = null) {
+      const app = { file };
+      globalThis.window = {
+        voicawDesktop: {
+          login: {
+            get: () => ({ known: app.file !== null, token: app.file?.token ?? null }),
+            set: (token) => { app.file = { token }; return true; },
+          },
+        },
+      };
+      return app;
+    }
+    afterEach(() => { delete globalThis.window; });
+
+    it("uses the app's copy after a reload, whatever localStorage went back to", async () => {
+      const app = desktop();
+      let page = await fresh();
+      page.saveToken(login);
+      expect(app.file.token).toBe(login);
+      page = await fresh(); // a reload: the page's memory is gone, and storage has the old one
+      page.store.set('token', old);
+      expect(page.savedToken()).toBe(login);
+    });
+
+    it("reads localStorage until the app has kept a login, then saves there too", async () => {
+      const app = desktop();
+      const { store, savedToken, saveToken } = await fresh();
+      store.set('token', old);
+      expect(savedToken()).toBe(old);
+      saveToken(login);
+      expect(app.file.token).toBe(login);
+      expect(store.get('token')).toBe(login);
+    });
+
+    it('stays logged out after a logout, even if localStorage brings a token back', async () => {
+      const app = desktop({ token: login });
+      let page = await fresh();
+      page.forgetToken();
+      expect(app.file.token).toBeNull();
+      page = await fresh();
+      page.store.set('token', old);
+      expect(page.savedToken()).toBeNull();
+    });
+
+    it('falls back to localStorage when the app can’t answer', async () => {
+      globalThis.window = { voicawDesktop: { login: { get: () => { throw new Error('gone'); }, set: () => { throw new Error('gone'); } } } };
+      const { store, savedToken, saveToken } = await fresh();
+      saveToken(login);
+      expect(store.get('token')).toBe(login);
+      expect(savedToken()).toBe(login);
+    });
   });
 });
