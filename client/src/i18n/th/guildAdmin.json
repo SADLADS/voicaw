@@ -558,6 +558,12 @@
         "soundboard": "ซาวด์บอร์ด",
         "import": "นำเข้า"
       },
+      "groups": {
+        "guild": "กิลด์",
+        "expressions": "อีโมจิและเสียง",
+        "features": "ฟีเจอร์",
+        "moderation": "การดูแล"
+      },
       "noPermission": "คุณไม่มีสิทธิ์เปลี่ยนแปลงอะไรที่นี่"
     },
     "mediaServer": {

@@ -1,5 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import Modal from './Modal';
+import { Icon } from '../Icon';
 import GuildIcon from './GuildIcon';
 import ImageCropper from '../ImageCropper';
 import RolesSettings from './RolesSettings';
@@ -27,12 +29,10 @@ import { t } from '../../i18n';
 
 const MAX_ICON_BYTES = 8 * 1024 * 1024;
 
-function Overview({ guild, isOwner }) {
-  const { guildList } = useContext(LayoutContext);
+function Overview({ guild }) {
   const [name, setName] = useState(guild.name);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
-  const [deleteText, setDeleteText] = useState('');
   const [cropping, setCropping] = useState(null); // a picked icon, in the cropper
   const fileInput = useRef(null);
 
@@ -99,28 +99,37 @@ function Overview({ guild, isOwner }) {
       </section>
 
       <JoinLog guild={guild} />
-
-      {isOwner && (
-        <section className="guild-settings-danger">
-          <h6>{t('guildAdmin.guildSettings.delete')}</h6>
-          <p className="vc-hint">{t('guildAdmin.guildSettings.deleteHint')}</p>
-          <div className="vc-form-row">
-            <input className="form-control" aria-label={t('guildAdmin.guildSettings.deleteConfirmLabel')} value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
-            <button
-              type="button"
-              className="btn btn-danger btn-sm"
-              disabled={deleteText !== guild.name}
-              onClick={() => run(async () => {
-                await deleteGuild(guild.id);
-                guildList.removeGuild(guild.id);
-              })}
-            >
-              {t('guildAdmin.guildSettings.delete')}
-            </button>
-          </div>
-        </section>
-      )}
     </>
+  );
+}
+
+// Deleting the guild: the owner's alone, typing its name to confirm.
+function DeleteGuild({ guild }) {
+  const { guildList } = useContext(LayoutContext);
+  const [deleteText, setDeleteText] = useState('');
+  const [error, setError] = useState(null);
+
+  async function remove() {
+    setError(null);
+    try {
+      await deleteGuild(guild.id);
+      guildList.removeGuild(guild.id);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  return (
+    <section className="guild-settings-danger">
+      <p className="vc-hint">{t('guildAdmin.guildSettings.deleteHint')}</p>
+      <div className="vc-form-row">
+        <input className="form-control" aria-label={t('guildAdmin.guildSettings.deleteConfirmLabel')} value={deleteText} onChange={(e) => setDeleteText(e.target.value)} />
+        <button type="button" className="btn btn-danger btn-sm" disabled={deleteText !== guild.name} onClick={remove}>
+          {t('guildAdmin.guildSettings.delete')}
+        </button>
+      </div>
+      {error && <p className="error-msg" role="alert">{error}</p>}
+    </section>
   );
 }
 
@@ -365,53 +374,92 @@ function Bans({ guild }) {
   );
 }
 
-// Guild settings: the tabs you have permission for (Overview and Invites: Manage Guild;
-// Levels and Watch Together: Manage Guild; Roles: Manage Roles; Emoji and Soundboard: Manage Emoji; Bans: Ban Members;
-// Import: Administrator, while Settings → Admin allows history imports). Deleting the guild is the owner's alone.
+// Guild settings: a grouped list down the left of the pages you have permission for (Overview,
+// Invites, Levels and Watch Together: Manage Guild; Roles: Manage Roles; Emoji and Soundboard:
+// Manage Emoji; Bans: Ban Members; Import: Administrator, while Settings → Admin allows history
+// imports; Delete guild: the owner), the open page beside it. A group with nothing left in it
+// isn't shown. On a phone (guilds.css) it's one pane at a time, as Settings: the list first,
+// then a page over it with Back.
 export default function GuildSettingsDialog({ guild, user, onClose }) {
   const can = (bit) => has(guild.my_permissions, bit);
   const config = useContext(ConfigContext);
-  const tabs = [
-    can(PERMISSIONS.MANAGE_GUILD) && ['overview', t('guildAdmin.channelDialog.tabs.overview')],
-    can(PERMISSIONS.MANAGE_ROLES) && ['roles', t('guildAdmin.guildSettings.tabs.roles')],
-    can(PERMISSIONS.MANAGE_EMOJIS) && ['emoji', t('guildAdmin.guildSettings.tabs.emoji')],
-    can(PERMISSIONS.MANAGE_EMOJIS) && ['soundboard', t('guildAdmin.guildSettings.tabs.soundboard')],
-    can(PERMISSIONS.MANAGE_GUILD) && guild.levels && ['levels', t('guildAdmin.guildSettings.tabs.levels')],
-    can(PERMISSIONS.MANAGE_GUILD) && ['watchTogether', t('guildAdmin.guildSettings.tabs.watchTogether')],
-    can(PERMISSIONS.MANAGE_GUILD) && ['invites', t('guildAdmin.guildSettings.tabs.invites')],
-    can(PERMISSIONS.BAN_MEMBERS) && ['bans', t('guildAdmin.guildSettings.tabs.bans')],
-    can(PERMISSIONS.ADMINISTRATOR) && config?.historyImports !== false && ['import', t('guildAdmin.guildSettings.tabs.import')],
-  ].filter(Boolean);
-  const [tab, setTab] = useState(tabs[0]?.[0]);
+  const isOwner = guild.owner === user.id;
+  const tab = (key) => t(`guildAdmin.guildSettings.tabs.${key}`);
+  const groups = [
+    ['guild', [
+      can(PERMISSIONS.MANAGE_GUILD) && ['overview', t('guildAdmin.channelDialog.tabs.overview')],
+      can(PERMISSIONS.MANAGE_ROLES) && ['roles', tab('roles')],
+      can(PERMISSIONS.MANAGE_GUILD) && ['invites', tab('invites')],
+    ]],
+    ['expressions', [
+      can(PERMISSIONS.MANAGE_EMOJIS) && ['emoji', tab('emoji')],
+      can(PERMISSIONS.MANAGE_EMOJIS) && ['soundboard', tab('soundboard')],
+    ]],
+    ['features', [
+      can(PERMISSIONS.MANAGE_GUILD) && guild.levels && ['levels', tab('levels')],
+      can(PERMISSIONS.MANAGE_GUILD) && ['watchTogether', tab('watchTogether')],
+    ]],
+    ['moderation', [
+      can(PERMISSIONS.BAN_MEMBERS) && ['bans', tab('bans')],
+    ]],
+    // Below a line, without a heading: the rare and the irreversible, last.
+    ['end', [
+      can(PERMISSIONS.ADMINISTRATOR) && config?.historyImports !== false && ['import', tab('import')],
+      isOwner && ['delete', t('guildAdmin.guildSettings.delete')],
+    ]],
+  ].map(([group, items]) => [group, items.filter(Boolean)]).filter(([, items]) => items.length > 0);
+  const pages = groups.flatMap(([, items]) => items);
+  const [page, setPage] = useState(pages[0]?.[0]);
+  // Phones only: a page showing over the list (computers always show both).
+  const [pageOpen, setPageOpen] = useState(false);
+  const pageLabel = pages.find(([key]) => key === page)?.[1];
 
   return (
     <Modal title={t('guildAdmin.guildSettings.title')} onClose={onClose} className="guild-settings-dialog">
-      <div className="settings-tabs" role="tablist">
-        {tabs.map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            className={`settings-tab${tab === key ? ' active' : ''}`}
-            onClick={() => setTab(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="settings-tab-body" role="tabpanel">
-        {tab === 'overview' && <Overview guild={guild} isOwner={guild.owner === user.id} />}
-        {tab === 'roles' && <RolesSettings guild={guild} user={user} />}
-        {tab === 'emoji' && <EmojiSettings guild={guild} />}
-        {tab === 'soundboard' && <SoundboardSettings guild={guild} />}
-        {tab === 'levels' && <LevelSettings guild={guild} />}
-        {tab === 'watchTogether' && <MediaServerSettings guild={guild} />}
-        {tab === 'invites' && <Invites guild={guild} isOwner={guild.owner === user.id} />}
-        {tab === 'bans' && <Bans guild={guild} />}
-        {tab === 'import' && <GuildImport guild={guild} />}
-        {tabs.length === 0 && <p className="vc-hint">{t('guildAdmin.guildSettings.noPermission')}</p>}
-      </div>
+      {pages.length === 0 ? (
+        <p className="vc-hint guild-settings-none">{t('guildAdmin.guildSettings.noPermission')}</p>
+      ) : (
+        <div className={`guild-settings-layout${pageOpen ? ' page-open' : ''}`}>
+          <nav className="guild-settings-nav" aria-label={t('guildAdmin.guildSettings.title')}>
+            <div className="guild-settings-nav-guild" title={guild.name}>
+              <GuildIcon guild={guild} />
+              <span className="guild-settings-nav-name">{guild.name}</span>
+            </div>
+            {groups.map(([group, items]) => (
+              <div key={group} className={`guild-settings-nav-group${group === 'end' ? ' end' : ''}`}>
+                {group !== 'end' && <div className="settings-nav-category">{t(`guildAdmin.guildSettings.groups.${group}`)}</div>}
+                {items.map(([key, text]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`settings-nav-item${page === key ? ' active' : ''}${key === 'delete' ? ' danger' : ''}`}
+                    aria-current={page === key ? 'page' : undefined}
+                    onClick={() => { setPage(key); setPageOpen(true); }}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </nav>
+          <div className="guild-settings-page">
+            <button type="button" className="guild-settings-back" onClick={() => setPageOpen(false)}>
+              <Icon icon={faChevronLeft} /> {t('common.back')}
+            </button>
+            <h2 className={`guild-settings-page-title${page === 'delete' ? ' danger' : ''}`}>{pageLabel}</h2>
+            {page === 'overview' && <Overview guild={guild} />}
+            {page === 'roles' && <RolesSettings guild={guild} user={user} />}
+            {page === 'emoji' && <EmojiSettings guild={guild} />}
+            {page === 'soundboard' && <SoundboardSettings guild={guild} />}
+            {page === 'levels' && <LevelSettings guild={guild} />}
+            {page === 'watchTogether' && <MediaServerSettings guild={guild} />}
+            {page === 'invites' && <Invites guild={guild} isOwner={isOwner} />}
+            {page === 'bans' && <Bans guild={guild} />}
+            {page === 'import' && <GuildImport guild={guild} />}
+            {page === 'delete' && <DeleteGuild guild={guild} />}
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

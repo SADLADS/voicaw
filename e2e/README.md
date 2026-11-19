@@ -12,6 +12,7 @@ node e2e/serve.mjs &     # web :5199, API :3099, object store :3100, LiveKit :31
 node e2e/smoke.mjs       # two users, one message delivered live; an example to copy
 node e2e/catchup.mjs     # an open DM gets what its websocket missed: dropped, then a reconnect; dropped, then the app hidden 5 s+ and shown (a notification tap); once each, live ones still once
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
+node e2e/guildsettings.mjs [dir] # Guild Settings' side list: groups and pages (owner, 100-character name cut with an ellipsis), every page fits (nothing wider than the dialog) and keeps its height, English and Russian, dark and light, Roles' Save bar at the bottom, narrow window (Roles stacks), no permissions, phone (list, page over it, Back)
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order

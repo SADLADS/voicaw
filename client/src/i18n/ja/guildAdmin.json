@@ -558,6 +558,12 @@
         "soundboard": "サウンドボード",
         "import": "インポート"
       },
+      "groups": {
+        "guild": "ギルド",
+        "expressions": "絵文字とサウンド",
+        "features": "機能",
+        "moderation": "モデレーション"
+      },
       "noPermission": "ここで何かを変更する権限がありません。"
     },
     "mediaServer": {

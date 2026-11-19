@@ -126,8 +126,16 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   Owner / Kick / Ban, Block and Report are in the person's right-click menu (held on a phone;
   `utils/personMenu.js`, see Right-click menus in `docs/client.md`), the same on a row as on a
   message's picture or name. Guild Settings
-  (`GuildSettingsDialog`) has tabs by permission: Overview (also the join log, see Join log), Roles (`RolesSettings`: drag or
-  arrows to reorder, colour swatches, permissions), Emoji (`EmojiSettings`), Invites, Bans. A channel's settings have a
+  (`GuildSettingsDialog`, 2026-11-19, once its tabs no longer fitted) is a list down the left
+  of the pages you have permission for, grouped as Settings' are, the open page beside it:
+  Guild (Overview, also the join log, see Join log; Roles, `RolesSettings`: drag or arrows to
+  reorder, colour swatches, permissions; Invites), Emoji and sounds (Emoji, `EmojiSettings`;
+  Soundboard), Features (Levels, Watch Together), Moderation (Bans), then below a line Import
+  and, for the owner, Delete guild (out of Overview). A group with nothing left is hidden. The
+  dialog has a fixed height; nothing in it may make it wider (the guild's name is cut with an
+  ellipsis, labels wrap, and the page is a CSS container, so Roles stacks by the room it has,
+  not the window's width). On a phone it's one pane at a time: the list, then a page over it
+  with Back (`e2e/guildsettings.mjs` checks all of this). A channel's settings have a
   Permissions tab (`ChannelPermissions`: private toggle, ✕ / / ✓ per role or member). Dialogs use `guild/Modal.jsx`; styles are
   `assets/css/guilds.css`. Attachments in channels still go through the encrypted upload (the
   key is in the plain message, so anyone in the channel can open them); plain uploads can come later.

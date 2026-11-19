@@ -88,11 +88,11 @@ try {
 
   await a.click('.guild-header-button');
   await a.click('text=Guild Settings');
-  await a.click('.settings-tab:has-text("Emoji")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Emoji")');
   await a.setInputFiles('input[aria-label="Emoji images"]', [squarePng(path.join(dir, 'clueless.png'), [90, 160, 240])]);
   await a.waitForSelector('.emoji-settings-row input[value="clueless"]');
   await a.keyboard.press('Escape');
-  await a.waitForSelector('.settings-tab', { state: 'detached' }).catch(() => {});
+  await a.waitForSelector('.guild-settings-dialog', { state: 'detached' }).catch(() => {});
 
   // Type the emoji and a mention, as people do.
   await a.click('#dm-input');

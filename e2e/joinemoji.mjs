@@ -56,7 +56,7 @@ try {
   await a.waitForSelector('#dm-input');
   await a.click('.guild-header-button');
   await a.click('text=Guild Settings');
-  await a.click('.settings-tab:has-text("Emoji")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Emoji")');
   await a.setInputFiles('input[aria-label="Emoji images"]', [squarePng(path.join(dir, 'party_cat.png'), [240, 90, 120])]);
   await a.waitForSelector('.emoji-settings-row input[value="party_cat"]');
   await a.keyboard.press('Escape');

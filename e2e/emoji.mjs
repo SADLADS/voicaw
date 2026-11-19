@@ -88,7 +88,7 @@ async function uploadEmoji(page, guildId, files) {
   await page.waitForSelector('#dm-input');
   await page.click('.guild-header-button');
   await page.click('text=Guild Settings');
-  await page.click('.settings-tab:has-text("Emoji")');
+  await page.click('.guild-settings-nav .settings-nav-item:has-text("Emoji")');
   await page.setInputFiles('input[aria-label="Emoji images"]', files);
   for (const file of files) {
     await page.waitForSelector(`.emoji-settings-row input[value="${path.basename(file, '.png')}"]`);

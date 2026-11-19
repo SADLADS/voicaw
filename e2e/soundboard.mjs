@@ -126,7 +126,7 @@ try {
   // short WAV as it is, the long one cut, the text file refused with its name).
   await a.click('.guild-header-button');
   await a.click('text=Guild Settings');
-  await a.click('.settings-tab:has-text("Soundboard")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Soundboard")');
   const notes = path.join(dir, 'notes.txt');
   fs.writeFileSync(notes, 'not a sound');
   await a.setInputFiles('input[aria-label="Sound file"]', [
@@ -274,7 +274,7 @@ try {
   await b.waitForSelector('#dm-input');
   await b.click('.guild-header-button');
   await b.click('text=Guild Settings');
-  await b.click('.settings-tab:has-text("Soundboard")');
+  await b.click('.guild-settings-nav .settings-nav-item:has-text("Soundboard")');
   await b.setInputFiles('input[aria-label="Sound file"]', [toneWav(path.join(dir, 'bell.wav'), 1.5, 880)]);
   await b.waitForSelector('.soundboard-settings-row input[value="bell"]');
   await b.keyboard.press('Escape');

@@ -29,7 +29,7 @@ const call = (page, method, path, body) => page.evaluate(async ([m, p, b]) => {
 const openSettingsTab = async (page, tab) => {
   await page.click('.guild-header-button');
   await page.click('.guild-menu-item:has-text("Guild Settings")');
-  await page.click(`.settings-tab:has-text("${tab}")`);
+  await page.click(`.guild-settings-nav .settings-nav-item:has-text("${tab}")`);
 };
 
 const browser = await launchChrome();

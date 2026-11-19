@@ -591,6 +591,12 @@
         "soundboard": "Звуковая панель",
         "import": "Импорт"
       },
+      "groups": {
+        "guild": "Гильдия",
+        "expressions": "Эмодзи и звуки",
+        "features": "Функции",
+        "moderation": "Модерация"
+      },
       "noPermission": "У вас нет прав что-либо здесь менять."
     },
     "mediaServer": {

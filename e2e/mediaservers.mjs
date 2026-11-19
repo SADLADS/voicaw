@@ -62,7 +62,7 @@ async function openSettings(page) {
   if (await page.$('.media-server-settings')) return;
   await page.click('.guild-header-button');
   await page.click('text=Guild Settings');
-  await page.click('.settings-tab:has-text("Watch Together")');
+  await page.click('.guild-settings-nav .settings-nav-item:has-text("Watch Together")');
   await page.waitForSelector('.media-server-settings form, .media-server-current');
 }
 

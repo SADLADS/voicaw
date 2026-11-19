@@ -103,7 +103,7 @@ try {
   // Guild Settings → Import.
   await a.click('.guild-header-button');
   await a.click('.guild-menu-item:has-text("Guild Settings")');
-  await a.click('.settings-tab:has-text("Import")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Import")');
   await a.click('button:has-text("Import history")');
   await a.setInputFiles('input[webkitdirectory]', archive.root);
   await a.waitForSelector('.guild-import-summary');

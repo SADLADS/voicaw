@@ -66,6 +66,49 @@
     padding: 9px 10px;
 }
 
+/* Guild settings: one pane at a time, as Settings: the list, then a page over it with Back
+   (GuildSettingsDialog's page-open). The dialog takes the whole screen height. */
+.mobile-mode .guild-settings-dialog {
+    height: calc(var(--vc-app-height) - 32px);
+}
+
+.mobile-mode .guild-settings-nav {
+    flex: 1 1 100%;
+    border-right: 0;
+    border-bottom-right-radius: 15px;
+}
+
+.mobile-mode .guild-settings-page {
+    --page-pad-bottom: 20px;
+    display: none;
+    padding: 8px 16px var(--page-pad-bottom);
+}
+
+.mobile-mode .guild-settings-layout.page-open .guild-settings-nav {
+    display: none;
+}
+
+.mobile-mode .guild-settings-layout.page-open .guild-settings-page {
+    display: block;
+}
+
+.mobile-mode .guild-settings-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    margin: 0 0 4px -6px;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--vc-fg-muted);
+}
+
+.mobile-mode .guild-settings-back svg {
+    font-size: 13px;
+}
+
 /* Swipe to reply (hooks/useSwipeToReply.js): a message swiped left follows the finger with
    the reply arrow coming in from the right edge (--swipe-progress, 0 to 1), filled in once
    it's far enough (data-swipe="armed"), and springs back when let go. data-swipe, not classes:

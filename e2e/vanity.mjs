@@ -32,7 +32,7 @@ try {
   // Guild Settings → Invites: the Vanity URL section, set in mixed case with spaces.
   await a.click('.guild-header-button');
   await a.click('.guild-menu-item:has-text("Guild Settings")');
-  await a.click('.settings-tab:has-text("Invites")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Invites")');
   await a.waitForSelector('#guild-vanity-code');
   await a.fill('#guild-vanity-code', ` ${code.toUpperCase()} `);
   await a.click('.guild-vanity button:has-text("Save")');
@@ -80,7 +80,7 @@ try {
   // Alice's settings count the use; the owner's phone layout fits.
   await a.click('.guild-header-button');
   await a.click('.guild-menu-item:has-text("Guild Settings")');
-  await a.click('.settings-tab:has-text("Invites")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Invites")');
   await a.waitForSelector('.guild-vanity-link:has-text("1 use")');
   check(true, 'one use counted');
 
@@ -96,7 +96,7 @@ try {
   // Removed: the link stops working.
   await a.click('.guild-header-button');
   await a.click('.guild-menu-item:has-text("Guild Settings")');
-  await a.click('.settings-tab:has-text("Invites")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Invites")');
   await a.click('.guild-vanity button:has-text("Remove")');
   await a.waitForSelector('.guild-vanity .success-msg:has-text("Vanity URL removed")');
   check(!(await a.$('.guild-vanity-link')), 'removed: no link shown');
@@ -122,7 +122,7 @@ try {
   await p.waitForTimeout(500);
   await p.click('.guild-header-button');
   await p.click('.guild-menu-item:has-text("Guild Settings")');
-  await p.click('.settings-tab:has-text("Invites")');
+  await p.click('.guild-settings-nav .settings-nav-item:has-text("Invites")');
   await p.fill('#guild-vanity-code', `${code}-again`);
   await p.click('.guild-vanity button:has-text("Save")');
   await p.waitForSelector(`.guild-vanity-link:has-text("${code}-again")`);

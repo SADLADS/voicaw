@@ -111,7 +111,7 @@ try {
   await a.click('text=Guild Settings');
   await a.waitForSelector('.guild-settings-dialog');
   await shot(a, 'desktop-settings');
-  await a.click('.settings-tab:has-text("Invites")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Invites")');
   await a.waitForSelector('.guild-settings-code');
   await shot(a, 'desktop-settings');
   await a.keyboard.press('Escape');

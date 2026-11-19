@@ -569,6 +569,12 @@
         "soundboard": "Soundboard",
         "import": "Import"
       },
+      "groups": {
+        "guild": "Guild",
+        "expressions": "Emoji and sounds",
+        "features": "Features",
+        "moderation": "Moderation"
+      },
       "noPermission": "You don't have permission to change anything here."
     },
     "mediaServer": {

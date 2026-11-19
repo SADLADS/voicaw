@@ -47,7 +47,7 @@ try {
   // Guild Settings → Roles → Create Role: "Mods", pink, shown separately, Manage Messages.
   await a.click('.guild-header-button');
   await a.click('text=Guild Settings');
-  await a.click('.settings-tab:has-text("Roles")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Roles")');
   await a.click('button:has-text("Create Role")');
   await a.waitForSelector('.roles-list-item:has-text("new role")');
   await a.fill('#role-name', 'Mods');
@@ -142,7 +142,7 @@ try {
   await a.setViewportSize({ width: 400, height: 820 });
   await a.click('.guild-header-button');
   await a.click('text=Guild Settings');
-  await a.click('.settings-tab:has-text("Roles")');
+  await a.click('.guild-settings-nav .settings-nav-item:has-text("Roles")');
   await a.waitForSelector('.role-editor');
   await shot(a, 'roles-settings-narrow');
 
