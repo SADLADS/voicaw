@@ -33,7 +33,7 @@ import {
 import { loadIdentityKey } from '../services/keyStore';
 import { groupPreviewsContext, groupPreviewsSignatureContext, openGroupPreviews, sealGroupPreviews } from '../services/linkPreviewCrypto';
 import { previewsFor } from '../services/linkPreviewService';
-import { openGroup, renameGroup } from '../services/groupKeys';
+import { openGroup } from '../services/groupKeys';
 import { sendGroupText } from '../services/groupSend';
 import { nameOf } from '../utils/profiles';
 import { uploadNamesIn } from '../utils/attachmentMarkup';
@@ -254,10 +254,6 @@ export function useGroupConversation({ groupId, user, onRead }) {
         if (cancelled) return;
         groupRef.current = opened;
         setGroup(opened);
-        if (opened.name?.legacy && !opened.problems.length && !isOfflineMode()) {
-          renameGroup(user, groupId, opened.name.name, { initial: true, opened })
-            .catch((err) => console.warn("Failed to encrypt the group's name", err));
-        }
         let page = null;
         try {
           if (!isOfflineMode()) page = await fetchGroupMessages(groupId, { limit: GROUP_PAGE_SIZE });

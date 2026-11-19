@@ -80,7 +80,8 @@ export class GroupLogError extends Error {}
 //   members: Map userId -> identity key (now), ownerId (null once the owner left),
 //   identityKeys: Map userId -> the identity key the log gives them (latest),
 //   membersAt: seq -> Set of member ids after that entry,
-//   records: the parsed records, nextSeq, prevHash (for the next record).
+//   records: the parsed records, nextSeq, prevHash (for the next record), hashes: seq -> the
+//   hash of the log up to that entry (groupKeys.js compares it with the length this device saw).
 // Throws GroupLogError if anything doesn't hold.
 export async function verifyGroupLog(groupId, entries) {
   const members = new Map();
@@ -89,6 +90,7 @@ export async function verifyGroupLog(groupId, entries) {
   const records = [];
   let ownerId = null;
   let prevHash = null;
+  const hashes = [];
   for (const [i, entry] of entries.entries()) {
     let r;
     try {
@@ -137,9 +139,10 @@ export async function verifyGroupLog(groupId, entries) {
     membersAt.push(new Set(members.keys()));
     records.push(r);
     prevHash = await entryHash(entry.record, entry.signature);
+    hashes.push(prevHash);
   }
   if (records.length === 0) throw new GroupLogError('Empty log');
-  return { members, ownerId, identityKeys, membersAt, records, nextSeq: records.length, prevHash };
+  return { members, ownerId, identityKeys, membersAt, records, nextSeq: records.length, prevHash, hashes };
 }
 
 // ---------------------------------------------------------------- epoch keys

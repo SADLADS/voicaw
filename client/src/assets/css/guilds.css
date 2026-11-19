@@ -3573,6 +3573,29 @@ img.emoji.custom-emoji {
   min-width: 160px;
 }
 
+.guild-import-check {
+  margin: 6px 0;
+}
+
+.guild-import-emoji-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.guild-import-emoji {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: var(--vc-radius-sm);
+}
+
+span.guild-import-emoji {
+  background: var(--vc-bg-hover);
+}
+
 .guild-import-item-actions {
   display: flex;
   flex-wrap: wrap;

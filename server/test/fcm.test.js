@@ -117,11 +117,15 @@ describe('Android app notifications (FCM)', () => {
     const [alice, bob] = [await makeUser(), await makeUser()];
     const phone = await registerPhone(bob);
     const since = sent.length;
-    const content = `v1.${randomBytes(2097).toString('base64')}`; // 2800 characters, push.js's limit
+    const { MAX_PUSH_CIPHERTEXT_LENGTH } = require('../push.js');
+    const content = `v1.${randomBytes(2000).toString('base64')}`.slice(0, MAX_PUSH_CIPHERTEXT_LENGTH); // push.js's limit
+    expect(content).toHaveLength(MAX_PUSH_CIPHERTEXT_LENGTH);
     expect((await post(alice, '/dm-send', { recipient_id: bob.id, content })).status).toBe(201);
     const [fcm] = await waitForSent(1, since);
     expect(fcm.message.data.p.length).toBeLessThanOrEqual(3900);
-    expect(open(fcm.message, phone.key).ciphertext).toBe(content);
+    const opened = open(fcm.message, phone.key);
+    expect(opened.ciphertext).toBe(content);
+    expect(opened.senderKeys).toMatchObject({ identityKey: expect.any(String), encryptionKeySignature: expect.any(String) });
   });
 
   it('leaves the message out of anything too big for FCM', () => {

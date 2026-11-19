@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const events = vi.hoisted(() => ({ listeners: new Set() }));
+const events = vi.hoisted(() => ({ listeners: new Set(), group: new Set() }));
 const voice = vi.hoisted(() => ({ listeners: new Set() }));
 vi.mock('../utils/ws-client', () => ({
   onCallEvent: (cb) => {
     events.listeners.add(cb);
     return () => events.listeners.delete(cb);
   },
+  onGroupEvent: (cb) => {
+    events.group.add(cb);
+    return () => events.group.delete(cb);
+  },
 }));
+vi.mock('../services/groupKeys', async (importOriginal) => ({ ...(await importOriginal()), openGroup: vi.fn(), currentEpoch: vi.fn() }));
 vi.mock('../services/callService', () => ({
   fetchCurrentCall: vi.fn(async () => null),
   startCallRequest: vi.fn(async (calleeId, callId) => ({ call: { id: callId }, url: 'wss://lk', token: 'caller-token' })),
@@ -30,7 +35,9 @@ vi.mock('./voiceClient', () => ({
 }));
 vi.mock('../sounds/sounds', () => ({ startLoop: vi.fn(), stopLoop: vi.fn(), playSound: vi.fn() }));
 
-import { acceptCall, answerWhenRinging, declineCall, getCallSnapshot, hangUp, initCalls, startCall } from './callClient';
+import {
+  acceptCall, answerWhenRinging, declineCall, getCallSnapshot, hangUp, initCalls, noteGroupCall, startCall,
+} from './callClient';
 import { acceptCallRequest, declineCallRequest, fetchCurrentCall, hangUpRequest, startCallRequest } from '../services/callService';
 import { catchUp } from '../utils/catchUp';
 import { fetchUsersList } from '../services/dmService';
@@ -38,6 +45,12 @@ import { checkContactKeys } from '../services/contactKeys';
 import { loadEncryptionKey } from '../services/keyStore';
 import { getVoiceSnapshot, joinCall, leaveVoice, setVoiceError } from './voiceClient';
 import { startLoop } from '../sounds/sounds';
+import { openGroup } from '../services/groupKeys';
+import {
+  callKeySignatureContext, encryptGroupCallKey, generateGroupKey, groupCallKeyContext, importGroupKey,
+} from '../services/groupCrypto';
+import { importIdentityPrivateKey } from '../services/encryptionService';
+import { t } from '../i18n';
 import {
   callKeyContext,
   deriveConversationKey,
@@ -327,6 +340,117 @@ describe('callClient', () => {
       await startCall(bob.row);
       expect(getCallSnapshot().call).not.toBeNull();
       expect(hangUpRequest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('group calls', () => {
+    const groupId = 'g1';
+    // A group of alice (1), bob (2) and carol (3) as openGroup gives it: epoch 1 made by alice
+    // after log entry `logSeq` for `holders`, with `members` in it now.
+    async function groupCall({ holders = [1, 2, 3], members = [1, 2, 3], callerId = 1, logSeq = 2 } = {}) {
+      const epochKey = await importGroupKey(generateGroupKey());
+      const callKey = generateCallKey();
+      const identity = await importIdentityPrivateKey(alice.keys.private.identityKey);
+      const call = {
+        id: 'gc1', group_id: groupId, caller_id: callerId, caller_username: 'alice', key_epoch: 1, participants: [callerId], ringing: [2],
+        key_envelope: await encryptGroupCallKey(
+          callKey, epochKey, groupCallKeyContext('gc1', groupId, 1, callerId), identity,
+          callKeySignatureContext({ callId: 'gc1', groupId, epoch: 1, callerId })
+        ),
+      };
+      const membersAt = [];
+      membersAt[logSeq] = new Set(holders);
+      openGroup.mockResolvedValue({
+        keys: new Map([[1, epochKey]]),
+        epochs: new Map([[1, { logSeq, creatorId: 1 }]]),
+        log: {
+          members: new Map(members.map((id) => [id, `ik${id}`])),
+          identityKeys: new Map([[1, alice.keys.public.identityKey]]),
+          membersAt,
+          nextSeq: logSeq + 1,
+        },
+      });
+      acceptCallRequest.mockResolvedValueOnce({ call: { ...call, participants: [1, 2] }, url: 'wss://lk', token: 'bob-token' });
+      return { call, callKey };
+    }
+
+    async function answer(call) {
+      await as(bob);
+      emit({ type: 'call_incoming', call });
+      await acceptCall();
+    }
+
+    it('joins with the key the caller signed, made for the members there are now', async () => {
+      const { call, callKey } = await groupCall();
+      await answer(call);
+      expect(joinCall.mock.calls[0][0]).toMatchObject({ callId: 'gc1', key: callKey });
+      expect(getCallSnapshot().call).toMatchObject({ id: 'gc1', groupId, state: 'active' });
+    });
+
+    it('still joins after someone was added (they never had the key)', async () => {
+      const { call } = await groupCall({ holders: [1, 2], members: [1, 2, 3] });
+      await answer(call);
+      expect(joinCall).toHaveBeenCalled();
+    });
+
+    it("won't join a call whose key someone who has left the group holds", async () => {
+      const { call } = await groupCall({ holders: [1, 2, 3], members: [1, 2] });
+      await answer(call);
+      expect(joinCall).not.toHaveBeenCalled();
+      expect(acceptCallRequest).not.toHaveBeenCalled();
+      expect(setVoiceError).toHaveBeenCalledWith(t('calls.errors.notPrivate'));
+      expect(getCallSnapshot().call).toBeNull();
+    });
+
+    it("won't join a call from someone who isn't in the group now", async () => {
+      const { call } = await groupCall({ holders: [1, 2], members: [2, 3] });
+      await answer(call);
+      expect(joinCall).not.toHaveBeenCalled();
+      expect(setVoiceError).toHaveBeenCalledWith(t('calls.errors.unverified'));
+    });
+
+    it('leaves when someone leaves or is removed from the group during the call, not when someone joins', async () => {
+      const { call } = await groupCall();
+      await answer(call);
+      getVoiceSnapshot.mockReturnValue({ callId: 'gc1' });
+      const entry = (type) => ({ type: 'group_dm_update', group: { id: groupId }, entry: { seq: 3, record: JSON.stringify({ type }), signature: 's' } });
+      events.group.forEach((cb) => cb(entry('add')));
+      events.group.forEach((cb) => cb({ ...entry('leave'), group: { id: 'another' } }));
+      await flush();
+      expect(getCallSnapshot().call).not.toBeNull();
+      events.group.forEach((cb) => cb(entry('remove')));
+      await flush();
+      expect(getCallSnapshot().call).toBeNull();
+      expect(leaveVoice).toHaveBeenCalled();
+      expect(hangUpRequest).toHaveBeenCalledWith('gc1');
+      expect(setVoiceError).toHaveBeenCalledWith(t('calls.errors.memberLeft'));
+      getVoiceSnapshot.mockReturnValue({ callId: null });
+    });
+
+    it("doesn't bring back a call that has ended from a group fetched before that", async () => {
+      await as(bob);
+      const call = { id: 'gc9', group_id: groupId, caller_id: 1, participants: [1, 2], ringing: [] };
+      emit({ type: 'call_update', call });
+      expect(getCallSnapshot().groupCalls[groupId]).toMatchObject({ id: 'gc9' });
+      emit({ type: 'call_end', id: 'gc9', reason: 'ended' });
+      expect(getCallSnapshot().groupCalls[groupId]).toBeUndefined();
+      noteGroupCall(groupId, call);
+      emit({ type: 'call_update', call });
+      expect(getCallSnapshot().groupCalls[groupId]).toBeUndefined();
+      noteGroupCall(groupId, { ...call, id: 'gc10' });
+      expect(getCallSnapshot().groupCalls[groupId]).toMatchObject({ id: 'gc10' });
+    });
+
+    it('hangs up and says why when someone sends audio or video that isn\'t encrypted', async () => {
+      const { call } = await groupCall();
+      await answer(call);
+      getVoiceSnapshot.mockReturnValue({ callId: 'gc1' });
+      await joinCall.mock.calls[0][0].onUnencrypted();
+      expect(getCallSnapshot().call).toBeNull();
+      expect(leaveVoice).toHaveBeenCalled();
+      expect(hangUpRequest).toHaveBeenCalledWith('gc1');
+      expect(setVoiceError).toHaveBeenCalledWith(t('calls.errors.unencrypted'));
+      getVoiceSnapshot.mockReturnValue({ callId: null });
     });
   });
 });

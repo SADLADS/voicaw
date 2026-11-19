@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createChannel, fetchMembers } from '../../services/guildService';
+import { addGuildEmoji, createChannel, fetchGuildEmojis, fetchMembers } from '../../services/guildService';
 import { deleteImport, listImports, setMapping } from '../../services/historyImport/importService';
-import { readArchive, sendImport, startImport } from '../../services/historyImport/runImport';
+import { archiveFile, emojiFile, readArchive, sendImport, startImport } from '../../services/historyImport/runImport';
 import { errorMessage } from '../../utils/guildDisplay';
 import { formatDate, formatDateTime } from '../../utils/dateFormat';
 import { displayName, nameOf, useProfiles } from '../../utils/profiles';
@@ -12,8 +12,8 @@ import { t } from '../../i18n';
 // Guild Settings → Import (the owner or Administrator, while Settings → Admin allows it): old
 // chat history from an exported archive into this guild's channels (docs/guilds.md, History
 // imports). Choose the archive (read here, in the browser: services/historyImport/), say where
-// each of its channels goes and who each author is, pick the tag's word, then it's sent in
-// batches. Past imports can be continued (choosing the same archive again), remapped or deleted.
+// each of its channels goes, who each author is and what its custom emoji become, pick the
+// tag's word, then it's sent in batches. Past imports can be continued (choosing the same archive again), remapped or deleted.
 
 const LABEL_MAX = 24;
 const NEW = 'new';
@@ -153,6 +153,7 @@ function PickArchive({ resume, onRead, onCancel }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [read, setRead] = useState(null);
+  const [download, setDownload] = useState(true);
   const folderRef = useRef(null);
 
   async function choose(files) {
@@ -202,9 +203,20 @@ function PickArchive({ resume, onRead, onCancel }) {
           {read.files.total > 0 && (
             <p className={read.files.included < read.files.total ? 'guild-import-warning' : 'vc-hint'}>
               {t('guildAdmin.import.files', { included: read.files.included, count: read.files.total })}
-              {read.files.included < read.files.total && ` ${t('guildAdmin.import.filesMissing')}`}
+              {read.files.downloadable > 0 && ` ${t('guildAdmin.import.filesLinked', { count: read.files.downloadable })}`}
+              {read.files.expired > 0 && ` ${t('guildAdmin.import.filesExpired', { count: read.files.expired })}`}
+              {read.files.included + read.files.downloadable < read.files.total && ` ${t('guildAdmin.import.filesMissing')}`}
               {read.files.tooBig > 0 && ` ${t('guildAdmin.import.filesTooBig', { count: read.files.tooBig })}`}
             </p>
+          )}
+          {read.download && (
+            <label className="form-check guild-import-check">
+              <input type="checkbox" className="form-check-input" checked={download} onChange={(e) => setDownload(e.target.checked)} />
+              <span className="form-check-label">
+                {t('guildAdmin.import.download')}
+                <span className="vc-hint d-block">{t('guildAdmin.import.downloadHint')}</span>
+              </span>
+            </label>
           )}
           {read.unreadable.length > 0 && (
             <p className="vc-hint">{t('guildAdmin.import.skippedFiles', { count: read.unreadable.length })}</p>
@@ -221,7 +233,7 @@ function PickArchive({ resume, onRead, onCancel }) {
             setBusy(true);
             setError(null);
             try {
-              await onRead(read);
+              await onRead({ ...read, download: read.download && download });
             } catch (err) {
               setError(errorMessage(err));
               setBusy(false);
@@ -232,6 +244,81 @@ function PickArchive({ resume, onRead, onCancel }) {
         </button>
       </div>
     </div>
+  );
+}
+
+const EMOJI_TEXT = 'text';
+const EMOJI_ADD = 'add';
+// Emoji names here are 2–32 characters; the archive's may be 1.
+const emojiName = (name) => (name.length < 2 ? `${name}_` : name);
+// Whether an archive emoji's picture can be had (in the archive, or downloaded when allowed).
+const canAdd = (read, emoji) => Boolean(emoji && (emoji.imagePath || (read.download && emoji.imageUrl)));
+
+// An archive emoji's picture: from the archive (an object URL, let go when it's not shown), or
+// its link while downloading is allowed (that site then sees this browser, as the download
+// would), else none.
+function ArchiveEmojiImage({ read, emoji }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let url = null;
+    let live = true;
+    if (emoji.imagePath) {
+      archiveFile(read, { path: emoji.imagePath }, { download: false }).then((blob) => {
+        if (!live || !blob) return;
+        url = URL.createObjectURL(blob);
+        setSrc(url);
+      }).catch(() => {});
+    } else if (read.download && emoji.imageUrl) {
+      setSrc(emoji.imageUrl);
+    }
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [read, emoji]);
+  return src
+    ? <img className="guild-import-emoji" src={src} alt="" referrerPolicy="no-referrer" />
+    : <span className="guild-import-emoji" aria-hidden="true" />;
+}
+
+// The archive's custom emoji: each becomes one of this guild's, is added to it from the
+// archive's picture, or stays its name as text.
+function ArchiveEmojis({ read, guildEmojis, choices, onChange, onAddAll }) {
+  const rows = [...read.emojis.values()].sort((a, b) => b.uses - a.uses);
+  const addable = rows.some((e) => choices[e.sourceId] === EMOJI_TEXT && canAdd(read, e));
+  return (
+    <>
+      <h6 className="guild-import-heading">{t('guildAdmin.import.emojiTitle')}</h6>
+      <p className="vc-hint">{t('guildAdmin.import.emojiHint')}</p>
+      <ul className="guild-import-rows">
+        {rows.map((e) => (
+          <li key={e.sourceId} className="guild-import-row">
+            <span className="guild-import-row-name">
+              <span className="guild-import-emoji-name">
+                <ArchiveEmojiImage read={read} emoji={e} />
+                <strong>:{e.name}:</strong>
+              </span>
+              <span className="vc-hint">{t('guildAdmin.import.emojiLine', { count: e.uses })}</span>
+            </span>
+            <select
+              className="form-select form-select-sm"
+              aria-label={t('guildAdmin.import.emojiTarget', { name: e.name })}
+              value={choices[e.sourceId] ?? EMOJI_TEXT}
+              onChange={(event) => onChange(e.sourceId, event.target.value)}
+            >
+              <option value={EMOJI_TEXT}>{t('guildAdmin.import.emojiAsText', { name: e.name })}</option>
+              {canAdd(read, e) && <option value={EMOJI_ADD}>{t('guildAdmin.import.emojiAdd')}</option>}
+              {guildEmojis.map((g) => <option key={g.id} value={String(g.id)}>:{g.name}:</option>)}
+            </select>
+          </li>
+        ))}
+      </ul>
+      {addable && (
+        <div className="vc-form-row">
+          <button type="button" className="btn btn-secondary btn-sm vc-button" onClick={onAddAll}>{t('guildAdmin.import.emojiAddAll')}</button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -254,6 +341,18 @@ function AuthorSelect({ value, members, optedOut, onChange, label }) {
 
 // Step 2: where each channel goes, who each author is, the tag's word.
 function MapArchive({ guild, members, read, view, onStart, onCancel }) {
+  const [guildEmojis, setGuildEmojis] = useState([]);
+  const [emojiChoices, setEmojiChoices] = useState({});
+  useEffect(() => {
+    fetchGuildEmojis(guild.id).then((list) => {
+      setGuildEmojis(list);
+      // An emoji of the same name if the guild has one, else its name as text.
+      setEmojiChoices(Object.fromEntries([...read.emojis.values()].map((e) => {
+        const same = list.find((g) => g.name.toLowerCase() === e.name.toLowerCase());
+        return [e.sourceId, same ? String(same.id) : EMOJI_TEXT];
+      })));
+    }).catch(() => {});
+  }, [guild.id, read.emojis]);
   const chatChannels = (guild.channels ?? []).filter((c) => c.type === 'text' || c.type === 'voice');
   const optedOut = useMemo(() => new Set(view.opted_out ?? []), [view.opted_out]);
   const people = useMemo(() => sortedMembers(members), [members]);
@@ -272,6 +371,29 @@ function MapArchive({ guild, members, read, view, onStart, onCancel }) {
     setBusy(true);
     setError(null);
     try {
+      // Emoji to add from the archive's pictures, the same way (EmojiSettings' route). One that
+      // fails is set to text and stops here, so the importer sees which (before any channel is made,
+      // so pressing Import again makes none twice).
+      const emojis = [];
+      for (const e of read.emojis.values()) {
+        const choice = emojiChoices[e.sourceId] ?? EMOJI_TEXT;
+        let emojiId = choice === EMOJI_TEXT ? null : Number(choice);
+        if (choice === EMOJI_ADD) {
+          try {
+            const file = await emojiFile(read, e);
+            const added = await addGuildEmoji(guild.id, emojiName(e.name), file);
+            emojiId = added.id;
+            setGuildEmojis((list) => [...list, added]);
+            setEmojiChoices((prev) => ({ ...prev, [e.sourceId]: String(added.id) }));
+          } catch (err) {
+            setEmojiChoices((prev) => ({ ...prev, [e.sourceId]: EMOJI_TEXT }));
+            setError(t('guildAdmin.import.emojiAddFailed', { name: e.name, error: errorMessage(err) }));
+            setBusy(false);
+            return;
+          }
+        }
+        emojis.push({ sourceId: e.sourceId, emojiId });
+      }
       // New channels first (the usual way, so the usual checks), in a category of the
       // archive's category's name if the guild has one.
       const mapped = [];
@@ -289,6 +411,7 @@ function MapArchive({ guild, members, read, view, onStart, onCancel }) {
         label: label.trim() || null,
         authors: view.authors.map((a) => ({ id: a.id, userId: authors[a.id] ?? null })),
         channels: mapped,
+        emojis,
       });
       onStart(updated, new Set(mapped.map((m) => m.sourceId)));
     } catch (err) {
@@ -350,6 +473,18 @@ function MapArchive({ guild, members, read, view, onStart, onCancel }) {
           </li>
         ))}
       </ul>
+
+      {read.emojis.size > 0 && (
+        <ArchiveEmojis
+          read={read}
+          guildEmojis={guildEmojis}
+          choices={emojiChoices}
+          onChange={(sourceId, value) => setEmojiChoices((prev) => ({ ...prev, [sourceId]: value }))}
+          onAddAll={() => setEmojiChoices((prev) => Object.fromEntries(Object.entries(prev).map(([id, value]) => [
+            id, value === EMOJI_TEXT && canAdd(read, read.emojis.get(id)) ? EMOJI_ADD : value,
+          ])))}
+        />
+      )}
 
       <h6 className="guild-import-heading">{t('guildAdmin.import.labelTitle')}</h6>
       <label className="guild-import-label">

@@ -47,7 +47,7 @@ node e2e/streamcorner.mjs [dir] # corner players: a watched stream on another pa
 node e2e/callscreenshare.mjs [dir] # screen sharing in calls: DM call (call panel's button, own preview, the other's opens by itself and plays, encrypted in LiveKit, chat still in view, Stop watching = no download and stays closed, Watch Stream), group call (phone can't share, waits for Watch Stream, nothing downloaded before, fits the phone)
 node e2e/calls.mjs [dir]  # DM calls: ring, answer, encrypted (asks LiveKit), mute, decline, phone
 node e2e/calllog.mjs [dir] # calls in the chat: lasted …, declined, didn't answer / missed (unread), after reload, phone
-node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call, owner leaves
+node e2e/groups.mjs [dir] # group DMs: create, add (no old messages), remove, group call (tracks encrypted in LiveKit), the owner leaving the group mid-call ends it for the others (voice bar says why)
 node e2e/groupnames.mjs [dir] # encrypted group names: API never has them, list/header/rename line, new member reads it (phone), desktop notifications decrypted
 node e2e/grouppictures.mjs [dir] # group pictures: cropper over the dialog (Escape closes only it), preview, header/list show the middle square, API only has ciphertext, live for others with a timeline line, kept by a rename, a member added later (phone) sees it, reload, removed
 node e2e/presence.mjs [dir] # online status: idle, mobile, no flicker on reload, last seen

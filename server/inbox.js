@@ -26,6 +26,7 @@ async function dmEntries(userId, blocked, from) {
   const rows = await db.all(
     `SELECT dm.id, dm.sender_id, dm.recipient_id, dm.content, dm.timestamp,
        u.username AS sender_username, u.display_name AS sender_display_name,
+       u.identity_key, u.encryption_key, u.encryption_key_signature,
        (un.user_id IS NOT NULL) AS unread
      FROM direct_messages dm
      JOIN users u ON u.id = dm.sender_id
@@ -45,7 +46,7 @@ async function dmEntries(userId, blocked, from) {
     entries.push({
       id: `dm-${row.id}`,
       unread: Boolean(row.unread),
-      payload: buildDmPushPayload(row, await getUserImageUrl(row.sender_id), me?.username),
+      payload: buildDmPushPayload(row, await getUserImageUrl(row.sender_id), me?.username, row),
     });
   }
   return entries;

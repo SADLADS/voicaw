@@ -160,7 +160,8 @@
       "submit": "Authorise",
       "cancel": "Cancel",
       "redirecting": "Taking you back to {{host}}…",
-      "badLink": "This login link doesn't work: {{error}}"
+      "badLink": "This login link doesn't work: {{error}}",
+      "badRedirect": "The server gave an address that isn't a website, so you weren't sent there."
     }
   }
 }

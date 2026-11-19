@@ -46,6 +46,7 @@ const LIMITS = {
   embeds: 10,
   reactions: 20,
   emoji: 64,
+  emojis: 2000,
   file: 90 * 1024 * 1024, // under nginx's 100M a request
   avatar: 8 * 1024 * 1024,
 };
@@ -105,12 +106,16 @@ async function importView(importId) {
      FROM guild_import_channels c WHERE c.import_id = ? ORDER BY c.rowid`,
     [importId]
   );
+  const emojis = await db.all(
+    'SELECT source_id, name, emoji_id, mapped FROM guild_import_emojis WHERE import_id = ? ORDER BY rowid',
+    [importId]
+  );
   const { count } = await db.get('SELECT COUNT(*) AS count FROM guild_import_messages WHERE import_id = ?', [importId]);
   // Members who don't want to be linked (the preference importOptOut), so the picker says so.
   const members = row ? await db.all('SELECT user_id FROM guild_members WHERE guild_id = ?', [row.guild_id]) : [];
   const optedOut = [];
   for (const { user_id: userId } of members) if ((await getPreferences(userId)).importOptOut) optedOut.push(userId);
-  return { ...row, message_count: count, authors, channels, opted_out: optedOut };
+  return { ...row, message_count: count, authors, channels, emojis, opted_out: optedOut };
 }
 
 async function listImports(member) {
@@ -147,9 +152,12 @@ async function suggestions(guildId, authors) {
   return found;
 }
 
-// Starts an import from the archive's list of `authors` ([{ sourceId, name, names?, isBot }])
-// and `channels` ([{ sourceId, name }]). -> the import with `suggested` ({ authorId: userId }).
-async function createImport(member, { source, sourceGuildName, label, authors, channels } = {}) {
+const EMOJI_NAME = /^[A-Za-z0-9_]{1,32}$/;
+
+// Starts an import from the archive's list of `authors` ([{ sourceId, name, names?, isBot }]),
+// `channels` ([{ sourceId, name }]) and the custom `emojis` its messages use ([{ sourceId,
+// name }]). -> the import with `suggested` ({ authorId: userId }).
+async function createImport(member, { source, sourceGuildName, label, authors, channels, emojis = [] } = {}) {
   if (!SOURCES.includes(source)) throw new ActionError(400, 'Unknown archive format');
   if (!Array.isArray(authors) || authors.length > LIMITS.authors) throw new ActionError(400, 'Invalid authors');
   if (!Array.isArray(channels) || channels.length === 0 || channels.length > LIMITS.channels) throw new ActionError(400, 'Invalid channels');
@@ -160,6 +168,11 @@ async function createImport(member, { source, sourceGuildName, label, authors, c
     isBot: Boolean(a?.isBot),
   }));
   const cleanChannels = channels.map((c) => ({ sourceId: cleanSourceId(c?.sourceId), name: cleanText(c?.name, LIMITS.name) }));
+  if (!Array.isArray(emojis) || emojis.length > LIMITS.emojis) throw new ActionError(400, 'Invalid emoji');
+  const cleanEmojis = emojis.map((e) => ({ sourceId: cleanSourceId(e?.sourceId), name: typeof e?.name === 'string' && EMOJI_NAME.test(e.name) ? e.name : null }));
+  if (cleanEmojis.some((e) => !e.sourceId || !e.name) || new Set(cleanEmojis.map((e) => e.sourceId)).size !== cleanEmojis.length) {
+    throw new ActionError(400, 'Invalid emoji');
+  }
   if (cleanAuthors.some((a) => !a.sourceId || !a.name) || new Set(cleanAuthors.map((a) => a.sourceId)).size !== cleanAuthors.length) {
     throw new ActionError(400, 'Invalid authors');
   }
@@ -183,6 +196,9 @@ async function createImport(member, { source, sourceGuildName, label, authors, c
     for (const c of cleanChannels) {
       await db.run('INSERT INTO guild_import_channels (import_id, source_id, name) VALUES (?, ?, ?)', [lastID, c.sourceId, c.name]);
     }
+    for (const e of cleanEmojis) {
+      await db.run('INSERT INTO guild_import_emojis (import_id, source_id, name) VALUES (?, ?, ?)', [lastID, e.sourceId, e.name]);
+    }
     await logAudit({ guildId, actorId: member.userId, action: 'import_create', targetType: 'import', targetId: lastID, details: { source: cleanText(sourceGuildName, LIMITS.guildName) } });
     return { importId: lastID, authorIds: ids };
   });
@@ -201,13 +217,16 @@ async function checkMappable(guildId, authorRow, userId) {
   if ((await getPreferences(userId)).importOptOut) throw new ActionError(400, "That member doesn't want to be linked to imported messages");
 }
 
-// Changes the import's `label`, its `authors` ([{ id, userId (null: unmapped), name? }]) and
+// Changes the import's `label`, its `authors` ([{ id, userId (null: unmapped), name? }]),
 // `channels` ([{ sourceId, channelId (null: skipped) }]; new channels are made by the client
-// first, with the usual route, so they get the usual checks). Messages already in follow.
-async function setMapping(member, importId, { label, authors = [], channels = [] } = {}) {
+// first, with the usual route, so they get the usual checks) and `emojis` ([{ sourceId,
+// emojiId (null: plain :name:) }], one of this guild's; emoji the archive brings are added by
+// the client first the same way). Messages already in follow their authors; emoji choices
+// only change messages imported after (their text is written as they arrive).
+async function setMapping(member, importId, { label, authors = [], channels = [], emojis = [] } = {}) {
   const guildId = member.guild.id;
   const imp = await getImport(guildId, importId);
-  if (!Array.isArray(authors) || !Array.isArray(channels)) throw new ActionError(400, 'Invalid mapping');
+  if (!Array.isArray(authors) || !Array.isArray(channels) || !Array.isArray(emojis)) throw new ActionError(400, 'Invalid mapping');
   const authorRows = new Map((await db.all('SELECT * FROM guild_import_authors WHERE import_id = ?', [imp.id])).map((a) => [a.id, a]));
   const authorChanges = [];
   for (const change of authors) {
@@ -236,6 +255,18 @@ async function setMapping(member, importId, { label, authors = [], channels = []
     }
     channelChanges.push({ row, channelId });
   }
+  const emojiRows = new Map((await db.all('SELECT * FROM guild_import_emojis WHERE import_id = ?', [imp.id])).map((e) => [e.source_id, e]));
+  const emojiChanges = [];
+  for (const change of emojis) {
+    const row = emojiRows.get(cleanSourceId(change?.sourceId));
+    if (!row) throw new ActionError(400, 'Invalid emoji');
+    const emojiId = change.emojiId ?? null;
+    if (emojiId !== null) {
+      const target = Number.isInteger(emojiId) && await db.get('SELECT id FROM guild_emojis WHERE id = ? AND guild_id = ? AND available = 1', [emojiId, guildId]);
+      if (!target) throw new ActionError(400, "That emoji isn't one of this guild's");
+    }
+    emojiChanges.push({ row, emojiId });
+  }
   const newLabel = label === undefined ? imp.label : cleanText(label, LIMITS.label);
 
   const touched = await db.transaction(async () => {
@@ -251,6 +282,9 @@ async function setMapping(member, importId, { label, authors = [], channels = []
     }
     for (const { row, channelId } of channelChanges) {
       await db.run('UPDATE guild_import_channels SET channel_id = ? WHERE import_id = ? AND source_id = ?', [channelId, imp.id, row.source_id]);
+    }
+    for (const { row, emojiId } of emojiChanges) {
+      await db.run('UPDATE guild_import_emojis SET emoji_id = ?, mapped = 1 WHERE import_id = ? AND source_id = ?', [emojiId, imp.id, row.source_id]);
     }
     await logAudit({ guildId, actorId: member.userId, action: 'import_mapping', targetType: 'import', targetId: imp.id });
     return changedChannels;
@@ -285,8 +319,9 @@ const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // The archive's mentions and custom emoji made ours: `<@sourceId>` becomes the mapped member's
 // mention (no ping: imports save no mention rows) or `@name`; `<#sourceId>` the channel it went
-// into or `#name`; `<@&id>` `@role name`; `<:name:id>` the guild's emoji of that name or
-// `:name:`. `names` are the archive's names for users, roles and channels it mentions.
+// into or `#name`; `<@&id>` `@role name`; `<:name:id>` the guild's emoji the importer chose for
+// it (ctx.emojiFor) or `:name:`. `names` are the archive's names for users, roles and channels
+// it mentions.
 function rewriteContent(content, ctx) {
   return content
     .replace(/<@!?([A-Za-z0-9._:-]{1,64})>/g, (_, id) => {
@@ -300,11 +335,10 @@ function rewriteContent(content, ctx) {
       return `#${channel?.name ?? ctx.names.channels[id] ?? 'unknown-channel'}`;
     })
     .replace(/<@&([A-Za-z0-9._:-]{1,64})>/g, (_, id) => `@${ctx.names.roles[id] ?? 'unknown-role'}`)
-    .replace(/<(a?):([A-Za-z0-9_]{1,32}):(\d{1,25})>/g, (_, animated, name) => {
-      const emoji = ctx.emojis.get(name.toLowerCase());
-      return emoji ? `<:${emoji.name}:${emoji.id}>` : `:${name}:`;
-    });
+    .replace(/<(a?):([A-Za-z0-9_]{1,32}):(\d{1,25})>/g, (_, animated, name, id) => emojiText(ctx.emojiFor(id, name), name));
 }
+
+const emojiText = (emoji, name) => (emoji ? `<:${emoji.name}:${emoji.id}>` : `:${name}:`);
 
 // A plain {[id]: name} map from the client (names the archive gave its mentions).
 function cleanNames(value) {
@@ -358,11 +392,11 @@ function cleanEmbeds(list) {
   })).filter((e) => Object.keys(e).length > 0);
 }
 
-// The archive's reactions: [{ emoji, count, users }], `emoji` Unicode, or a custom one's name
-// (`customName`: made the guild's emoji of that name, `<:name:id>`, or left as `:name:`).
+// The archive's reactions: [{ emoji, count, users }], `emoji` Unicode, or a custom one
+// (`customName`, `customId`: made the guild's emoji chosen for it, `<:name:id>`, or `:name:`).
 // `users` are the reactors' archive author rows (ids), so the client shows mapped ones as
 // members and the rest by the archive's names.
-function cleanReactions(list, emojis, authors) {
+function cleanReactions(list, emojiFor, authors) {
   if (!Array.isArray(list)) return [];
   const out = [];
   for (const r of list.slice(0, LIMITS.reactions)) {
@@ -371,8 +405,7 @@ function cleanReactions(list, emojis, authors) {
     const users = (Array.isArray(r.userSourceIds) ? r.userSourceIds : []).slice(0, 100)
       .map((id) => authors.get(cleanSourceId(id))?.id).filter(Boolean);
     if (typeof r.customName === 'string' && /^[A-Za-z0-9_]{1,32}$/.test(r.customName)) {
-      const emoji = emojis.get(r.customName.toLowerCase());
-      out.push({ emoji: emoji ? `<:${emoji.name}:${emoji.id}>` : `:${r.customName}:`, count, users });
+      out.push({ emoji: emojiText(emojiFor(cleanSourceId(r.customId), r.customName), r.customName), count, users });
     } else if (typeof r.emoji === 'string' && r.emoji && r.emoji.length <= LIMITS.emoji) {
       out.push({ emoji: r.emoji, count, users });
     }
@@ -419,10 +452,18 @@ async function addMessages(member, importId, { channelSourceId, messages, names 
   for (const e of await db.all('SELECT id, name, animated FROM guild_emojis WHERE guild_id = ? AND available = 1', [guildId])) {
     if (!emojis.has(e.name.toLowerCase())) emojis.set(e.name.toLowerCase(), e);
   }
+  // The importer's choice for an archive emoji, else (not chosen, or not listed by an older
+  // client) the guild's emoji of the same name. A chosen emoji since deleted becomes text.
+  const byId = new Map([...emojis.values()].map((e) => [e.id, e]));
+  const choices = new Map((await db.all('SELECT source_id, emoji_id FROM guild_import_emojis WHERE import_id = ? AND mapped = 1', [imp.id]))
+    .map((e) => [e.source_id, e.emoji_id]));
+  const emojiFor = (sourceId, name) => (sourceId && choices.has(sourceId)
+    ? byId.get(choices.get(sourceId)) ?? null
+    : emojis.get(name.toLowerCase()) ?? null);
   const ctx = {
     authors,
     channels: channelRows,
-    emojis,
+    emojiFor,
     names: { users: cleanNames(names.users), roles: cleanNames(names.roles), channels: cleanNames(names.channels) },
   };
 
@@ -450,7 +491,7 @@ async function addMessages(member, importId, { channelSourceId, messages, names 
       replyTo: cleanSourceId(m.replyToSourceId),
       attachments,
       embeds,
-      reactions: cleanReactions(m.reactions, emojis, authors),
+      reactions: cleanReactions(m.reactions, emojiFor, authors),
       interaction: cleanInteraction(m.interaction, authors),
     });
   }
@@ -594,6 +635,7 @@ async function removeImportRows(importId) {
   await db.run('DELETE FROM guild_messages WHERE import_id = ?', [importId]);
   await db.run('DELETE FROM guild_import_messages WHERE import_id = ?', [importId]);
   await db.run('DELETE FROM guild_import_channels WHERE import_id = ?', [importId]);
+  await db.run('DELETE FROM guild_import_emojis WHERE import_id = ?', [importId]);
   const avatars = await db.all('SELECT avatar FROM guild_import_authors WHERE import_id = ? AND avatar IS NOT NULL', [importId]);
   await db.run('DELETE FROM guild_import_authors WHERE import_id = ?', [importId]);
   await db.run('DELETE FROM guild_imports WHERE id = ?', [importId]);

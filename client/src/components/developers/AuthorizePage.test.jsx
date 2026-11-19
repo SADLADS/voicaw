@@ -152,4 +152,25 @@ describe('AuthorizePage for Login with Voicaw', () => {
     renderAt(query.replace('scope=identify', 'scope=email'));
     await waitFor(() => expect(assign).toHaveBeenCalledWith(`${REDIRECT}?error=invalid_scope`));
   });
+
+  it("never follows an address that isn't a website (another server could send one)", async () => {
+    const bad = "The server gave an address that isn't a website, so you weren't sent there.";
+    api.get.mockResolvedValue({ data: login() });
+    api.post.mockResolvedValue({ data: { location: 'javascript:alert(1)' } });
+    const first = renderAt(query);
+    fireEvent.click(await screen.findByRole('button', { name: 'Authorise' }));
+    expect(await screen.findByText(bad)).toBeInTheDocument();
+    first.unmount();
+
+    api.get.mockResolvedValue({ data: login({ authorized: true }) });
+    api.post.mockResolvedValue({ data: { location: 'JavaScript:alert(1)' } });
+    const second = renderAt(`${query}&prompt=none`);
+    expect(await screen.findByText(bad)).toBeInTheDocument();
+    second.unmount();
+
+    api.get.mockRejectedValue({ response: { status: 400, data: { error: 'Unknown scope', redirect: 'javascript:alert(1)' } } });
+    renderAt(query);
+    expect(await screen.findByText(bad)).toBeInTheDocument();
+    expect(assign).not.toHaveBeenCalled();
+  });
 });

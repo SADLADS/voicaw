@@ -88,7 +88,9 @@ export default function VideoPlayer({
   const origin = useRef(null);
 
   const floating = useFloatingVideo();
-  const away = floating != null && floating.element === element ? floating.mode : null;
+  // Its video is elsewhere: the element it holds, or, newly shown (back in its chat), the one
+  // with its file (it hasn't taken that back yet, and its own new element mustn't take the slot).
+  const away = floating != null && (floating.element === element || floating.key === key) ? floating.mode : null;
   const media = useMediaState(element);
   const duration = media.duration ?? knownDuration ?? 0;
 
@@ -136,6 +138,14 @@ export default function VideoPlayer({
   adopt.current = (entry) => {
     if (!entry) return;
     unpinObjectUrl(entry.src);
+    // The element this player made for itself (shown again while its video was away) isn't
+    // needed: out of the slot, so it can't sit over the playing one as a still frame.
+    const own = latest.current.element;
+    if (own !== entry.element) {
+      own.remove();
+      own.removeAttribute('src');
+      own.load();
+    }
     if (slotRef.current) moveVideo(entry.element, slotRef.current);
     origin.current = entry.origin;
     setElement(entry.element);
@@ -158,7 +168,9 @@ export default function VideoPlayer({
   // element out of the page, in the same task, so it doesn't even pause. Otherwise it stops.
   useLayoutEffect(() => () => {
     const { element: el, src: fileSrc, release: free } = latest.current;
-    if (getFloatingVideo()?.element === el) return; // already elsewhere: not ours to stop
+    const floating = getFloatingVideo();
+    // Already elsewhere (or never taken back): not ours to stop, nor its file ours to let go.
+    if (floating && (floating.element === el || floating.key === latest.current.key)) return;
     if (playing() && getPipPrefs().onLeave && letGo('corner')) return;
     el.pause();
     free?.(fileSrc);

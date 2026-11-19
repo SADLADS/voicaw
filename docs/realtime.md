@@ -202,12 +202,21 @@ one user at a time).
   websocket messages (`{visible, chatId, sideChatId}`; `sideChatId` is a thread open beside its
   channel, `setSideChat`) that `ws-client` sends on focus/visibility/chat changes
   and every 15s. The server ignores presence older than 35s.
-- Previews stay end-to-end encrypted. The DM push carries the ciphertext (never a key) when it fits
-  in a push (~4KB), plus `senderId`/`recipientId`. `service-worker.js` → `services/pushNotifications.js`
-  decrypts it on the device with the sender's *pinned* key (`contactKeys`) and the user's key
-  (`keyStore`). It falls back to "New message" when the message is too big, previews are off
-  (`settingsStore`, IndexedDB, readable by the SW), this device has never checked the sender's
-  keys, or the device is logged out. Previews off (Settings → Privacy, "Show message text in
+- Previews stay end-to-end encrypted. The DM push carries the ciphertext (never a private key)
+  when it fits in a push (~4KB; 2450 characters, 2800 before the keys came along), plus
+  `senderId`/`recipientId` and the sender's public keys as the server publishes them
+  (`senderKeys`: identity key, encryption key, its signature; ~330 characters). `service-worker.js`
+  → `services/pushNotifications.js` decrypts it on the device with the user's key (`keyStore`)
+  and the sender's key checked exactly as opening the chat checks it (`dmSenderKey` →
+  `contactKeys` `checkContactKeys`: signed by the identity key, pinned on first sight, never used
+  when the identity differs from the pinned one), so a device that has never opened the chat
+  shows the text too (2026-11-19; before, only devices that had: a phone whose browser cleared
+  the app's storage, say, showed "New message" until each chat was opened again) without trusting the server more
+  than opening the chat does. Only for the account logged in on the device; without
+  `senderKeys`, or when they don't check out, the pinned key, which fails closed if it isn't the
+  sender's current one. It falls back to "New message" when the message is too big, previews are off
+  (`settingsStore`, IndexedDB, readable by the SW), the sender's keys don't check out, or the
+  device is logged out. Previews off (Settings → Privacy, "Show message text in
   notifications") also swaps guild messages' and bot DMs' text, which the server sends
   readable, for "New message" (`notificationFromPush`, so the desktop and Android apps too). Group DM pushes do the same with the group keys saved on
   the device, for the group's name too (see Group names in `docs/group-dms.md`). Notifications are

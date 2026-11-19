@@ -856,7 +856,13 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   give the key to LiveKit's E2EE (`ExternalE2EEKeyProvider` + its worker, in `voiceClient`
   `connect`), which encrypts every audio frame before it leaves: LiveKit sees GCM-encrypted
   tracks (`calls.mjs` checks with LiveKit's API). No E2EE in the browser: no call (never a
-  plain fallback). A contact whose key changed can't be called or answered (their chat has to
+  plain fallback). **Unencrypted tracks are refused** (security audit, 2026-11-19): LiveKit's
+  client decides whether to decrypt a participant's frames from what the server says about
+  their tracks, so a server announcing one as unencrypted could play its own audio or video as
+  that person. In a call `voiceClient` never subscribes to a publication whose `isEncrypted` is
+  false (`wants`; one delivered anyway is never attached), and the call ends with "…wasn't
+  end-to-end encrypted…" in the voice bar (`joinCall`'s `onUnencrypted`). Every app we ship
+  encrypts all of a call's tracks, so this only happens when something is wrong. A contact whose key changed can't be called or answered (their chat has to
   accept the new key first); the callee checks the caller's keys like opening their chat does.
 - **Server** (`server/calls.js`, `routes/calls.js`, in memory): `POST /dm-calls { calleeId,
   callId, keyEnvelope }` rings (409 if they're in a call) and returns the caller's LiveKit
@@ -885,7 +891,12 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   (`joinCall` resolves `false`), rather than showing it going on with the others waiting.
 - **Group calls** (from a group DM's header): the call key is encrypted with the group's
   current epoch key (`groupCallKeyContext(callId, groupId, epoch, callerId)`, `key_epoch`), so
-  only members of that epoch can open it; members added during a call join the next one. It's
+  only members of that epoch can open it; members added during a call join the next one.
+  Joining checks (since 2026-11-19, `joinGroupCall`) that the caller is in the group now and
+  that the key's epoch is still only the members' (`epochStillPrivate` in groupKeys.js: everyone
+  it was made for is still in the group; people added since don't matter, they don't have it),
+  so the server can't bring back an old call, or one made by someone removed since ("isn't
+  private any more").  It's
   also signed by the caller's identity key, inside the encryption like group messages
   (`encryptGroupCallKey` / `decryptGroupCallKey` in groupCrypto.js, a `v2.` envelope of 171
   characters, covering `callKeySignatureContext({ callId, groupId, epoch, callerId })`), so a
@@ -902,7 +913,11 @@ a call; the server enforces both). **End-to-end encrypted**, unlike guild voice:
   `participants` and `ringing`) goes to every member, so the group shows who's in and "Join call"
   (`group/GroupCallPanel.jsx`; `callClient` keeps `groupCalls`). Being removed from the group
   takes you out of its call (LiveKit too). The call key isn't changed when someone leaves a
-  call.
+  call, but someone leaving the group (or being removed) still has it: everyone in the call
+  leaves it when the log entry arrives (`group_dm_update` with a `remove` or `leave` entry,
+  `endIfMemberLeft` in callClient: "Start a new call to carry on"), so the call ends and the
+  next one has a new key under the new epoch. That relies on the server passing the entry on; a
+  server hiding it would also be hiding the removal from the group itself.
 - **Calls in the chat history** (`server/callLog.js`, `utils/callLog.js`,
   `CallLogNotice.jsx`): when a call ends, the server adds a row to its DM or group (in the
   group's latest epoch) with `system` = 'call', the caller as sender and plaintext content

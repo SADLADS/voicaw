@@ -329,7 +329,9 @@ application (the same ones as bots) can use it; public docs at `/developers/docs
   the redirect with `code` and `state` (or `error=access_denied`), which the page goes to. An
   unknown client or redirect URI is shown, never redirected to; a bad scope or response type
   goes back to the site as `error=…` (RFC 6749 4.1.2.1). `prompt=none` skips the question when
-  `authorized`, as Discord's. Pending, suspended and bot accounts can't (authenticateJWT, `usableUser`).
+  `authorized`, as Discord's. The page only ever goes to an http(s) address (`goTo`; since
+  2026-11-18): with another server chosen on the login screen, the server could answer a
+  `javascript:` one, which would run as the app; it says "…isn't a website…" instead. Pending, suspended and bot accounts can't (authenticateJWT, `usableUser`).
 - **Codes and tokens** (`oauth_codes`, `oauth_tokens`; SHA-256s only): a code lasts 10 minutes and is
   deleted as it's read (`DELETE … RETURNING`), so a failed exchange uses it up too; it must be
   the application's and, if the exchange names one, the same `redirect_uri`. Access tokens last

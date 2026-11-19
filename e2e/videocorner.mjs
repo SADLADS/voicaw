@@ -148,6 +148,10 @@ try {
   at = await where(bob.page);
   check(at.inMessage && !at.corner && bob.page.url().endsWith(`/dm/${alice.id}`), 'Go to message: its chat, the video back in its message');
   await stillPlaying(bob.page, 'still playing in the message');
+  // The only video there: the newly shown player's own element once sat over it, a still frame
+  // on top of the playing video (sound and time going on underneath).
+  const videosThere = await bob.page.evaluate(() => [...window.__v.closest('.video-slot').querySelectorAll('video')].map((v) => v === window.__v));
+  check(videosThere.length === 1 && videosThere[0], `the message's player holds only the playing video (${videosThere.length})`);
 
   // Pop out from the corner: a window showing it, the page keeping the element.
   await go(bob.page, `/dm/${carol.id}`);

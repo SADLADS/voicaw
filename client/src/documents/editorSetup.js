@@ -8,7 +8,7 @@ import { InputRule, inputRules, textblockTypeInputRule, undoInputRule, wrappingI
 import { dropCursor } from 'prosemirror-dropcursor';
 import { gapCursor } from 'prosemirror-gapcursor';
 import { goToNextCell, tableEditing } from 'prosemirror-tables';
-import { schema } from './documentSchema';
+import { safeHref, schema } from './documentSchema';
 import { parseAttachmentUrl } from '../services/attachmentCrypto';
 import { t } from '../i18n';
 import { getCachedAttachment, loadDecryptedAttachment } from '../services/attachmentCache';
@@ -117,10 +117,11 @@ export function insertImage(view, src, alt) {
 }
 
 // A link on the selection (`href`), or the link's text inserted where there's no selection;
-// null `href` takes the link off.
+// null `href` takes the link off. An address that isn't safeHref's does nothing.
 export function setLink(href) {
   return (state, dispatch) => {
     const { from, to, empty } = state.selection;
+    if (href && !safeHref(href)) return false;
     if (!dispatch) return true;
     const tr = state.tr;
     if (!href) {

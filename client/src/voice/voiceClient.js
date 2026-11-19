@@ -223,11 +223,29 @@ const isScreenSource = (source) =>
 // only while it's shown on screen, somewhere that isn't hidden (a pop-out window still shows
 // while the page is hidden).
 function wants(participant, publication) {
+  // In a call everything must be end-to-end encrypted: LiveKit decides from what the server
+  // says whether a participant's frames get decrypted, so a server announcing a track as
+  // unencrypted could play its own audio or video as that person. Never downloaded; the call ends.
+  if (callEncrypted && !publication.isEncrypted) {
+    refuseUnencrypted();
+    return false;
+  }
   if (isScreenSource(publication.source)) return snapshot.watching === participant.identity;
   if (publication.source === livekit.Track.Source.Camera) {
     return [...(cameraViews.get(participant.identity) ?? [])].some(onVisiblePage);
   }
   return true;
+}
+
+// While in a call: what to do about a track that isn't encrypted (joinCall's `onUnencrypted`).
+let onUnencrypted = null;
+let callEncrypted = false;
+
+function refuseUnencrypted() {
+  const handler = onUnencrypted;
+  onUnencrypted = null;
+  // After this sync: the handler leaves the room.
+  if (handler) queueMicrotask(handler);
 }
 
 function syncSubscriptions() {
@@ -700,6 +718,12 @@ function watch(newRoom, current) {
     .on(RoomEvent.TrackMuted, updateTracks)
     .on(RoomEvent.TrackUnmuted, updateTracks)
     .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      if (callEncrypted && !publication.isEncrypted) {
+        // (Not asked for, see wants; never attached either way.)
+        publication.setSubscribed(false);
+        refuseUnencrypted();
+        return;
+      }
       updateTracks();
       // Video (a screen share or a camera) is drawn by whoever shows it (attachStream, showCamera).
       if (track.kind !== Track.Kind.Audio) return;
@@ -789,7 +813,7 @@ async function e2eeOptions(key) {
 // Connects to a room: `target` is what the snapshot says we're in, `getToken()` resolves to
 // { url, token }, `e2eeKey` (calls) turns on end-to-end encryption. `rejoining`: a rejoin
 // attempt, which reports a failure (`{ error }`) instead of showing it; true once connected.
-async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
+async function connect(target, getToken, e2eeKey, { rejoining = false, unencrypted = null } = {}) {
   if (!rejoining) {
     cancelRejoin();
     cameraWanted = false;
@@ -805,6 +829,8 @@ async function connect(target, getToken, e2eeKey, { rejoining = false } = {}) {
     const { url, token, bitrate = DEFAULT_BITRATE, streamLimit = null } = await getToken();
     if (current !== attempt) return;
     const e2ee = e2eeKey ? await e2eeOptions(e2eeKey) : undefined;
+    callEncrypted = Boolean(e2ee);
+    onUnencrypted = e2ee ? unencrypted ?? leaveVoice : null;
     playback = newPlaybackContext();
     startMeters(current);
     const newRoom = new livekit.Room({
@@ -875,8 +901,10 @@ export async function joinVoice(guildId, channelId) {
 
 // Joins a DM call's room (callClient.js has the token, the server's screen share limit and the
 // call's key).
-export async function joinCall({ callId, url, token, streamLimit = null, key }) {
-  return connect({ callId }, async () => ({ url, token, streamLimit }), key);
+// `onUnencrypted`: called (once) when someone in the call sends audio or video that isn't
+// end-to-end encrypted, which is never played; it should end the call.
+export async function joinCall({ callId, url, token, streamLimit = null, key, onUnencrypted: unencrypted = null }) {
+  return connect({ callId }, async () => ({ url, token, streamLimit }), key, { unencrypted });
 }
 
 // The voice channel's bitrate changed: the microphone goes out at it from now on (its sender's

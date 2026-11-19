@@ -7,7 +7,12 @@
 // wasn't included, the archive's reactions; nothing is unread for Bob. A reply's snippet jumps
 // to a message far back (the page around it, Jump to present back). Bob, on a phone, says
 // "This wasn't me" and his messages go back to the archive's name; Settings → Privacy →
-// Imported messages lists nothing then. The tag in every theme.
+// Imported messages lists nothing then. The tag in every theme. Also (2026-11-19): a file the
+// archive only links to on the old CDN is downloaded by the browser (the CDN stood in for by a
+// Playwright route) and one whose link expired isn't tried; the archive's custom emoji, one
+// added to the guild from the media folder ("Add all the others"), one left as text; a message
+// that's only a Tenor GIF link shows the GIF and not the link (needs the internet: the server
+// reads tenor.com's page).
 //   node e2e/serve.mjs &   then   node e2e/history-import.mjs [screenshot dir]
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -46,6 +51,9 @@ async function makeArchive(bobName) {
   mkdirSync(join(root, files), { recursive: true });
   await sharp({ create: { width: 320, height: 200, channels: 3, background: '#e07a2e' } }).png().toFile(join(root, files, 'sunset-1A2B.png'));
   await sharp({ create: { width: 128, height: 128, channels: 3, background: '#2e7de0' } }).png().toFile(join(root, files, 'kestrel-av.png'));
+  await sharp({ create: { width: 64, height: 64, channels: 3, background: '#3ec46d' } }).png().toFile(join(root, files, 'blobwave-7001.png'));
+  const exHex = (ms) => Math.floor(ms / 1000).toString(16);
+  const cdn = (name, expires) => `https://cdn.discordapp.com/attachments/9/1/${name}?ex=${exHex(expires)}&is=0&hm=ff`;
   const person = (id, name, nickname, avatarUrl = `https://cdn.example/avatars/${id}.png`, isBot = false) => ({ id, name, discriminator: '0000', nickname, color: null, isBot, avatarUrl });
   const sam = person('111', bobName, 'Sam');
   const kestrel = person('222', 'kestrel99', null, `${files}/kestrel-av.png`);
@@ -64,6 +72,16 @@ async function makeArchive(bobName) {
     msg(1002, sam, 2, { content: 'look at this', attachments: [{ id: 'a', url: `${files}/sunset-1A2B.png`, fileName: 'sunset.png', fileSizeBytes: 1000 }] }),
     msg(1003, kestrel, 3, { content: 'lost one', attachments: [{ id: 'b', url: 'https://cdn.example/attachments/9/1/gone.gif?ex=1', fileName: 'gone.gif', fileSizeBytes: 324843 }] }),
     msg(1004, botto, 4, { type: '20', content: "Sam's score is 8", interaction: { id: 'i', name: 'score', user: sam } }),
+    msg(1005, kestrel, 5, { content: 'from the cdn', attachments: [{ id: 'c', url: cdn('remote.png', Date.now() + 3_600_000), fileName: 'remote.png', fileSizeBytes: 900 }] }),
+    msg(1006, kestrel, 6, { content: 'too late', attachments: [{ id: 'd', url: cdn('stale.png', Date.now() - 3_600_000), fileName: 'stale.png', fileSizeBytes: 900 }] }),
+    msg(1007, sam, 7, {
+      content: 'wave hello :blobwave: :nope:',
+      inlineEmojis: [
+        { id: '7001', name: 'blobwave', code: 'blobwave', isAnimated: false, imageUrl: `${files}/blobwave-7001.png` },
+        { id: '7002', name: 'nope', code: 'nope', isAnimated: false, imageUrl: 'https://cdn.example/emojis/7002.png' },
+      ],
+    }),
+    msg(1008, sam, 8, { content: TENOR }),
   ];
   // Enough after them that the first is more than a page back.
   for (let i = 0; i < 200; i += 1) messages.push(msg(2000 + i, i % 2 ? sam : kestrel, 10 + i, { content: `old chatter ${i}` }));
@@ -76,6 +94,8 @@ async function makeArchive(bobName) {
   }));
   return { dir, root };
 }
+
+const TENOR = 'https://tenor.com/view/maxzijah-olandamaxz-gitapro3-gitapro1-gitajah13-gif-2819219459901095368';
 
 const browser = await launchChrome();
 let archive;
@@ -104,12 +124,20 @@ try {
   await a.click('.guild-header-button');
   await a.click('.guild-menu-item:has-text("Guild Settings")');
   await a.click('.guild-settings-nav .settings-nav-item:has-text("Import")');
+  // The old CDN, stood in for: the browser downloads a linked file from it.
+  const cdnAsked = [];
+  const remotePng = await sharp({ create: { width: 90, height: 60, channels: 3, background: '#a03ee0' } }).png().toBuffer();
+  await a.route('https://cdn.discordapp.com/**', (route) => {
+    cdnAsked.push(route.request().url());
+    route.fulfill({ status: 200, contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: remotePng });
+  });
   await a.click('button:has-text("Import history")');
   await a.setInputFiles('input[webkitdirectory]', archive.root);
   await a.waitForSelector('.guild-import-summary');
   const summary = await a.textContent('.guild-import-summary');
-  check(summary.includes('“Old Crew”') && summary.includes('206 messages'), `the archive is read (${summary})`);
-  check(summary.includes('1 of 2 files'), 'one file is in the archive, one is not');
+  check(summary.includes('“Old Crew”') && summary.includes('210 messages'), `the archive is read (${summary})`);
+  check(summary.includes('1 of 4 files') && summary.includes('1 more is only linked') && summary.includes('1 has a link that has expired'), 'one file in the archive, one to download, one expired, one not included');
+  check(await a.isChecked('.guild-import-check input'), 'downloading linked files is on by default');
   await shot(a, '01-picked');
   await a.click('.guild-import button:has-text("Next")');
   await a.waitForSelector('.guild-import-row');
@@ -117,12 +145,22 @@ try {
   check(channelChoice === '#general', 'the archive channel goes into #general (same name)');
   const samChoice = await a.$eval(`select[aria-label="Who Sam is"]`, (s) => s.selectedOptions[0].textContent);
   check(samChoice.includes(bob.name), "the author with Bob's name is suggested as Bob");
+  // Custom emoji: none of the guild's yet, so both start as text; Add all the others adds the one
+  // with a picture (the media folder), the other has nothing to add.
+  check(await a.$eval('select[aria-label="What :blobwave: becomes"]', (s) => s.value) === 'text', 'an emoji the guild lacks starts as text');
+  check(await a.locator('select[aria-label="What :nope: becomes"] option[value="add"]').count() === 0, "an emoji without a picture can't be added");
+  check(await a.locator('.guild-import-row:has-text(":blobwave:") img.guild-import-emoji').count() === 1, "the emoji's picture from the archive is shown");
+  await a.click('button:has-text("Add all the others to this guild")');
+  check(await a.$eval('select[aria-label="What :blobwave: becomes"]', (s) => s.value) === 'add', 'Add all the others picks Add for it');
   await a.fill('.guild-import-label input', 'Discord');
   check((await a.textContent('.guild-import-preview .import-tag-label')) === 'Discord', 'the preview shows the label');
   await shot(a, '02-mapping');
-  await a.click('.guild-import button:has-text("Import 206 messages")');
+  await a.click('.guild-import button:has-text("Import 210 messages")');
   await a.waitForSelector('.guild-import-heading:has-text("Imported")', { timeout: 60000 });
-  check((await a.textContent('.guild-import p[role="status"]')).includes('206 of 206'), 'all messages sent');
+  check((await a.textContent('.guild-import p[role="status"]')).includes('210 of 210'), 'all messages sent');
+  check(cdnAsked.length === 1 && cdnAsked[0].includes('/remote.png'), `only the live link was downloaded (${cdnAsked.length})`);
+  const emojis = (await call(a, 'GET', `/guilds/${guildId}/emojis`)).body;
+  check(emojis.length === 1 && emojis[0].name === 'blobwave', 'the emoji was added to the guild');
   await shot(a, '03-done');
   await a.click('.guild-import button:has-text("Done")');
   await a.waitForSelector('.guild-import-item');
@@ -160,6 +198,17 @@ try {
   check(await a.locator('.each-dm-message-wrapper:has-text("look at this") img[src*="/uploads/imports/"]').count() === 1, 'the picture from the media folder');
   check((await a.textContent('.each-dm-message-wrapper:has-text("lost one")')).includes('gone.gif'), 'the file not included is named');
   check((await a.textContent('.each-dm-message-wrapper:has-text("score is 8")')).includes('/score'), 'the command line');
+  check(await a.locator('.each-dm-message-wrapper:has-text("from the cdn") img[src*="/uploads/imports/"]').count() === 1, 'the downloaded file is ours now');
+  check((await a.textContent('.each-dm-message-wrapper:has-text("too late")')).includes('stale.png'), 'the expired one is named as not included');
+  const waved = a.locator('.each-dm-message-wrapper:has-text("wave hello")');
+  check(await waved.locator(`img.custom-emoji[src*="/emojis/${emojis[0].id}"]`).count() === 1, 'the added emoji shows in the message');
+  check((await waved.locator('.dm-message-content').textContent()).includes(':nope:'), 'the other stays as text');
+  // The Tenor link: the server reads its page (the internet), then the GIF replaces the link.
+  const gifRow = a.locator(`.each-dm-message-wrapper:has(img[src*="tenor.com"])`);
+  await gifRow.first().waitFor({ timeout: 30000 });
+  check(!(await gifRow.first().textContent()).includes('tenor.com/view'), "a Tenor link alone shows its GIF, not the link");
+  await gifRow.first().scrollIntoViewIfNeeded();
+  await shot(a, '05a-gif-and-emoji');
   await shot(a, '05-tag-note');
   for (const theme of ['light', 'familiar', 'halloween', 'christmas', 'slack']) {
     await a.evaluate((t) => localStorage.setItem('theme', t), theme);

@@ -119,6 +119,9 @@ describe('a video playing on in the corner', () => {
     expect(container.querySelector('.video-player video')).toBe(video);
     expect(video.paused).toBe(false);
     expect(getFloatingVideo()).toBeNull();
+    // Only that one: the player's own new element mustn't end up over it, a still frame on
+    // top of the playing video.
+    expect([...container.querySelectorAll('.video-player video')]).toEqual([video]);
   });
 
   it('Close stops it and lets go of its file', () => {

@@ -4,6 +4,8 @@ import { EditorView } from 'prosemirror-view';
 import { TextSelection } from 'prosemirror-state';
 import { createEditorState, insertTable, nodeViews, setLink, toggleBold, toggleChecklist, toggleQuote } from './editorSetup';
 import { docToMarkdown, markdownToDoc } from './documentMarkdown';
+import { safeHref, schema } from './documentSchema';
+import { DOMParser } from 'prosemirror-model';
 
 let view;
 afterEach(() => view?.destroy());
@@ -124,5 +126,36 @@ describe('document editor commands', () => {
     expect(box.hidden).toBe(false);
     box.click();
     expect(markdown()).toBe('- [x] task');
+  });
+});
+
+describe('link addresses', () => {
+  it('only http(s), mailto and relative addresses are safe', () => {
+    for (const ok of ['https://example.com', 'HTTP://x.y/a:b', 'mailto:a@b.c', '/dm/1', 'page#a:b', '?q=a:b']) expect(safeHref(ok)).toBe(ok);
+    for (const bad of ['javascript:alert(1)', 'JavaScript:alert(1)', ' javascript:alert(1)', 'java\tscript:x', 'data:text/html,x', 'vbscript:x', 'file:///etc', null, 42]) {
+      expect(safeHref(bad)).toBeNull();
+    }
+  });
+
+  it("draws a link to anything else without its address, keeping it in the markdown", () => {
+    editor('[Reload to keep editing](javascript:alert(1)) and [fine](https://example.com)');
+    const links = [...view.dom.querySelectorAll('a')];
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([null, 'https://example.com']);
+    expect(links[0].textContent).toBe('Reload to keep editing');
+    expect(markdown()).toContain('](javascript:alert');
+  });
+
+  it("won't paste one or add one from the toolbar", () => {
+    editor('text');
+    const slice = (html) => {
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      return DOMParser.fromSchema(schema).parse(div);
+    };
+    expect(slice('<a href="javascript:alert(1)">x</a>').firstChild.firstChild.marks).toEqual([]);
+    expect(slice('<a href="https://example.com">x</a>').firstChild.firstChild.marks[0].attrs.href).toBe('https://example.com');
+    selectAll();
+    expect(run(setLink('javascript:alert(1)'))).toBe(false);
+    expect(view.dom.querySelector('a')).toBeNull();
   });
 });

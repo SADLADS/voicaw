@@ -5,7 +5,8 @@ import path from 'path';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const { resolveAppFile, isAppOrigin } = require('../protocol.js');
+const { resolveAppFile, isAppOrigin, handleScheme, pagePolicy } = require('../protocol.js');
+const crypto = require('crypto');
 const { createSettingsStore, cleanChanges } = require('../desktopSettings.js');
 const { cleanNotification } = require('../notifications.js');
 const { paintDot, unreadLabel } = require('../tray.js');
@@ -41,6 +42,25 @@ describe('serving the app (protocol.js)', () => {
         expect(resolveAppFile(root, '/%2e%2e/voicaw-secret.txt')).toBeNull();
         expect(resolveAppFile(root, `/..%2f${name}-x/secret`)).toBeNull();
         expect(resolveAppFile(root, '/%E0%A4%A')).toBeNull(); // bad encoding
+    });
+
+    it('serves pages with a policy that runs only its own scripts, and files as they are', async () => {
+        const inline = 'window.x = 1;';
+        fs.writeFileSync(path.join(root, 'index.html'), `<html><script>${inline}</script><script type="module" src="/assets/main.js"></script>`);
+        const hash = crypto.createHash('sha256').update(inline).digest('base64');
+        expect(pagePolicy(fs.readFileSync(path.join(root, 'index.html'), 'utf8')))
+            .toBe(`script-src 'self' 'wasm-unsafe-eval' 'sha256-${hash}'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`);
+
+        let handler;
+        const fetched = [];
+        handleScheme({ handle: (_scheme, fn) => { handler = fn; } }, { fetch: async (u) => { fetched.push(u); return new Response('js'); } }, root);
+        const page = await handler({ url: 'voicaw://app/dm/5' });
+        expect(page.headers.get('content-security-policy')).toContain(`'sha256-${hash}'`);
+        expect(await page.text()).toContain(inline);
+        const script = await handler({ url: 'voicaw://app/assets/main.js' });
+        expect(script.headers.get('content-security-policy')).toBeNull();
+        expect(fetched).toHaveLength(1);
+        expect((await handler({ url: 'voicaw://other/index.html' })).status).toBe(404);
     });
 
     it("knows the app's origin, with or without the slash Electron adds to some checks", () => {

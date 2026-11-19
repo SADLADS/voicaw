@@ -31,7 +31,17 @@ deletes it. Messages, reactions, edits, call keys and the group's name and pictu
   for the newest epoch when that's for the current membership (else 409 `stale_epoch`), and only
   one epoch per number (the loser of a race gets 409 and uses the winner's). Only a member makes
   an epoch, and a leave can't carry one (400): someone leaving must never know a key the others
-  send under (security audit, 2026-11-18); a remaining member makes the next one.
+  send under (security audit, 2026-11-18); a remaining member makes the next one. Which epoch to
+  send with is decided from what's bound into each opened key (its `log_seq` and creator), never
+  from the server's `latest_epoch` (only a hint for the next number): the newest one made after
+  the log's last entry by someone still in the group, else a new one (since 2026-11-19; before, a
+  server could pass off an epoch a removed member holds as current).
+- **Log rollback:** the log is append-only, so each device saves the length of the longest log
+  it has checked and the hash of its last entry (`groupCache` `log`), and `openGroup` refuses a
+  log that's shorter or doesn't contain that entry ("…older than one this device has already
+  seen…"; asked for once more first, as another tab may just have saved a newer one). Otherwise
+  the server could leave out a removal, and the app would go on sending under a key the removed
+  person has. A device that never saw the group (or forgot it) can't tell.
 - **Who reads what:** the server only returns messages (and reply previews) of epochs you have a
   key for, and unread counts only count those. So someone added never sees what was said before
   (they never get those keys), someone removed never gets new keys, and someone re-added keeps
@@ -106,10 +116,12 @@ before).
   deleted, and counts as unread like a message.
 - **Rollback:** each device keeps the newest name it has seen (version) and ignores an older one
   the server sends.
-- **Groups from before:** `name_version` 0, the plaintext `name`. The first member to open one
-  (with no key problems) encrypts it (`initial: true`: no rename row) and the server clears the
-  plaintext; until then epochs carry no name. Old apps get "Please update the app" for creating or
-  renaming.
+- **Groups from before:** `name_version` 0, the plaintext `name`. The app no longer shows such
+  a name or encrypts it (since 2026-11-19; the user chose this): anyone, the server included,
+  could have written it, and a server could drop `name_version` to show any name it likes. A
+  group with no encrypted name shows the newest signed name this device has seen, else its
+  members, until someone renames it. The server still has `initial: true` (no rename row) from
+  when apps encrypted old names. Old apps get "Please update the app" for creating or renaming.
 - **On the device** (`services/groupCache.js`, IndexedDB `voicaw-groups`): `openGroup` saves what
   it checked (epoch keys as non-extractable CryptoKeys, the log's identity keys, current members'
   names, the newest name). The conversation list (`useGroupList`) decrypts names with it

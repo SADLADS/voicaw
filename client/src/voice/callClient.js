@@ -1,4 +1,4 @@
-import { onCallEvent } from '../utils/ws-client';
+import { onCallEvent, onGroupEvent } from '../utils/ws-client';
 import { onCatchUp } from '../utils/catchUp';
 import { fetchUsersList } from '../services/dmService';
 import { checkContactKeys } from '../services/contactKeys';
@@ -16,7 +16,7 @@ import {
   encryptGroupCallKey,
   groupCallKeyContext,
 } from '../services/groupCrypto';
-import { currentEpoch, openGroup } from '../services/groupKeys';
+import { currentEpoch, epochStillPrivate, openGroup } from '../services/groupKeys';
 import {
   acceptCallRequest,
   declineCallRequest,
@@ -61,6 +61,9 @@ let incoming = null;
 // Calls this page is done with (declined, ended, failed): an answer from the server sent before
 // that doesn't bring one back.
 let finished = new Set();
+// Calls the server said have ended (`call_end`): a group's details fetched before that (as the
+// group page does when its members change, often just as a call ends) don't bring one back.
+let ended = new Set();
 
 // How long Answer on a notification keeps trying while the server can't be reached (the phone
 // may be just waking up), and how often.
@@ -74,6 +77,7 @@ function emit(changes) {
 const set = (call) => emit({ call });
 
 function setGroupCall(groupId, call) {
+  if (call && ended.has(call.id)) return;
   const groupCalls = { ...snapshot.groupCalls };
   if (call) groupCalls[groupId] = call;
   else delete groupCalls[groupId];
@@ -159,6 +163,7 @@ function handleEvent(event) {
     stopLoop();
     set({ ...current, state: 'active', answeredAt: localTime(call.answered_at, call) });
   } else if (event.type === 'call_end') {
+    ended.add(event.id);
     for (const [groupId, call] of Object.entries(snapshot.groupCalls)) {
       if (call.id === event.id) setGroupCall(groupId, null);
     }
@@ -229,11 +234,13 @@ export function initCalls(user) {
   unsubscribe = null;
   clear();
   finished = new Set();
+  ended = new Set();
   emit({ groupCalls: {} });
   me = user;
   if (!user) return;
   const stopEvents = onCallEvent(handleEvent);
   const stopCatchUp = onCatchUp(syncInBackground);
+  const stopGroupEvents = onGroupEvent(endIfMemberLeft);
   // Out of the call's room without hanging up (the others hung up and it closed, with the call's
   // end not reaching a dead socket, or the connection went): is the call still on?
   let room = null;
@@ -245,6 +252,7 @@ export function initCalls(user) {
   unsubscribe = () => {
     stopEvents();
     stopCatchUp();
+    stopGroupEvents();
     stopVoice();
   };
   syncInBackground();
@@ -295,10 +303,33 @@ export async function answerWhenRinging(callId) {
 // Into the call's room. If that fails (voiceClient says why in the voice bar), this device
 // leaves the call rather than showing it going on with nothing connected and the others waiting.
 async function joinRoom(id, options) {
-  const joined = await joinCall({ callId: id, ...options });
+  const joined = await joinCall({ callId: id, ...options, onUnencrypted: () => endCall(id, 'calls.errors.unencrypted') });
   if (joined !== false || snapshot.call?.id !== id) return;
   clear();
   hangUpRequest(id).catch(() => {});
+}
+
+// Leaves call `id` (if it's still this device's) and says why (`reason`, a translation key):
+// something about it can't be trusted.
+async function endCall(id, reason) {
+  if (snapshot.call?.id !== id) return;
+  await hangUp();
+  setVoiceError(t(reason));
+}
+
+// Someone left the group (or was removed) during its call: they still have the call's key, so
+// the call isn't private any more and this device leaves it (the next call has a new key).
+// The server tells members with the log entry; a false one only ends a call.
+function endIfMemberLeft(event) {
+  const call = snapshot.call;
+  if (event.type !== 'group_dm_update' || !event.entry || !inCall || !call?.groupId || call.groupId !== event.group?.id) return;
+  let type;
+  try {
+    ({ type } = JSON.parse(event.entry.record));
+  } catch {
+    return;
+  }
+  if (type === 'remove' || type === 'leave') endCall(call.id, 'calls.errors.memberLeft');
 }
 
 // A group's call as the server gave it with the group (GET /group-dms/:id), so the group
@@ -338,6 +369,10 @@ async function joinGroupCall(call) {
     const group = await openGroup(me, call.group_id);
     const epochKey = group.keys.get(call.key_epoch);
     if (!epochKey) throw new Error(t('calls.errors.joinedAfter'));
+    // Only from someone in the group now, with a key nobody who has left holds (the server could
+    // otherwise bring back an old call, or one a removed member made).
+    if (!group.log.members.has(call.caller_id)) throw new Error(t('calls.errors.unverified'));
+    if (!epochStillPrivate(group, call.key_epoch)) throw new Error(t('calls.errors.notPrivate'));
     const key = await decryptGroupCallKey(
       call.key_envelope, epochKey, groupCallKeyContext(call.id, call.group_id, call.key_epoch, call.caller_id),
       group.log.identityKeys.get(call.caller_id),

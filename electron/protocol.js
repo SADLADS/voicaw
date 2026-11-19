@@ -4,6 +4,7 @@
 // is the code that was installed, not whatever a server sends today.
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
 const SCHEME = 'voicaw';
@@ -41,13 +42,31 @@ function resolveAppFile(root, pathname) {
     return last.includes('.') ? null : path.join(root, 'index.html');
 }
 
+// The Content-Security-Policy every page of ours is served with (security audit, 2026-11-18): only
+// the app's own script files (and the page's own inline scripts, by hash), so an address such
+// as `javascript:` slipped into the page never runs, and with it all that preload.js lets the
+// page do. The same as the build's meta tag (client/vite.config.js), which index.html and
+// overlay.html also carry; as a header it covers every page (popout.html too) and can forbid
+// framing.
+function pagePolicy(html) {
+    const hashes = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/gi)]
+        .map(([, body]) => `'sha256-${crypto.createHash('sha256').update(body).digest('base64')}'`);
+    return [`script-src 'self' 'wasm-unsafe-eval'${hashes.map((h) => ` ${h}`).join('')}`, "object-src 'none'", "base-uri 'self'", "frame-ancestors 'none'"].join('; ');
+}
+
 function handleScheme(protocol, net, root) {
-    protocol.handle(SCHEME, (request) => {
+    protocol.handle(SCHEME, async (request) => {
         const url = new URL(request.url);
         const file = url.host === HOST ? resolveAppFile(root, url.pathname) : null;
         if (!file) return new Response('Not found', { status: 404 });
+        if (file.endsWith('.html')) {
+            const html = await fs.promises.readFile(file, 'utf8');
+            return new Response(html, {
+                headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': pagePolicy(html) },
+            });
+        }
         return net.fetch(pathToFileURL(file).toString());
     });
 }
 
-module.exports = { SCHEME, ORIGIN, isAppOrigin, registerScheme, handleScheme, resolveAppFile };
+module.exports = { SCHEME, ORIGIN, isAppOrigin, registerScheme, handleScheme, resolveAppFile, pagePolicy };

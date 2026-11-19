@@ -11,7 +11,11 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   privileged standard scheme, so it has a real origin (in the API's `allowedOrigins`), web
   security stays on, and routes are real paths (`BrowserRouter`; unknown paths get
   `index.html`, missing files 404, nothing outside the folder). The code holding the keys is
-  what was installed, not what a server sends that day. No service worker there.
+  what was installed, not what a server sends that day. No service worker there. Every page is
+  served with a Content-Security-Policy header (`pagePolicy`, since 2026-11-18: the build's
+  policy, see Content-Security-Policy in `docs/client.md`, plus `frame-ancestors 'none'`, the
+  inline scripts' hashes worked out from the file), so no script but the app's own files runs
+  in a page that has all of `preload.js`.
 - **Window** (`main.js`): one instance (a second start focuses it), size and place remembered,
   no menu (a minimal one on macOS for copy/paste), dev tools only in a development run
   (Ctrl+Shift+I). Links to other sites open in the browser; the window never leaves
@@ -86,7 +90,10 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `<a download>` (files the page has whole: Electron's own download after its Save dialog, the
   session's `will-download`) and big attachments written piece by piece (`fileSave.js` finish).
   The page only hears an id, the name and the folder's name; the main process keeps the paths
-  (the last 50), so the page can't open or delete anything else. It goes 8 s after the last
+  (the last 50), so the page can't open or delete anything else. Open never runs a program
+  (`.exe`, `.msi`, `.sh`, `.AppImage`, `.desktop`... `PROGRAM` in downloads.js; since
+  2026-11-18): it shows it in its folder instead, so a script in the page couldn't save and
+  start one after a single Save dialog. It goes 8 s after the last
   file, not while the pointer or focus is on it; Open closes that file's entry. Browsers show
   their own, and the Android app a notification (below).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
@@ -591,7 +598,11 @@ native bridge. Check real behaviour on a phone.
   full-screen ringing screen over the lock screen (`IncomingCallActivity`: name, picture, two
   buttons; Answer asks to unlock first, so nothing of the app shows on the lock screen). Answer
   opens the app, which answers (`callClient.js` `answerWhenRinging`: asks the server, since the
-  page may be just started or asleep with a dead socket; says so if the call is over); Decline is sent
+  page may be just started or asleep with a dead socket; says so if the call is over). Answer
+  and a notification's page (`voicaw.answer`, `voicaw.url`) are only taken from an intent
+  carrying the app's own key (`IntentKey.java`: random, made once per install, put in by
+  `Notifications.openApp`; since 2026-11-18): MainActivity is exported for the launcher and
+  the share sheet, so any app could otherwise start it to answer a call with no tap; Decline is sent
   by the hidden page with the app's login, the app needn't open. The page itself doesn't ring
   when the phone does (`callClient.js`). Ringing stops on `call_stop` (the server sends it to
   Android apps only, `sendToAndroidApps`, when the call is answered or declined on another

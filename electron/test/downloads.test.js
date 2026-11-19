@@ -51,6 +51,13 @@ describe('the download popup (downloads.js)', () => {
         expect(() => list.showInFolder('/etc/passwd')).toThrow();
     });
 
+    it('never runs a program: Open shows it in its folder', async () => {
+        const { list, asked } = downloads();
+        const programs = ['update.exe', 'Setup.MSI', 'run.bat', 'go.sh', 'Voicaw.AppImage', 'x.desktop', 'a.lnk'].map(file);
+        for (const p of programs) expect(await list.open(list.add(p))).toBe('');
+        expect(asked).toEqual(programs.map((p) => ['show', p]));
+    });
+
     it("says a file that's gone is missing instead of opening it", async () => {
         const { list, asked } = downloads();
         const target = file('gone.txt');

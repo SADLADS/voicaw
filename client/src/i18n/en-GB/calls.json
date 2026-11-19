@@ -54,7 +54,10 @@
       "answer": "Could not answer the call.",
       "ended": "That call has already ended.",
       "joinedAfter": "You joined the group after this call started: you can join the next one.",
-      "unverified": "This call couldn't be verified as coming from its caller, so it wasn't joined."
+      "unverified": "This call couldn't be verified as coming from its caller, so it wasn't joined.",
+      "unencrypted": "Someone in this call sent audio or video that wasn't end-to-end encrypted, so it wasn't played and the call was ended.",
+      "notPrivate": "Someone has left the group since this call started, so it isn't private any more and wasn't joined. A new call can start once it ends.",
+      "memberLeft": "Someone left the group, so this call wasn't private any more and you left it. Start a new call to carry on."
     }
   }
 }
