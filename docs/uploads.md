@@ -10,7 +10,12 @@ has them; Garage has none, so its buckets have website access on and media.voica
 sends anonymous reads there (`server/nginx/media.voicaw.com`), keeping every address
 `<S3_ENDPOINT>/<bucket>/<key>`. Uploads are client-direct: the server only
 issues short-lived (60s) pre-signed PUT URLs (`/api/upload_file`, and profile pictures' and
-emoji originals, see Profiles and Guilds); the
+emoji originals, see Profiles and Guilds). Each is signed only for a type that is never served as
+a page (`uploadTypes.js`, security audit 2026-11-18): `/upload_file` and its multipart routes take
+`application/octet-stream` alone (attachments are encrypted), pictures only png, jpeg, gif, webp,
+avif and bmp, and `s3.js` refuses anything else that isn't sound or video; media.voicaw.com's reads
+also send `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox; default-src
+'none'`. The
 client uploads the file straight to S3, bypassing the app server. Both routes require a `size` query
 param, which is signed into the URL together with the content type (`s3.js` `signableHeaders`), so
 the object store rejects a body of any other length or type (verified against the live MinIO,

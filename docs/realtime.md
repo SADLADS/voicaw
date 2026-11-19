@@ -9,6 +9,11 @@ module-level in `sockets.js`, so routes can push events (and tests can fake sock
 `app.locals.clients`). Clients
 identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
+Limits (security audit, 2026-11-18): a message is at most 256 KB (`maxPayload`; the biggest the
+app sends is `activity`, three pictures of 48 KB), a socket that hasn't identified within 15 s is
+closed (1008 "Not identified"), and one address (nginx's `X-Forwarded-For`) may hold 20 sockets
+that haven't identified yet (`socketLimits.js`, shared with bots' gateway, whose messages are at
+most 8 KB).
 Server -> client push events: `new_dm`, `delete_dm`, `edit_dm`, `reaction_add`, `reaction_remove`,
 `dm_pin` (see Pinned messages), `dm_link_previews` (and groups' `group_dm_message_link_previews`:
 a sender's encrypted link previews; see Link previews),
@@ -187,7 +192,10 @@ one user at a time).
   start via `ensureSubscription()` when permission is granted and the user hasn't turned it off
   (`localStorage.pushDisabled`). Logout calls `disableNotificationsOnThisDevice()` *before* the token
   is cleared, so the server forgets the device.
-- Server: `sendPushToUser()` (drops 404/410 subscriptions). New DMs are pushed unless the
+- Server: `sendPushToUser()` (drops 404/410 subscriptions). Each request to a push service has a
+  10 s timeout. An account keeps at most 20 subscriptions (the oldest go), web push endpoints
+  must be https addresses (also when the service worker swaps one in), and saving (60 an hour)
+  and `/test-push` (5 a minute) are rate limited (security audit, 2026-11-18). New DMs are pushed unless the
   recipient muted the conversation (`isConversationMuted`) or `isViewingConversation()` says
   they're looking at that chat (group DMs: chat id
   `group-<id>`; guild channels: `channel-<id>`, and which guild messages push is in Mentions). That uses `presence`

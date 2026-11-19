@@ -29,10 +29,12 @@ deletes it. Messages, reactions, edits, call keys and the group's name and pictu
   (400 without; if the epoch loses a race the add fails with 409 too, and is retried), so the
   person added can read the name. The server only takes a message
   for the newest epoch when that's for the current membership (else 409 `stale_epoch`), and only
-  one epoch per number (the loser of a race gets 409 and uses the winner's). Which epoch to send
-  with is decided from what's bound into each opened key (its `log_seq` and creator), never from
-  the server's `latest_epoch` (only a hint for the next number): the newest one made after the
-  log's last entry by someone still in the group, else a new one (since 2026-11-19; before, a
+  one epoch per number (the loser of a race gets 409 and uses the winner's). Only a member makes
+  an epoch, and a leave can't carry one (400): someone leaving must never know a key the others
+  send under (security audit, 2026-11-18); a remaining member makes the next one. Which epoch to
+  send with is decided from what's bound into each opened key (its `log_seq` and creator), never
+  from the server's `latest_epoch` (only a hint for the next number): the newest one made after
+  the log's last entry by someone still in the group, else a new one (since 2026-11-19; before, a
   server could pass off an epoch a removed member holds as current).
 - **Log rollback:** the log is append-only, so each device saves the length of the longest log
   it has checked and the hash of its last entry (`groupCache` `log`), and `openGroup` refuses a

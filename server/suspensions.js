@@ -5,6 +5,8 @@ const { clients, sendToUserSockets } = require('./sockets');
 // everywhere (sessions and push subscriptions gone, calls and voice ended, open apps told
 // `account_suspended` and closed), and can't log in again until lifted (auth.js verifyToken,
 // routes/auth.js). Its messages and memberships stay as they are; others see nothing change.
+// Its bots are paused with it (security audit, 2026-11-18): their gateway sessions are closed and
+// their tokens and OAuth secrets refused (bots.js botForToken, oauth.js clientFor) until lifted.
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -31,6 +33,11 @@ async function suspend(userId, adminId, reason) {
   await require('./voice').disconnect(userId);
   sendToUserSockets(userId, { type: 'account_suspended', reason: why });
   for (const socket of clients.get(String(userId)) ?? []) socket.close(1008, 'Account suspended');
+  const bots = await db.all('SELECT id FROM bot_applications WHERE owner_id = ?', [userId]);
+  for (const { id } of bots) {
+    require('./gateway').closeBotSessions(id, 4004, 'Authentication failed.');
+    await require('./voice').disconnect(id);
+  }
 }
 
 async function lift(userId) {

@@ -194,6 +194,9 @@ async function storeEntry(groupId, entry, r) {
 // current name encrypted with the new key: `name`, of version `nameVersion` (409 if the group
 // was renamed meanwhile).
 async function storeEpoch(state, creatorId, { epoch, logSeq, envelopes, name, nameVersion }) {
+  // Only a member may make the group's next key: someone who has just left (or been removed)
+  // must never know a key the others will send under (security audit, 2026-11-18).
+  if (!state.members.has(creatorId)) throw new GroupError(403, 'Only members can renew the group key');
   const expected = (state.latestEpoch?.epoch ?? 0) + 1;
   if (epoch !== expected || logSeq !== state.nextSeq - 1) throw new GroupError(409, 'The group changed meanwhile; try again');
   if (!envelopes || typeof envelopes !== 'object') throw new GroupError(400, 'Invalid keys');

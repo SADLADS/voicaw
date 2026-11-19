@@ -368,6 +368,15 @@ describe('Login - register form', () => {
     expect(onLoginSuccess).toHaveBeenCalledWith(expect.objectContaining({ id: 9, pending: true }));
   });
 
+  it('explains the username rule before registering a name the server would refuse', async () => {
+    const { registerForm, container } = renderLogin();
+    fillRegister(container, 'al ice', 'long enough password');
+    fireEvent.click(screen.getByRole('checkbox', { name: /I agree to the terms of use/ }));
+    fireEvent.submit(registerForm);
+    expect(await screen.findByText(/Usernames are 2 to 32 characters/)).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   it('generates keys, backs them up with the OPAQUE exportKey, and registers', async () => {
     opaque.client.startRegistration.mockReturnValue({ clientRegistrationState: 'CRS', registrationRequest: 'RR' });
     opaque.client.finishRegistration.mockReturnValue({ registrationRecord: 'REC', exportKey: 'EXPORT-KEY' });

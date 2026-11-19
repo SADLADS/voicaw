@@ -241,6 +241,13 @@ describe('Login with Voicaw', () => {
     await db.run('UPDATE users SET suspended_at = NULL WHERE id = ?', [person.id]);
     expect((await me(access)).status).toBe(200);
 
+    // The site's owner suspended: its secret is refused until it's lifted.
+    const code = await authorise(person, site);
+    await db.run('UPDATE users SET suspended_at = 1 WHERE id = ?', [owner.id]);
+    expect((await exchange(site, code)).status).toBe(401);
+    await db.run('UPDATE users SET suspended_at = NULL WHERE id = ?', [owner.id]);
+    expect((await exchange(site, await authorise(person, site))).status).toBe(200);
+
     expect((await api.delete(owner, `/applications/${site.id}`)).status).toBe(200);
     expect((await me(access)).status).toBe(401);
     expect(await db.get('SELECT 1 FROM oauth_tokens WHERE application_id = ?', [site.id])).toBeUndefined();

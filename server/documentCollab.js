@@ -37,6 +37,8 @@ const EDITOR_TIMEOUT_MS = 45000;
 const SWEEP_MS = 15000;
 // Steps kept for editors catching up; one further behind loads the document again.
 const MAX_KEPT_STEPS = 2000;
+// And no more than this many bytes of them (a big paste is one big step): the oldest go first.
+const MAX_KEPT_STEP_BYTES = 4 * 1024 * 1024;
 const MAX_STEPS_PER_REQUEST = 2000;
 const MAX_EDITORS = 50;
 const CLIENT_ID = /^[\w-]{1,40}$/;
@@ -204,7 +206,8 @@ async function join(document, userId, clientID, { doc, basedOn } = {}) {
         channelId: document.channel_id,
         doc: node,
         version: 0,
-        steps: [], // { step (JSON), clientID }, the last MAX_KEPT_STEPS
+        steps: [], // { step (JSON), clientID, bytes }, the last MAX_KEPT_STEPS (MAX_KEPT_STEP_BYTES)
+        stepBytes: 0,
         title: document.title,
         cover: document.cover,
         openEditing: document.open_editing ? 1 : 0,
@@ -244,11 +247,16 @@ async function receiveSteps(documentId, userId, { session: sessionId, clientID, 
   if (version !== session.version) throw collabError(409, 'Behind the session', { version: session.version });
   const { Step, schema, docToMarkdown } = await loadProseMirror();
   let doc = session.doc;
+  // What is kept and sent on is each step as ProseMirror writes it back, never the JSON as it
+  // came: fromJSON ignores keys it doesn't know, so a sender could pad steps with anything.
+  const clean = [];
   try {
     for (const json of steps) {
-      const result = Step.fromJSON(schema, json).apply(doc);
+      const step = Step.fromJSON(schema, json);
+      const result = step.apply(doc);
       if (result.failed || !result.doc) throw new Error(result.failed);
       doc = result.doc;
+      clean.push(step.toJSON());
     }
     doc.check();
   } catch {
@@ -259,11 +267,17 @@ async function receiveSteps(documentId, userId, { session: sessionId, clientID, 
   if (sessions.get(documentId) !== session || version !== session.version) throw collabError(409, 'Behind the session', { version: session.version });
   session.doc = doc;
   session.version += steps.length;
-  for (const step of steps) session.steps.push({ step, clientID });
-  if (session.steps.length > MAX_KEPT_STEPS) session.steps.splice(0, session.steps.length - MAX_KEPT_STEPS);
+  for (const step of clean) {
+    const bytes = JSON.stringify(step).length;
+    session.steps.push({ step, clientID, bytes });
+    session.stepBytes += bytes;
+  }
+  while (session.steps.length > MAX_KEPT_STEPS || (session.stepBytes > MAX_KEPT_STEP_BYTES && session.steps.length > 1)) {
+    session.stepBytes -= session.steps.shift().bytes;
+  }
   session.lastEditor = userId;
   scheduleSave(session);
-  toEditors(session, { type: 'guild_document_steps', version: session.version, steps, clientIDs: steps.map(() => clientID) });
+  toEditors(session, { type: 'guild_document_steps', version: session.version, steps: clean, clientIDs: clean.map(() => clientID) });
   return { version: session.version };
 }
 

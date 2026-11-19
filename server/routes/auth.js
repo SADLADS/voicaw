@@ -8,7 +8,7 @@ const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
 const { LIMITS: PROFILE_LIMITS, PROFILE_COLUMNS, clean: cleanProfile, cleanBannerColor } = require('../profiles');
 const { sendToAllSockets } = require('../sockets');
-const { normalizeUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
+const { normalizeUsername, isValidNewUsername, findUserByName, opaqueIdOf, newOpaqueId } = require('../usernames');
 const accounts = require('../accounts');
 const signups = require('../signups');
 const adminAlerts = require('../adminAlerts');
@@ -206,6 +206,7 @@ router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async
   // makes its keys (checked again, and the invite used up, by /finaliseregister). A password
   // change sends no `invite` and isn't refused (it's this route too).
   if (req.body.signup === true) {
+    if (!isValidNewUsername(userIdentifier)) return res.status(400).json(BAD_USERNAME);
     try {
       await signups.checkSignup(req.body.invite, req.body.reason);
     } catch (err) {
@@ -224,6 +225,11 @@ router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async
   });
   res.status(201).json({ registrationResponse });
 });
+
+const BAD_USERNAME = {
+  error: 'Usernames are 2 to 32 letters (a-z), digits, underscores, hyphens and full stops',
+  code: 'username',
+};
 
 router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req, res) => {
   const { registrationRecord, userIdentifier, identityKey, encryptionKey, encryptionKeySignature, keyBackup, recoveryVerifier, recoveryBackup } = req.body;
@@ -245,8 +251,8 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
   // Capitals typed in the username become the display name ("Alice": username "alice").
   const username = normalizeUsername(userIdentifier);
   const displayName = username === userIdentifier ? null : cleanProfile('display_name', userIdentifier) ?? null;
-  // '#' is kept for bots' names (bots.js: "name#1234"), so nobody can sign up as one.
-  if (username.includes('#')) return res.status(400).json({ error: "Usernames can't contain #" });
+  // (This also keeps out '#', which is kept for bots' names: bots.js "name#1234".)
+  if (!isValidNewUsername(username)) return res.status(400).json(BAD_USERNAME);
   if (await findUserByName(username, 'id')) return res.status(409).json({ error: 'Username already exists' });
   // Sign-ups (signups.js): refused without an invite when they need one; waiting for an admin
   // when they need approval, with why they want to join (`reason`).

@@ -34,7 +34,11 @@ const SIGNUP_ERRORS = {
   invalid_invite: 'auth.errors.invalidInvite',
   reason_required: 'auth.errors.reasonRequired',
   reason_too_long: 'auth.errors.reasonTooLong',
+  username: 'auth.errors.usernameRules',
 };
+
+// What a new username may be, after lower-casing (the server's rule: server/usernames.js).
+const USERNAME_RULE = /^(?!.*\.\.)[a-z0-9_.-]{2,32}$/;
 
 // The longest answer to "why do you want to join" the server takes (server/signups.js).
 const MAX_REASON = 1000;
@@ -122,6 +126,10 @@ export default function Login({ onLoginSuccess, invite = '' }) {
   async function handleRegister(e) {
     e.preventDefault();
     setError('');
+    if (!USERNAME_RULE.test(registerData.username.toLowerCase())) {
+      setError(t('auth.errors.usernameRules'));
+      return;
+    }
     setLoading(true);
     try {
       const { user, recoveryCode } = await register(
@@ -329,6 +337,7 @@ export default function Login({ onLoginSuccess, invite = '' }) {
             className="form-control mb-2"
             placeholder={t('auth.register.usernamePlaceholder')}
             required
+            maxLength={32}
             value={registerData.username}
             onChange={e => setRegisterData({ ...registerData, username: e.target.value })}
           />

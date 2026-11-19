@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const { holdUnidentified } = require('./socketLimits');
 const auth = require('./auth');
 const db = require('./db');
 const activities = require('./activities');
@@ -193,20 +194,42 @@ function isViewingConversation(userId, otherUserId) {
   );
 }
 
+// Limits for anyone who can reach the socket, logged in or not (security audit, 2026-11-18). The
+// biggest message a client sends is `activity`: three activities, each with one picture of up to
+// 48 kB (activities.js), so about 200 kB. A socket must identify soon after opening (the app
+// does so in its onopen), and one address may hold only so many sockets not identified yet
+// (socketLimits.js).
+const MAX_PAYLOAD_BYTES = 256 * 1024;
+const IDENTIFY_WITHIN_MS = 15 * 1000;
+
 // Runs the websocket server on `server` (the HTTP server). Clients identify with their JWT
 // ({ type: 'identify', token }) and report presence; a heartbeat drops dead connections.
 // Connections to /api/gateway are bots' (gateway.js, Discord's protocol).
-function attachWebSocketServer(server) {
-  const wss = new WebSocket.Server({ noServer: true });
+// `identifyWithinMs`: tests shorten the wait for identify.
+function attachWebSocketServer(server, { identifyWithinMs = IDENTIFY_WITHIN_MS } = {}) {
+  const wss = new WebSocket.Server({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
   const gateway = require('./gateway').createGatewayServer();
   server.on('upgrade', (req, socket, head) => {
     const target = /^\/api\/gateway\/?(\?|$)/.test(req.url ?? '') ? gateway : wss;
     target.handleUpgrade(req, socket, head, (ws) => target.emit('connection', ws, req));
   });
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
+
+    const identified = holdUnidentified(req);
+    if (!identified) {
+      ws.close(1008, 'Too many connections');
+      return;
+    }
+    const identifyTimer = setTimeout(() => {
+      if (!ws.userId && !ws.pendingUserId) ws.close(1008, 'Not identified');
+    }, identifyWithinMs);
+    ws.on('close', () => {
+      clearTimeout(identifyTimer);
+      identified();
+    });
 
     // Nothing a client sends may take the server down: anything thrown is logged and dropped.
     ws.on('message', async (msg) => {
@@ -236,6 +259,8 @@ function attachWebSocketServer(server) {
             ws.close(1008, 'Invalid token');
             return;
           }
+          identified();
+          clearTimeout(identifyTimer);
           ws.sessionId = user.sid;
           if (user.pending) {
             ws.pendingUserId = String(user.id);

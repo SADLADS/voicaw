@@ -59,7 +59,7 @@ router.patch('/applications/:appId', authenticateJWT, ownApplication, async (req
       try {
         await setAvatarFrom(req.application.id, original, parseCrop(body.avatarCrop));
       } catch (err) {
-        if (err instanceof AvatarImageError) return res.status(400).json({ error: err.message });
+        if (err instanceof AvatarImageError) return res.status(err.status).json({ error: err.message });
         throw err;
       }
     }

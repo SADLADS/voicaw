@@ -579,7 +579,7 @@
       "urlHint": "Its https:// address on the internet, as you'd open it in a browser.",
       "username": "Username",
       "password": "Password",
-      "accountHint": "Use an account made for the guild, with only the libraries it should see (administrators aren't accepted). Everyone watching gets this account's access, and the server sees their IP addresses. The password isn't kept.",
+      "accountHint": "Use an account made for the guild, with only the libraries it should see (administrators aren't accepted). Anyone in the voice channel while one of its videos plays gets this account's sign-in, and can use it to browse and play everything the account can see, not only what's queued. The server also sees their IP addresses. The password isn't kept.",
       "connect": "Connect",
       "connecting": "Connecting…",
       "connected": "Connected.",

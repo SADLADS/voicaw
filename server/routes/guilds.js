@@ -209,7 +209,7 @@ async function processGuildIcon(guildId, crop) {
     const image = await processAvatar(original, parseCrop(crop));
     await putObject('guild-icons', String(guildId), image.buffer, image.contentType);
   } catch (err) {
-    if (err instanceof AvatarImageError) throw new ActionError(400, err.message);
+    if (err instanceof AvatarImageError) throw new ActionError(err.status, err.message);
     throw err;
   }
 }

@@ -42,4 +42,15 @@ function tooManyAttempts(res, retryAfterMs) {
   });
 }
 
-module.exports = { createLimiter, tooManyAttempts };
+// Express middleware counting each request against `limiter` under `keyOf(req)` (by default the
+// logged-in account), answering 429 once over. Off when the tests turn rate limits off.
+function limitRequests(limiter, keyOf = (req) => String(req.user?.id ?? req.ip)) {
+  return (req, res, next) => {
+    if (!require('./config').rateLimitsEnabled) return next();
+    const { allowed, retryAfterMs } = limiter.hit(keyOf(req));
+    if (!allowed) return tooManyAttempts(res, retryAfterMs);
+    next();
+  };
+}
+
+module.exports = { createLimiter, tooManyAttempts, limitRequests };

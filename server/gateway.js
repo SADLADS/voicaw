@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const zlib = require('zlib');
 const WebSocket = require('ws');
+const { holdUnidentified } = require('./socketLimits');
 const db = require('./db');
 const { clients, refreshStatus, refreshActivities, getStatus } = require('./sockets');
 const { getActivities, cleanBotActivities, discordActivity } = require('./activities');
@@ -575,6 +576,10 @@ function setUpSending(ws, compress) {
 }
 
 function onConnection(ws, req) {
+  // Before anything is made for it (the deflate stream): released once it has a session.
+  const identified = holdUnidentified(req);
+  if (!identified) return ws.close(4008, 'Too many connections.');
+  ws.on('close', identified);
   const url = new URL(req.url, 'http://localhost');
   const encoding = url.searchParams.get('encoding') ?? 'json';
   const compress = url.searchParams.get('compress');
@@ -611,9 +616,13 @@ function onConnection(ws, req) {
           lastHeartbeat = Date.now();
           return ws.sendPayload({ op: OP.HEARTBEAT_ACK });
         case OP.IDENTIFY:
-          return await identify(ws, d);
+          await identify(ws, d);
+          if (ws.session) identified();
+          return;
         case OP.RESUME:
-          return await resume(ws, d);
+          await resume(ws, d);
+          if (ws.session) identified();
+          return;
         case OP.PRESENCE_UPDATE:
           if (!ws.session) return ws.close(4003, 'Not authenticated.');
           return ws.session.setPresence(d);
@@ -699,8 +708,12 @@ function closeBotSessions(botId, code, reason) {
 }
 
 // The gateway's websocket server; sockets.js hands it upgrades to /api/gateway.
+// Discord's gateway takes 4096 bytes a message; ours allows a little more, since nothing a bot
+// sends (Identify, presence, member requests) comes near it.
+const MAX_PAYLOAD_BYTES = 8 * 1024;
+
 function createGatewayServer() {
-  const wss = new WebSocket.Server({ noServer: true });
+  const wss = new WebSocket.Server({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
   wss.on('connection', onConnection);
   return wss;
 }

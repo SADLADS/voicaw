@@ -73,6 +73,9 @@ async function buildGroupPushPayload(groupId, message, recipientId, senderName) 
 // plays the Message sound if it's in front (or is the desktop app; see client sounds/).
 const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild', 'bot_dm']);
 
+// How long one push service may take to answer.
+const PUSH_TIMEOUT_MS = 10 * 1000;
+
 // Sends a web push to every device the user has subscribed (forgetting devices whose
 // subscription is gone), and the same payload to their desktop apps over the websocket.
 // Resolves to { devices, delivered } (desktop apps count as both).
@@ -100,7 +103,9 @@ async function sendPushToUser(userId, payload, options = {}, { appsOnly = false 
         if (sent === 'gone') db.run('DELETE FROM push_subscriptions WHERE id = ?', [row.id]).catch(() => {});
         return sent === true;
       }
-      await webpush.sendNotification(subscription, body, { TTL: 24 * 60 * 60, ...options });
+      // With a timeout: a push service that never answers would otherwise hold the request (and
+      // anything awaiting this person's pushes) for good.
+      await webpush.sendNotification(subscription, body, { TTL: 24 * 60 * 60, timeout: PUSH_TIMEOUT_MS, ...options });
       return true;
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {

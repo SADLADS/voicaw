@@ -143,6 +143,27 @@ describe('push notifications', () => {
     expect((await waitForPushes(1, before))[0].endpoint).toBe('https://push.test/bob-7-new');
   });
 
+  it('keeps the newest 20 subscriptions of an account, takes only https endpoints, and sends with a timeout', async () => {
+    const bob = await makeAuthedUser('push_bob_cap');
+    for (let i = 1; i <= 22; i++) await subscribe(bob, `https://push.test/bob-cap-${i}`);
+    const before = sentPushes.length;
+    const res = await request(app).post('/api/test-push').set(authed(bob.token));
+    expect(res.body.devices).toBe(20);
+    const sent = sentPushes.slice(before).map((p) => p.endpoint);
+    expect(sent).not.toContain('https://push.test/bob-cap-1');
+    expect(sent).not.toContain('https://push.test/bob-cap-2');
+    expect(sent).toContain('https://push.test/bob-cap-22');
+    expect(sentPushes.at(-1).options.timeout).toBe(10000);
+
+    for (const endpoint of ['http://push.test/plain', 'ftp://x', 'not a url', `https://push.test/${'x'.repeat(3000)}`]) {
+      const refused = await request(app).post('/api/save-subscription').set(authed(bob.token)).send({ subscription: subscription(endpoint) });
+      expect(refused.status).toBe(400);
+    }
+    const swap = await request(app).post('/api/update-subscription')
+      .send({ oldEndpoint: 'https://push.test/bob-cap-22', subscription: subscription('http://169.254.169.254/') });
+    expect(swap.status).toBe(400);
+  });
+
   it('forgets subscriptions the push service says are gone', async () => {
     const alice = await makeAuthedUser('push-alice8');
     const bob = await makeAuthedUser('push-bob8');

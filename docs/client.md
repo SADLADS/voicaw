@@ -747,7 +747,10 @@ even when there is no display name).
   /profile/avatar { type, size }` signs an upload of the original (image, up to 8 MB) to
   `profile-pics/src/<user id>/<upload id>`; `POST /profile/avatar/:uploadId/ready { crop }` has
   the server cut out the square chosen in the cropper (or the middle without one) and shrink it
-  (`sharp`: 256×256 at most, never enlarged, WebP, animation kept, pixel/frame limits), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
+  (`sharp`: 256×256 at most, never enlarged, WebP, animation kept, pixel/frame limits) (60 M
+  pixels for a still, 30 M for all of an animation's frames; every picture the server processes,
+  emoji, icons and bots' included, goes through one queue, `imageQueue.js`: 2 at a time, 20
+  waiting, then 429; `/ready` takes 30 a person per 10 minutes, emoji 60), store it as `profile-pics/<user id>/<avatar id>.webp` (a new name
   each time, so it's cacheable forever), delete the original and the previous picture, set
   `users.avatar` and send `user_profile`. `DELETE /profile/avatar` goes back to the default. Push
   images use `users.avatar` (no requests to the store). Client: the profile store has `avatar`,
@@ -974,7 +977,9 @@ use (voicaw.com/terms/) say rules are enforced.
 - **Blocking** (`server/blocks.js`, `user_blocks`; `GET /blocks`, `PUT` / `DELETE /blocks/:id`, the
   `blocks` event to your other devices; `utils/blocks.js` kept by `hooks/useBlocksSync.js` in
   Layout): neither person can DM, call or add the other to a group (403 `code: 'blocked'`, "Your
-  message couldn't be delivered": never says who blocked whom), and the blocker isn't pushed
+  message couldn't be delivered": never says who blocked whom; since 2026-11-18 also no edits,
+  link previews, pins or new reactions in their DM, either way, while deleting your own things and
+  unpinning still work), and the blocker isn't pushed
   about the other's group messages, guild mentions or group calls (`blockersAmong`). In the app,
   their messages are collapsed ("Blocked message · Show", `BlockedMessage.jsx` in `MessageList`),
   they don't show as typing, and a DM with them is closed ("You've blocked …" with Unblock in
@@ -1010,7 +1015,9 @@ use (voicaw.com/terms/) say rules are enforced.
   push subscriptions deleted, calls and voice ended, open apps told `account_suspended` (they log
   out, and the login page says why), every token refused (`verifyToken`), and logging in or
   recovering refused with 403 `code: 'suspended'` and the reason. Admins and yourself can't be
-  suspended. Messages and memberships stay. Lifting it lets them log in again.
+  suspended. Messages and memberships stay. Lifting it lets them log in again. Their bots are
+  paused with them (2026-11-18): gateway sessions closed (4004) and taken out of voice, bot
+  tokens and the applications' OAuth secrets refused until it's lifted.
 - **Admin items in people's menus** (built 2026-10-26): a global admin's person menu (anywhere a
   person is right-clicked or held: Friends rows, member lists, messages; `utils/personMenu.js`
   `adminItems`) and the DM list's menu (`DmMenu`) have Make Admin (asks) and Suspend Account

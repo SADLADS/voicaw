@@ -78,7 +78,12 @@ async function botForToken(raw) {
   if (!idPart) return null;
   const id = Number(Buffer.from(idPart, 'base64url').toString());
   if (!Number.isSafeInteger(id) || id <= 0) return null;
-  const app = await db.get('SELECT * FROM bot_applications WHERE id = ?', [id]);
+  // Not while its owner is suspended (suspensions.js): the bot is paused with them.
+  const app = await db.get(
+    `SELECT a.* FROM bot_applications a JOIN users o ON o.id = a.owner_id
+     WHERE a.id = ? AND o.suspended_at IS NULL`,
+    [id]
+  );
   if (!app?.token_hash) return null;
   const a = Buffer.from(app.token_hash, 'hex');
   const b = Buffer.from(hashToken(token), 'hex');

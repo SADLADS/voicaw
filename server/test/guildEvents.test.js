@@ -303,7 +303,7 @@ describe('scheduled events', () => {
 
   it('links its cover to the upload, and lets it go when the event does', async () => {
     const { owner, guild } = await setUp(0);
-    const upload = (await api.get(owner, '/upload_file?type=image/png&size=100')).body;
+    const upload = (await api.get(owner, '/upload_file?type=application/octet-stream&size=100')).body;
     const event = (await create(owner, guild, external({ image: upload.fileUrl }))).body;
     expect(event.image).toBe(upload.fileUrl);
     const key = upload.fileUrl.split('/uploads/')[1];
@@ -677,6 +677,23 @@ describe('scheduled events', () => {
       expect((await api.put(alice, url, { rsvp: 'going', occurrence: third })).body.my_rsvps).toEqual({ [monday]: null, [second]: 'declined' });
       // All of them replaces single ones.
       expect((await api.put(alice, url, { rsvp: 'maybe' })).body).toMatchObject({ rsvp: 'maybe', rsvp_all: 'maybe', my_rsvps: {} });
+    });
+
+    it('refuses answers to dates over five years ahead, and over 100 single dates', async () => {
+      const { members: [alice], guild, owner } = await setUp(1);
+      const monday = nextMonday();
+      const { id } = (await series(owner, guild, monday)).body;
+      const url = `/guild-events/${id}/rsvp`;
+      const all = dates(monday, 6 * 53);
+      expect((await api.put(alice, url, { rsvp: 'going', occurrence: all.at(-1) })).status).toBe(400);
+      for (const original of all.slice(0, 100)) {
+        expect((await api.put(alice, url, { rsvp: 'maybe', occurrence: original })).status).toBe(200);
+      }
+      const over = await api.put(alice, url, { rsvp: 'maybe', occurrence: all[100] });
+      expect(over.status).toBe(400);
+      expect(over.body.error).toMatch(/at most 100/);
+      // Changing one already answered still works.
+      expect((await api.put(alice, url, { rsvp: 'declined', occurrence: all[5] })).status).toBe(200);
     });
 
     it('changes this and following as a new series, which old links follow once the old one ends', async () => {

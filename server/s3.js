@@ -5,6 +5,7 @@ const {
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { setUpBuckets } = require("./bucketSetup");
+const { isServableType } = require("./uploadTypes");
 
 const s3 = new S3Client({
     region: process.env.S3_REGION || "us-east-1",
@@ -26,6 +27,8 @@ const s3 = new S3Client({
 // `contentLength` is signed into the URL: the object store rejects an upload whose
 // Content-Length differs, which is what enforces the server's size limits.
 async function getUploadUrl(filename, bucket, contentType, contentLength) {
+    // The routes check types first; this is the last line (uploadTypes.js).
+    if (!isServableType(contentType)) throw new Error(`Refusing to sign an upload of type ${contentType}`);
     const command = new PutObjectCommand({
         Bucket: bucket,
         Key: filename,
@@ -42,6 +45,7 @@ async function getUploadUrl(filename, bucket, contentType, contentLength) {
 // client to its own pre-signed URL (its length signed in, as above), then put together here
 // from what the store says it holds. Returns the upload id.
 async function startMultipartUpload(bucket, key, contentType) {
+    if (!isServableType(contentType)) throw new Error(`Refusing to sign an upload of type ${contentType}`);
     const res = await s3.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType }));
     return res.UploadId;
 }

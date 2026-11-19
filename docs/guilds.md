@@ -458,6 +458,8 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   editor `POST`s `collab/steps` made on the version it has; the server applies them (refusing a
   step that doesn't fit the schema, or one taking the document past 100,000 characters: 400) and
   sends them to the session's editors only (`guild_document_steps`); a stale version is 409, and
+  (kept and sent on as ProseMirror writes each step back, never the JSON as it came, which could
+  carry padding; the session keeps its last 2000 steps or 4 MB of them, whichever is less),
   the editor fetches what it missed (`GET collab/steps?since=`), rebases and sends again. The
   first editor starts the session from their parse of the stored markdown (`POST collab` with
   `doc` and `basedOn`, after a 409 `needsDoc`): the server has no markdown parser (that's the
@@ -604,6 +606,8 @@ Not end-to-end encrypted, like the rest of a guild.
   `event-<id>`), unless their notification level for the guild is 'none', and never the one who
   started it. Leaving the guild (or deleting your account) drops your answers. Everyone who can
   see the event sees who answered what (the page's RSVPs tab, `GET /guild-events/:id/rsvps`).
+  Single dates of a repeating event can be answered up to five years ahead, and one person may
+  answer at most 100 of an event's dates differently from the series (`MAX_RSVP_DATES`).
   **Limits**: an event may cap how many go (`rsvp_limit`, 1–1000, the editor's "Limit how many
   can go"; per occurrence of a repeating one; the app's own, so bots neither see nor set it).
   Past it, those going are its **waitlist**, worked out when read, not stored: everyone going in

@@ -21,7 +21,10 @@ LiveKit carries the audio.
   when run as the server). A "left" only counts for the session (sid) that's in, since joining
   from a second device replaces the first. After any guild change (`announceGuildUpdate`) and
   when a member is removed, `enforceGuild` disconnects whoever lost View/Connect and gives or
-  takes away Speak, Video and Listen live (a change of Listen is announced too). Self mute/deafen: `PUT /voice/state` (kept in LiveKit participant
+  takes away Speak, Video and Listen live (a change of Listen is announced too). Every join (and
+  every session found when the API starts) is also set to the permissions worked out then
+  (`applyGrants`), since a session otherwise keeps those of the token it joined with, which may
+  be up to 10 minutes old and from before a moderator took something away. Self mute/deafen: `PUT /voice/state` (kept in LiveKit participant
   attributes too, so a restart keeps them); `DELETE /voice` leaves. Everyone who can see the
   channel gets `guild_voice_state { guildId, channelId, userId, state }` (`state` null: left),
   and a voice channel in the layout has `voice: [{ user_id, username, self_mute, self_deaf,
@@ -612,7 +615,8 @@ LiveKit carries the audio.
     the media server, which sees each viewer's IP address and what they watch; searches come
     from our server. The token is handed to whoever is in the voice channel (in the addresses,
     and so readable by them), so they could use it to browse what the account can see: hence a
-    restricted account, and administrators refused. Bots can't search or add media server
+    restricted account, and administrators refused; the connect dialog says plainly that anyone in
+    the channel while one of its videos plays can browse everything the account sees (2026-11-18). Bots can't search or add media server
     videos (no bot API for Watch Together yet).
   - `e2e/watchparty.mjs` checks it with real videos (needs the internet); `e2e/mediaservers.mjs`
     with real Jellyfin and Emby servers in Docker (`e2e/mediacontainers.mjs` starts them).

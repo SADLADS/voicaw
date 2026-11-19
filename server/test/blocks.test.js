@@ -64,6 +64,32 @@ describe('blocking', () => {
     expect((await api.post(bob, '/dm-send', { recipient_id: ann.id, content })).status).toBe(201);
   });
 
+  it('stops edits, link previews, pins and new reactions in the conversation too, both ways', async () => {
+    const reaction = `v1.${'A'.repeat(123)}=`; // a 64-byte reaction, as calls.test.js
+    const old = (await api.post(bob, '/dm-send', { recipient_id: ann.id, content })).body;
+    const mine = (await api.post(ann, '/dm-send', { recipient_id: bob.id, content })).body;
+    expect((await api.post(bob, '/dm-reactions', { messageId: mine.id, content: reaction })).status).toBe(201);
+    expect((await api.put(bob, `/dm-messages/${old.id}/pin`)).status).toBe(200);
+    await api.put(ann, `/blocks/${bob.id}`);
+    const annEvents = listen(ann);
+    const refused = [
+      await api.put(bob, `/update-message/${old.id}`, { content: `v1.${'B'.repeat(40)}` }),
+      await api.put(bob, `/dm-messages/${old.id}/link-previews`, { previews: 'v1.xyz' }),
+      await api.put(bob, `/dm-messages/${mine.id}/pin`),
+      await api.post(bob, '/dm-reactions', { messageId: mine.id, content: reaction }),
+      // The one who blocked can't carry on either (as with sending).
+      await api.put(ann, `/update-message/${mine.id}`, { content: `v1.${'B'.repeat(40)}` }),
+    ];
+    for (const res of refused) {
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('blocked');
+    }
+    expect(annEvents).toEqual([]);
+    // Unpinning and deleting your own things still work.
+    expect((await api.delete(bob, `/dm-messages/${old.id}/pin`)).status).toBe(200);
+    expect((await api.delete(bob, `/messages/${old.id}`)).status).toBeLessThan(300);
+  });
+
   it("doesn't push guild mentions from someone you blocked", async () => {
     const guild = (await api.post(ann, '/guilds', { name: 'Place' })).body;
     const invite = (await api.post(ann, `/guilds/${guild.id}/invites`)).body;
