@@ -36,6 +36,7 @@
       "download": "Скачать {{name}}",
       "loading": "Загрузка {{name}}",
       "gifFromKlipy": "GIF из KLIPY",
+      "gifFromSite": "GIF с {{site}}",
       "showGif": "Показать GIF",
       "show": "Показать"
     },
@@ -148,7 +149,8 @@
     },
     "embeds": {
       "image": "встроенное изображение",
-      "footerWithTime": "{{text}} • {{time}}"
+      "footerWithTime": "{{text}} • {{time}}",
+      "gif": "GIF"
     },
     "links": {
       "pictureFrom": "Картинка с {{site}}",

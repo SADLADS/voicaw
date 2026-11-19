@@ -37,6 +37,22 @@ export function linksIn(text) {
   return links;
 }
 
+// Whether a message is only a link to a GIF site's page with its GIF as a link preview (`gifv`,
+// server/gifLinks.js), so its text is left out and only the GIF shows, as Discord does. Not
+// while its previews are removed (SUPPRESS_EMBEDS): the link shows again.
+export function isGifLinkOnly(text, linkEmbeds, flags = 0) {
+  if (!linkEmbeds?.length || flags & SUPPRESS_EMBEDS || typeof text !== 'string') return false;
+  const trimmed = text.trim();
+  if (!/^https?:\/\/\S+$/i.test(trimmed)) return false;
+  let href;
+  try {
+    href = new URL(trimmed).href;
+  } catch {
+    return false;
+  }
+  return linkEmbeds.some((e) => e.type === 'gifv' && e.url === href && e.thumbnail?.url);
+}
+
 // Links the app draws in its own way (UrlPreviews: YouTube players, guild invite cards and
 // event cards), so a preview made for them isn't shown as well.
 export const drawnByApp = (link) =>

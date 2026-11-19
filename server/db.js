@@ -849,7 +849,9 @@ addColumn('ALTER TABLE guild_messages ADD COLUMN link_urls TEXT');
 // `import_author_id`, `sender_id` the mapped member or 0, the archive's own `timestamp`, and
 // the archive's reactions as read-only `import_reactions` (JSON [{ emoji, count }]).
 // `unlinked_user_id`: the member who said "This wasn't me" (never shown; the importer can't
-// map them to that author again).
+// map them to that author again). Each custom emoji the archive uses is a row of
+// guild_import_emojis: once the importer chose (`mapped` 1), `emoji_id` is the guild's emoji it
+// becomes, or null for plain `:name:`; until then the guild's emoji of the same name is used.
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS guild_imports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -886,6 +888,14 @@ CREATE TABLE IF NOT EXISTS guild_import_messages (
   import_id INTEGER NOT NULL,
   source_id TEXT NOT NULL,
   message_id INTEGER NOT NULL,
+  PRIMARY KEY (import_id, source_id)
+);
+CREATE TABLE IF NOT EXISTS guild_import_emojis (
+  import_id INTEGER NOT NULL,
+  source_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  emoji_id INTEGER,
+  mapped INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (import_id, source_id)
 );
 `);

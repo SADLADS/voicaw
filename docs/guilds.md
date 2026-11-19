@@ -895,16 +895,37 @@ files); others can be added as adapters on the client.
   `:name:` (in `inlineEmojis`) `<:name:archiveId>`; replies; edits; pins; bots' answers to
   commands (who ran them as `interaction`); forwards in our own forward format; the archive's
   reactions with who reacted; stickers and attachments as files from the media folder or "not
-  included" (CDN links: they expire, and loading them would show readers' IP addresses to
-  Discord); bots' rich embeds as text only (links' previews aren't kept: the server makes its
+  included" (the old CDN is never loaded by readers: its links expire, and loading them would show
+  readers' IP addresses to Discord); bots' rich embeds as text only (links' previews aren't kept: the server makes its
   own, one at a time, if link previews are on). Polls aren't in these exports: the poll's own
   message is empty and gets its question from the "poll ended" message (type 46), which
   becomes a line of text with the winner. System messages (joins, pins, boosts, calls) are
   left out. Threads arrive as channels of their own and are imported as channels.
+- **Linked files** (built 2026-11-19): without `--media`, files, people's pictures, stickers and
+  emoji are links to Discord's CDN. The summary counts those it can download and those whose
+  links have expired (attachments' links are signed with an `ex` expiry, hex seconds, about a day
+  after the export; links with none are from before signing and are dead too; pictures, emoji
+  and stickers never expire), and a box (on by default, shown only when there's something to
+  download) has the **importer's browser** fetch them (`discordChatExporter.js` `downloadable`:
+  https on `cdn.discordapp.com` / `media.discordapp.net` only, since an archive is someone else's
+  file; the CDN answers with `Access-Control-Allow-Origin: *`; `runImport.js` `archiveFile`) and
+  upload them like media-folder files. Discord sees the importer's IP address (the box says so,
+  without naming it); the server never fetches them.
+- **Custom emoji** (built 2026-11-19): the reader lists the custom emoji used in messages,
+  forwards and reactions (with their pictures: media folder or link), sent with the import
+  (`guild_import_emojis`). The mapping step's **Custom emoji** has each become one of this
+  guild's emoji (the default when one has the same name), be added to the guild from its picture
+  (before any channel is made, through the usual emoji route, so its checks and the 200 limit
+  apply; one that fails is set to text and the step stops; "Add all the others"), or stay
+  `:name:` as text (the default otherwise). `setMapping` takes `emojis: [{ sourceId, emojiId }]`
+  (this guild's only), stored with `mapped = 1`; `addMessages` uses the choice, else the guild's
+  emoji of the same name (imports started before this), and a chosen emoji deleted since becomes
+  text. Emoji are written into the text as messages arrive: changing a choice later only changes
+  messages imported after.
 - **Guild Settings → Import** (`guild/GuildImport.jsx`): choose the archive (a summary: its
   guild, channels, messages, how many files it has), then each channel's place (a channel of
   the same name if there is one, else a new one in a category of the archive's category's name,
-  or Don't import) and each author's member (suggested by username or display name; "Keep the
+  or Don't import), what each custom emoji becomes, each author's member (suggested by username or display name; "Keep the
   archive's name"; members who opted out are greyed), then the tag's word (Tag: up to 24
   characters, empty = "Imported", with a preview), then it runs (a progress bar; Stop). Past
   imports: Continue (choose the same archive again: what's in is skipped, its files too, via
@@ -915,15 +936,15 @@ files); others can be added as adapters on the client.
   (archive id, name, stored picture, the member `user_id` or null, and `unlinked_user_id`: who
   said "This wasn't me", never shown), `guild_import_channels` (archive channel → our channel),
   `guild_import_messages` (archive message id → ours: replies, and batches sent again are
-  skipped). Imported messages are `guild_messages` with `import_id`, `import_author_id`, the
+  skipped), `guild_import_emojis` (archive emoji → this guild's, or text). Imported messages are `guild_messages` with `import_id`, `import_author_id`, the
   archive's `timestamp`, `sender_id` the member or 0 (as webhooks), read-only `import_reactions`
   (JSON, `{ emoji, count, users: [author row ids] }`), `interaction` `{ name, import_author_id }`.
-  `POST /guilds/:id/imports` (authors and channels; answers `suggested` and `opted_out`),
-  `PUT .../:importId/mapping` (label, authors → `userId`/`name`, channels → `channelId`; moving
-  remaps `sender_id`), `POST .../messages` (up to 500, oldest first, under 1 MB: written straight
+  `POST /guilds/:id/imports` (authors, channels and emoji; answers `suggested` and `opted_out`),
+  `PUT .../:importId/mapping` (label, authors → `userId`/`name`, channels → `channelId`, emoji →
+  `emojiId`; moving remaps `sender_id`), `POST .../messages` (up to 500, oldest first, under 1 MB: written straight
   in one transaction each, `indexGuildMessage` per message; **no** pushes, mention rows (pings),
   XP, unread or live message events; mentions become members' `<@id>` or `@name`, custom emoji
-  the guild's of that name or `:name:`), `POST .../known`, `POST .../files` (a signed PUT straight
+  the guild's chosen one or `:name:`), `POST .../known`, `POST .../files` (a signed PUT straight
   to the object store, `uploads/imports/<import>/<id>/<name>`, typed by its extension as
   webhooks' files, registered so it's deleted unless a message links it within a day; 90 MB at
   most, since the object store's nginx takes 100 MB a request and the API's 26), `PUT

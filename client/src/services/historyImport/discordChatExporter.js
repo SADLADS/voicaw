@@ -6,8 +6,9 @@ import { resolvePath } from './archive';
 // (with the people in `mentions`), custom emoji ":name:" (in `inlineEmojis`), channels
 // "#name". Mentions of people and custom emoji become `<@archiveId>` and `<:name:archiveId>`,
 // which the server makes members' mentions (no ping) and the guild's emoji, or plain text again.
-// Without its media folder (`--media`), files are links to the old CDN: kept only as "not
-// included". Links' previews aren't kept (the server makes its own), only bots' rich embeds'
+// Without its media folder (`--media`), files are links to the old CDN: the importer's browser
+// can download them (`remoteUrl`, only from that CDN; attachments' links stop working about a
+// day after the export, so expired ones aren't tried), else they're "not included". Links' previews aren't kept (the server makes its own), only bots' rich embeds'
 // text. Polls aren't in these exports; the "poll ended" message names the question and the
 // winner, which become text (`pollText`, in the importer's language).
 
@@ -24,6 +25,29 @@ const POLL_RESULT = new Set(['46', 'PollResult']);
 const COMMAND_KINDS = new Set(['20', '23', 'ChatInputCommand', 'ContextMenuCommand']);
 
 const isWeb = (url) => typeof url === 'string' && /^[a-z]+:\/\//i.test(url);
+
+// Where the archive's files, pictures and emoji are, when they're links: the only addresses
+// the importer's browser is asked to download from (an archive is someone else's file).
+const CDN_HOSTS = new Set(['cdn.discordapp.com', 'media.discordapp.net']);
+
+// A link the browser can download now -> the URL, else null. `expired` is set to true for an
+// attachment's link past its signed expiry (`ex`, hex seconds) or with none (links from before
+// they were signed no longer work). Pictures of people, emoji and stickers don't expire.
+export function downloadable(url, { now = Date.now() } = {}) {
+  if (!isWeb(url)) return { url: null, expired: false };
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { url: null, expired: false };
+  }
+  if (parsed.protocol !== 'https:' || !CDN_HOSTS.has(parsed.hostname)) return { url: null, expired: false };
+  if (/^\/(ephemeral-)?attachments\//.test(parsed.pathname)) {
+    const ex = parseInt(parsed.searchParams.get('ex') ?? '', 16);
+    if (!Number.isFinite(ex) || ex * 1000 <= now) return { url: null, expired: true };
+  }
+  return { url: parsed.href, expired: false };
+}
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const time = (iso) => {
   const ms = Date.parse(iso);
@@ -47,12 +71,17 @@ function tokeniseMentions(content, mentions) {
   return text;
 }
 
+const emojiCode = (emoji) => {
+  const code = emoji?.code ?? emoji?.name ?? '';
+  return emoji?.id && /^[A-Za-z0-9_]{1,32}$/.test(code) ? code : null;
+};
+
 // `:name:` for each custom emoji in the message → `<:name:id>`.
 function tokeniseEmoji(content, inlineEmojis) {
   let text = content;
   for (const emoji of inlineEmojis ?? []) {
-    if (!emoji.id || !/^[A-Za-z0-9_]{1,32}$/.test(emoji.code ?? emoji.name ?? '')) continue;
-    const code = emoji.code ?? emoji.name;
+    const code = emojiCode(emoji);
+    if (!code) continue;
     text = text.replace(new RegExp(`(?<!<):${escapeRegExp(code)}:(?!\\d)`, 'g'), `<:${code}:${emoji.id}>`);
   }
   return text;
@@ -78,18 +107,28 @@ function richEmbeds(embeds, content, fromBot) {
   })).filter((e) => e.title || e.description || e.fields.length || e.author);
 }
 
-// A file: from the export's media folder (`mediaPath`), or not included (a CDN link).
+// Where a file is: in the export's media folder (`mediaPath`), or a link the browser may
+// download (`remoteUrl`; `expired` when it no longer works).
+function whereIs(url, jsonPath) {
+  if (!url) return { mediaPath: null, remoteUrl: null, expired: false };
+  if (!isWeb(url)) return { mediaPath: resolvePath(jsonPath, url), remoteUrl: null, expired: false };
+  const { url: remoteUrl, expired } = downloadable(url);
+  return { mediaPath: null, remoteUrl, expired };
+}
+
+// A file of a message.
 function fileOf(attachment, jsonPath) {
   const url = attachment.url ?? '';
   return {
     filename: attachment.fileName || url.split('/').pop()?.split('?')[0] || 'file',
     size: Number.isSafeInteger(attachment.fileSizeBytes) ? attachment.fileSizeBytes : null,
-    mediaPath: url && !isWeb(url) ? resolvePath(jsonPath, url) : null,
+    ...whereIs(url, jsonPath),
   };
 }
 
 // -> { guildName, channel: { sourceId, name, category, thread }, authors: Map(sourceId ->
-// { sourceId, name, names, isBot, avatarPath, messageCount }), messages: [...] (oldest first),
+// { sourceId, name, names, isBot, avatarPath, avatarUrl, messageCount }), emojis: Map(sourceId
+// -> { sourceId, name, animated, imagePath, imageUrl, uses }), messages: [...] (oldest first),
 // skipped: { [reason]: count } }. `pollText({ question, answer, votes, total })` writes a poll
 // result's line.
 export function parseExport(json, jsonPath, { pollText }) {
@@ -104,12 +143,27 @@ export function parseExport(json, jsonPath, { pollText }) {
         names: [...new Set([user.name, user.nickname].filter(Boolean))],
         isBot: Boolean(user.isBot),
         avatarPath: user.avatarUrl && !isWeb(user.avatarUrl) ? resolvePath(jsonPath, user.avatarUrl) : null,
+        avatarUrl: downloadable(user.avatarUrl).url,
         messageCount: 0,
       };
       authors.set(user.id, author);
     }
     if (posted) author.messageCount += 1;
     return author;
+  };
+
+  // The custom emoji used in messages and reactions, with their pictures.
+  const emojis = new Map();
+  const noteEmoji = (emoji) => {
+    const name = emojiCode(emoji);
+    if (!name) return;
+    let known = emojis.get(emoji.id);
+    if (!known) {
+      const where = whereIs(emoji.imageUrl, jsonPath);
+      known = { sourceId: emoji.id, name, animated: Boolean(emoji.isAnimated), imagePath: where.mediaPath, imageUrl: where.remoteUrl, uses: 0 };
+      emojis.set(emoji.id, known);
+    }
+    known.uses += 1;
   };
 
   // A poll's own message is exported empty; its "poll ended" message names its question.
@@ -146,6 +200,7 @@ export function parseExport(json, jsonPath, { pollText }) {
       });
     } else if (KINDS.has(type)) {
       content = textOf(m);
+      for (const emoji of m.inlineEmojis ?? []) noteEmoji(emoji);
       embeds = richEmbeds(m.embeds, m.content ?? '', Boolean(m.author.isBot));
       if (!content && pollQuestions.has(m.id)) content = `📊 ${pollQuestions.get(m.id)}`;
     } else {
@@ -158,7 +213,7 @@ export function parseExport(json, jsonPath, { pollText }) {
       attachments.push({
         filename: `${sticker.name || 'sticker'}.${sticker.format === 'Gif' ? 'gif' : 'png'}`,
         size: null,
-        mediaPath: sticker.sourceUrl && !isWeb(sticker.sourceUrl) ? resolvePath(jsonPath, sticker.sourceUrl) : null,
+        ...whereIs(sticker.sourceUrl, jsonPath),
       });
     }
     // A forward: our own forward format (utils/forwardMarkup.js), its files with it.
@@ -167,6 +222,7 @@ export function parseExport(json, jsonPath, { pollText }) {
       const inner = textOf({ ...m.forwardedMessage, mentions: m.mentions, inlineEmojis: m.forwardedMessage.inlineEmojis ?? m.inlineEmojis });
       content = `fwd:v1:${JSON.stringify(at ? { t: Math.floor(at / 1000) } : {})}\n${inner}`;
       for (const a of m.forwardedMessage.attachments ?? []) attachments.push(fileOf(a, jsonPath));
+      for (const emoji of m.forwardedMessage.inlineEmojis ?? []) noteEmoji(emoji);
     }
 
     noteUser(m.author, { posted: true });
@@ -174,8 +230,9 @@ export function parseExport(json, jsonPath, { pollText }) {
     const reactions = (m.reactions ?? []).map((r) => {
       for (const user of r.users ?? []) noteUser(user);
       const custom = Boolean(r.emoji?.id);
+      if (custom) noteEmoji(r.emoji);
       return {
-        ...(custom ? { customName: r.emoji.code || r.emoji.name } : { emoji: r.emoji?.name }),
+        ...(custom ? { customName: r.emoji.code || r.emoji.name, customId: r.emoji.id } : { emoji: r.emoji?.name }),
         count: r.count,
         userSourceIds: (r.users ?? []).map((u) => u.id),
       };
@@ -212,6 +269,7 @@ export function parseExport(json, jsonPath, { pollText }) {
       thread: THREAD_TYPES.has(channelType),
     },
     authors,
+    emojis,
     messages,
     skipped,
   };

@@ -327,10 +327,11 @@ function EncryptedAttachment({ url, meta, name }) {
 // GIFs shown since the app was opened, so they stay loaded when the list redraws.
 const shownGifs = new Set();
 
-// A GIF from the picker, loaded from Klipy. With Settings → Privacy's "Show GIFs straight away"
-// off (utils/privacy), a box of its size waits for a tap on Show, so Klipy learns nothing first.
+// A GIF from the picker, loaded from Klipy, or a GIF site's link's (`site`: its name; a guild
+// link preview, MessageEmbeds). With Settings → Privacy's "Show GIFs straight away" off
+// (utils/privacy), a box of its size waits for a tap on Show, so the site learns nothing first.
 // In an NSFW channel it's covered too (as a GIF can't be a spoiler): the cover comes off first.
-function GifView({ src, name, width, height }) {
+export function GifView({ src, name, width, height, site = null }) {
   const autoLoad = usePrivacyPrefs().gifs;
   const cover = useMediaCover();
   const [shown, setShown] = useState(() => shownGifs.has(src));
@@ -345,7 +346,7 @@ function GifView({ src, name, width, height }) {
   return (
     <MediaCover label={cover} name={name}>
       <span className="attachment-gif-hidden" style={style}>
-        <span className="attachment-gif-hidden-label">{t('media.attachment.gifFromKlipy')}</span>
+        <span className="attachment-gif-hidden-label">{site ? t('media.attachment.gifFromSite', { site }) : t('media.attachment.gifFromKlipy')}</span>
         <button type="button" className="btn btn-secondary" onClick={show} aria-label={t('media.attachment.showGif')}>
           {t('media.attachment.show')}
         </button>

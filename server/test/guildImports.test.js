@@ -337,6 +337,40 @@ describe('unlinking and undoing', () => {
     expect((await api.get(owner, `/guilds/${guild.id}/imports`)).body).toEqual([]);
   });
 
+  it("makes the archive's custom emoji the guild's ones the importer chose, or text", async () => {
+    const { owner, guild, general } = await setUp();
+    const other = (await api.post(owner, '/guilds', { name: 'Elsewhere' })).body;
+    const emoji = async (g, name) => (await db.run(
+      'INSERT INTO guild_emojis (guild_id, name, creator_id, available) VALUES (?, ?, ?, 1)', [g.id, name, owner.id]
+    )).lastID;
+    const party = await emoji(guild, 'party');
+    const blob = await emoji(guild, 'blobwave');
+    const foreign = await emoji(other, 'theirs');
+    const imp = await startImport(owner, guild, general, {
+      emojis: [{ sourceId: '5001', name: 'partyparrot' }, { sourceId: '5002', name: 'blobwave' }, { sourceId: '5003', name: 'wave' }, { sourceId: '5004', name: 'party' }],
+    });
+    expect(imp.emojis.map((e) => e.name)).toEqual(['partyparrot', 'blobwave', 'wave', 'party']);
+    const mapping = (emojis) => api.put(owner, `/guilds/${guild.id}/imports/${imp.id}/mapping`, { emojis });
+    expect((await mapping([{ sourceId: '5003', emojiId: foreign }])).status).toBe(400);
+    expect((await mapping([{ sourceId: 'nope', emojiId: party }])).status).toBe(400);
+    const mapped = await mapping([{ sourceId: '5001', emojiId: party }, { sourceId: '5004', emojiId: null }]);
+    expect(mapped.status).toBe(200);
+    expect(mapped.body.emojis.find((e) => e.source_id === '5001')).toMatchObject({ emoji_id: party, mapped: 1 });
+
+    await api.post(owner, `/guilds/${guild.id}/imports/${imp.id}/messages`, {
+      channelSourceId: '900',
+      messages: [{
+        sourceId: 'e1', authorSourceId: '222', timestamp: ms('2024-01-02T10:00:00Z'),
+        // Chosen; not chosen (the same name); chosen as text although the guild has :party:; unknown.
+        content: '<a:partyparrot:5001> <:blobwave:5002> <:party:5004> <:wave:5003>',
+        reactions: [{ customName: 'partyparrot', customId: '5001', count: 1, userSourceIds: ['222'] }, { customName: 'party', customId: '5004', count: 2 }],
+      }],
+    });
+    const [message] = (await messagesIn(owner, general)).filter((m) => m.import_id);
+    expect(message.content).toBe(`<:party:${party}> <:blobwave:${blob}> :party: :wave:`);
+    expect(message.import_reactions.map((r) => r.emoji)).toEqual([`<:party:${party}>`, ':party:']);
+  });
+
   it("doesn't put messages into channels of other guilds or non-chat channels", async () => {
     const { owner, guild } = await setUp();
     const other = (await api.post(owner, '/guilds', { name: 'Elsewhere' })).body;
