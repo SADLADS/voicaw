@@ -13,7 +13,7 @@ server {
     # copied (https://voicaw.com/api/webhooks/...) all use this address. Websockets too: a bot
     # pointed at https://voicaw.com/api gets its gateway here (wss://voicaw.com/api/gateway).
     location /api/ {
-        proxy_pass http://localhost:3002;
+        proxy_pass http://127.0.0.1:3002;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $http_connection;

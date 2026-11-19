@@ -130,7 +130,9 @@ Settings → Admin, see Admin settings), and `SIGNUP_MODE` who can sign up (`ope
 `LINK_PREVIEWS_ALLOW_PRIVATE=1` lets it fetch private addresses and other ports: tests and the
 e2e harness only, never on a real server. For servers people pick on the login screen (see Other
 servers in `docs/client.md`): `ALLOWED_ORIGINS` (more web origins for CORS),
-`PUBLIC_WEBSOCKET_URL`, `TERMS_URL` and `PRIVACY_URL` (all in `/api/config`). `README.md` "Initial setup" has the whole list. VAPID keys are generated
+`PUBLIC_WEBSOCKET_URL`, `TERMS_URL` and `PRIVACY_URL` (all in `/api/config`). The API listens on
+`PORT` at `LISTEN_HOST`, 127.0.0.1 unless set (nginx proxies to `127.0.0.1:PORT`; nothing else should
+reach it directly). `README.md` "Initial setup" has the whole list. VAPID keys are generated
 via `webpush.generateVAPIDKeys()` (see root `README.md`). `S3_*` vars point at an S3-compatible
 object store (Garage, README section 4b; `S3_ROOT_USER`/`S3_ROOT_PASSWORD` are its `voicaw`
 key) used for uploads and profile pics.

@@ -119,6 +119,20 @@ describe('reports', () => {
     expect((await loginUser(app, request, bob.username, PASSWORD)).response.status).toBe(200);
   });
 
+  it("closes a pending account's sockets too, so approving it later doesn't revive them", async () => {
+    const { pendingClients, approvePendingSockets } = require('../sockets');
+    const events = [];
+    const ws = { readyState: 1, pendingUserId: String(bob.id), send: (m) => events.push(JSON.parse(m)), close() { ws.closed = true; } };
+    pendingClients.set(String(bob.id), [ws]);
+    expect((await api.post(mod, `/admin/users/${bob.id}/suspend`, { reason: 'Spam' })).status).toBe(200);
+
+    expect(events).toEqual([{ type: 'account_suspended', reason: 'Spam' }]);
+    expect(ws.closed).toBe(true);
+    expect(pendingClients.has(String(bob.id))).toBe(false);
+    approvePendingSockets(bob.id);
+    expect(clients.get(String(bob.id)) ?? []).not.toContain(ws);
+  });
+
   it("tells admins' apps who's an admin and who's suspended, for a person's menu", async () => {
     expect((await api.get(ann, '/admin/users')).status).toBe(403);
     await api.post(mod, `/admin/users/${bob.id}/suspend`);

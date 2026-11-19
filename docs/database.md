@@ -21,7 +21,8 @@ Create Documents; 9: existing guild uploads join the upload registry; 10: the ty
 `'thread'` (the copy now keeps every column, `nsfw` included) and @everyone gets Create Threads
 and Send Messages in Threads); add the next one at the end.
 - Queries: `db.get` / `db.all` / `db.run` return promises, as with the old driver (rows are plain
-  objects; `undefined` binds as NULL, booleans as 1/0). Prepared statements are cached.
+  objects; `undefined` binds as NULL, booleans as 1/0; any other object but a Buffer or typed array
+  throws, as node:sqlite would take one given first as named parameters and shift the rest). Prepared statements are cached.
 - **Transactions:** anything that writes more than one row (or one row that depends on another)
   goes in `await db.transaction(async () => { ... })`: its writes are all kept, or all undone if it
   throws. While one is open, other requests' queries wait (the transaction's own code is told

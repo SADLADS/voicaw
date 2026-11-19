@@ -61,4 +61,43 @@ describe('db', () => {
     expect(await values()).toEqual(['z']);
     await db.run('DELETE FROM db_test');
   });
+
+  it('runs transactions started together one after another', async () => {
+    const slow = (v) => db.transaction(async () => {
+      await db.run('INSERT INTO db_test (v) VALUES (?)', [v]);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    // Three at once: before, the second failed ("within a transaction") and cleared the first's
+    // turn, so the third and a plain insert ran inside the first, which then rolled back.
+    const failing = db.transaction(async () => {
+      await db.run('INSERT INTO db_test (v) VALUES (?)', ['rolled back']);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      throw new Error('undo');
+    });
+    const results = await Promise.allSettled([failing, slow('t2'), slow('t3'), db.run('INSERT INTO db_test (v) VALUES (?)', ['plain'])]);
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'fulfilled', 'fulfilled', 'fulfilled']);
+    expect(await values()).toEqual(['plain', 't2', 't3']);
+    await db.run('DELETE FROM db_test');
+  });
+
+  it('never runs a plain query inside a transaction that started meanwhile', async () => {
+    const plain = db.run('INSERT INTO db_test (v) VALUES (?)', ['plain']);
+    const tx = db.transaction(async () => {
+      await db.run('INSERT INTO db_test (v) VALUES (?)', ['tx']);
+      throw new Error('undo');
+    });
+    await expect(tx).rejects.toThrow('undo');
+    await plain;
+    expect(await values()).toEqual(['plain']);
+    await db.run('DELETE FROM db_test');
+  });
+
+  it('refuses objects as parameters instead of shifting the others', async () => {
+    await expect(db.get('SELECT ? AS a, ? AS b', [{}, 7])).rejects.toThrow(/parameter/);
+    await expect(db.get('SELECT ? AS a, ? AS b', [[], 7])).rejects.toThrow(/parameter/);
+    await expect(db.get('SELECT ? AS a', [{ x: 1 }])).rejects.toThrow(/parameter/);
+    // Buffers, typed arrays and null still bind.
+    expect(await db.get('SELECT length(?) AS n, ? AS z', [Buffer.from('abc'), null])).toEqual({ n: 3, z: null });
+    expect(await db.get('SELECT length(?) AS n', [new Uint8Array(4)])).toEqual({ n: 4 });
+  });
 });

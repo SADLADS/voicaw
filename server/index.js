@@ -130,12 +130,12 @@ app.locals.clients = clients;
 module.exports = app;
 
 if (require.main === module) {
-  const server = app.listen(config.port, (err) => {
+  const server = app.listen(config.port, config.host, (err) => {
     if (err) {
       console.error('Failed to start server:', err);
       process.exit(1);
     }
-    console.log(`Server running on port ${config.port} (max message length ${config.maxPlaintextLength})`);
+    console.log(`Server running on ${config.host}:${config.port} (max message length ${config.maxPlaintextLength})`);
   });
   attachWebSocketServer(server);
   // A promise nobody awaited failing is logged, not fatal: Node's default (exiting) would let

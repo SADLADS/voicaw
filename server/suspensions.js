@@ -1,5 +1,5 @@
 const db = require('./db');
-const { clients, sendToUserSockets } = require('./sockets');
+const { clients, sendToUserSockets, closePendingSockets } = require('./sockets');
 
 // Suspending an account (global admins, Settings → Admin, usually from a report): it's logged out
 // everywhere (sessions and push subscriptions gone, calls and voice ended, open apps told
@@ -33,6 +33,9 @@ async function suspend(userId, adminId, reason) {
   await require('./voice').disconnect(userId);
   sendToUserSockets(userId, { type: 'account_suspended', reason: why });
   for (const socket of clients.get(String(userId)) ?? []) socket.close(1008, 'Account suspended');
+  // An account still waiting for approval has its sockets apart; approving it later would
+  // otherwise move them into `clients`.
+  closePendingSockets(userId, { notice: { type: 'account_suspended', reason: why }, reason: 'Account suspended' });
   const bots = await db.all('SELECT id FROM bot_applications WHERE owner_id = ?', [userId]);
   for (const { id } of bots) {
     require('./gateway').closeBotSessions(id, 4004, 'Authentication failed.');

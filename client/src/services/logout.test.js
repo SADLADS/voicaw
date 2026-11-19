@@ -10,6 +10,7 @@ vi.mock('./pushService', () => ({ disableNotificationsOnThisDevice: vi.fn(async 
 vi.mock('./draftStore', () => ({ clearDrafts: vi.fn() }));
 vi.mock('./searchIndex', () => ({ clearSearchIndex: vi.fn(async () => {}) }));
 vi.mock('./offlineCopy', () => ({ clearOfflineCopy: vi.fn(async () => {}) }));
+vi.mock('./pushSecret', () => ({ forgetPushUpdateSecret: vi.fn(async () => {}) }));
 
 const api = (await import('../utils/api')).default;
 const { closeWebSocket } = await import('../utils/ws-client');
@@ -18,6 +19,7 @@ const { clearUserKeys } = await import('./keyStore');
 const { disableNotificationsOnThisDevice } = await import('./pushService');
 const { clearSearchIndex } = await import('./searchIndex');
 const { clearOfflineCopy } = await import('./offlineCopy');
+const { forgetPushUpdateSecret } = await import('./pushSecret');
 const { LOGOUT_SERVER_MS, forgetLogin, logOut } = await import('./logout');
 
 const never = () => new Promise(() => {});
@@ -125,6 +127,7 @@ describe('forgetLogin', () => {
     await forgetLogin();
     expect(clearSearchIndex).toHaveBeenCalled();
     expect(clearOfflineCopy).toHaveBeenCalled();
+    expect(forgetPushUpdateSecret).toHaveBeenCalled();
     expect(localStorage.getItem('theme')).toBe('dark');
     expect(localStorage.getItem('guildChannel:5')).toBeNull();
     expect(localStorage.getItem('lastChat')).toBeNull();

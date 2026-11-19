@@ -123,12 +123,21 @@ describe('embedFromHtml', () => {
 });
 
 describe('safeFetch', () => {
+  const dribbling = new Set();
   let server;
   let base;
   beforeAll(async () => {
     server = http.createServer((req, res) => {
       if (req.url === '/redirect') return res.writeHead(302, { Location: '/page' }).end();
       if (req.url === '/to-private') return res.writeHead(302, { Location: 'http://127.0.0.1:1/x' }).end();
+      if (req.url === '/dribble') {
+        // A redirect whose body never ends.
+        res.writeHead(302, { Location: '/page' });
+        res.write('x');
+        const tick = setInterval(() => res.write('x'), 20);
+        dribbling.add(res);
+        return res.on('close', () => { clearInterval(tick); dribbling.delete(res); });
+      }
       if (req.url === '/gzip') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Encoding': 'gzip' });
         return res.end(zlib.gzipSync('<title>Zipped</title>'));
@@ -149,7 +158,8 @@ describe('safeFetch', () => {
   });
 
   it('refuses private, loopback and link-local addresses, other ports and other schemes', async () => {
-    for (const address of ['127.0.0.1', '10.0.0.1', '172.16.5.4', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fe80::1', 'fd00::1', '::ffff:127.0.0.1', '::ffff:7f00:1']) {
+    for (const address of ['127.0.0.1', '10.0.0.1', '172.16.5.4', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', 'fe80::1', 'fd00::1', '::ffff:127.0.0.1', '::ffff:7f00:1',
+      '2002:7f00:1::', '2002:a9fe:a9fe::1', '64:ff9b:1::a00:1', '::127.0.0.1', 'fec0::1', '2001:0:4136:e378::1']) {
       expect(isPublicAddress(address), address).toBe(false);
     }
     expect(isPublicAddress('93.184.216.34')).toBe(true);
@@ -168,6 +178,14 @@ describe('safeFetch', () => {
     const big = await safeFetch(`${base}/big`, { maxBytes: 1000 });
     expect(big.body.length).toBe(1000);
     expect(big.truncated).toBe(true);
+  });
+
+  it("closes a redirect's connection instead of reading its body", async () => {
+    process.env.LINK_PREVIEWS_ALLOW_PRIVATE = '1';
+    const page = await safeFetch(`${base}/dribble`);
+    expect(page.status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(dribbling.size).toBe(0);
   });
 
   it('checks every redirect again', async () => {

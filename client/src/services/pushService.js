@@ -3,6 +3,7 @@ import { desktop, isDesktopApp } from '../utils/desktop';
 import { androidNotificationState, androidSubscription, isAndroidApp, requestAndroidNotifications } from '../utils/android';
 import { refreshPresence } from '../utils/ws-client';
 import { t } from '../i18n';
+import { pushUpdateSecret } from './pushSecret';
 
 // Web push for this device: permission, the browser's push subscription, and keeping the
 // server's copy of it current. Notifications themselves are shown by service-worker.js.
@@ -120,7 +121,7 @@ export async function ensureSubscription(vapidPublicKey) {
     }
   }
 
-  await api.post('/save-subscription', { subscription: subscription.toJSON() });
+  await api.post('/save-subscription', { subscription: subscription.toJSON(), updateSecret: await pushUpdateSecret() });
   return subscription;
 }
 

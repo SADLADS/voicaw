@@ -102,13 +102,14 @@ function approvePendingSockets(userId) {
   }
 }
 
-function closePendingSockets(userId) {
+// `notice` and `reason` for a suspension (suspensions.js): a pending account can be suspended too.
+function closePendingSockets(userId, { notice = { type: 'account_deleted' }, reason = 'Account deleted' } = {}) {
   const sockets = pendingClients.get(String(userId)) ?? [];
   pendingClients.delete(String(userId));
   for (const ws of sockets) {
     if (ws.readyState !== WebSocket.OPEN) continue;
-    ws.send(JSON.stringify({ type: 'account_deleted' }));
-    ws.close(1008, 'Account deleted');
+    ws.send(JSON.stringify(notice));
+    ws.close(1008, reason);
   }
 }
 

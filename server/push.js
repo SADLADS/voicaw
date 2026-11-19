@@ -1,7 +1,9 @@
+const https = require('https');
 const webpush = require('web-push');
 const db = require('./db');
 const { vapid } = require('./config');
 const { sendFcm } = require('./fcm');
+const { publicLookup } = require('./safeFetch');
 
 webpush.setVapidDetails(vapid.email, vapid.publicKey, vapid.privateKey);
 
@@ -97,6 +99,10 @@ const MESSAGE_PUSHES = new Set(['dm', 'group', 'guild', 'bot_dm']);
 // How long one push service may take to answer.
 const PUSH_TIMEOUT_MS = 10 * 1000;
 
+// Web pushes connect only to public addresses (safeFetch.js's rules), whatever a saved
+// endpoint's name resolves to by the time it's used.
+const pushAgent = new https.Agent({ keepAlive: true, lookup: publicLookup });
+
 // Sends a web push to every device the user has subscribed (forgetting devices whose
 // subscription is gone), and the same payload to their desktop apps over the websocket.
 // Resolves to { devices, delivered } (desktop apps count as both).
@@ -126,7 +132,7 @@ async function sendPushToUser(userId, payload, options = {}, { appsOnly = false 
       }
       // With a timeout: a push service that never answers would otherwise hold the request (and
       // anything awaiting this person's pushes) for good.
-      await webpush.sendNotification(subscription, body, { TTL: 24 * 60 * 60, timeout: PUSH_TIMEOUT_MS, ...options });
+      await webpush.sendNotification(subscription, body, { TTL: 24 * 60 * 60, timeout: PUSH_TIMEOUT_MS, agent: pushAgent, ...options });
       return true;
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {

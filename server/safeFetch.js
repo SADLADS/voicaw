@@ -19,7 +19,11 @@ for (const [address, prefix] of [
   ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4],
 ]) PRIVATE.addSubnet(address, prefix, 'ipv4');
 for (const [address, prefix] of [
-  ['::', 128], ['::1', 128], ['100::', 64], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
+  ['::', 96], ['100::', 64], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
+  // Ways of carrying an IPv4 address (or reaching one) other than ::ffff: and 64:ff9b::/96,
+  // which are unwrapped below: IPv4-compatible (::/96, above), 6to4, local-use NAT64, Teredo;
+  // and the old site-local range.
+  ['2002::', 16], ['64:ff9b:1::', 48], ['2001::', 32], ['fec0::', 10],
 ]) PRIVATE.addSubnet(address, prefix, 'ipv6');
 
 // The IPv4 address inside an IPv4-mapped (::ffff:a.b.c.d) or NAT64 (64:ff9b::/96) one.
@@ -80,7 +84,10 @@ function requestOnce(url, { maxBytes, timeoutMs, headers, method = 'GET', body =
       lookup: publicLookup,
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400) {
-        res.resume();
+        // Only the Location matters: close the connection rather than read a body that
+        // could go on for ever (resolving clears the timer).
+        res.on('error', () => {});
+        res.destroy();
         return resolve({ status: res.statusCode, headers: res.headers, body: Buffer.alloc(0), truncated: false });
       }
       const type = String(res.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
@@ -157,4 +164,4 @@ async function safeFetch(href, { maxBytes = 1024 * 1024, timeoutMs = 5000, heade
   }
 }
 
-module.exports = { safeFetch, isPublicAddress, FetchError };
+module.exports = { safeFetch, isPublicAddress, publicLookup, FetchError };

@@ -12,6 +12,7 @@ import { clearForwards } from './forwardStore';
 import { clearShare } from './shareService';
 import { clearSearchIndex } from './searchIndex';
 import { clearOfflineCopy } from './offlineCopy';
+import { forgetPushUpdateSecret } from './pushSecret';
 
 // How long logging out waits for the server (turning off this device's notifications, hanging
 // up, ending the session) before going on without it: a server that's down or doesn't answer
@@ -76,7 +77,7 @@ function forgetAccountStorage() {
 // in localStorage, so clearing cookies doesn't remove it.
 export async function forgetLogin() {
   forgetToken();
-  const clears = [clearUserKeys, forgetGroups, clearSearchIndex, clearOfflineCopy];
+  const clears = [clearUserKeys, forgetGroups, clearSearchIndex, clearOfflineCopy, forgetPushUpdateSecret];
   // Each on its own: one failing mustn't leave the others behind.
   await Promise.all(clears.map((clear) => clear().catch((err) => console.error('Failed to clear stored data on logout', err))));
   forgetAccountStorage();

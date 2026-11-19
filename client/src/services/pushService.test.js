@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../utils/api', () => ({ default: { post: vi.fn(async () => ({ data: { sent: 1 } })) } }));
+vi.mock('./pushSecret', () => ({ pushUpdateSecret: vi.fn(async () => 'device-secret') }));
 
 import api from '../utils/api';
 import {
@@ -114,6 +115,7 @@ describe('ensureSubscription', () => {
     expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
     expect(api.post).toHaveBeenCalledWith('/save-subscription', {
       subscription: { endpoint: 'https://push.test/existing', keys: { p256dh: 'p', auth: 'a' } },
+      updateSecret: 'device-secret',
     });
   });
 

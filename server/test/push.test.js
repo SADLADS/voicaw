@@ -15,8 +15,8 @@ async function makeAuthedUser(username, password = 'pw-123456') {
 const authed = (token) => ({ Authorization: `Bearer ${token}` });
 const subscription = (endpoint) => ({ endpoint, keys: { p256dh: 'p', auth: 'a' } });
 
-async function subscribe(user, endpoint) {
-  const res = await request(app).post('/api/save-subscription').set(authed(user.token)).send({ subscription: subscription(endpoint) });
+async function subscribe(user, endpoint, updateSecret) {
+  const res = await request(app).post('/api/save-subscription').set(authed(user.token)).send({ subscription: subscription(endpoint), updateSecret });
   expect(res.status).toBe(200);
 }
 function send(from, to, content = 'CIPHERTEXT') {
@@ -133,21 +133,37 @@ describe('push notifications', () => {
     expect(await waitForPushes(1, before, 300)).toHaveLength(0);
   });
 
-  it('lets the service worker swap in a replacement subscription by its old endpoint', async () => {
+  it('lets the service worker swap in a replacement subscription with its device secret', async () => {
     const alice = await makeAuthedUser('push-alice7');
     const bob = await makeAuthedUser('push-bob7');
-    await subscribe(bob, 'https://push.test/bob-7-old');
+    const secret = 'bob-7-device-secret-0123456789';
+    await subscribe(bob, 'https://push.test/bob-7-old', secret);
+    const swap = (body) => request(app).post('/api/update-subscription').send(body);
 
-    const res = await request(app).post('/api/update-subscription')
-      .send({ oldEndpoint: 'https://push.test/bob-7-old', subscription: subscription('https://push.test/bob-7-new') });
+    // The endpoint alone (someone who used that browser before) isn't enough, nor another secret.
+    expect((await swap({ oldEndpoint: 'https://push.test/bob-7-old', subscription: subscription('https://push.test/mallory') })).status).toBe(404);
+    expect((await swap({ oldEndpoint: 'https://push.test/bob-7-old', secret: 'not-the-secret-0123456789', subscription: subscription('https://push.test/mallory') })).status).toBe(404);
+    // Only a browser's subscription, on the same push service.
+    expect((await swap({ oldEndpoint: 'https://push.test/bob-7-old', secret, subscription: subscription('https://other.test/x') })).status).toBe(400);
+    expect((await swap({ oldEndpoint: 'https://push.test/bob-7-old', secret, subscription: { endpoint: 'https://push.test/x', fcm: { token: 't', key: 'k' } } })).status).toBe(400);
+    expect((await swap({ oldEndpoint: 'https://push.test/bob-7-old', secret, subscription: { endpoint: 'https://push.test/x' } })).status).toBe(400);
+
+    const res = await swap({ oldEndpoint: 'https://push.test/bob-7-old', secret, subscription: { ...subscription('https://push.test/bob-7-new'), extra: 'dropped' } });
     expect(res.status).toBe(200);
-    const unknown = await request(app).post('/api/update-subscription')
-      .send({ oldEndpoint: 'https://push.test/nope', subscription: subscription('https://push.test/x') });
+    const unknown = await swap({ oldEndpoint: 'https://push.test/nope', secret, subscription: subscription('https://push.test/x') });
     expect(unknown.status).toBe(404);
 
-    const before = sentPushes.length;
+    let before = sentPushes.length;
     await send(alice, bob);
     expect((await waitForPushes(1, before))[0].endpoint).toBe('https://push.test/bob-7-new');
+
+    // Swapping to an endpoint the account already has replaces it (not a 500).
+    await subscribe(bob, 'https://push.test/bob-7-dup', 'other-device-secret-0123456789');
+    const dup = await swap({ oldEndpoint: 'https://push.test/bob-7-new', secret, subscription: subscription('https://push.test/bob-7-dup') });
+    expect(dup.status).toBe(200);
+    before = sentPushes.length;
+    await send(alice, bob);
+    expect((await waitForPushes(1, before, 300)).map((p) => p.endpoint)).toEqual(['https://push.test/bob-7-dup']);
   });
 
   it('keeps the newest 20 subscriptions of an account, takes only https endpoints, and sends with a timeout', async () => {
@@ -161,8 +177,11 @@ describe('push notifications', () => {
     expect(sent).not.toContain('https://push.test/bob-cap-2');
     expect(sent).toContain('https://push.test/bob-cap-22');
     expect(sentPushes.at(-1).options.timeout).toBe(10000);
+    // Through an agent that only connects to public addresses.
+    expect(sentPushes.at(-1).options.agent.options.lookup).toBe(require('../safeFetch.js').publicLookup);
 
-    for (const endpoint of ['http://push.test/plain', 'ftp://x', 'not a url', `https://push.test/${'x'.repeat(3000)}`]) {
+    for (const endpoint of ['http://push.test/plain', 'ftp://x', 'not a url', `https://push.test/${'x'.repeat(3000)}`,
+      'https://push.test:8443/x', 'https://10.0.0.5/x', 'https://127.0.0.1/x', 'https://[::1]/x', 'https://u:p@push.test/x']) {
       const refused = await request(app).post('/api/save-subscription').set(authed(bob.token)).send({ subscription: subscription(endpoint) });
       expect(refused.status).toBe(400);
     }

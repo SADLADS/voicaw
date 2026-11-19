@@ -63,6 +63,8 @@ function loadFcmAccount(file) {
 
 module.exports = {
   port: process.env.PORT || 3000,
+  // Only nginx (and LiveKit's webhook) on this host should reach the API: not every interface.
+  host: process.env.LISTEN_HOST || '127.0.0.1',
   jwtSecret: process.env.JWT_SECRET,
   opaqueServerSetup: process.env.OPAQUE_SERVER_SETUP,
   s3Endpoint: process.env.S3_ENDPOINT,

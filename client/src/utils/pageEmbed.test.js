@@ -36,6 +36,29 @@ describe('embedFromHtml', () => {
     expect(linkPreviews.embedFromHtml('<html><body>hi</body></html>', 'https://x.test/', 'https://x.test/')).toBeNull();
   });
 
+  // Pages built to make regexes backtrack (1 MB, as the desktop app's fetch allows): the meta
+  // and title ones once took minutes, freezing the sender's app.
+  it('reads hostile pages in linear time', () => {
+    const MB = 1024 * 1024;
+    const pages = [
+      '<meta '.repeat(MB / 6),
+      '<title>'.repeat(MB / 7),
+      `<meta ${'a'.repeat(MB)}>`,
+      `<title>${'&a'.repeat(MB / 2)}</title>`,
+      `<meta name="description" content="${'&a'.repeat(MB / 2)}">`,
+    ];
+    for (const html of pages) {
+      const started = performance.now();
+      linkPreviews.embedFromHtml(html, 'https://x.test/', 'https://x.test/');
+      expect(performance.now() - started).toBeLessThan(500);
+    }
+  });
+
+  it('still finds tags after a "<meta" that is not one, and ignores <titlebar>', () => {
+    expect(linkPreviews.embedFromHtml('<metadata><titlebar>no</titlebar><title>Yes</title><meta name="description" content="d">', 'https://x.test/', 'https://x.test/'))
+      .toEqual({ type: 'link', url: 'https://x.test/', title: 'Yes', description: 'd' });
+  });
+
   it('cuts long text', () => {
     const embed = linkPreviews.embedFromHtml(`<meta name="description" content="${'word '.repeat(200)}">`, 'https://x.test/', 'https://x.test/');
     expect(embed.description.length).toBe(350);

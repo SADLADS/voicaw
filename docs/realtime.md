@@ -222,7 +222,15 @@ one user at a time).
   the device, for the group's name too (see Group names in `docs/group-dms.md`). Notifications are
   tagged per conversation.
 - `pushsubscriptionchange` posts to the unauthenticated `/api/update-subscription`, keyed by the
-  old endpoint. `/api/test-push` sends a test notification to all of the caller's devices.
+  old endpoint and the device's secret (`services/pushSecret.js`: random, made by the device,
+  kept in `settingsStore` for the SW and forgotten at logout; sent with `/save-subscription`, only
+  its SHA-256 stored), since the endpoint alone is known to whoever used that browser before.
+  Only a browser's subscription (endpoint and keys, never an app's `fcm`) on the same push
+  service's host; a device without a secret (apps before 2026-11-19) can't swap and re-saves
+  when next opened. Endpoints must be https on port 443, not a private address, and every web
+  push connects through an agent with safeFetch's public-only lookup (`push.js` `pushAgent`), so
+  a saved endpoint can't reach this host or its network. `/api/test-push` sends a test
+  notification to all of the caller's devices.
 - The desktop app has no web push: `sendPushToUser` also sends the payload to the user's sockets
   whose presence says `desktopNotifications` (the app, notifications on) as `notification
   { payload }`, so the same checks apply (viewing, levels, previews). See Desktop app.

@@ -159,6 +159,7 @@ npx web-push generate-vapid-keys
 JWT_SECRET=...
 OPAQUE_SERVER_SETUP=...
 PORT=3002
+# LISTEN_HOST=127.0.0.1    # the default: only nginx on this host reaches the API
 NODE_ENV=production
 
 VAPID_EMAIL=mailto:you@example.com
@@ -476,9 +477,9 @@ One site per name, each with a certificate (`certbot --nginx -d <name>`):
 
 | Name | Serves |
 |---|---|
-| `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://localhost:3002` with `client_max_body_size 26M`; `/invite/<code>` sent to `/api/invite-embed/<code>` for link previewers (a `map` on the user agent: Discord, Slack... get the guild's Open Graph tags) (config: `website/nginx/app.voicaw.com`) |
+| `app.voicaw.com` | the web app: static files, `root /opt/voicaw-client`, `try_files $uri $uri/ /index.html`; `location /api/` → `http://127.0.0.1:3002` with `client_max_body_size 26M`; `/invite/<code>` sent to `/api/invite-embed/<code>` for link previewers (a `map` on the user agent: Discord, Slack... get the guild's Open Graph tags) (config: `website/nginx/app.voicaw.com`) |
 | `voicaw.com` | the info and download site, `root /opt/voicaw-site`, its `/api/` like the app's, anything else redirected to app.voicaw.com (section 10; config: `website/nginx/voicaw.com`) |
-| `api.voicaw.com` | `http://localhost:3002` (REST, the app's websocket and the bot gateway at `/api/gateway`: pass `Upgrade`/`Connection` on every path), `client_max_body_size 26M` |
+| `api.voicaw.com` | `http://127.0.0.1:3002` (REST, the app's websocket and the bot gateway at `/api/gateway`: pass `Upgrade`/`Connection` on every path), `client_max_body_size 26M` |
 | `media.voicaw.com` | the object store (Garage, section 4b): anonymous GET/HEAD to its website endpoint `127.0.0.1:3902` with `Host: <bucket>.web.garage.internal`, anything signed or writing to its S3 API `127.0.0.1:3900` with the Host as sent (signatures cover it); `client_max_body_size 100M` (each request; bigger attachments come in parts, and the buckets' lifecycle rule clears abandoned ones after a day); public reads get `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox; default-src 'none'`, so a file is never a page (config: `server/nginx/media.voicaw.com`) |
 | `rtc.voicaw.com` | LiveKit signalling, `http://127.0.0.1:7880` |
 

@@ -699,6 +699,9 @@ addColumn('ALTER TABLE users ADD COLUMN suspended_at INTEGER');
 addColumn('ALTER TABLE users ADD COLUMN suspended_reason TEXT');
 // The login a push subscription was saved under, so logging that out stops its notifications.
 addColumn('ALTER TABLE push_subscriptions ADD COLUMN session_id TEXT');
+// SHA-256 of the secret the device made when it saved the subscription: what its service worker
+// shows to swap in a replacement (routes/push.js /update-subscription).
+addColumn('ALTER TABLE push_subscriptions ADD COLUMN update_secret TEXT');
 sqlite.exec(`
 CREATE TABLE IF NOT EXISTS app_settings (
   key TEXT PRIMARY KEY,
@@ -1679,9 +1682,18 @@ function prepare(sql) {
 }
 
 // As the old sqlite3 driver bound them: undefined as NULL, booleans as 1/0.
+// Any other object is refused: node:sqlite would take one given first as named parameters,
+// binding nothing and moving every later value one place to the left.
 function bind(params) {
   const list = Array.isArray(params) ? params : [params];
-  return list.map((p) => (p === undefined ? null : typeof p === 'boolean' ? Number(p) : p));
+  return list.map((p) => {
+    if (p === undefined) return null;
+    if (typeof p === 'boolean') return Number(p);
+    if (p !== null && typeof p === 'object' && !ArrayBuffer.isView(p)) {
+      throw new TypeError('Query parameter is an object');
+    }
+    return p;
+  });
 }
 
 // Plain objects (the driver's rows have no prototype).
@@ -1690,23 +1702,24 @@ const plain = (row) => (row ? { ...row } : row);
 // The open transaction: { token, done }. Only its own code (same async context) runs queries.
 let open = null;
 const context = new AsyncLocalStorage();
-async function turn() {
-  while (open && context.getStore() !== open.token) await open.done;
-}
+// Callers wait with `while (blocked()) await open.done;` written out where the query runs: the
+// check and what follows it must be one synchronous step, since another transaction could begin
+// in the microtask an `await turn()` would take to return.
+const blocked = () => open && context.getStore() !== open.token;
 
 async function get(sql, params = []) {
-  await turn();
+  while (blocked()) await open.done;
   return plain(prepare(sql).get(...bind(params)));
 }
 
 async function all(sql, params = []) {
-  await turn();
+  while (blocked()) await open.done;
   return prepare(sql).all(...bind(params)).map(plain);
 }
 
 // Resolves to { lastID, changes }.
 async function run(sql, params = []) {
-  await turn();
+  while (blocked()) await open.done;
   const { lastInsertRowid, changes } = prepare(sql).run(...bind(params));
   return { lastID: Number(lastInsertRowid), changes: Number(changes) };
 }
@@ -1730,13 +1743,14 @@ async function transaction(fn) {
       throw err;
     }
   }
-  await turn();
+  while (open) await open.done; // no await between this check and taking the turn
   let finish;
-  open = { token: Symbol('transaction'), done: new Promise((resolve) => { finish = resolve; }) };
+  const mine = { token: Symbol('transaction'), done: new Promise((resolve) => { finish = resolve; }) };
+  open = mine;
   try {
     sqlite.exec('BEGIN IMMEDIATE');
     try {
-      const result = await context.run(open.token, fn);
+      const result = await context.run(mine.token, fn);
       sqlite.exec('COMMIT');
       return result;
     } catch (err) {
@@ -1744,7 +1758,7 @@ async function transaction(fn) {
       throw err;
     }
   } finally {
-    open = null;
+    if (open === mine) open = null;
     finish();
   }
 }
