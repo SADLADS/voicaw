@@ -4,6 +4,7 @@ const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess } = require('../guilds');
 const { createLimiter } = require('../rateLimit');
+const guildLimits = require('../guildLimits');
 const { withActionErrors } = require('../actionError');
 const commands = require('../commands');
 const interactions = require('../interactions');
@@ -56,8 +57,9 @@ router.post('/channels/:channelId/command-interactions', authenticateJWT, limit,
   }));
 }));
 
-// Autocomplete suggestions for the focused option: { command_id, options }.
-router.post('/channels/:channelId/autocomplete', authenticateJWT, inChannel, withActionErrors(async (req, res) => {
+// Autocomplete suggestions for the focused option: { command_id, options }. Asked while typing
+// pauses, so a limiter of its own (guildLimits.js), roomier than `limit`'s.
+router.post('/channels/:channelId/autocomplete', authenticateJWT, guildLimits.limit('autocomplete'), inChannel, withActionErrors(async (req, res) => {
   res.json(await interactions.useCommand({ access: req.access, commandId: req.body?.command_id, options: req.body?.options, autocomplete: true }));
 }));
 

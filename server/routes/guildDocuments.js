@@ -7,6 +7,7 @@ const { logAudit } = require('../auditLog');
 const { releaseUploads } = require('../uploads');
 const levels = require('../guildLevels');
 const collab = require('../documentCollab');
+const { limit } = require('../guildLimits');
 const {
   MAX_TITLE,
   MAX_CONTENT,
@@ -86,7 +87,7 @@ router.get('/channels/:channelId/documents', authenticateJWT, requireDocChannel,
 });
 
 // { title, cover?, content?, open_editing? }
-router.post('/channels/:channelId/documents', authenticateJWT, requireDocChannel, async (req, res) => {
+router.post('/channels/:channelId/documents', authenticateJWT, limit('documents'), requireDocChannel, async (req, res) => {
   if (!has(req.access.permissions, PERMISSIONS.CREATE_DOCUMENTS)) return forbidden(res);
   const title = cleanTitle(req.body?.title);
   if (!title) return res.status(400).json({ error: `Titles are 1–${MAX_TITLE} characters` });
@@ -110,7 +111,7 @@ router.post('/channels/:channelId/documents', authenticateJWT, requireDocChannel
   });
   if (!id) return res.status(400).json({ error: `A channel holds at most ${MAX_DOCUMENTS_PER_CHANNEL} documents` });
   await announceCard(req.access, id);
-  await levels.award(channel.guild_id, req.user.id, 'documentCreated');
+  await levels.award(channel.guild_id, req.user.id, 'documentCreated', { per: `document:${req.user.id}` });
   res.status(201).json(await getDocument(id));
 });
 
@@ -217,7 +218,7 @@ router.post('/documents/:documentId/collab', ...collabRoutes, collabRoute((req) 
 )));
 
 // { session, clientID, version, steps }
-router.post('/documents/:documentId/collab/steps', ...collabRoutes, collabRoute((req) => (
+router.post('/documents/:documentId/collab/steps', authenticateJWT, limit('collabSteps'), requireDocument, requireEditor, collabRoute((req) => (
   collab.receiveSteps(req.document.id, req.user.id, req.body ?? {})
 )));
 

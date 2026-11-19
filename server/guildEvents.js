@@ -1056,13 +1056,19 @@ function occurrenceEnd(event, start) {
   return addDays(start, Math.max(1, Math.round(event.duration / 86400)), event.timezone || 'UTC');
 }
 
+// A start by hand this long before the occurrence's time pushes nothing.
+const EARLY_START_PUSH_SECONDS = 24 * 60 * 60;
+
 async function activate(event, actorId = null) {
   await db.run("UPDATE guild_events SET status = 'active', started_at = ?, updated_at = ? WHERE id = ?", [now(), now(), event.id]);
   forgetPresence(event.id);
   const updated = await loadPublic(event.id);
   await broadcast('update', updated);
-  // An all-day event somewhere else starts by itself at midnight: no push then.
-  if (!(event.all_day && actorId == null)) notifyStarted(event, actorId).catch((err) => console.error('Event notification failed:', err.message));
+  // An all-day event somewhere else starts by itself at midnight: no push then. Nor for one
+  // started by hand more than a day early (a repeating one started and ended over and over
+  // would otherwise push to everyone going each time).
+  const early = actorId != null && event.start_time > now() + EARLY_START_PUSH_SECONDS;
+  if (!(event.all_day && actorId == null) && !early) notifyStarted(event, actorId).catch((err) => console.error('Event notification failed:', err.message));
   return updated;
 }
 

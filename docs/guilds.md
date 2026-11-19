@@ -55,7 +55,10 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   first), and the `categories` and `channels` they can see, in order, each channel with its
   `my_permissions` and `private`.
 - Invites: 8-character codes, optional expiry (`maxAge` s, up to 30 days) and `maxUses`,
-  claimed atomically. Joining marks existing history read. Bans remove and block rejoining.
+  claimed atomically. Asking again for the same settings within a day gives back your own
+  unused one (as Discord does: Invite People asks each time it opens; `unique: true`, also
+  bots', for a new one). At most 100 working invites per member and 1000 per guild (see Limits
+  in guilds). Joining marks existing history read. Bans remove and block rejoining.
   The owner has to transfer ownership before leaving.
 - **Vanity invite** (Discord's vanity URL, but no paid tier): a guild's own permanent link,
   `/invite/<code>`, that never expires and has no use limit. Only the owner sets, changes or
@@ -263,6 +266,23 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
 - **Not done yet:** category-level permissions (overrides are per channel), search dates (see Guild search), muting a category, a list of your
   recent mentions. Voice: see
   Voice channels.
+
+## Limits in guilds
+
+Security audit, low findings L4 (2026-11-19): `server/guildLimits.js` limits what one account
+does in guilds through the app (in memory, `rateLimit.js`, off in tests but
+`test/guildLimits.test.js`), so one member can't flood a guild's channels, audit log, layout or
+pushes. Over a limit the request gets a 429 with Retry-After and the app shows the server's
+"too many attempts". Bots have the bot API's own buckets (`docs/bots.md`).
+- Per account: 10 new guilds an hour; 30 invites an hour; 60 channels, categories, copies of
+  channels and roles per 10 minutes; 60 messages and 120 reactions a minute; 20 threads per 10
+  minutes; 30 searches a minute; 120 tasks per 10 minutes, 30 task comments a minute; 30 new
+  documents per 10 minutes and 600 live-editing requests a minute (a 429 only delays the batch,
+  Live editing); 10 event starts and ends per 10 minutes; bots' autocomplete 30 per 10 seconds.
+- Caps per guild (Discord's), checked in the transaction that adds one: 500 channels and
+  categories together (threads don't count), 250 roles (@everyone and bots' roles included),
+  1000 working invites and 100 per member; a task has at most 500 comments. A guild already
+  over one keeps what it has.
 
 ## Join log
 
@@ -618,7 +638,9 @@ Not end-to-end encrypted, like the rest of a guild.
   (`type: 'event'`, the occurrence's name, "Starting now · place (Guild)", url
   `/guild/<g>/<voice channel>?event=<id>` (and `&on=<date>` for a repeating one), tag
   `event-<id>`), unless their notification level for the guild is 'none', and never the one who
-  started it. Leaving the guild (or deleting your account) drops your answers. Everyone who can
+  started it, nor for a start by hand more than a day before its time (a repeating one started
+  and ended over and over would push each time; Start and End are limited too, see Limits in
+  guilds). Leaving the guild (or deleting your account) drops your answers. Everyone who can
   see the event sees who answered what (the page's RSVPs tab, `GET /guild-events/:id/rsvps`).
   Single dates of a repeating event can be answered up to five years ahead, and one person may
   answer at most 100 of an event's dates differently from the series (`MAX_RSVP_DATES`).
@@ -747,7 +769,9 @@ Guilded's XP (built 2026-10-07): members earn XP in a guild for what they do the
   `levelName`, `levelShort` (32, 32, 12 characters; empty = the app's own translated "XP",
   "Level", "lvl"), `showInMemberList` (the badge), `messageCooldown` (0–3600 s, default 60) and
   `sources`, each `{ enabled, xp }` (0–1,000,000). Sources, on by default: `message` (sending
-  one, once per cooldown), `replyReceived` (someone else replies to yours), `reactionReceived`
+  one, once per cooldown), `replyReceived` (someone else replies to yours; from the same person
+  once per cooldown, as are `mentionReceived`, `threadCreated` and `documentCreated`: a cooldown
+  of 0 lifts that too), `reactionReceived`
   (someone else reacts to yours, once per person and message; poll votes don't count); off by
   default: `mentionReceived` (named with `<@id>` by someone else, up to 50 a message),
   `reactionGiven` (once per message), `threadCreated`, `documentCreated`, `taskCompleted` (once

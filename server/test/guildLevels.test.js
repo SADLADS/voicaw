@@ -96,6 +96,25 @@ describe('levels', () => {
     expect(await xpOf(guild, alice)).toBe(5);
   });
 
+  it('give replies, mentions and threads at most once per cooldown from the same person', async () => {
+    const { owner, members: [alice, bob], guild, general } = await setUp();
+    await configure(owner, guild, {
+      sources: { message: { enabled: false }, mentionReceived: { enabled: true, xp: 3 }, threadCreated: { enabled: true, xp: 7 } },
+    });
+    const first = (await say(alice, general.id, 'question?')).body;
+    for (let i = 0; i < 3; i++) await say(bob, general.id, `answer ${i}`, { replyTo: first.id });
+    expect(await xpOf(guild, alice)).toBe(5);
+    // Someone else replying still counts.
+    await say(owner, general.id, 'me too', { replyTo: first.id });
+    expect(await xpOf(guild, alice)).toBe(10);
+
+    for (let i = 0; i < 3; i++) await say(bob, general.id, `hey <@${alice.id}> ${i}`);
+    expect(await xpOf(guild, alice)).toBe(13);
+
+    for (let i = 0; i < 3; i++) await api.post(alice, `/channels/${general.id}/threads`, { name: `Plans ${i}` });
+    expect(await xpOf(guild, alice)).toBe(20);
+  });
+
   it('give reactions once per person and message, not your own or poll votes', async () => {
     const { owner, members: [alice, bob], guild, general } = await setUp();
     await configure(owner, guild, { sources: { message: { enabled: false }, reactionGiven: { enabled: true, xp: 1 } } });

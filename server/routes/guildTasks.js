@@ -4,10 +4,12 @@ const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
 const { getChannelAccess, getChannelViewers, sendToChannel } = require('../guilds');
 const levels = require('../guildLevels');
+const { limit } = require('../guildLimits');
 const {
   MAX_TITLE,
   MAX_DESCRIPTION,
   MAX_COMMENT,
+  MAX_COMMENTS_PER_TASK,
   MAX_ASSIGNEES,
   MAX_TASKS_PER_BOARD,
   MAX_DEPTH,
@@ -145,7 +147,7 @@ router.get('/channels/:channelId/tasks', authenticateJWT, requireBoard, async (r
 
 // { title, description?, dueDate?, assigneeIds?, parentId? }: at the end of its parent's
 // subtasks (or of the board).
-router.post('/channels/:channelId/tasks', authenticateJWT, requireBoard, requireEdit, async (req, res) => {
+router.post('/channels/:channelId/tasks', authenticateJWT, limit('tasks'), requireBoard, requireEdit, async (req, res) => {
   const { channel } = req.access;
   const body = req.body ?? {};
   const title = cleanTitle(body.title);
@@ -289,14 +291,20 @@ router.get('/tasks/:taskId/comments', authenticateJWT, requireTask, async (req, 
   res.json(await db.all(`${COMMENT_SELECT} WHERE c.task_id = ? ORDER BY c.id`, [req.task.id]));
 });
 
-router.post('/tasks/:taskId/comments', authenticateJWT, requireTask, async (req, res) => {
+router.post('/tasks/:taskId/comments', authenticateJWT, limit('taskComments'), requireTask, async (req, res) => {
   if (!has(req.access.permissions, PERMISSIONS.SEND_MESSAGES)) return forbidden(res);
   const content = cleanComment(req.body?.content);
   if (!content) return res.status(400).json({ error: `Comments are 1–${MAX_COMMENT} characters` });
-  const { lastID } = await db.run(
-    'INSERT INTO guild_task_comments (task_id, channel_id, sender_id, content, timestamp) VALUES (?, ?, ?, ?, ?)',
-    [req.task.id, req.access.channel.id, req.user.id, content, now()]
-  );
+  // Counted in the transaction that adds one, so two at once can't both take the last place.
+  const lastID = await db.transaction(async () => {
+    const { count } = await db.get('SELECT COUNT(*) AS count FROM guild_task_comments WHERE task_id = ?', [req.task.id]);
+    if (count >= MAX_COMMENTS_PER_TASK) return null;
+    return (await db.run(
+      'INSERT INTO guild_task_comments (task_id, channel_id, sender_id, content, timestamp) VALUES (?, ?, ?, ?, ?)',
+      [req.task.id, req.access.channel.id, req.user.id, content, now()]
+    )).lastID;
+  });
+  if (lastID == null) return res.status(400).json({ error: `A task has at most ${MAX_COMMENTS_PER_TASK} comments` });
   const comment = await getComment(lastID);
   await sendToChannel(req.access.channel, event(req.access, 'guild_task_comment_new', { taskId: req.task.id, comment }));
   res.status(201).json(comment);

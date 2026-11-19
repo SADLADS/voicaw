@@ -251,13 +251,16 @@ async function changeMemberXp(member, userId, change) {
 
 // Gives `userId` the XP `source` earns in the guild, if the guild has levels and that source on,
 // they're a member and not a bot. `key` (unique in the guild) makes it happen once: the same key
-// again earns nothing. `times` multiplies it. Never throws (earning XP mustn't break what earned
-// it): failures are logged.
-async function award(guildId, userId, source, { key = null, times = 1 } = {}) {
+// again earns nothing. `per` instead makes it at most once per message cooldown for that string
+// (a giver and receiver, say), so a friend replying over and over doesn't farm XP for you.
+// `times` multiplies it. Never throws (earning XP mustn't break what earned it): failures are
+// logged.
+async function award(guildId, userId, source, { key = null, per = null, times = 1 } = {}) {
   try {
     const settings = await getSettings(guildId);
     const amount = settings.sources[source]?.enabled ? settings.sources[source].xp * times : 0;
     if (!settings.enabled || amount <= 0) return;
+    if (per && settings.messageCooldown > 0) key = `${per}:${Math.floor(now() / settings.messageCooldown)}`;
     const who = await db.get(
       'SELECT u.bot FROM guild_members gm JOIN users u ON u.id = gm.user_id WHERE gm.guild_id = ? AND gm.user_id = ?',
       [guildId, userId]
@@ -289,18 +292,19 @@ async function award(guildId, userId, source, { key = null, times = 1 } = {}) {
 }
 
 // What a new guild message earns: its sender's message XP, a reply's author replyReceived and
-// whoever it names mentionReceived (never for the sender's own). `message` is the app's row
+// whoever it names mentionReceived (never for the sender's own), each at most once per message
+// cooldown from the same sender. `message` is the app's row
 // (sender_id, parent_sender_id, system); `mentionedIds` the user ids it names.
 async function awardMessage(guildId, message, mentionedIds = []) {
   if (message.system || !message.sender_id) return;
   await award(guildId, message.sender_id, 'message');
   const parentSender = message.parent_sender_id;
   if (parentSender && parentSender !== message.sender_id && !(await isBot(message.sender_id))) {
-    await award(guildId, parentSender, 'replyReceived');
+    await award(guildId, parentSender, 'replyReceived', { per: `reply:${message.sender_id}:${parentSender}` });
   }
   const named = [...new Set(mentionedIds)].filter((id) => id !== message.sender_id && id !== parentSender);
   if (named.length && !(await isBot(message.sender_id))) {
-    for (const id of named.slice(0, 50)) await award(guildId, id, 'mentionReceived');
+    for (const id of named.slice(0, 50)) await award(guildId, id, 'mentionReceived', { per: `mention:${message.sender_id}:${id}` });
   }
 }
 

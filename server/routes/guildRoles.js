@@ -15,6 +15,7 @@ const {
 const { requireMember, requirePermission, outranks } = require('./guilds');
 const { logAudit, diff } = require('../auditLog');
 const { ActionError, withActionErrors } = require('../actionError');
+const { limit, MAX_ROLES_PER_GUILD } = require('../guildLimits');
 
 // Roles (create, edit, delete, reorder, give to members) and channel permission overrides.
 // Everything here needs Manage Roles, and only reaches below the caller's own highest role
@@ -68,6 +69,9 @@ async function createRole(actor, body) {
   if (!mayGrant(actor, permissions)) throw new ActionError(403, "You can't give permissions you don't have");
 
   const { lastID } = await db.transaction(async () => {
+    // At most MAX_ROLES_PER_GUILD, @everyone and bots' own roles included (as Discord's 250).
+    const { count } = await db.get('SELECT COUNT(*) AS count FROM guild_roles WHERE guild_id = ?', [actor.guild.id]);
+    if (count >= MAX_ROLES_PER_GUILD) throw new ActionError(400, `A guild has at most ${MAX_ROLES_PER_GUILD} roles`);
     await db.run('UPDATE guild_roles SET position = position + 1 WHERE guild_id = ? AND is_everyone = 0', [actor.guild.id]);
     const result = await db.run(
       'INSERT INTO guild_roles (guild_id, name, color, position, permissions, hoist, mentionable) VALUES (?, ?, ?, 1, ?, ?, ?)',
@@ -80,7 +84,7 @@ async function createRole(actor, body) {
   return findRole(actor.guild.id, lastID);
 }
 
-router.post('/guilds/:guildId/roles', manageRoles, withActionErrors(async (req, res) => {
+router.post('/guilds/:guildId/roles', manageRoles, limit('structure'), withActionErrors(async (req, res) => {
   res.status(201).json(await createRole(req.member, req.body ?? {}));
 }));
 

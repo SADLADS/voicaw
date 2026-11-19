@@ -819,6 +819,18 @@ describe('all-day events, emoji and colour', () => {
     await bad(external({ emoji: 'x'.repeat(65) }), /emoji/);
   });
 
+  it('pushes nothing for an event started by hand more than a day early', async () => {
+    const { owner, members: [alice], guild } = await setUp(1);
+    const event = (await create(owner, guild, external({ startTime: now() + 3 * 24 * HOUR, endTime: now() + 3 * 24 * HOUR + HOUR }))).body;
+    await api.put(alice, `/guild-events/${event.id}/interest`);
+    await subscribe(alice);
+    const before = sentPushes.length;
+    expect((await api.post(owner, `/guild-events/${event.id}/start`)).status).toBe(200);
+    expect((await guildEvents.getEvent(event.id)).status).toBe('active');
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sentPushes.slice(before).filter((p) => p.payload.tag === `event-${event.id}`)).toEqual([]);
+  });
+
   it('starts at midnight without a push, and repeats on whole days', async () => {
     const { owner, members: [alice], guild } = await setUp(1);
     const start = midnight(2);

@@ -3,6 +3,7 @@ const { authenticateJWT } = require('../auth');
 const { withActionErrors } = require('../actionError');
 const { getMember } = require('../guilds');
 const events = require('../guildEvents');
+const { limit } = require('../guildLimits');
 
 // Scheduled events (guildEvents.js has the rules; the bot API shares its actions). Events are
 // sent to whoever can see them: guild_event_create / _update / _delete { guildId, event } and
@@ -96,11 +97,11 @@ router.patch('/guild-events/:eventId', authenticateJWT, requireEvent, withAction
   res.json({ ...event, ...(await events.interestOf(await events.getEvent(event.id), req.user.id)) });
 }));
 
-router.post('/guild-events/:eventId/start', authenticateJWT, requireEvent, withActionErrors(async (req, res) => {
+router.post('/guild-events/:eventId/start', authenticateJWT, limit('eventStarts'), requireEvent, withActionErrors(async (req, res) => {
   res.json(await events.startEvent(req.member, req.eventId));
 }));
 
-router.post('/guild-events/:eventId/end', authenticateJWT, requireEvent, withActionErrors(async (req, res) => {
+router.post('/guild-events/:eventId/end', authenticateJWT, limit('eventStarts'), requireEvent, withActionErrors(async (req, res) => {
   res.json(await events.endEvent(req.member, req.eventId));
 }));
 

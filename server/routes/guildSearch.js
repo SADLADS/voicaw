@@ -1,4 +1,5 @@
 const express = require('express');
+const { limit } = require('../guildLimits');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has, channelPermissions } = require('../permissions');
@@ -57,7 +58,7 @@ function parseContent(content) {
 
 const escapeLike = (s) => s.replace(/[\\%_]/g, '\\$&');
 
-router.get('/guilds/:guildId/messages/search', authenticateJWT, async (req, res) => {
+router.get('/guilds/:guildId/messages/search', authenticateJWT, limit('searches'), async (req, res) => {
   const guildId = Number(req.params.guildId);
   const member = await getMember(guildId, req.user.id);
   if (!member) return res.status(404).json({ error: 'Guild not found' });

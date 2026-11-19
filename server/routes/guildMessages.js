@@ -23,6 +23,7 @@ const levels = require('../guildLevels');
 const { notifyGuildReaction } = require('../reactionPushes');
 const { deduplicated } = require('../sendNonces');
 const { decorateImported } = require('../guildImports');
+const { limit } = require('../guildLimits');
 
 // Messages in guild text channels: plain text (guilds aren't end-to-end encrypted), in the
 // same shape as DMs (sender_*, parent_*) so the client's message list shows both. Reading
@@ -270,7 +271,7 @@ router.get('/channels/:channelId/messages', authenticateJWT, requireChatChannel,
 // Send Messages means Send Messages in Threads), posting unarchives it, and the sender and
 // anyone mentioned by name join it.
 // A retry with the same nonce gets the message already saved (sendNonces.js).
-router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel, deduplicated('guild', findSent, async (req, res) => {
+router.post('/channels/:channelId/messages', authenticateJWT, requireChatChannel, limit('messages'), deduplicated('guild', findSent, async (req, res) => {
   if (!has(req.permissions, PERMISSIONS.SEND_MESSAGES)) return forbidden(res);
   const content = cleanContent(req.body?.content);
   if (!content) {
@@ -561,7 +562,7 @@ async function addReaction(message, channel, userId, permissions, emoji) {
   return reaction;
 }
 
-router.post('/guild-messages/:messageId/reactions', authenticateJWT, requireMessage, withActionErrors(async (req, res) => {
+router.post('/guild-messages/:messageId/reactions', authenticateJWT, limit('reactions'), requireMessage, withActionErrors(async (req, res) => {
   res.status(201).json(await addReaction(req.message, req.channel, req.user.id, req.permissions, req.body?.emoji));
 }));
 

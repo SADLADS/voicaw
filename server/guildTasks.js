@@ -8,6 +8,7 @@ const { sendPushToUser, getUserImageUrl } = require('./push');
 const MAX_TITLE = 200;
 const MAX_DESCRIPTION = 4000;
 const MAX_COMMENT = 2000;
+const MAX_COMMENTS_PER_TASK = 500;
 const MAX_ASSIGNEES = 10;
 const MAX_TASKS_PER_BOARD = 2000;
 // Levels of nesting: a top-level task is 1, its subtasks 2, and so on.
@@ -148,6 +149,7 @@ module.exports = {
   MAX_TITLE,
   MAX_DESCRIPTION,
   MAX_COMMENT,
+  MAX_COMMENTS_PER_TASK,
   MAX_ASSIGNEES,
   MAX_TASKS_PER_BOARD,
   MAX_DEPTH,

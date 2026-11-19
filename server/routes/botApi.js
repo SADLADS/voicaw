@@ -1092,7 +1092,8 @@ router.post('/channels/:channelId/invites', auth, limit('invite', 5, 5000), inCh
   if (req.category) throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
   const maxAge = req.body?.max_age ?? 86400;
   const maxUses = req.body?.max_uses ?? 0;
-  const invite = await guildActions.createInvite(req.member, { maxAge: Number(maxAge), maxUses: Number(maxUses) });
+  // Like Discord: an unused one just like it is given back unless `unique`.
+  const invite = await guildActions.createInvite(req.member, { maxAge: Number(maxAge), maxUses: Number(maxUses), unique: req.body?.unique === true });
   res.json(await inviteObject(invite, req.access.channel));
 }));
 

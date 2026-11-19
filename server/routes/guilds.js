@@ -35,6 +35,8 @@ const { xpByMember } = require('../guildLevels');
 const { JOIN, setJoinLog, logMembership } = require('../joinLog');
 const { getObject, putObject } = require('../s3');
 const { processAvatar, parseCrop, AvatarImageError } = require('../avatarImage');
+const guildLimits = require('../guildLimits');
+const { limit } = guildLimits;
 
 // Guilds: creating and managing them, members, bans, invites, categories and
 // channels. Roles and channel overrides are in routes/guildRoles.js, messages in
@@ -109,7 +111,7 @@ router.get('/guilds', authenticateJWT, async (req, res) => {
 });
 
 // A new guild starts with @everyone and a "Text Channels" category holding #general.
-router.post('/guilds', authenticateJWT, async (req, res) => {
+router.post('/guilds', authenticateJWT, limit('guilds'), async (req, res) => {
   const name = cleanName(req.body?.name, MAX_GUILD_NAME);
   if (!name) return res.status(400).json({ error: `Guild names are 1–${MAX_GUILD_NAME} characters` });
 
@@ -371,22 +373,51 @@ const INVITE_SELECT = `
 const INVITE_VALID = `(i.expires_at IS NULL OR i.expires_at > strftime('%s','now'))
   AND (i.max_uses IS NULL OR i.uses < i.max_uses)`;
 
-// `maxAge` (seconds) and `maxUses`: 0 or missing = no limit.
-router.post('/guilds/:guildId/invites', member, withActionErrors(async (req, res) => {
-  const invite = await createInvite(req.member, { maxAge: Number(req.body?.maxAge ?? 0), maxUses: Number(req.body?.maxUses ?? 0) });
+// `maxAge` (seconds) and `maxUses`: 0 or missing = no limit. `unique: true` for a new one even
+// if you made one just like it in the last day (see createInvite).
+router.post('/guilds/:guildId/invites', member, limit('invites'), withActionErrors(async (req, res) => {
+  const invite = await createInvite(req.member, {
+    maxAge: Number(req.body?.maxAge ?? 0), maxUses: Number(req.body?.maxUses ?? 0), unique: req.body?.unique === true,
+  });
   res.status(201).json(invite);
 }));
 
-// `actor` (with Create Invite) makes an invite; resolves to it (INVITE_SELECT). Shared with the
-// bot API. Throws ActionError.
-async function createInvite(actor, { maxAge, maxUses }) {
+// How long an unused invite is handed out again to its creator asking for the same settings.
+const INVITE_REUSE_SECONDS = 24 * 60 * 60;
+
+// `actor` (with Create Invite) makes an invite; resolves to it (INVITE_SELECT). Unless `unique`,
+// an unused one of theirs with the same settings made in the last day is given back instead (as
+// Discord does: the Invite dialog asks each time it opens). Live invites are capped per member
+// and per guild (guildLimits.js). Shared with the bot API. Throws ActionError.
+async function createInvite(actor, { maxAge, maxUses, unique = false }) {
   if (!has(actor.permissions, PERMISSIONS.CREATE_INVITE)) throw new ActionError(403, "You don't have permission to do that");
   if (!Number.isInteger(maxAge) || maxAge < 0 || maxAge > MAX_INVITE_AGE) throw new ActionError(400, 'Invalid maxAge');
   if (!Number.isInteger(maxUses) || maxUses < 0 || maxUses > MAX_INVITE_USES) throw new ActionError(400, 'Invalid maxUses');
+  if (!unique) {
+    const same = await db.get(
+      `SELECT i.code FROM guild_invites i
+       WHERE i.guild_id = ? AND i.creator_id = ? AND i.uses = 0 AND i.created_at > ? AND ${INVITE_VALID}
+         AND i.max_uses IS ? AND (i.expires_at IS NULL) = (? = 0)
+         AND ABS(COALESCE(i.expires_at - i.created_at, 0) - ?) <= 1
+       ORDER BY i.created_at DESC LIMIT 1`,
+      [actor.guild.id, actor.userId, now() - INVITE_REUSE_SECONDS, maxUses || null, maxAge, maxAge]
+    );
+    if (same) return db.get(`${INVITE_SELECT} WHERE i.code = ?`, [same.code]);
+  }
   let code = newInviteCode();
   // Never one a vanity code also answers to (those are looked up in any case).
   while (await db.get('SELECT 1 FROM guilds WHERE vanity_code = ?', [code.toLowerCase()])) code = newInviteCode();
   await db.transaction(async () => {
+    const live = await db.get(
+      `SELECT COUNT(*) AS total, COALESCE(SUM(i.creator_id = ?), 0) AS mine FROM guild_invites i WHERE i.guild_id = ? AND ${INVITE_VALID}`,
+      [actor.userId, actor.guild.id]
+    );
+    if (live.mine >= guildLimits.MAX_LIVE_INVITES_PER_MEMBER) {
+      throw new ActionError(400, `You have ${guildLimits.MAX_LIVE_INVITES_PER_MEMBER} invites to this guild still working: revoke some first`);
+    }
+    if (live.total >= guildLimits.MAX_LIVE_INVITES_PER_GUILD) {
+      throw new ActionError(400, `This guild has ${guildLimits.MAX_LIVE_INVITES_PER_GUILD} invites still working: revoke some first`);
+    }
     await db.run(
       'INSERT INTO guild_invites (code, guild_id, creator_id, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)',
       [code, actor.guild.id, actor.userId, maxAge ? now() + maxAge : null, maxUses || null]
@@ -574,11 +605,25 @@ router.post('/invites/:code', authenticateJWT, async (req, res) => {
 
 const manageChannels = withPermission(PERMISSIONS.MANAGE_CHANNELS);
 
-router.post('/guilds/:guildId/categories', manageChannels, async (req, res) => {
+// Throws once the guild has its most channels (categories count, threads don't). Called in the
+// transaction that adds one, so two at once can't both get the last place.
+async function checkRoomForChannel(guildId) {
+  const { count } = await db.get(
+    `SELECT (SELECT COUNT(*) FROM guild_channels WHERE guild_id = ? AND type != 'thread')
+      + (SELECT COUNT(*) FROM guild_categories WHERE guild_id = ?) AS count`,
+    [guildId, guildId]
+  );
+  if (count >= guildLimits.MAX_CHANNELS_PER_GUILD) {
+    throw new ActionError(400, `A guild has at most ${guildLimits.MAX_CHANNELS_PER_GUILD} channels and categories`);
+  }
+}
+
+router.post('/guilds/:guildId/categories', manageChannels, limit('structure'), withActionErrors(async (req, res) => {
   const name = cleanName(req.body?.name, MAX_CATEGORY_NAME);
   if (!name) return res.status(400).json({ error: `Category names are 1–${MAX_CATEGORY_NAME} characters` });
   const position = await nextPosition('guild_categories', 'guild_id = ?', [req.guild.id]);
   const { lastID } = await db.transaction(async () => {
+    await checkRoomForChannel(req.guild.id);
     const result = await db.run(
       'INSERT INTO guild_categories (guild_id, name, position) VALUES (?, ?, ?)',
       [req.guild.id, name, position]
@@ -588,7 +633,7 @@ router.post('/guilds/:guildId/categories', manageChannels, async (req, res) => {
   });
   await announceGuildUpdate(req.guild.id);
   res.status(201).json({ id: lastID, name, position });
-});
+}));
 
 router.patch('/guilds/:guildId/categories/:categoryId', manageChannels, async (req, res) => {
   const name = cleanName(req.body?.name, MAX_CATEGORY_NAME);
@@ -681,7 +726,7 @@ async function findChannel(req) {
 // `private: true` (needs Manage Roles too) hides it from @everyone, shows it to `roleIds`, and
 // to its creator unless they'd see it anyway (owner, administrators). `nsfw: true` covers its
 // media until clicked (docs/guilds.md).
-router.post('/guilds/:guildId/channels', manageChannels, withActionErrors(async (req, res) => {
+router.post('/guilds/:guildId/channels', manageChannels, limit('structure'), withActionErrors(async (req, res) => {
   const { type = 'text', topic, private: isPrivate = false, nsfw = false, roleIds = [], bitrate, userLimit, rtcRegion } = req.body ?? {};
   const id = await createChannel(req.member, {
     name: req.body?.name, type, topic, categoryId: req.body?.categoryId ?? null, nsfw, isPrivate, roleIds, bitrate, userLimit, rtcRegion,
@@ -708,6 +753,7 @@ async function createChannel(actor, { name: givenName, type = 'text', topic = nu
 
   // One transaction, so a private channel is never briefly visible to everyone.
   const lastID = await db.transaction(async () => {
+    await checkRoomForChannel(actor.guild.id);
     const position = await nextPosition('guild_channels', 'guild_id = ?', [actor.guild.id]);
     const { lastID: id } = await db.run(
       'INSERT INTO guild_channels (guild_id, category_id, name, type, topic, nsfw, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -739,7 +785,7 @@ async function createChannel(actor, { name: givenName, type = 'text', topic = nu
 // is copied (messages, tasks, documents, webhooks). Copying overrides needs Manage Roles, and
 // every permission they allow or deny must be one you have in the guild (as for roles), so a
 // read-only channel can be copied by someone who can't send there.
-router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async (req, res) => {
+router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, limit('structure'), withActionErrors(async (req, res) => {
   const access = await getChannelAccess(Number(req.params.channelId), req.user.id);
   if (!access || access.channel.guild_id !== req.guild.id || access.channel.type === 'thread' ||
     !has(access.permissions, PERMISSIONS.VIEW_CHANNEL)) {
@@ -763,6 +809,7 @@ router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async 
   }
 
   const id = await db.transaction(async () => {
+    await checkRoomForChannel(req.guild.id);
     await db.run(
       'UPDATE guild_channels SET position = position + 1 WHERE guild_id = ? AND position > ?',
       [req.guild.id, source.position]
@@ -790,7 +837,7 @@ router.post('/guilds/:guildId/channels/:channelId/clone', manageChannels, async 
   });
   await announceGuildUpdate(req.guild.id);
   res.status(201).json(await channelRow(id));
-});
+}));
 
 // Rename, change the topic or the NSFW flag (`nsfw`), move to another category, or change a
 // voice channel's `bitrate`, `userLimit` or `rtcRegion`.

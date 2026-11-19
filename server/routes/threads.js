@@ -1,4 +1,5 @@
 const express = require('express');
+const { limit } = require('../guildLimits');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
 const { PERMISSIONS, has } = require('../permissions');
@@ -102,11 +103,11 @@ async function startThread({ channel, permissions, userId }, { name: givenName, 
     await sendToChannel(channel, { type: 'guild_message_new', guildId: channel.guild_id, message });
   }
   await threads.announceThread(threadId, { joinedIds: [userId] });
-  await levels.award(channel.guild_id, userId, 'threadCreated');
+  await levels.award(channel.guild_id, userId, 'threadCreated', { per: `thread:${userId}` });
   return threads.getThread(threadId, userId);
 }
 
-router.post('/channels/:channelId/threads', authenticateJWT, requireTextChannel, withActionErrors(async (req, res) => {
+router.post('/channels/:channelId/threads', authenticateJWT, limit('threads'), requireTextChannel, withActionErrors(async (req, res) => {
   const thread = await startThread(
     { channel: req.channel, permissions: req.permissions, userId: req.user.id },
     { name: req.body?.name, messageId: req.body?.messageId ?? null }
