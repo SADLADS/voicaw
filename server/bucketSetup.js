@@ -7,6 +7,8 @@
 // its own, so one failing doesn't leave the others undone.
 const { CreateBucketCommand, HeadBucketCommand, PutBucketPolicyCommand } = require('@aws-sdk/client-s3');
 
+// server/nginx/media.voicaw.com lets only these be read without a signature: a new bucket goes
+// into its `$media_public_bucket` map too.
 const BUCKETS = ['uploads', 'profile-pics', 'guild-icons', 'emojis', 'sounds'];
 
 function publicReadPolicy(bucket) {

@@ -12,6 +12,9 @@ map "$media_is_read$media_signed_header$media_signed_query" $media_use_web { "10
 # /<bucket>/<key>, taken from the raw request so the key is passed on exactly as sent.
 map $request_uri $media_bucket { "~^/(?<b>[^/?]+)/" $b; default ""; }
 map $request_uri $media_key { "~^/[^/?]+(?<k>/[^?]*)" $k; default "/"; }
+# Only the app's own buckets (server/bucketSetup.js BUCKETS) are readable without a signature:
+# any other bucket given website access on Garage (a backup, a test) stays private here.
+map $media_bucket $media_public_bucket { "~^(uploads|profile-pics|guild-icons|emojis|sounds)$" 1; default 0; }
 
 server {
     server_name media.voicaw.com;
@@ -40,7 +43,7 @@ server {
 
     location = /__garage_web {
         internal;
-        if ($media_bucket = "") { return 404; }
+        if ($media_public_bucket = 0) { return 404; }
         proxy_pass http://127.0.0.1:3902$media_key$is_args$args;
         # Public reads are files, never pages (security audit, 2026-11-18): no guessing a type
         # from the bytes, and anything opened as a document runs no script and loads nothing.

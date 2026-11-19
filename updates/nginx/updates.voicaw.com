@@ -12,6 +12,7 @@ server {
     autoindex off;
 
     add_header X-Content-Type-Options nosniff always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
 
     # The publish script writes temporary files as .name before moving them into place.
     location ~ /\. { return 404; }
@@ -20,6 +21,7 @@ server {
         try_files $uri $uri/ =404;
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 
     # What the installed app asks for on every check (latest.yml, latest-linux.yml,
@@ -28,6 +30,7 @@ server {
         types { text/yaml yml; application/json json; }
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 
     # Installers, update zips and blockmaps. Their names carry the version, so they never change.
@@ -38,6 +41,7 @@ server {
         default_type application/octet-stream;
         add_header Cache-Control "public, max-age=31536000, immutable";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 
     # The Android app (updates/publish-android.mjs): voicaw-<version>.apk never changes, so it's
@@ -47,11 +51,13 @@ server {
         types { application/json json; application/vnd.android.package-archive apk; }
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
     location /android/ {
         types { application/vnd.android.package-archive apk; }
         default_type application/octet-stream;
         add_header Cache-Control "public, max-age=31536000, immutable";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 }

@@ -1,6 +1,6 @@
 import api from '../utils/api';
 import { desktop, isDesktopApp } from '../utils/desktop';
-import { androidNotificationState, androidSubscription, isAndroidApp, requestAndroidNotifications } from '../utils/android';
+import { androidNotificationState, androidSubscription, isAndroidApp, requestAndroidNotifications, setAndroidLoggedOut } from '../utils/android';
 import { refreshPresence } from '../utils/ws-client';
 import { t } from '../i18n';
 import { pushUpdateSecret } from './pushSecret';
@@ -99,6 +99,9 @@ export async function ensureSubscription(vapidPublicKey) {
   if (isAndroidApp()) {
     const subscription = await androidSubscription();
     await api.post('/save-subscription', { subscription });
+    // The token is this login's now (the server moves it from any earlier account): its
+    // pushes may show again.
+    await setAndroidLoggedOut(false);
     return subscription;
   }
   if (!vapidPublicKey) throw new Error('Missing VAPID public key');

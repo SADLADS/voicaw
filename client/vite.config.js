@@ -203,7 +203,7 @@ export default defineConfig(({ mode }) => {
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         },
         // Serve the real service worker from the dev server too, so push notifications can
-        // be tested on test.voicaw.com (which runs `vite dev`).
+        // be tested against a `vite dev` server.
         devOptions: {
           enabled: true,
           type: 'module',

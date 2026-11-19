@@ -11,6 +11,7 @@ vi.mock('./draftStore', () => ({ clearDrafts: vi.fn() }));
 vi.mock('./searchIndex', () => ({ clearSearchIndex: vi.fn(async () => {}) }));
 vi.mock('./offlineCopy', () => ({ clearOfflineCopy: vi.fn(async () => {}) }));
 vi.mock('./pushSecret', () => ({ forgetPushUpdateSecret: vi.fn(async () => {}) }));
+vi.mock('../utils/android', () => ({ setAndroidLoggedOut: vi.fn(async () => {}) }));
 
 const api = (await import('../utils/api')).default;
 const { closeWebSocket } = await import('../utils/ws-client');
@@ -20,6 +21,7 @@ const { disableNotificationsOnThisDevice } = await import('./pushService');
 const { clearSearchIndex } = await import('./searchIndex');
 const { clearOfflineCopy } = await import('./offlineCopy');
 const { forgetPushUpdateSecret } = await import('./pushSecret');
+const { setAndroidLoggedOut } = await import('../utils/android');
 const { LOGOUT_SERVER_MS, forgetLogin, logOut } = await import('./logout');
 
 const never = () => new Promise(() => {});
@@ -114,6 +116,12 @@ describe('forgetLogin', () => {
     expect(api.post).not.toHaveBeenCalled();
     expect(localStorage.getItem('token')).toBeNull();
     expect(clearUserKeys).toHaveBeenCalled();
+  });
+
+  // Offline, the server still sends this phone the account's pushes (security audit).
+  it('tells the Android app to drop pushes from now on', async () => {
+    await forgetLogin();
+    expect(setAndroidLoggedOut).toHaveBeenCalledWith(true);
   });
 
   it("forgets everything stored for the account, but keeps this device's settings", async () => {

@@ -631,8 +631,11 @@ app and the Android app alike) carries a `<meta http-equiv="Content-Security-Pol
 the `contentSecurityPolicy()` plugin in `client/vite.config.js`: `script-src 'self'
 'wasm-unsafe-eval'` plus a sha256 hash of each inline script left in the page (worked out at build
 time, so editing `index.html`'s theme script needs nothing else), `object-src 'none'`,
-`base-uri 'self'`. Only scripts are restricted: pictures, styles (Font Awesome's CSS from
-cdnjs), frames (YouTube) and connections (other servers, LiveKit) come from wherever they did.
+`base-uri 'self'`. Only scripts are restricted: pictures, styles, frames (YouTube) and
+connections (other servers, LiveKit) come from wherever they did. The page loads no stylesheet
+or font from another site (Font Awesome's CSS from cdnjs went, 2026-11-19: icons are inline
+SVGs). app.voicaw.com's nginx adds the headers a `<meta>` can't (see Security headers in
+`docs/desktop-and-site.md`).
 `'wasm-unsafe-eval'` is for RNNoise and DeepFilterNet; workers and AudioWorklets are our own
 files. A page opened from a `blob:` URL inherits the policy, so a script in one doesn't run (the
 second line behind Attachment types in `docs/uploads.md`). The dev server has none (Vite adds

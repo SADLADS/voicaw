@@ -79,9 +79,11 @@ module.exports = {
   // voicaw://app: the desktop app's own pages (electron/protocol.js); https://localhost: the
   // Android app's (Capacitor serves its bundled page there, mobile/capacitor.config.json).
   // app.voicaw.com and both apps can log in to any server (the login screen's Server), so
-  // another host keeps them and adds its own web app's address in ALLOWED_ORIGINS.
+  // another host keeps them and adds its own web app's address in ALLOWED_ORIGINS (as does a
+  // dev server someone runs: test.voicaw.com and plain-http voicaw.com went with the old test
+  // server, security audit 2026-11-19).
   allowedOrigins: [
-    'https://app.voicaw.com', 'https://test.voicaw.com', 'https://voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com', 'voicaw://app', 'https://localhost',
+    'https://app.voicaw.com', 'https://voicaw.com', 'voicaw://app', 'https://localhost',
     ...(process.env.ALLOWED_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean),
   ],
   // For apps logging in from elsewhere (client/src/utils/server.js), in /api/config: the app's

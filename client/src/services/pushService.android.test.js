@@ -8,11 +8,12 @@ vi.mock('../utils/android', () => ({
   androidNotificationState: () => state,
   requestAndroidNotifications: vi.fn(async () => { state.permission = 'granted'; return 'granted'; }),
   androidSubscription: vi.fn(async () => ({ endpoint: 'fcm:phone-token', fcm: { token: 'phone-token', key: 'KEY' } })),
+  setAndroidLoggedOut: vi.fn(async () => {}),
 }));
 vi.mock('../utils/api', () => ({ default: { post: vi.fn(async () => ({ data: {} })) } }));
 
 import api from '../utils/api';
-import { requestAndroidNotifications } from '../utils/android';
+import { requestAndroidNotifications, setAndroidLoggedOut } from '../utils/android';
 import { disableNotificationsOnThisDevice, enableNotifications, ensureSubscription, getPushStatus } from './pushService';
 
 beforeEach(() => {
@@ -47,6 +48,18 @@ describe('notifications in the Android app', () => {
   it('registers without a VAPID key', async () => {
     await ensureSubscription(undefined);
     expect(api.post).toHaveBeenCalledWith('/save-subscription', expect.anything());
+  });
+
+  // A logout set it (forgetLogin); the token registered for this login, pushes show again.
+  it('lets the phone show pushes again once its token is registered', async () => {
+    await ensureSubscription(undefined);
+    expect(setAndroidLoggedOut).toHaveBeenCalledWith(false);
+  });
+
+  it("doesn't if the server didn't take the token", async () => {
+    api.post.mockRejectedValueOnce(new Error('Network Error'));
+    await expect(ensureSubscription(undefined)).rejects.toThrow();
+    expect(setAndroidLoggedOut).not.toHaveBeenCalled();
   });
 
   it('tells the server to forget the phone when turned off', async () => {

@@ -53,6 +53,7 @@ export default function YouTubeViewer({ id, link, onClose }) {
           src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1`}
           title={t('media.youtube.video')}
           allow="autoplay; fullscreen; picture-in-picture"
+          referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
         ></iframe>
       </div>

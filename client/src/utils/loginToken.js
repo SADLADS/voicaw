@@ -85,3 +85,17 @@ export function forgetToken() {
   newest = null;
   writeSaved(null);
 }
+
+// Whether a failed request means the server refused this login, so the device should forget
+// it: a 401, or a 403/404 that is the API's own JSON error (server/auth.js answers a revoked or
+// unknown token with 403 "Invalid token", GET /profile a deleted account with 404). A 403 or
+// 404 page from a proxy in front of the server (one being redeployed, a firewall), which isn't
+// JSON, counts as out of reach: forgetting the login also wipes this device's keys and its
+// offline copy (security audit, 2026-11-19).
+export function loginRejected(err) {
+  const status = err?.response?.status;
+  if (status === 401) return true;
+  if (status !== 403 && status !== 404) return false;
+  const data = err.response.data;
+  return Boolean(data) && typeof data === 'object' && typeof data.error === 'string';
+}

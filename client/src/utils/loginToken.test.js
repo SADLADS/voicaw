@@ -1,5 +1,22 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { sameLogin, tokenClaims } from './loginToken';
+import { loginRejected, sameLogin, tokenClaims } from './loginToken';
+
+describe('loginRejected', () => {
+  const failed = (status, data) => ({ response: { status, data } });
+  it("is a 401, or a 403/404 that is the API's own error", () => {
+    expect(loginRejected(failed(401, '<html>'))).toBe(true);
+    expect(loginRejected(failed(403, { error: 'Invalid token' }))).toBe(true);
+    expect(loginRejected(failed(404, { error: 'User not found' }))).toBe(true);
+  });
+  it("isn't a proxy's page, another status or no answer", () => {
+    expect(loginRejected(failed(404, '<html>404 Not Found</html>'))).toBe(false);
+    expect(loginRejected(failed(403, ''))).toBe(false);
+    expect(loginRejected(failed(403, { message: 'blocked' }))).toBe(false);
+    expect(loginRejected(failed(502, { error: 'Bad gateway' }))).toBe(false);
+    expect(loginRejected(new Error('Network Error'))).toBe(false);
+    expect(loginRejected(undefined)).toBe(false);
+  });
+});
 
 const tokenFor = (claims, signature = 'sig') => `h.${btoa(JSON.stringify(claims)).replace(/=+$/, '')}.${signature}`;
 

@@ -8,6 +8,7 @@ vi.mock('./utils/api', () => ({
 vi.mock('./services/logout', () => ({ forgetLogin: vi.fn(async () => {}) }));
 
 import api from './utils/api';
+import { forgetLogin } from './services/logout';
 import { AuthProvider } from './AuthProvider';
 import { useAuth } from './hooks/useAuth';
 import { isOfflineMode, setOfflineMode, useOfflineMode } from './utils/offlineMode';
@@ -71,7 +72,7 @@ describe('AuthProvider', () => {
   });
 
   it('sets user to null when the server refuses the saved login', async () => {
-    api.get.mockRejectedValue(Object.assign(new Error('forbidden'), { response: { status: 403 } }));
+    api.get.mockRejectedValue(Object.assign(new Error('forbidden'), { response: { status: 403, data: { error: 'Invalid token' } } }));
 
     render(
       <AuthProvider>
@@ -136,6 +137,40 @@ describe('AuthProvider', () => {
       await waitFor(() => expect(screen.getByText('reachable')).toBeInTheDocument());
       expect(api.get).toHaveBeenLastCalledWith('/profile', { timeout: expect.any(Number), offlineCopy: 'never' });
     } finally {
+      vi.useRealTimers();
+      setOfflineMode(false);
+    }
+  });
+
+  // A proxy's own 404 page (the server being redeployed) isn't the server refusing the login:
+  // the device keeps it, and its keys, until the API itself says so (security audit).
+  it('in offline mode, forgets the login only when the API itself refuses it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setOfflineMode(false);
+    const reload = vi.fn();
+    const { location } = window;
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...location, reload } });
+    try {
+      api.get
+        .mockResolvedValueOnce({ data: { id: 7, username: 'alice', token: 't' }, fromOfflineCopy: true })
+        .mockRejectedValueOnce(Object.assign(new Error('not found'), { response: { status: 404, data: '<html>404 Not Found</html>' } }))
+        .mockRejectedValueOnce(Object.assign(new Error('forbidden'), { response: { status: 403, data: '<html>Blocked</html>' } }))
+        .mockRejectedValueOnce(Object.assign(new Error('forbidden'), { response: { status: 403, data: { error: 'Invalid token' } } }));
+      render(
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      );
+      await waitFor(() => expect(screen.getByText(/logged in as alice/)).toBeInTheDocument());
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      expect(api.get).toHaveBeenCalledTimes(3);
+      expect(forgetLogin).not.toHaveBeenCalled();
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      await waitFor(() => expect(forgetLogin).toHaveBeenCalledTimes(1));
+      expect(reload).toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: location });
       vi.useRealTimers();
       setOfflineMode(false);
     }

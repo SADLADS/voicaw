@@ -43,6 +43,18 @@ export async function androidSubscription() {
   return { endpoint: `fcm:${token}`, fcm: { token, key, reactionPushes: true } };
 }
 
+// Whether the phone drops pushes unseen (PushService.java): set by every logout, since one that
+// can't reach the server leaves this phone's token registered to the account; cleared once the
+// token is registered for a login again. Nothing anywhere else.
+export async function setAndroidLoggedOut(loggedOut) {
+  if (!android) return;
+  try {
+    await android.setLoggedOut({ loggedOut });
+  } catch (err) {
+    console.warn('Could not tell the app about the login', err);
+  }
+}
+
 // The ongoing-call notification (`title`: what the voice bar links to, `status`: its state,
 // `labels`: the buttons' text) or null when not in voice. While it's shown, Android keeps the
 // app and its microphone running with the screen off; its buttons mute and hang up.

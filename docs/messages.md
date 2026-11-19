@@ -853,7 +853,10 @@ only follows.
   notice, no hover tools, and menus keep only what needs no server: Copy). A chat never saved says
   so. Search reads only what the search copy already holds. `/profile` is asked again every 5 s
   (`'never'`): once the server answers, the banner says so and Reconnect reloads the app; a
-  refusal (logged out elsewhere meanwhile) forgets the login. Online, a chat whose history can't
+  refusal (logged out elsewhere meanwhile) forgets the login: a 401, or a 403/404 that is the
+  API's own JSON error (`loginRejected` in `utils/loginToken.js`); a proxy's error page in front
+  of a server being redeployed is only "out of reach", so it never wipes the device's keys and
+  copy (security audit, 2026-11-19). Online, a chat whose history can't
   be fetched (the server gone mid-session) opens from the copy too, read-only.
 - **The web app** needs its page without a network: the service worker answers a failed page
   load with the precached `index.html` (network first, so nothing changes online). The desktop

@@ -86,8 +86,19 @@ export async function setVanityInvite(guildId, code) {
   return (await api.put(`/guilds/${guildId}/vanity-url`, { code })).data;
 }
 
+// An invite code as the API's path takes it. Codes come from links (`/invite/:code`, whose
+// `%2F` the router turns back into `/`), so anything but an invite code's characters
+// (inviteLinks.js) is refused as an unknown invite, never sent: `../guilds/5/invites` mustn't
+// become another request made with the reader's login (security audit, 2026-11-19).
+function invitePath(code) {
+  if (typeof code !== 'string' || !/^[A-Za-z0-9-]{1,32}$/.test(code)) {
+    throw Object.assign(new Error('Not an invite code'), { response: { status: 404, data: {} } });
+  }
+  return `/invites/${encodeURIComponent(code)}`;
+}
+
 export async function fetchInvite(code) {
-  return (await api.get(`/invites/${code}`)).data;
+  return (await api.get(invitePath(code))).data;
 }
 
 // Invite embeds in chats: each code is asked about once per session (an invalid one stays
@@ -111,7 +122,7 @@ export function invitePreviewRequested(code) {
 
 // Joins; resolves to the guild's layout.
 export async function acceptInvite(code) {
-  return (await api.post(`/invites/${code}`)).data;
+  return (await api.post(invitePath(code))).data;
 }
 
 export async function createCategory(guildId, name) {

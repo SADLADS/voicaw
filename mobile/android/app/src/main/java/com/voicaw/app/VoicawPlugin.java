@@ -207,6 +207,13 @@ public class VoicawPlugin extends Plugin {
         });
     }
 
+    /** `loggedOut`: whether pushes are dropped unseen (PushService.setLoggedOut). */
+    @PluginMethod
+    public void setLoggedOut(PluginCall call) {
+        PushService.setLoggedOut(getContext(), Boolean.TRUE.equals(call.getBoolean("loggedOut", false)));
+        call.resolve();
+    }
+
     /** The last pushes and what became of them (PushLog), newest first. */
     @PluginMethod
     public void getPushLog(PluginCall call) {

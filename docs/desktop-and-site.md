@@ -597,7 +597,10 @@ native bridge. Check real behaviour on a phone.
   device (reaction notifications once it's on screen) (see Clearing read chats in `docs/realtime.md`); silent while the app is in front (the
   page plays its sounds). A token
   Firebase drops is forgotten (`UNREGISTERED`); a new token is registered the next time the app
-  opens.
+  opens. Every logout (`forgetLogin`) also sets a "logged out" flag in the app's private
+  storage (`setAndroidLoggedOut`, `PushService.setLoggedOut`), and PushService drops every push
+  unseen while it's set: a logout that couldn't reach the server leaves the token registered to
+  that account (security audit, 2026-11-19). Registering the token for a login clears it.
 - **Calls ringing**: a call's push carries `callId` and `ringing`. The phone rings with a
   CallStyle notification (Answer / Decline, the ringtone until it stops, 45 s at most) and a
   full-screen ringing screen over the lock screen (`IncomingCallActivity`: name, picture, two
@@ -699,3 +702,20 @@ law and the minimum age are `LEGAL_FACTS` in `build.mjs`; while one is empty its
 "[… not set]" and the build warns. Every claim was checked against the code (2026-10-05): keep
 them true (CLAUDE.md, Privacy policy). Logins forgotten after 30 days unused is
 `auth.js` `startSessionCleanup` (hourly), which the policy relies on.
+
+### Security headers
+
+app.voicaw.com's nginx (`website/nginx/app.voicaw.com`, security audit 2026-11-19) sends, on
+every answer: `Strict-Transport-Security` (a year: once a browser has been, it never asks over
+plain http), `X-Frame-Options DENY` and `Content-Security-Policy: frame-ancestors 'none'` (no
+other site can frame the app, so a bot invite or OAuth consent can't be clicked through in a
+hidden frame), `X-Content-Type-Options nosniff` and `Referrer-Policy no-referrer` (the app's
+addresses, which hold guild and channel ids, never reach other sites; YouTube's players need a
+referrer, so their iframes ask for the origin themselves, `strict-origin-when-cross-origin`).
+`index.html` and the app's routes are `no-cache`, so a new build shows at once. nginx drops the
+server block's `add_header` lines in a location with its own, so those locations repeat them.
+The page's own script policy is a `<meta>` (Content-Security-Policy in `docs/client.md`), which
+can't say `frame-ancestors`; both apply. voicaw.com and updates.voicaw.com send the same HSTS
+line. The desktop and Android apps don't go through nginx (their pages are their own files).
+After changing one of these files, copy it to `/etc/nginx/sites-available/` and
+`sudo nginx -t && sudo systemctl reload nginx` by hand.

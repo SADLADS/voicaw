@@ -55,6 +55,7 @@ function YouTubeEmbed({ id, link }) {
             src={`https://www.youtube-nocookie.com/embed/${id}${played && !autoLoad ? '?autoplay=1' : ''}`}
             title={t('media.youtube.video')}
             allow="autoplay; fullscreen; picture-in-picture"
+            referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen
           ></iframe>
         </div>

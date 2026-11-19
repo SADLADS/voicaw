@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const { setUpBuckets, BUCKETS } = require('../bucketSetup.js');
@@ -71,5 +72,14 @@ describe('setUpBuckets', () => {
     expect(log.error).toHaveBeenCalledTimes(1);
     expect(store.buckets.has('sounds')).toBe(true);
     expect(store.buckets.has('guild-icons')).toBe(false);
+  });
+});
+
+describe("media.voicaw.com's nginx", () => {
+  it("serves exactly the app's buckets without a signature (security audit)", () => {
+    const conf = readFileSync(new URL('../nginx/media.voicaw.com', import.meta.url), 'utf8');
+    const list = conf.match(/\$media_public_bucket \{ "~\^\(([^)]+)\)\$" 1;/);
+    expect(list).not.toBeNull();
+    expect(list[1].split('|').sort()).toEqual([...BUCKETS].sort());
   });
 });

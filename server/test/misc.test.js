@@ -29,6 +29,13 @@ describe('GET /api/config', () => {
     const other = await request(app).get('/api/config').set('Origin', 'https://evil.example.com');
     expect(other.headers['access-control-allow-origin']).toBeUndefined();
   });
+
+  it("doesn't take the old test server's origins or plain http (security audit)", async () => {
+    for (const origin of ['https://test.voicaw.com', 'http://test.voicaw.com', 'http://voicaw.com']) {
+      const res = await request(app).get('/api/config').set('Origin', origin);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    }
+  });
 });
 
 describe('error handler', () => {

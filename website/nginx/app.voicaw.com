@@ -16,8 +16,30 @@ server {
     root /opt/voicaw-client;
     index index.html;
 
+    # Security headers (security audit, 2026-11-18). nginx drops the server's add_header lines in
+    # any location with its own, so each such location repeats them. HSTS: browsers only ever
+    # come here over https once they've been once. frame-ancestors / X-Frame-Options: no other
+    # site can frame the app (an OAuth consent or bot invite is one click). No referrer: the
+    # app's addresses (guild and channel ids) never reach other sites; YouTube's players, which
+    # need one, ask for the origin on their own iframes. The page's own Content-Security-Policy
+    # (a <meta> from client/vite.config.js, scripts only) can't say frame-ancestors, so that's
+    # here; both apply. Restricting more (styles, pictures, connections) is to come on its own.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Frame-Options DENY always;
+    add_header Content-Security-Policy "frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    # index.html (every app route falls back to it) is always asked again, so a new build is
+    # picked up at once; its scripts and styles are under /assets/, named by their content.
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Frame-Options DENY always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
     }
 
     location ~ ^/invite/(?<voicaw_invite>[^/]+)$ {
@@ -35,7 +57,28 @@ server {
         client_max_body_size 26M;
     }
 
-    location = /service-worker.js { add_header Cache-Control "no-cache"; }
-    location /assets/ { add_header Cache-Control "public, max-age=31536000, immutable"; }
-    location /emoji/  { add_header Cache-Control "public, max-age=2592000"; }
+    location = /service-worker.js {
+        add_header Cache-Control "no-cache";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Frame-Options DENY always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+    }
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Frame-Options DENY always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+    }
+    location /emoji/ {
+        add_header Cache-Control "public, max-age=2592000";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Frame-Options DENY always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+    }
 }

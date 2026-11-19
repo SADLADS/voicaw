@@ -3,7 +3,7 @@ import api from './utils/api';
 import { AuthContext } from './hooks/useAuth';
 import { setOfflineMode, setReachable } from './utils/offlineMode';
 import { forgetLogin } from './services/logout';
-import { savedToken } from './utils/loginToken';
+import { loginRejected, savedToken } from './utils/loginToken';
 
 // How long to wait before asking again when the server can't be reached.
 const RETRY_MS = 3000;
@@ -13,13 +13,10 @@ const PROFILE_TIMEOUT_MS = 10000;
 // In offline mode, how often to look for the server again.
 const OFFLINE_RETRY_MS = 5000;
 
-// Only the server saying the login is no good ends the session. Anything else (no network
-// yet after the computer starts, the API restarting) is retried, so a saved login isn't
-// thrown away while the server is out of reach.
-function isRejected(err) {
-  const status = err?.response?.status;
-  return status === 401 || status === 403 || status === 404;
-}
+// Only the server saying the login is no good ends the session (loginRejected). Anything else
+// (no network yet after the computer starts, the API restarting, a proxy's error page) is
+// retried, so a saved login isn't thrown away while the server is out of reach.
+const isRejected = loginRejected;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

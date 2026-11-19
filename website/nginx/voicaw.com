@@ -8,6 +8,7 @@ server {
     index index.html;
 
     add_header X-Content-Type-Options nosniff always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
 
     # The API stays here for good: installed desktop apps, older builds and webhook URLs people
     # copied (https://voicaw.com/api/webhooks/...) all use this address. Websockets too: a bot
@@ -30,6 +31,7 @@ server {
     location = /service-worker.js {
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 
     # The site's own files, and its folders' index.html (the bot API docs at /developers/docs/,
@@ -41,11 +43,13 @@ server {
         try_files /index.html =404;
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
     location / {
         try_files $uri $uri/index.html @app;
         add_header Cache-Control "no-cache";
         add_header X-Content-Type-Options nosniff always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
     location @app {
         return 301 https://app.voicaw.com$request_uri;

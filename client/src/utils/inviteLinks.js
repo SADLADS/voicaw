@@ -4,7 +4,7 @@ import { isBuiltInServer } from './server';
 import { shareOrigin } from './guildDisplay';
 
 // Where invite links come from: the address this app shares links from (guildDisplay
-// shareOrigin), and voicaw.com's (the live site and test.voicaw.com share one API, so their
+// shareOrigin), and voicaw.com's (voicaw.com and app.voicaw.com share one API, so their
 // invites work on each other), unless this app uses another server (utils/server.js), where
 // voicaw.com's codes mean nothing.
 function isVoicawHost(host) {

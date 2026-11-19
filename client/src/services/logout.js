@@ -13,6 +13,7 @@ import { clearShare } from './shareService';
 import { clearSearchIndex } from './searchIndex';
 import { clearOfflineCopy } from './offlineCopy';
 import { forgetPushUpdateSecret } from './pushSecret';
+import { setAndroidLoggedOut } from '../utils/android';
 
 // How long logging out waits for the server (turning off this device's notifications, hanging
 // up, ending the session) before going on without it: a server that's down or doesn't answer
@@ -77,7 +78,9 @@ function forgetAccountStorage() {
 // in localStorage, so clearing cookies doesn't remove it.
 export async function forgetLogin() {
   forgetToken();
-  const clears = [clearUserKeys, forgetGroups, clearSearchIndex, clearOfflineCopy, forgetPushUpdateSecret];
+  // The Android app drops pushes from now on: a logout that couldn't reach the server leaves
+  // the phone's token registered to this account (utils/android.js setAndroidLoggedOut).
+  const clears = [clearUserKeys, forgetGroups, clearSearchIndex, clearOfflineCopy, forgetPushUpdateSecret, () => setAndroidLoggedOut(true)];
   // Each on its own: one failing mustn't leave the others behind.
   await Promise.all(clears.map((clear) => clear().catch((err) => console.error('Failed to clear stored data on logout', err))));
   forgetAccountStorage();
