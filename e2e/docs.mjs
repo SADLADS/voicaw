@@ -131,6 +131,19 @@ try {
   await a.keyboard.type('1. Sign the forms');
   await a.keyboard.press('Enter');
   await a.keyboard.press('Enter');
+  // Pasted links: a website's is kept, a `javascript:` one only as its text (it would run as the
+  // app when clicked in a locked editor).
+  await a.evaluate(() => {
+    const data = new DataTransfer();
+    data.setData('text/html', '<p><a href="https://example.com/handbook">the handbook</a> and <a href="javascript:alert(1)">reload</a></p>');
+    data.setData('text/plain', 'the handbook and reload');
+    document.querySelector('.doc-editor-text [contenteditable="true"], .doc-editor-text[contenteditable="true"]')
+      .dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  });
+  const pasted = await a.evaluate(() => [...document.querySelectorAll('.doc-editor-text a')].map((l) => [l.textContent, l.getAttribute('href')]));
+  if (JSON.stringify(pasted) !== '[["the handbook","https://example.com/handbook"]]') throw new Error(`pasted links ${JSON.stringify(pasted)}`);
+  if (!(await a.textContent('.doc-editor-text')).includes('the handbook and reload')) throw new Error('pasted text lost');
+  await a.keyboard.press('Enter');
   // Bullets and numbers show while editing, not only once published (every editor item has a
   // hidden checkbox, which the checklist style once took for a checklist).
   const markers = await a.evaluate(() => ['ul', 'ol', 'li.doc-editor-task'].map((s) => {

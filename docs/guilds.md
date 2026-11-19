@@ -439,6 +439,12 @@ take a 1 MB JSON body, `server/index.js`), a channel holds 1000.
   author or Manage Messages ticks it, when writing one or in the editor's bar) lets everyone with
   Create Documents in the channel edit it too; deleting it and changing that stay the author's
   (and Manage Messages').
+- **Link addresses** (security audit, 2026-11-18): the editor draws links itself (ProseMirror,
+  not React), so `documentSchema.js` `safeHref` keeps only http(s), mailto and relative
+  addresses, as the read view's react-markdown does: any other link is drawn without its address
+  (it stays in the markdown, so nothing is lost), isn't taken from pasted HTML, and the toolbar's
+  Link does nothing with one. Otherwise a `javascript:` link would run as the app when clicked in
+  a locked editor (connecting, or the document deleted).
 - **Server** (`server/guildDocuments.js`, `routes/guildDocuments.js`; tables
   `guild_documents`, `guild_document_reactions`): `GET/POST /channels/:id/documents` (cards: no
   `content`, `content_start` = its first 1000 characters, `reply_count`, `last_reply_at`,

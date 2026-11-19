@@ -97,8 +97,10 @@ public class VoicawPlugin extends Plugin {
             });
             return;
         }
-        String answer = intent.getStringExtra(Notifications.EXTRA_ANSWER);
-        String url = intent.getStringExtra(Notifications.EXTRA_URL);
+        // Only from the app's own notifications: another app could start us with these too.
+        boolean ours = IntentKey.fromApp(getContext(), intent);
+        String answer = ours ? intent.getStringExtra(Notifications.EXTRA_ANSWER) : null;
+        String url = ours ? intent.getStringExtra(Notifications.EXTRA_URL) : null;
         if (answer != null && System.currentTimeMillis() < intent.getLongExtra(Notifications.EXTRA_ANSWER_UNTIL, 0)) {
             Notifications.stopRinging(getContext(), answer);
             notifyListeners("callAction", new JSObject().put("action", "answer").put("callId", answer), true);
@@ -108,6 +110,7 @@ public class VoicawPlugin extends Plugin {
         intent.removeExtra(Notifications.EXTRA_ANSWER);
         intent.removeExtra(Notifications.EXTRA_ANSWER_UNTIL);
         intent.removeExtra(Notifications.EXTRA_URL);
+        intent.removeExtra(IntentKey.EXTRA);
     }
 
     /** A button on the ongoing-call notification. False if the page isn't there to act on it. */
