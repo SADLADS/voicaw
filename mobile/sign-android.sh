@@ -7,7 +7,8 @@
 # the entries kept exactly as built, so anyone can check the signed APK is GitHub's build plus
 # our signature, with apksigcopier compare) and dist-android/voicaw-<version>-play.aab
 # (jarsigner, as Play wants bundles signed with the upload key: ours). Both files must be inside
-# this checkout (Docker mounts it). Uses the voicaw-android-build image (mobile/Dockerfile).
+# this checkout (Docker mounts it). Uses the voicaw-android-build image (mobile/Dockerfile), with
+# no network: signing needs none, so nothing in the image could send the key or password anywhere.
 set -e
 root="$(cd "$(dirname "$0")/.." && pwd)"
 keys="${VOICAW_ANDROID_KEYS:-$HOME/.voicaw-android-keys}"
@@ -32,7 +33,7 @@ if ! docker image inspect voicaw-android-build > /dev/null 2>&1; then
   docker build -t voicaw-android-build "$root/mobile"
 fi
 mkdir -p "$root/dist-android"
-docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp/home \
+docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp/home \
     -v "$root":/project -v "$keys":/keys:ro -w /project voicaw-android-build \
     sh -c '
       set -e

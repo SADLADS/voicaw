@@ -705,7 +705,8 @@ npm run dist:android   # dist-android/voicaw-debug.apk (debug key, mobile/packag
 ```
 
 The first run builds the `voicaw-android-build` image (JDK 21 and the Android SDK,
-`mobile/Dockerfile`, a few GB) and Gradle's downloads (kept in `~/.gradle`). The client build uses
+`mobile/Dockerfile`, a few GB; its base image is pinned by digest and the SDK tools by SHA-256,
+so after `mobile/Dockerfile` changes, `docker rmi voicaw-android-build` to have it rebuilt) and Gradle's downloads (kept in `~/.gradle`). The client build uses
 `client/.env.production`, unless there's a `client/.env.android`. Releases are built by GitHub
 with the desktop app (below). A release built on the host instead, never changing tracked files
 (the version is stamped into the build: `node updates/publish-android.mjs next patch` prints the
@@ -716,6 +717,7 @@ npm install
 npm run build:android --workspace=client
 (cd mobile && npx cap sync android)
 VOICAW_VERSION=X.Y.Z sh mobile/dist-android.sh release   # dist-android/voicaw-X.Y.Z.apk and -play.aab
+# (built unsigned, then signed offline by mobile/sign-android.sh: the key never reaches Gradle)
 ```
 
 versionCode is X·10000 + Y·100 + Z, so Y and Z stay under 100. Each release is tagged

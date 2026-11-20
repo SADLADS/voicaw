@@ -7,6 +7,8 @@
 # updates.voicaw.com itself (README "Desktop app"), so GitHub holds no keys to our servers. The host
 # also signs the Android app and adds the signed APK to the release (apksigcopier compare shows
 # it's the attested unsigned one plus a signature).
+# Actions are pinned to a commit (the tag it was in a comment), not a tag that can be moved: an
+# upgrade is a deliberate edit of the SHA.
 name: Release
 
 on:
@@ -34,10 +36,10 @@ jobs:
       id-token: write # Sigstore's certificate for this run
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -78,7 +80,7 @@ jobs:
             built="$(sed -n 's/^version: *//p' "$feed")"
             if [ "$built" != "$VOICAW_VERSION" ]; then echo "$feed says $built, not $VOICAW_VERSION" >&2; exit 1; fi
           done
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: |
             dist-desktop/*.AppImage
@@ -86,7 +88,7 @@ jobs:
             dist-desktop/*.exe
             dist-desktop/*.blockmap
             dist-desktop/latest*.yml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: desktop-${{ matrix.name }}
           if-no-files-found: error
@@ -107,10 +109,10 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -144,12 +146,12 @@ jobs:
       - run: npx cap sync android
         working-directory: mobile
       - run: sh mobile/dist-android.sh unsigned
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: |
             dist-android/*-unsigned.apk
             dist-android/*-unsigned.aab
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: android
           if-no-files-found: error
@@ -163,13 +165,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: dist
           merge-multiple: true
       # The source of the OBS files the Windows app ships for game capture (GPL v2: they travel
       # with their source), checked against the SHA-256 in electron/game-capture/prepare.mjs.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
           path: repo

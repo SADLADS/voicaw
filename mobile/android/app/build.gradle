@@ -45,9 +45,10 @@ android {
         }
     }
     // The release key (mobile/make-release-key.sh), from VOICAW_KEYSTORE and its password in
-    // VOICAW_KEYSTORE_PASSWORD (mobile/dist-android.sh mounts and reads them). Without them a
-    // release build fails rather than ship unsigned, unless VOICAW_UNSIGNED=1 asks for unsigned
-    // files on purpose (GitHub's release build: the host signs them, mobile/sign-android.sh).
+    // VOICAW_KEYSTORE_PASSWORD, if given (our scripts never do: releases are built unsigned and
+    // signed afterwards by mobile/sign-android.sh, offline, so the key never reaches Gradle).
+    // Without them a release build fails rather than ship unsigned, unless VOICAW_UNSIGNED=1 asks
+    // for unsigned files on purpose (mobile/dist-android.sh's release and unsigned modes).
     signingConfigs {
         release {
             if (System.getenv('VOICAW_KEYSTORE')) {

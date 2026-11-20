@@ -412,6 +412,7 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   on GitHub's machines from that commit (the version stamped in by `VOICAW_VERSION` in
   `builder.config.js`, `electron/package.json` untouched), attests each file and feed
   (`actions/attest-build-provenance`: Sigstore, in its public log) and makes a GitHub Release.
+  Its actions are pinned to commit SHAs (the tag in a comment), not tags that can be moved.
   The host downloads it, refuses anything whose attestation doesn't name that workflow, tag and
   commit (`gh attestation verify`), then publishes as before. So anyone can check an installer
   against the public source, and nothing built on the host is shipped. The app itself doesn't
@@ -462,7 +463,10 @@ native bridge. Check real behaviour on a phone.
   compare`), uploads the bundle to Google Play's closed-testing track
   (`updates/publish-play.mjs`, the Play Developer API with a service account; by hand while
   there's no key) and pushes the `android-vX.Y.Z` tag. A release can also be built on the host
-  (`mobile/dist-android.sh release`); desktop releases are `desktop-vX.Y.Z`.
+  (`mobile/dist-android.sh release`: built unsigned, then signed by `sign-android.sh` the same
+  way, so the key never reaches Gradle or its plugins); desktop releases are `desktop-vX.Y.Z`.
+  Signing runs in a container without the network; the build image's base is pinned by digest,
+  the SDK tools zip by SHA-256 and the Gradle distribution by `distributionSha256Sum`.
 - **Two builds** (Gradle flavours): `direct`, the APK above, which updates itself, and `play`,
   for Google Play, which mustn't (Play's rules: an app from Play updates only through Play, and
   the permission to install packages is restricted). The updater and that permission live only in

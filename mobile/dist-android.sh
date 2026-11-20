@@ -11,7 +11,10 @@
 #                                     mobile/make-release-key.sh (VOICAW_ANDROID_KEYS, default
 #                                     ~/.voicaw-android-keys): the direct APK,
 #                                     dist-android/voicaw-<version>.apk, and the play App Bundle
-#                                     to upload to the Play Console, dist-android/voicaw-<version>-play.aab
+#                                     to upload to the Play Console, dist-android/voicaw-<version>-play.aab.
+#                                     Built unsigned, then signed by mobile/sign-android.sh in a
+#                                     container without the network: the key never reaches
+#                                     Gradle, its plugins or the app's dependencies.
 #   mobile/dist-android.sh unsigned   the same two, unsigned (no key needed):
 #                                     dist-android/voicaw-<version>-unsigned.apk and
 #                                     voicaw-<version>-play-unsigned.aab. GitHub's release build
@@ -59,30 +62,26 @@ set -- \
     -e GRADLE_USER_HOME=/cache/gradle \
     -e ANDROID_USER_HOME=/cache/android \
     -e VOICAW_VERSION="$version" \
-    -e VOICAW_UNSIGNED="$([ "$mode" = unsigned ] && echo 1)" \
+    -e VOICAW_UNSIGNED="$([ "$mode" = debug ] || echo 1)" \
     -v "$root":/project \
     -v "$HOME/.gradle":/cache/gradle \
     -v "$HOME/.android":/cache/android
-if [ "$mode" = release ]; then
-  # The key folder, read-only; the password is read inside, never on a command line.
-  set -- "$@" -v "$keys":/keys:ro -e VOICAW_KEYSTORE=/keys/voicaw-release.jks
-fi
 docker run --rm "$@" -w /project/mobile/android voicaw-android-build \
     sh -c '
       mkdir -p "$HOME"
-      if [ -f /keys/password ]; then export VOICAW_KEYSTORE_PASSWORD="$(cat /keys/password)"; fi
       ./gradlew --no-daemon testDirectDebugUnitTest compilePlayDebugJavaWithJavac '"$task"
 
-if [ "$mode" = release ]; then
-  apk="$root/dist-android/voicaw-$version.apk"
-  cp "$root/mobile/android/app/build/outputs/apk/direct/release/app-direct-release.apk" "$apk"
-  cp "$root/mobile/android/app/build/outputs/bundle/playRelease/app-play-release.aab" "$root/dist-android/voicaw-$version-play.aab"
-  echo "Built $root/dist-android/voicaw-$version-play.aab"
-elif [ "$mode" = unsigned ]; then
+if [ "$mode" = release ] || [ "$mode" = unsigned ]; then
   apk="$root/dist-android/voicaw-$version-unsigned.apk"
+  aab="$root/dist-android/voicaw-$version-play-unsigned.aab"
   cp "$root/mobile/android/app/build/outputs/apk/direct/release/app-direct-release-unsigned.apk" "$apk"
-  cp "$root/mobile/android/app/build/outputs/bundle/playRelease/app-play-release.aab" "$root/dist-android/voicaw-$version-play-unsigned.aab"
-  echo "Built $root/dist-android/voicaw-$version-play-unsigned.aab"
+  cp "$root/mobile/android/app/build/outputs/bundle/playRelease/app-play-release.aab" "$aab"
+  if [ "$mode" = release ]; then
+    VOICAW_ANDROID_KEYS="$keys" sh "$root/mobile/sign-android.sh" "$apk" "$aab" "$version"
+    rm -f "$apk" "$aab"
+    exit 0
+  fi
+  echo "Built $aab"
 else
   apk="$root/dist-android/voicaw-debug.apk"
   cp "$root/mobile/android/app/build/outputs/apk/direct/debug/app-direct-debug.apk" "$apk"
