@@ -195,6 +195,10 @@ one user at a time).
   start via `ensureSubscription()` when permission is granted and the user hasn't turned it off
   (`localStorage.pushDisabled`). Logout calls `disableNotificationsOnThisDevice()` *before* the token
   is cleared, so the server forgets the device.
+- A notification's click (`service-worker.js`, `pushNotifications.js` `notificationTarget`)
+  opens the push's `url` only if it's one of the app's own pages; anything else (another site,
+  which a server, or an "other server" someone chose, could name) opens the app's start instead
+  (2026-11-20, security audit; the Android app already only takes app routes).
 - Server: `sendPushToUser()` (drops 404/410 subscriptions). Each request to a push service has a
   10 s timeout. An account keeps at most 20 subscriptions (the oldest go), web push endpoints
   must be https addresses (also when the service worker swaps one in), and saving (60 an hour)

@@ -50,6 +50,27 @@ describe('findServer', () => {
     expect((await findServer('chat.example.com', { fetchImpl: bad })).ws).toBe('wss://chat.example.com/api/socket');
   });
 
+  it('refuses unencrypted servers, except on this computer', async () => {
+    const { findServer } = await load();
+    const config = answering(VOICAW_CONFIG);
+    for (const input of ['http://chat.example.com', 'http://192.168.1.10:3000', 'http://10.0.0.1/voicaw']) {
+      await expect(findServer(input, { fetchImpl: config })).rejects.toMatchObject({ code: 'insecure' });
+    }
+    expect(config).not.toHaveBeenCalled(); // never even asked: nothing was sent
+    expect(await findServer('http://localhost:3005', { fetchImpl: config })).toEqual({
+      api: 'http://localhost:3005/api/', ws: 'ws://localhost:3005/api/socket', host: 'localhost:3005',
+    });
+    expect((await findServer('http://127.0.0.1:3005', { fetchImpl: config })).api).toBe('http://127.0.0.1:3005/api/');
+    expect((await findServer('http://voicaw.localhost', { fetchImpl: config })).api).toBe('http://voicaw.localhost/api/');
+    expect((await findServer('http://[::1]:3005', { fetchImpl: config })).api).toBe('http://[::1]:3005/api/');
+  });
+
+  it("doesn't take an unencrypted websocket from an encrypted server's config", async () => {
+    const { findServer } = await load();
+    const plain = answering({ ...VOICAW_CONFIG, websocketUrl: 'ws://ws.example.com' });
+    expect((await findServer('chat.example.com', { fetchImpl: plain })).ws).toBe('wss://chat.example.com/api/socket');
+  });
+
   it('says why when there is no Voicaw server there', async () => {
     const { findServer } = await load();
     await expect(findServer('ftp://x', { fetchImpl: answering(VOICAW_CONFIG) })).rejects.toMatchObject({ code: 'invalid_address' });
@@ -85,5 +106,11 @@ describe('the chosen server', () => {
   it('ignores a saved choice that is not a server', async () => {
     const { apiBaseUrl } = await load({ api: 'javascript:alert(1)', ws: 'wss://x/' });
     expect(apiBaseUrl()).toBe(BUILT_IN_API);
+  });
+
+  it('ignores a saved unencrypted server that is not this computer (chosen before it was refused)', async () => {
+    expect((await load({ api: 'http://chat.example.com/api/', ws: 'ws://chat.example.com/' })).apiBaseUrl()).toBe(BUILT_IN_API);
+    expect((await load({ api: 'https://chat.example.com/api/', ws: 'ws://chat.example.com/' })).apiBaseUrl()).toBe(BUILT_IN_API);
+    expect((await load({ api: 'http://localhost:3005/api/', ws: 'ws://localhost:3005/' })).apiBaseUrl()).toBe('http://localhost:3005/api/');
   });
 });

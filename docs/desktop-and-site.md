@@ -235,6 +235,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   takes the first free slot of 0-9 (removing a dead socket file left behind), so a Discord
   started first keeps slot 0 and the games; started after Voicaw, it gets slot 1 and Voicaw
   gets them (as arRPC). An activity lasts until it's set to null or the game disconnects.
+  At most 20 connections: one that hasn't sent its HANDSHAKE within 10 s is closed, and when
+  full, the oldest connection showing nothing makes room (one showing an activity never does), so
+  a program holding idle connections can't keep games out (2026-11-20, security audit).
   **Nothing is asked of Discord** (decided 2026-10-09): the application id means nothing
   without Discord's catalogue, so the game's name and picture are found from the process id the
   game sends (`gameLookup.js`): first Steam, from `SteamAppId`/`SteamGameId`/`STEAM_COMPAT_APP_ID`
@@ -395,6 +398,12 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   template's `SpiderBanner::Show`, which shrinks the window into its own box) puts it back, then
   runs the template's own running-app check. Check it after upgrading electron-builder: README
   "Desktop app" (trying the installer under wine).
+- **Electron fuses** (`builder.config.js` `electronFuses`, 2026-11-20, security audit): the
+  packaged app ignores `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and `--inspect`, and loads its
+  code only from `app.asar`, so another program on the computer can't run its own code as
+  Voicaw (on macOS that would come with Voicaw's microphone and screen permissions). The
+  `file://` fuse stays as Electron has it: the splash window is a local file. Nothing in the app
+  forks a Node process. Only the packaged app has them (a development run doesn't).
 - **Updates** (`updater.js`, electron-updater): the installed app looks for a new version at
   start (the splash, above) and every 4 hours on the generic feed in `builder.config.js` (`https://updates.voicaw.com/desktop/`: its own static
   site, `/opt/voicaw-updates`, nginx config in `updates/nginx/`, a download page from

@@ -292,7 +292,9 @@ YouTube links and guild invites keep their own player and card (`UrlPreviews.jsx
   webhook and bot embeds' unless they're the message's own files; their small author and
   footer icons are left out) wait behind Show (`SiteMediaGate.jsx`, "Picture from <site>"),
   and videos are given nothing to load before Play. A guild card's text still shows: it comes
-  from our server, so no other site learns anything.
+  from our server, so no other site learns anything. Pictures from other sites in a document's
+  editor wait the same way (`documents/editorSetup.js` `ImageView`, 2026-11-20), including one
+  a co-editor inserts live; a document only being read already goes through `SiteMediaGate`.
 - **Remove Previews** (message menu, phone action sheet; the author, or Manage Messages):
   `PUT /guild-messages/:id/suppress-embeds` (`{ suppress: false }` undoes it) sets Discord's
   SUPPRESS_EMBEDS flag, which hides the message's embeds, link previews and YouTube/invite

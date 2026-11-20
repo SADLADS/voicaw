@@ -286,6 +286,17 @@ function friendNotification(data) {
 }
 
 // -> { title, options }, or null for a push to drop unshown (only reactions, see above).
+// The page a notification's click opens: one of the app's own (the push's `url`, a path such as
+// /dm/12), never another site. The server, or an "other server" someone chose, could otherwise
+// send a notification that opens any page; anything else opens the app's start.
+export function notificationTarget(url, origin) {
+  try {
+    const target = new URL(url || '/', origin);
+    if (target.origin === new URL(origin).origin) return target.href;
+  } catch { /* not a URL: the start */ }
+  return new URL('/', origin).href;
+}
+
 export async function notificationFromPush(data) {
   let title = data.title || 'Voicaw';
   let body = data.type === 'dm' ? (await dmPreview(data)) || t('app.push.newMessage') : data.body || '';

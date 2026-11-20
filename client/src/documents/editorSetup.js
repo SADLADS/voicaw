@@ -14,6 +14,8 @@ import { t } from '../i18n';
 import { getCachedAttachment, loadDecryptedAttachment } from '../services/attachmentCache';
 import { spellcheckPlugin } from '../spellcheck/spellcheckPlugin';
 import { galleryItemFromUrl, galleryItemRef } from '../utils/imageGallery';
+import { getPrivacyPrefs } from '../utils/privacy';
+import { siteOf } from '../utils/linkPreviews';
 
 // The document editor's behaviour (DocumentEditor draws it): Word-like keyboard shortcuts
 // and toolbar commands, plus markdown typed as you'd type it in a message (`# `, `- `, `**x**`)
@@ -330,20 +332,48 @@ class ListItemView {
   }
 }
 
-// An image: an encrypted upload is shown decrypted; other sites' images without a referrer.
+// Other sites' pictures shown since the app was opened (as SiteMediaGate's), so they stay.
+const shownSitePictures = new Set();
+
+// An image: an encrypted upload is shown decrypted; other sites' images without a referrer, and
+// while Settings → Privacy's "Show link previews" is off, only after Show (as SiteMediaGate in
+// messages), so a picture a co-editor inserts doesn't tell its site who has the document open.
 class ImageView {
   constructor(node) {
-    this.dom = document.createElement('img');
-    this.dom.className = 'doc-editor-image';
-    this.dom.alt = node.attrs.alt;
-    this.dom.draggable = true;
+    const img = document.createElement('img');
+    this.dom = img;
+    img.className = 'doc-editor-image';
+    img.alt = node.attrs.alt;
+    img.draggable = true;
     // Its menu (copy, save...) on right click (PageMenus) or a long press (useImageHold).
-    this.dom.dataset.galleryItem = '';
-    galleryItemRef(galleryItemFromUrl(node.attrs.src, node.attrs.alt || t('documents.editor.imageName')))(this.dom);
+    img.dataset.galleryItem = '';
+    galleryItemRef(galleryItemFromUrl(node.attrs.src, node.attrs.alt || t('documents.editor.imageName')))(img);
     const meta = parseAttachmentUrl(node.attrs.src);
     if (!meta) {
-      this.dom.referrerPolicy = 'no-referrer';
-      this.dom.src = node.attrs.src;
+      const src = node.attrs.src;
+      img.referrerPolicy = 'no-referrer';
+      if (getPrivacyPrefs().linkPreviews || shownSitePictures.has(src)) {
+        img.src = src;
+        return;
+      }
+      const site = siteOf(src);
+      this.dom = document.createElement('span');
+      this.dom.className = 'attachment-gif-hidden doc-editor-image-hidden';
+      const label = document.createElement('span');
+      label.textContent = t('media.links.pictureFrom', { site });
+      this.show = document.createElement('button');
+      this.show.type = 'button';
+      this.show.className = 'btn btn-secondary';
+      this.show.textContent = t('media.attachment.show');
+      this.show.setAttribute('aria-label', t('media.links.showPicture', { site }));
+      this.show.addEventListener('click', () => {
+        shownSitePictures.add(src);
+        img.src = src;
+        this.dom.className = '';
+        this.dom.replaceChildren(img);
+        this.show = null;
+      });
+      this.dom.append(label, this.show);
       return;
     }
     if (meta.width && meta.height) this.dom.style.aspectRatio = `${meta.width} / ${meta.height}`;
@@ -361,8 +391,9 @@ class ImageView {
       .catch(() => this.dom.classList.add('failed'));
   }
 
-  stopEvent() {
-    return false;
+  // Show's own clicks, not the editor's (which would select the picture instead).
+  stopEvent(event) {
+    return Boolean(this.show && this.show.contains(event.target));
   }
 }
 

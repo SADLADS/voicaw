@@ -704,7 +704,12 @@ all have it.
 
 - **The choice** (`utils/server.js`): the address typed ("chat.example.com", a URL, or one with
   a path where the server's `/api/` lives; no scheme means https) is checked by asking its
-  `/api/config` (it must have `signupMode` and `termsVersion`). The websocket is the config's
+  `/api/config` (it must have `signupMode` and `termsVersion`). Only encrypted servers
+  (`https://`, and a `wss:` websocket) are taken, except on this computer (`localhost`,
+  `*.localhost`, `127.x`, `[::1]`, for someone running their own): an `http://` address anywhere
+  else is refused before anything is sent ("That server isn't encrypted…", since 2026-11-20,
+  security audit), and a choice saved before that is dropped for the built-in server. The
+  websocket is the config's
   `websocketUrl` (`PUBLIC_WEBSOCKET_URL`), else `/api/socket` on the API's host (the server
   takes the app's websocket on any path but `/api/gateway`). Saved as `localStorage server`
   `{ api, ws }`, and in `settingsStore` for the service worker; nothing saved means the built-in

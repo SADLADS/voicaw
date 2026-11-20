@@ -2,7 +2,7 @@ import { cleanupOutdatedCaches, matchPrecache, precacheAndRoute } from 'workbox-
 import { version as twemojiVersion } from '@twemoji/svg/package.json';
 import { version as dataVersion } from '@emoji-mart/data/package.json';
 import { CATEGORY_SHEETS, sheetKey, sheetPath } from './emoji/emojiSheets';
-import { notificationFromPush } from './services/pushNotifications';
+import { notificationFromPush, notificationTarget } from './services/pushNotifications';
 import { apiBaseUrlAnywhere } from './utils/server';
 import { savedPushUpdateSecret } from './services/pushSecret';
 import { isMediaRequest, handleMediaFetch, MEDIA_PING } from './services/mediaStreamWorker';
@@ -137,7 +137,7 @@ async function aPagePlaysMessageSound() {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  const targetUrl = notificationTarget(event.notification.data?.url, self.location.origin);
 
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

@@ -6,6 +6,7 @@ import { createEditorState, insertTable, nodeViews, setLink, toggleBold, toggleC
 import { docToMarkdown, markdownToDoc } from './documentMarkdown';
 import { safeHref, schema } from './documentSchema';
 import { DOMParser } from 'prosemirror-model';
+import { setPrivacyPref } from '../utils/privacy';
 
 let view;
 afterEach(() => view?.destroy());
@@ -157,5 +158,32 @@ describe('link addresses', () => {
     selectAll();
     expect(run(setLink('javascript:alert(1)'))).toBe(false);
     expect(view.dom.querySelector('a')).toBeNull();
+  });
+});
+
+describe("other sites' pictures in the editor", () => {
+  afterEach(() => setPrivacyPref('linkPreviews', true));
+
+  it('load at once by default, without a referrer', () => {
+    editor('![a cat](https://pics.example/cat.png)');
+    const img = view.dom.querySelector('img.doc-editor-image');
+    expect(img.getAttribute('src')).toBe('https://pics.example/cat.png');
+    expect(img.referrerPolicy).toBe('no-referrer');
+  });
+
+  it('wait for Show while "Show link previews" is off, so the site learns nothing first', () => {
+    setPrivacyPref('linkPreviews', false);
+    editor('![a dog](https://pics.example/dog.png)');
+    expect(view.dom.querySelector('img.doc-editor-image')).toBeNull(); // (ProseMirror adds its own separator img)
+    const box = view.dom.querySelector('.doc-editor-image-hidden');
+    expect(box.textContent).toContain('pics.example');
+    box.querySelector('button').click();
+    const img = view.dom.querySelector('img.doc-editor-image');
+    expect(img.getAttribute('src')).toBe('https://pics.example/dog.png');
+    expect(docToMarkdown(view.state.doc)).toBe('![a dog](https://pics.example/dog.png)'); // the document unchanged
+
+    // Shown once, it stays shown when drawn again.
+    editor('![a dog](https://pics.example/dog.png)');
+    expect(view.dom.querySelector('img.doc-editor-image')).not.toBeNull();
   });
 });

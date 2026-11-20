@@ -4,6 +4,7 @@ import { t } from '../i18n';
 
 const ERRORS = {
   invalid_address: 'auth.server.invalidAddress',
+  insecure: 'auth.server.insecure',
   unreachable: 'auth.server.unreachable',
 };
 

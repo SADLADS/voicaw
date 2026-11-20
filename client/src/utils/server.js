@@ -19,13 +19,24 @@ const absolute = (url) => {
   }
 };
 
-// A saved choice, if it's still a well-formed one.
+// Whether a URL's host is this computer: the only place a server may be reached unencrypted
+// (http:, ws:), for someone running their own. Anywhere else the password and the login would
+// cross the network in the clear.
+export function isLoopback(url) {
+  const host = url.hostname.toLowerCase();
+  return host === 'localhost' || host.endsWith('.localhost') || host === '[::1]'
+    || /^127(\.\d{1,3}){3}$/.test(host);
+}
+
+const secure = (url, scheme) => url.protocol === `${scheme}s:` || (url.protocol === `${scheme}:` && isLoopback(url));
+
+// A saved choice, if it's still a well-formed one (and encrypted, unless it's this computer).
 function cleanServer(raw) {
   if (!raw || typeof raw !== 'object') return null;
   try {
     const api = new URL(raw.api);
     const ws = new URL(raw.ws);
-    if (!/^https?:$/.test(api.protocol) || !/^wss?:$/.test(ws.protocol)) return null;
+    if (!secure(api, 'http') || !secure(ws, 'ws')) return null;
     return { api: withSlash(api.href), ws: ws.href };
   } catch {
     return null;
@@ -108,10 +119,14 @@ function defaultWebsocketUrl(api) {
 }
 
 // Asks the server at what was typed for its config, to check it's a Voicaw server. Resolves to
-// { api, ws, host }, or throws an Error whose `code` is 'invalid_address' or 'unreachable'.
+// { api, ws, host }, or throws an Error whose `code` is 'invalid_address', 'insecure' (http://
+// anywhere but this computer: never asked) or 'unreachable'.
 export async function findServer(input, { fetchImpl = globalThis.fetch } = {}) {
   const api = apiUrlFromInput(input);
   if (!api) throw Object.assign(new Error('Not a server address'), { code: 'invalid_address' });
+  if (!secure(new URL(api), 'http')) {
+    throw Object.assign(new Error(`${api} isn't encrypted (https)`), { code: 'insecure' });
+  }
   let config;
   try {
     const res = await fetchImpl(new URL('config', api).href, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
@@ -128,7 +143,7 @@ export async function findServer(input, { fetchImpl = globalThis.fetch } = {}) {
   if (typeof config.websocketUrl === 'string') {
     try {
       const named = new URL(config.websocketUrl, api);
-      if (/^wss?:$/.test(named.protocol)) ws = named.href;
+      if (secure(named, 'ws')) ws = named.href;
     } catch { /* keep the default */ }
   }
   return { api, ws, host: serverHost(api) };

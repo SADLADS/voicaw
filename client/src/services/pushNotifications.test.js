@@ -440,3 +440,16 @@ describe('"pinned a message" and "poll ended" notifications', () => {
     expect(forged.options.body).toBe('Alice A. pinned a message');
   });
 });
+
+describe("a notification's click", () => {
+  it("opens only the app's own pages", async () => {
+    const { notificationTarget } = await import('./pushNotifications');
+    const origin = 'https://app.voicaw.com';
+    expect(notificationTarget('/dm/12?thread=3', origin)).toBe('https://app.voicaw.com/dm/12?thread=3');
+    expect(notificationTarget('https://app.voicaw.com/guilds/1', origin)).toBe('https://app.voicaw.com/guilds/1');
+    expect(notificationTarget(undefined, origin)).toBe('https://app.voicaw.com/');
+    for (const url of ['https://evil.example/login', '//evil.example/x', 'javascript:alert(1)', 'http://app.voicaw.com/dm/1']) {
+      expect(notificationTarget(url, origin)).toBe('https://app.voicaw.com/');
+    }
+  });
+});

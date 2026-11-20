@@ -51,6 +51,16 @@ module.exports = {
     // ...and nothing is rebuilt for Electron: it's the only native module, and compiling it
     // would need a compiler and X11 headers (and can't be done for Windows from Linux).
     npmRebuild: false,
+    // Electron's fuses, flipped in the packaged app: no ELECTRON_RUN_AS_NODE, NODE_OPTIONS or
+    // --inspect, so another program on the computer can't run its own code as Voicaw (which on
+    // macOS would mean with Voicaw's microphone and screen grants), and the app's code comes only
+    // from app.asar. The file:// fuse stays: the splash window is a local file (splash.js).
+    electronFuses: {
+        runAsNode: false,
+        enableNodeOptionsEnvironmentVariable: false,
+        enableNodeCliInspectArguments: false,
+        onlyLoadAppFromAsar: true,
+    },
     extraResources: [{ from: '../build', to: 'app' }],
     icon: '../client/public/logo512.png',
     publish: [{ provider: 'generic', url: UPDATE_URL }],

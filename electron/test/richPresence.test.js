@@ -107,6 +107,40 @@ describe('Rich Presence socket (richPresence.js)', () => {
         bad.send(OP.HANDSHAKE, { v: 1, client_id: 'not a number' });
         expect((await bad.next()).op).toBe(OP.CLOSE);
     });
+
+    it("closes a connection that never says who it is, and idle ones make room for a game", async () => {
+        server.stop();
+        server = createRichPresenceServer({ net, fs, platform: 'linux', env: { XDG_RUNTIME_DIR: dir }, onChange: (games) => changes.push(games), handshakeMs: 100 });
+        const file = await server.start();
+        const silent = connectGame(file);
+        await silent.ready;
+        const closed = new Promise((resolve) => silent.socket.once('close', resolve));
+        await closed; // after 100 ms, nothing sent
+
+        // One game showing something, then 19 idle connections that did say who they are: full.
+        const playing = connectGame(file);
+        await playing.ready;
+        playing.send(OP.HANDSHAKE, { v: 1, client_id: '7' });
+        await playing.next();
+        playing.send(OP.FRAME, { cmd: 'SET_ACTIVITY', args: { pid: 7, activity: { state: 'Playing' } }, nonce: 'p' });
+        await playing.next();
+        const idle = [];
+        for (let i = 0; i < 19; i++) {
+            const conn = connectGame(file);
+            await conn.ready;
+            conn.send(OP.HANDSHAKE, { v: 1, client_id: '1' });
+            await conn.next();
+            idle.push(conn);
+        }
+        const firstIdleClosed = new Promise((resolve) => idle[0].socket.once('close', resolve));
+        const game = connectGame(file);
+        await game.ready;
+        game.send(OP.HANDSHAKE, { v: 1, client_id: '383226320970055681' });
+        expect((await game.next()).data).toMatchObject({ evt: 'READY' }); // let in
+        await firstIdleClosed; // the oldest idle one made room
+        expect(playing.socket.destroyed).toBe(false); // the game showing something stays
+        for (const conn of [playing, game, ...idle]) conn.socket.destroy();
+    });
 });
 
 describe('finding games on this computer (gameLookup.js)', () => {

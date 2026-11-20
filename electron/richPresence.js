@@ -15,6 +15,8 @@ const OP = { HANDSHAKE: 0, FRAME: 1, CLOSE: 2, PING: 3, PONG: 4 };
 const SLOTS = 10;
 const MAX_FRAME = 64 * 1024;
 const MAX_CONNECTIONS = 20;
+// A game says who it is as soon as it connects: one that hasn't within this is closed.
+const HANDSHAKE_MS = 10000;
 
 // What READY says about "the Discord user". Games rarely show it; it's never the real account.
 const READY_DATA = {
@@ -63,7 +65,8 @@ function decode(buffer) {
 // an activity, the one that started showing it last first: [{ id, clientId, pid, activity,
 // since }] (activity as the game sent it; since: when it went from none to one, in ms). A game
 // updating its activity (a music player's next song) doesn't move it to the front.
-function createRichPresenceServer({ net, fs, platform = process.platform, env = process.env, onChange }) {
+// `handshakeMs` is for tests.
+function createRichPresenceServer({ net, fs, platform = process.platform, env = process.env, onChange, handshakeMs = HANDSHAKE_MS }) {
     let server = null;
     let listening = null; // the socket path
     const connections = new Map(); // id -> { socket, clientId, pid, activity, since }
@@ -101,11 +104,20 @@ function createRichPresenceServer({ net, fs, platform = process.platform, env = 
     }
 
     function handleConnection(socket) {
-        if (connections.size >= MAX_CONNECTIONS) return socket.destroy();
+        // Full: the oldest connection showing nothing makes room, so idle ones (a program
+        // holding them open) can't keep a game out; one showing an activity is never dropped.
+        if (connections.size >= MAX_CONNECTIONS) {
+            const idle = [...connections.entries()].find(([, c]) => !c.activity);
+            if (!idle) return socket.destroy();
+            connections.delete(idle[0]);
+            idle[1].socket.destroy();
+        }
         const id = String(nextId++);
         const conn = { socket, clientId: null, pid: null, activity: null, since: 0 };
         let buffered = Buffer.alloc(0);
         connections.set(id, conn);
+        const handshakeTimer = setTimeout(() => { if (!conn.clientId) socket.destroy(); }, handshakeMs);
+        handshakeTimer.unref?.();
 
         socket.on('data', (chunk) => {
             const result = decode(Buffer.concat([buffered, chunk]));
@@ -132,6 +144,7 @@ function createRichPresenceServer({ net, fs, platform = process.platform, env = 
         });
         socket.on('error', () => {});
         socket.on('close', () => {
+            clearTimeout(handshakeTimer);
             connections.delete(id);
             if (conn.activity) changed();
         });

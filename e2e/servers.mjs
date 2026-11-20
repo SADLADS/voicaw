@@ -88,6 +88,13 @@ try {
   await page.click('button:has-text("Connect")');
   await page.waitForSelector('.login-server-form .login-error');
   check((await page.textContent('.login-server-form .login-error')).includes("isn't a server address"), 'a non-web address is refused');
+  // Unencrypted, and not this computer: refused before anything is sent to it.
+  await page.fill('input[name="server"]', 'http://chat.example.com');
+  const before = requests.length;
+  await page.click('button:has-text("Connect")');
+  await page.waitForFunction(() => document.querySelector('.login-server-form .login-error')?.textContent.includes("isn't encrypted"));
+  check(!requests.slice(before).some((url) => url.includes('chat.example.com')), 'an http:// server elsewhere is refused, never asked');
+  await shot(page, 'servers-insecure');
   // The object store answers, but it isn't a Voicaw server.
   await page.fill('input[name="server"]', `http://localhost:${api2Port + 1}`);
   await page.click('button:has-text("Connect")');
