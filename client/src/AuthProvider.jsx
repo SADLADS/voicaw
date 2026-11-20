@@ -3,7 +3,8 @@ import api from './utils/api';
 import { AuthContext } from './hooks/useAuth';
 import { setOfflineMode, setReachable } from './utils/offlineMode';
 import { forgetLogin } from './services/logout';
-import { loginRejected, savedToken } from './utils/loginToken';
+import { loginRejected, savedLogin } from './utils/loginToken';
+import { moveLoginToCookie } from './services/loginCookie';
 
 // How long to wait before asking again when the server can't be reached.
 const RETRY_MS = 3000;
@@ -29,11 +30,14 @@ export function AuthProvider({ children }) {
     let retryTimer;
 
     async function fetchProfile() {
-      if (!savedToken()) {
+      if (!savedLogin()) {
         setLoading(false);
         return;
       }
       try {
+        // A token saved before logins moved into the cookie goes there first (the same session).
+        await moveLoginToCookie();
+        if (cancelled) return;
         // Without the server, the offline copy's (services/offlineCopy.js): the app opens in
         // offline mode, showing what this device saved, read-only.
         const res = await api.get('/profile', { timeout: PROFILE_TIMEOUT_MS, offlineCopy: 'fallback' });
@@ -47,7 +51,6 @@ export function AuthProvider({ children }) {
           setUser({
             id: res.data.id,
             username: res.data.username,
-            token: res.data.token,
             hasRecoveryCode: res.data.hasRecoveryCode,
             // Waiting for an admin's approval: the app shows only that (PendingApproval).
             pending: Boolean(res.data.pending),

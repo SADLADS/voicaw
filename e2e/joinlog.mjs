@@ -19,7 +19,7 @@ const check = (ok, what) => {
 const call = (page, method, path, body) => page.evaluate(async ({ method, path, body }) => {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, body: await res.json().catch(() => null) };

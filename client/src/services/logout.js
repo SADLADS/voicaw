@@ -1,5 +1,5 @@
 import api from '../utils/api';
-import { forgetToken, savedToken } from '../utils/loginToken';
+import { forgetSavedLogin, sameSaved, savedLogin } from '../utils/loginToken';
 import { SUSPENDED_NOTICE, closeWebSocket } from '../utils/ws-client';
 import { leaveVoice } from '../voice/voiceClient';
 import { hangUp } from '../voice/callClient';
@@ -29,13 +29,13 @@ function waitAtMost(promise, ms) {
 }
 
 // The server's part of logging out, each step allowed to fail. Whatever hasn't finished after
-// LOGOUT_SERVER_MS carries on in the background with the token it started with (every request
-// names it: by then someone may have logged in again, and the saved token is theirs).
-async function endOnServer(token) {
+// LOGOUT_SERVER_MS carries on in the background with the login it started with (every request
+// names it: by then someone may have logged in again, and the saved login is theirs).
+async function endOnServer(login) {
   // Before the token goes: the server must forget this device, or it would keep
   // receiving this account's notifications after logout.
   try {
-    await disableNotificationsOnThisDevice({ timeout: LOGOUT_SERVER_MS, token });
+    await disableNotificationsOnThisDevice({ timeout: LOGOUT_SERVER_MS, login });
   } catch (err) {
     console.error('Failed to turn off notifications on logout', err);
   }
@@ -47,7 +47,7 @@ async function endOnServer(token) {
   }
   // The token stops working on the server too (it may already have: logged out elsewhere).
   try {
-    await api.post('/logout', null, { headers: { Authorization: `Bearer ${token}` } });
+    await api.post('/logout', null, { login });
   } catch (err) {
     if (!err.response) console.error('Failed to end the session on logout', err);
   }
@@ -74,10 +74,12 @@ function forgetAccountStorage() {
 // Everything this device keeps for the logged-in account, forgotten without asking the server:
 // the login, keys, group keys, the search and offline copies, drafts and the account's own
 // localStorage entries (this device's settings stay: theme, language, sound and voice
-// settings...). Also what the "can't reach Voicaw" screen's Log out does: a saved login lives
-// in localStorage, so clearing cookies doesn't remove it.
+// settings...). Also what the "can't reach Voicaw" screen's Log out does. A login cookie
+// (utils/loginToken.js) can't be removed by the page and stays until the server answers again
+// or it expires, but it no longer logs anyone in: it only counts beside the session's name,
+// which goes here (the next login replaces the cookie).
 export async function forgetLogin() {
-  forgetToken();
+  forgetSavedLogin();
   // The Android app drops pushes from now on: a logout that couldn't reach the server leaves
   // the phone's token registered to this account (utils/android.js setAndroidLoggedOut).
   const clears = [clearUserKeys, forgetGroups, clearSearchIndex, clearOfflineCopy, forgetPushUpdateSecret, () => setAndroidLoggedOut(true)];
@@ -99,10 +101,10 @@ let loggingOut = null;
 // touch it.
 export function logOut() {
   loggingOut ??= (async () => {
-    const token = savedToken();
-    if (token) await waitAtMost(endOnServer(token), LOGOUT_SERVER_MS);
-    const now = savedToken();
-    if (now && now !== token) return;
+    const login = savedLogin();
+    if (login) await waitAtMost(endOnServer(login), LOGOUT_SERVER_MS);
+    const now = savedLogin();
+    if (now && !sameSaved(now, login)) return;
     await forgetLogin();
   })().finally(() => { loggingOut = null; });
   return loggingOut;

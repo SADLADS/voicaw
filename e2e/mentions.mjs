@@ -11,7 +11,7 @@ const shot = (page, name) => (dir ? page.screenshot({ path: `${dir}/${name}.png`
 const api = (page, method, path, body) => page.evaluate(async ([m, p, b]) => {
   const res = await fetch(`/api${p}`, {
     method: m,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: b ? JSON.stringify(b) : undefined,
   });
   if (!res.ok) throw new Error(`${m} ${p}: ${res.status}`);
@@ -155,7 +155,7 @@ try {
   await c.check('input[value="all"]');
   await shot(c, 'notifications');
   await c.waitForFunction(async (id) => {
-    const res = await fetch(`/api/guilds/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch(`/api/guilds/${id}`, { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).my_notify_level === 'all';
   }, guildId, { timeout: 10000 });
   check(true, 'choosing "All messages" is saved');

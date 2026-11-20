@@ -30,7 +30,7 @@ for (const mode of modes) {
   await page.keyboard.press('Enter');
   const t0 = Date.now();
   const reachedLogin = await page.waitForSelector('input[placeholder="Username"]', { timeout: 15000 }).then(() => true, () => false);
-  const tokenLeft = await page.evaluate(() => Boolean(localStorage.getItem('token')));
+  const tokenLeft = await page.evaluate(() => Boolean((localStorage.getItem('token') || localStorage.getItem('login'))));
   console.log(`[${mode}] login form while down: ${reachedLogin} after ${Date.now() - t0} ms; token left: ${tokenLeft}`);
   if (!reachedLogin || tokenLeft) failed = true;
   if (shots) await page.screenshot({ path: `${shots}/${mode}-down.png` });
@@ -71,7 +71,7 @@ for (const mode of modes) {
     await page.keyboard.press('Enter');
     const outOffline = await page.waitForSelector('input[placeholder="Username"]', { timeout: 15000 }).then(() => true, () => false);
     const after = await page.evaluate(async () => ({
-      token: localStorage.getItem('token'),
+      token: (localStorage.getItem('token') || localStorage.getItem('login')),
       copy: (await indexedDB.databases()).some((d) => d.name === 'voicaw-offline'),
     }));
     console.log(`[${mode}] log out in offline mode: login form ${outOffline}, ${JSON.stringify(after)}`);
@@ -92,7 +92,7 @@ for (const mode of modes) {
     if (shots) await page.screenshot({ path: `${shots}/unreachable.png` });
     await page.click('.auth-unreachable button');
     const out = await page.waitForSelector('input[placeholder="Username"]', { timeout: 10000 }).then(() => true, () => false);
-    const left = await page.evaluate(() => Boolean(localStorage.getItem('token')));
+    const left = await page.evaluate(() => Boolean((localStorage.getItem('token') || localStorage.getItem('login'))));
     console.log(`[${mode}] unreachable screen's log out: login form ${out}, token left ${left}`);
     if (!out || left) failed = true;
   }

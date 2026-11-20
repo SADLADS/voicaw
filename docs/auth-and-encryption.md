@@ -53,14 +53,63 @@ proxy to the public API, so everyone using one shares its address there. The web
 broadcast only goes to identified sockets.
 
 On successful login/register/recovery, the server starts a login session and issues a JWT for
-it (`startSession`, see `server/auth.js`), which the client stores in `localStorage` and sends
-as `Authorization: Bearer <token>` (see `client/src/utils/api.js`). `authenticateJWT`
-middleware protects all `/api/*` routes except config/login/register.
+it (`startSession`, see `server/auth.js`). On the built-in server the app keeps it in an
+HttpOnly cookie the page can't read (The login cookie, below); logged in to another server, and
+in older apps, the client stores it in `localStorage` and sends it as `Authorization: Bearer
+<token>` (see `client/src/utils/api.js`). `authenticateJWT` middleware protects all `/api/*`
+routes except config/login/register.
 - **Sessions last while the app is used:** a token is good for 30 days (`SESSION_SECONDS`), and
-  any authenticated request with one older than a day (`RENEW_AFTER_SECONDS`) gets a new one in
-  the `X-Voicaw-Token` response header (exposed by CORS). `api.js` stores it, only if it renews
-  the token that request was sent with (not after a logout or another login). So only a device
-  unused for 30 days has to log in again.
+  any authenticated request with one older than a day (`RENEW_AFTER_SECONDS`) gets a new one: a
+  renewed cookie, or for Bearer requests the `X-Voicaw-Token` response header (exposed by CORS),
+  which `api.js` stores only if it renews the token that request was sent with (not after a
+  logout or another login). So only a device unused for 30 days has to log in again.
+
+## The login cookie
+
+Since 2026-11-20 (security audit follow-up): before, a script injected into the page (an XSS)
+could read the token from localStorage and use the account from elsewhere until it was logged
+out. Now the page never holds it.
+- **Server** (`auth.js`): a login sent with `X-Voicaw-Login: cookie` (`sessionReply`) answers
+  with `voicaw_session` (HttpOnly, Secure, `SameSite=None` (the Android app's page,
+  https://localhost, is cross-site to the API), `Path=/api`, 30 days, renewed like the token)
+  and `login: { id, username, sid, iat }` instead of `token`. A request counts the cookie only
+  when it also names its session in `X-Voicaw-Session: <sid>`: another site's form or link can't
+  send headers, and a script on another origin can't without passing CORS, so the cookie alone
+  never acts as anyone (CSRF). The header must match the session: otherwise 409
+  `login_changed` (another tab logged out and in again, or logout's late requests), which the
+  page takes as "reload onto the new login" (`loginReplaced`, `announceLoginReplaced`), never as
+  a logout. The header without a cookie is 401 `no_session`; an invalid cookie is cleared with the
+  403. `POST /logout` clears it. A request naming its session never gets a token back (`/profile`
+  leaves it out). Bearer tokens still work everywhere (bots' owners' scripts, other servers,
+  older apps), and a Bearer request naming its session (the desktop app) is checked and renewed
+  the same way.
+- **The websocket** is on another host than the API (`wss://api.voicaw.com`, the API at
+  `app.voicaw.com/api`), so the cookie never reaches it: the page asks `POST /socket-ticket` for a
+  random one-time ticket (a minute, in the API's memory) and identifies with `{ ticket }`. An
+  unknown or expired ticket closes the socket with 4001 (not 1008, which the app takes as logged
+  out): the page asks for another. The ticket request refused for the login is the logout.
+- **The page** (`utils/loginToken.js`): `savedLogin()` is `{ id, username, sid, iat }` (cookie
+  mode, localStorage `login`) or the same with `token` (another server: `cookieMode()` is
+  `isBuiltInServer()`; browsers block cross-site cookies there). `loginHeaders`, `sameLogin`
+  (same session) and `sameSaved` (exactly the saved one) replace comparing tokens; every axios
+  request keeps the login it was sent as (`config.login`), which logout's requests set
+  themselves. Logged out, requests ask for the cookie (`X-Voicaw-Login`) with credentials.
+- **Moving over:** a device logged in before keeps its token until its next start, when
+  `services/loginCookie.js` sends it to `POST /session-cookie` (the same session, set as the
+  cookie) and forgets it. Out of reach, it tries again next time.
+- **The desktop app** (`electron/apiLogin.js`, the user's choice): our voicaw:// pages are
+  cross-site to the API, so the main process keeps the token (in `login.json`, below) rather than
+  Chromium: it takes `voicaw_session` out of the API's answers (a login always; a renewal or a
+  clearing only for the session saved now, not a late answer to an older one's request), strips
+  it, and adds `Authorization: Bearer` to requests that name their session. The page gets only
+  `{ known, login }` from `voicawDesktop.login.get()`. Only for the built-in API, whose address
+  the build writes into `voicaw-api.json` (`client/vite.config.js`), never one the page names.
+  One `onBeforeSendHeaders` listener per session, shared with YouTube's Referer (`youtube.js`).
+- **Android** (the user's choice): the page uses the same cookie as browsers; `MainActivity`
+  lets the WebView take cross-site cookies (`setAcceptThirdPartyCookies`) and flushes them on pause.
+- **Other servers** keep Bearer tokens in localStorage (the user's choice), with the known
+  limit below for that case only.
+- Still possible for an XSS: acting through the open page (it can't take the login away).
 
 ## Login sessions and Settings → Devices
 
@@ -94,10 +143,10 @@ the session exists, and only shown to the account itself.
   tokens already lasted 30 days before sessions (2026-10-02), so none could still be valid.
   `users.sessions_reset_at`, which once refused them, is no longer read or written. Ending
   sessions from Settings still deletes the push subscriptions saved with no session.
-- **The saved login** (`localStorage` `token`) is read and written only through
-  `utils/loginToken.js` (`savedToken`, `saveToken`, `forgetToken`), which keeps the newest
-  token this page saved in memory and never lets the saved one go back to an *older* token of
-  the same account (it writes the newer one back, with a console warning). A Windows desktop
+- **The saved login** (`localStorage` `login`, or `token` for another server) is read and
+  written only through `utils/loginToken.js` (`savedLogin`, `saveLogin`, `forgetSavedLogin`),
+  which keeps the newest login this page saved in memory and never lets the saved one go back
+  to an *older* one of the same account (it writes the newer one back, with a console warning). A Windows desktop
   app's storage did that on its own (2026-11-16): after every login it went back to a month-old,
   expired token, so the chats said "Invalid token" and the app logged out, while the server
   never refused the new login. Another account's token, a newer one (another tab logging in) or
@@ -105,16 +154,16 @@ the session exists, and only shown to the account itself.
   enough there (2026-11-19): every reload (App reloads onto a replaced login, updates) and
   restart opened on the old token again. So **the desktop app keeps the login in its own
   file** (`electron/loginStore.js`, `login.json` in its data folder, written by Node: `{ v: 1,
-  token }`, null for logged out), read and written synchronously through the bridge
-  (`voicawDesktop.login`); once it holds one, it wins over localStorage, which is still
-  written beside it (older app versions read it). No file yet (the first start after updating)
-  falls back to localStorage. Checked in the real app under Xvfb by `e2e/desktoplogin.mjs`.
-  **Known limit** (security audit, 2026-11-19): a script injected into the page (an XSS) could
-  read the token and use the account from elsewhere until it's logged out (Settings → Devices,
-  or a password change, which logs out every other device). Private keys can't be copied
-  (non-extractable CryptoKeys) and password, recovery-code, two-factor and deletion changes need
-  the password. Moving the token to an HttpOnly cookie is planned as a follow-up (CSRF, the
-  desktop and Android apps and other servers make it a bigger change).
+  token }`, null for logged out), since 2026-11-20 filled by the main process from the API's
+  answers (The login cookie, above); the page only reads what it says through the bridge
+  (`voicawDesktop.login`) and wins over localStorage once the file holds one. A token an older
+  version kept in localStorage is handed to it (`set(token)`) and forgotten there. Checked in
+  the real app under Xvfb by `e2e/desktoplogin.mjs`.
+  **Known limit, other servers only** (security audit, 2026-11-19): logged in to another server,
+  a script injected into the page (an XSS) could read the token and use the account from
+  elsewhere until it's logged out (Settings → Devices, or a password change, which logs out
+  every other device). Private keys can't be copied (non-extractable CryptoKeys) and password,
+  recovery-code, two-factor and deletion changes need the password.
 - **The log** (pm2's, 2026-11-14): every session started (`Session started: user 1, session
   5LXenR, Voicaw/1.0.44`), ended (`Sessions ended (logout|from Settings): …`) and every token
   refused, with why (`Token refused: expired | not valid (invalid signature) | session ended |
@@ -128,16 +177,17 @@ the session exists, and only shown to the account itself.
   answers) or a server error (no network yet after boot, an API restart) it keeps the token and
   asks again every 3 s, while `App` shows "Can't reach Voicaw. Trying again…" with "Log out on
   this device" (unless the offline copy has the account's profile: then the app opens in
-  offline mode, see Offline copy in `docs/messages.md`), which forgets the login here without the server (`forgetLogin`; the login is
-  in `localStorage`, so clearing cookies doesn't). The session itself then stays on the server
-  (Settings → Devices on another device ends it, or it expires).
+  offline mode, see Offline copy in `docs/messages.md`), which forgets the login here without the server (`forgetLogin`). The session itself then
+  stays on the server (Settings → Devices on another device ends it, or it expires), and so does
+  a login cookie the page can't remove, which no longer counts: nothing names its session.
 - **Logging out** (`services/logout.js`, 2026-10-13) gives the server 5 s
   (`LOGOUT_SERVER_MS`) to turn off this device's notifications, hang up and end the session,
   then forgets the token, keys, group keys, the search and offline copies, drafts, sessionStorage
   and the account's own localStorage entries (`ACCOUNT_KEYS`: last channel per guild, collapsed
   categories and tasks; this device's settings stay) whether it answered or not (unanswered
-  requests go on with the old token; every one of them names it, and `utils/api.js` keeps a
-  token a request names, since by then the saved one may be a new login's). Contact pins
+  requests go on with the old login; every one of them names it (`config.login`), and
+  `utils/api.js` keeps the login a request names, since by then the saved one may be a new
+  login's: with the cookie, the server answers such a late request 409). Contact pins
   (`voicaw-contacts`) stay: they're what warns of a changed key when the same account logs in
   here again. Only one logout runs at a time (ending the session tells this device's own socket
   `session_revoked`, which logs out too), and one finishing after a new login leaves it alone:

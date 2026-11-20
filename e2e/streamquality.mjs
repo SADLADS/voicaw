@@ -69,7 +69,7 @@ async function setLimit(page, key, value) {
   await page.evaluate(async ({ key, value }) => {
     const res = await fetch(`/api/admin/settings/${key}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
       body: JSON.stringify({ value }),
     });
     if (!res.ok) throw new Error(`${key}: ${res.status}`);

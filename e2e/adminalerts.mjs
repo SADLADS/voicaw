@@ -14,7 +14,7 @@ const shot = (page, name) => dir && page.screenshot({ path: `${dir}/${name}.png`
 const call = (page, method, path, body) => page.evaluate(async ({ method, path, body }) => {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, body: await res.json().catch(() => null) };

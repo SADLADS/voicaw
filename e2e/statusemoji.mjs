@@ -6,7 +6,7 @@
 // phone (menu and picker fit).
 //   node e2e/serve.mjs &   then   node e2e/statusemoji.mjs [dir]
 import { mkdirSync } from 'node:fs';
-import { launchChrome, signUp, makeFriends, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, copyLogin, makeFriends, devices, BASE } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -153,7 +153,7 @@ try {
   const guild = await a.evaluate(async () => {
     const res = await fetch('/api/guilds', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
       body: JSON.stringify({ name: 'Statuses' }),
     });
     return res.json();
@@ -172,7 +172,7 @@ try {
   const phone = await browser.newContext({ ...devices['Pixel 7'] });
   const p = await phone.newPage();
   await p.goto(BASE);
-  await p.evaluate((token) => localStorage.setItem('token', token), await a.evaluate(() => localStorage.getItem('token')));
+  await copyLogin(a, p);
   await p.goto(`${BASE}/dm`);
   // The Friends page is in front: back to the list, where the user panel is.
   await p.tap('.pane-back-button');

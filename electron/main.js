@@ -26,7 +26,8 @@ const { setStartAtLogin, startedHidden } = require('./autoStart');
 const { createScreenShare } = require('./screenShare');
 const { createStreamSound } = require('./streamSound');
 const { windowOpenAction, popoutNavigationAllowed, streamWindowPermission } = require('./windowOpen');
-const { setUpYouTubeReferer } = require('./youtube');
+const { EMBED_URLS, withYouTubeReferer } = require('./youtube');
+const { createApiLogin, apiFromConfig } = require('./apiLogin');
 const { fetchPage } = require('./pageFetch');
 const { createFileSaver } = require('./fileSave');
 const { createDownloads } = require('./downloads');
@@ -61,6 +62,8 @@ const streamWindows = new WeakSet();
 let quitting = false;
 let settings;
 let login;
+// The login's go-between for the API's requests (apiLogin.js).
+let apiLogin;
 let tray;
 let notifier;
 let updater;
@@ -240,7 +243,14 @@ function setUpPermissions() {
         });
     });
     ses.setDisplayMediaRequestHandler((request, callback) => screenShare.handleRequest(request, callback));
-    setUpYouTubeReferer(ses);
+    // One listener each per session: the API's login (apiLogin.js) and YouTube's Referer.
+    ses.webRequest.onBeforeSendHeaders({ urls: [...EMBED_URLS, ...apiLogin.urls] }, (details, callback) =>
+        callback({ requestHeaders: apiLogin.matches(details.url) ? apiLogin.requestHeaders(details) : withYouTubeReferer(details.requestHeaders) }));
+    if (apiLogin.urls.length) {
+        ses.webRequest.onHeadersReceived({ urls: apiLogin.urls }, (details, callback) =>
+            callback({ responseHeaders: apiLogin.responseHeaders(details) }));
+        ses.webRequest.onErrorOccurred({ urls: apiLogin.urls }, (details) => apiLogin.forget(details.id));
+    }
     ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) =>
         (webContents && streamWindows.has(webContents)
             ? streamWindowPermission(permission)
@@ -452,7 +462,8 @@ function setUpIpc() {
         } else if (action === 'close') win.close();
     });
     // The saved login (loginStore.js), synchronous: the page reads it before every request.
-    ipcMain.on('desktop:login-get', (event) => { event.returnValue = fromApp(event) ? login.get() : null; });
+    // Only what the login says, never the token (apiLogin.js).
+    ipcMain.on('desktop:login-get', (event) => { event.returnValue = fromApp(event) ? apiLogin.pageLogin() : null; });
     ipcMain.on('desktop:login-set', (event, token) => { event.returnValue = fromApp(event) ? login.set(token) : false; });
     ipcMain.handle('desktop:info', (event) => (fromApp(event) ? { version: app.getVersion(), packaged: app.isPackaged } : null));
     ipcMain.handle('desktop:settings', (event) => (fromApp(event) ? settings.get() : null));
@@ -540,6 +551,13 @@ function setUpIpc() {
 function start() {
     settings = createSettingsStore(app.getPath('userData'));
     login = createLoginStore(app.getPath('userData'));
+    let apiConfig = null;
+    try {
+        apiConfig = fs.readFileSync(path.join(BUILD_DIR, 'voicaw-api.json'), 'utf8');
+    } catch {
+        console.warn('No voicaw-api.json in the build: the login stays with Chromium');
+    }
+    apiLogin = createApiLogin({ api: apiFromConfig(apiConfig), store: login });
     handleScheme(protocol, net, path.resolve(BUILD_DIR));
     streamSound = createStreamSound({
         platform: process.platform,

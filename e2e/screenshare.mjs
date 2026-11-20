@@ -167,7 +167,7 @@ try {
   await a.evaluate(async ({ guildId, channelId, bobId }) => {
     const res = await fetch(`/api/guilds/${guildId}/channels/${channelId}/overrides/member/${bobId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
       body: JSON.stringify({ allow: 0, deny: 1 << 19 }), // Video
     });
     if (!res.ok) throw new Error(`override: ${res.status}`);

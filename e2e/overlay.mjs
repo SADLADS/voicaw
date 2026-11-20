@@ -87,7 +87,7 @@ try {
 
   // Alice's guild with a voice channel, Bob invited.
   const { guildId, channelId } = await a.evaluate(async () => {
-    const headers = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const headers = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     const guild = await (await fetch('/api/guilds', { method: 'POST', headers, body: JSON.stringify({ name: 'Gamers' }) })).json();
     const channel = await (await fetch(`/api/guilds/${guild.id}/channels`, { method: 'POST', headers, body: JSON.stringify({ name: 'lounge', type: 'voice' }) })).json();
     const invite = await (await fetch(`/api/guilds/${guild.id}/invites`, { method: 'POST', headers })).json();
@@ -96,7 +96,7 @@ try {
   });
   const code = await a.evaluate(() => window.__invite);
   await bobWeb.page.evaluate(async (c) => {
-    await fetch(`/api/invites/${c}`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    await fetch(`/api/invites/${c}`, { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   }, code);
   await bobWeb.page.context().close();
 

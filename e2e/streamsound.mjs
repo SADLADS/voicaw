@@ -148,14 +148,14 @@ try {
   await a.context().addInitScript(tapOutput);
 
   const { guildId, channelId, code } = await a.evaluate(async () => {
-    const headers = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const headers = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     const guild = await (await fetch('/api/guilds', { method: 'POST', headers, body: JSON.stringify({ name: 'Streams' }) })).json();
     const channel = await (await fetch(`/api/guilds/${guild.id}/channels`, { method: 'POST', headers, body: JSON.stringify({ name: 'lounge', type: 'voice' }) })).json();
     const invite = await (await fetch(`/api/guilds/${guild.id}/invites`, { method: 'POST', headers })).json();
     return { guildId: guild.id, channelId: channel.id, code: invite.code };
   });
   await bobWeb.page.evaluate(async (c) => {
-    await fetch(`/api/invites/${c}`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    await fetch(`/api/invites/${c}`, { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   }, code);
   await bobWeb.page.context().close();
 

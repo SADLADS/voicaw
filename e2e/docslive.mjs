@@ -7,7 +7,7 @@
 // his text arrives. Alice turns "Others can edit" off: Bob's editor stops. Then a phone editor
 // fits the screen.
 //   node e2e/serve.mjs &   then   node e2e/docslive.mjs [screenshot dir]
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, copyLogin, devices, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -190,7 +190,7 @@ try {
   const p = await phone.newPage();
   p.on('pageerror', (e) => console.log('[phone] page error:', e.message));
   await p.goto(`${BASE}/`);
-  await p.evaluate((token) => localStorage.setItem('token', token), await a.evaluate(() => localStorage.getItem('token')));
+  await copyLogin(a, p);
   await p.goto(`${BASE}${docPath.pathname}${docPath.search}&edit=1`);
   await saved(p);
   await noOverflow(p, 'phone editor');

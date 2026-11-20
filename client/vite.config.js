@@ -144,6 +144,19 @@ function contentSecurityPolicy() {
   };
 }
 
+// The desktop app's build carries the built-in server's API address in voicaw-api.json, read by
+// its main process (electron/apiLogin.js), which keeps the login and adds it only to requests
+// for that address: taken from the build, never from the page.
+function desktopApiAddress(api) {
+  return {
+    name: 'voicaw-desktop-api',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'voicaw-api.json', source: JSON.stringify({ api }) });
+    },
+  };
+}
+
 const DICTIONARY_ALIASES = {
   '@dictionaries/en-GB': path.dirname(requireHere.resolve('dictionary-en-gb')),
   '@dictionaries/en-US': path.dirname(requireHere.resolve('dictionary-en')),
@@ -182,6 +195,7 @@ export default defineConfig(({ mode }) => {
       react(),
       twemojiAssets(),
       contentSecurityPolicy(),
+      ...(isElectron ? [desktopApiAddress(env.VITE_API_BASE_URL)] : []),
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'src',

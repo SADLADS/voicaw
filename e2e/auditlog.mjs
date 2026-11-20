@@ -14,7 +14,7 @@ const shot = async (page, name) => {
 const call = (page, method, url, body) => page.evaluate(async ([m, u, b]) => {
   const res = await fetch(`/api${u}`, {
     method: m,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: b === undefined ? undefined : JSON.stringify(b),
   });
   return res.status === 204 ? null : res.json();

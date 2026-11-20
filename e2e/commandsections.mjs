@@ -3,7 +3,7 @@
 // arrow keys go down the list as drawn and keep the highlighted one in view (Up from the top
 // wraps to the last); typing narrows it to the matching bots' sections; then a phone.
 //   node e2e/serve.mjs &   then   node e2e/commandsections.mjs [screenshot dir]
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, copyLogin, devices, BASE } from './helpers.mjs';
 
 const API = `http://localhost:${process.env.E2E_API_PORT || 3099}`;
 const shots = process.argv[2];
@@ -17,7 +17,7 @@ const browser = await launchChrome();
 const owner = await signUp(browser, 'cmdsections');
 const page = owner.page;
 const call = (method, path, body) => page.evaluate(async ([m, p, b]) => {
-  const res = await fetch(`/api${p}`, { method: m, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }, body: b ? JSON.stringify(b) : undefined });
+  const res = await fetch(`/api${p}`, { method: m, headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid }, body: b ? JSON.stringify(b) : undefined });
   return res.json();
 }, [method, path, body]);
 
@@ -108,7 +108,7 @@ await check(page, 'desktop');
 const phone = await browser.newContext(devices['Pixel 7']);
 const p2 = await phone.newPage();
 await p2.goto(`${BASE}/`);
-await p2.evaluate((token) => localStorage.setItem('token', token), await page.evaluate(() => localStorage.getItem('token')));
+await copyLogin(page, p2);
 await p2.goto(`${BASE}/guild/${guild.id}/${general.id}`);
 await p2.waitForSelector('#dm-input', { timeout: 20000 });
 await check(p2, 'phone');

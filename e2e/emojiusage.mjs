@@ -47,7 +47,7 @@ async function logIn(browser, username, password) {
 }
 
 const savedUsage = (page) => page.evaluate(async () => {
-  const res = await fetch('/api/emoji-usage', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+  const res = await fetch('/api/emoji-usage', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   return res.json();
 });
 
@@ -67,7 +67,7 @@ try {
   await alice.page.click('[aria-label="Skin tone 3"]');
   await closePicker(alice.page);
   await alice.page.waitForFunction(async () => {
-    const res = await fetch('/api/emoji-usage', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/emoji-usage', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).version > 0;
   }, null, { timeout: 10000, polling: 500 });
   await alice.page.waitForTimeout(2500); // the tone's save, after the burst's

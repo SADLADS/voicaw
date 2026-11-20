@@ -3,7 +3,7 @@
 // write a description and comment; Bob sees it all live (and "Assigned to me"). Then @everyone
 // loses Edit Tasks: Bob can still read and comment but not change anything. Then a phone.
 //   node e2e/serve.mjs &   then   node e2e/lists.mjs [screenshot dir]
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, copyLogin, devices, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -166,7 +166,7 @@ try {
   const phone = await browser.newContext({ ...devices['Pixel 7'] });
   const p = await phone.newPage();
   await p.goto(`${BASE}/`);
-  await p.evaluate((token) => localStorage.setItem('token', token), await a.evaluate(() => localStorage.getItem('token')));
+  await copyLogin(a, p);
   const url = new URL(a.url());
   await p.goto(`${BASE}${url.pathname}`);
   await p.waitForSelector('.task-board');

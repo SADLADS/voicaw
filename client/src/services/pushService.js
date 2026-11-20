@@ -154,11 +154,11 @@ export async function enableNotifications(vapidPublicKey) {
 // `remember` keeps it off on future app starts (the user's choice); logout doesn't set it,
 // so the next person to log in here gets notifications if the permission is granted.
 // `timeout` (ms) gives up on the server (logout goes on without it); the browser's
-// subscription is dropped either way. `token` sends the requests as that login (logout's).
-export async function disableNotificationsOnThisDevice({ remember = false, timeout, token } = {}) {
+// subscription is dropped either way. `login` sends the requests as that login (logout's).
+export async function disableNotificationsOnThisDevice({ remember = false, timeout, login } = {}) {
   const config = {
     ...(timeout ? { timeout } : {}),
-    ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+    ...(login ? { login } : {}),
   };
   const options = Object.keys(config).length ? [config] : [];
   if (remember) localStorage.setItem(DISABLED_KEY, '1');

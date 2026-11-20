@@ -17,7 +17,7 @@ const shot = (page, name) => (dir ? page.screenshot({ path: `${dir}/${name}.png`
 const api = (page, method, path, body) => page.evaluate(async ([m, p, b]) => {
   const res = await fetch(`/api${p}`, {
     method: m,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: b ? JSON.stringify(b) : undefined,
   });
   if (!res.ok) throw new Error(`${m} ${p}: ${res.status}`);
@@ -134,7 +134,7 @@ try {
   check(await toggle.isChecked(), 'the blur is on by default');
   await toggle.uncheck();
   await b.waitForFunction(async () => {
-    const res = await fetch('/api/preferences', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/preferences', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).blurNsfw === false;
   });
   await shot(b, '5-settings');

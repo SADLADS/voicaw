@@ -70,7 +70,7 @@ try {
   const refused = await b.evaluate(async (path) => {
     const res = await fetch(`/api/guilds/${path.split('/')[2]}/vanity-url`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+      headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: 'bobs-guild' }),
     });
     return res.status;
@@ -110,7 +110,7 @@ try {
   const carolGuild = await p.evaluate(async () => {
     const res = await fetch('/api/guilds', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+      headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Carol Guild' }),
     });
     return (await res.json()).id;

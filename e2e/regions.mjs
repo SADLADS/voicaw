@@ -117,7 +117,7 @@ try {
   // Settings → Admin → Voice regions: the main one (.env), and Frankfurt added (any left by an
   // earlier run removed first).
   await a.evaluate(async () => {
-    const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+    const headers = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid };
     const { voiceRegions } = await (await fetch('/api/admin', { headers })).json();
     for (const r of voiceRegions.filter((v) => !v.builtin)) await fetch(`/api/admin/voice-regions/${r.id}`, { method: 'DELETE', headers });
   });

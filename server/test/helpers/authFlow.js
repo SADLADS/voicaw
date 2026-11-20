@@ -48,7 +48,9 @@ export async function registerUser(app, request, username, password, { recoveryC
 
 // As the app does (each login its own `loginId`); `{ legacy: true }` as apps from before
 // 2026-11-19 did (one login state per username).
-export async function loginUser(app, request, username, password, { legacy = false } = {}) {
+// `cookie`: log in as the web app does (X-Voicaw-Login: cookie, auth.js), so the answer carries
+// a login cookie and `login` instead of a token.
+export async function loginUser(app, request, username, password, { legacy = false, cookie = false } = {}) {
   await opaque.ready;
 
   const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
@@ -74,6 +76,7 @@ export async function loginUser(app, request, username, password, { legacy = fal
 
   const finaliseRes = await request(app)
     .post('/api/finaliselogin')
+    .set(cookie ? { 'X-Voicaw-Login': 'cookie' } : {})
     .send({ finishLoginRequest, clientSessionKey: sessionKey, userIdentifier: username, loginId: initiateRes.body.loginId });
 
   // As the client does: open the key backup with this login's exportKey.

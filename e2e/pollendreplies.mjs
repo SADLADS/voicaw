@@ -117,7 +117,7 @@ try {
 
   // A guild channel: the same, with its own server-side rows.
   const guild = await a.evaluate(async () => {
-    const h = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const h = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     const g = await (await fetch('/api/guilds', { method: 'POST', headers: h, body: JSON.stringify({ name: 'Polls' }) })).json();
     return { id: g.id, channel: g.channels[0].id };
   });

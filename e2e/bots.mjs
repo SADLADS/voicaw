@@ -13,7 +13,7 @@ const shot = async (page, name) => {
 const makeGuild = (page, name) => page.evaluate(async (guildName) => {
   const res = await fetch('/api/guilds', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: JSON.stringify({ name: guildName }),
   });
   return (await res.json()).id;
@@ -86,7 +86,7 @@ try {
   await a.click('button:has-text("Open Bot Home")');
   await a.waitForURL(new RegExp(`/guild/${guildId}`));
   const role = await a.evaluate(async (id) => {
-    const res = await fetch(`/api/guilds/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch(`/api/guilds/${id}`, { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).roles.find((r) => r.bot_id);
   }, guildId);
   if (!role) throw new Error('no bot role in the guild');

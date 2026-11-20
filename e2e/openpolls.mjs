@@ -174,7 +174,7 @@ try {
   await makeFriends(alice, bob, cal);
   const c = cal.page;
   const guild = await a.evaluate(async (MANAGE_MESSAGES) => {
-    const h = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const h = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     const g = await (await fetch('/api/guilds', { method: 'POST', headers: h, body: JSON.stringify({ name: 'Open polls' }) })).json();
     const invite = await (await fetch(`/api/guilds/${g.id}/invites`, { method: 'POST', headers: h, body: '{}' })).json();
     const role = await (await fetch(`/api/guilds/${g.id}/roles`, { method: 'POST', headers: h, body: JSON.stringify({ name: 'Mods', permissions: MANAGE_MESSAGES }) })).json();
@@ -182,11 +182,11 @@ try {
   }, 1 << 3);
   for (const page of [b, c]) {
     await page.evaluate(async (code) => {
-      await fetch(`/api/invites/${code}`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      await fetch(`/api/invites/${code}`, { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     }, guild.code);
   }
   await a.evaluate(async ({ guildId, userId, role }) => {
-    const h = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const h = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     await fetch(`/api/guilds/${guildId}/members/${userId}/roles`, { method: 'PUT', headers: h, body: JSON.stringify({ roleIds: [role] }) });
   }, { guildId: guild.id, userId: cal.id, role: guild.role });
   for (const page of [a, b, c]) {

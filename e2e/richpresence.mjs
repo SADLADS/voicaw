@@ -92,7 +92,7 @@ try {
   await makeFriends(alice, bobWeb);
   // A guild with both in it, for the member list.
   const guildId = await alice.page.evaluate(async () => {
-    const headers = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const headers = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     const guild = await (await fetch('/api/guilds', { method: 'POST', headers, body: JSON.stringify({ name: 'Gamers' }) })).json();
     const invite = await (await fetch(`/api/guilds/${guild.id}/invites`, { method: 'POST', headers })).json();
     window.__invite = invite.code;
@@ -100,7 +100,7 @@ try {
   });
   const code = await alice.page.evaluate(() => window.__invite);
   await bobWeb.page.evaluate(async (c) => {
-    await fetch(`/api/invites/${c}`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    await fetch(`/api/invites/${c}`, { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   }, code);
   await bobWeb.page.context().close();
 

@@ -10,7 +10,7 @@ fs.mkdirSync(dir, { recursive: true });
 const call = (user, method, path, body) => user.page.evaluate(async ([m, p, b]) => {
   const res = await fetch(`/api${p}`, {
     method: m,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: b === undefined ? undefined : JSON.stringify(b),
   });
   if (!res.ok) throw new Error(`${m} ${p}: ${res.status} ${await res.text()}`);
@@ -60,7 +60,7 @@ try {
       g.textBaseline = 'middle';
       g.fillText(letter, 128, 138);
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-      const auth = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+      const auth = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
       const { url, uploadId } = await (await fetch('/api/profile/avatar', { method: 'POST', headers: auth, body: JSON.stringify({ type: 'image/png', size: blob.size }) })).json();
       await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob });
       const ready = await fetch(`/api/profile/avatar/${uploadId}/ready`, { method: 'POST', headers: auth, body: '{}' });

@@ -156,7 +156,7 @@ try {
   const created = await page.evaluate(async () => {
     const res = await fetch('/api/guilds', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+      headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Pane Guild' }),
     });
     return res.json();

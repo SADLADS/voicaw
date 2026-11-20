@@ -262,13 +262,13 @@ try {
 
   // A multiple-choice poll in a guild channel.
   const guild = await a.evaluate(async () => {
-    const h = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const h = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     const g = await (await fetch('/api/guilds', { method: 'POST', headers: h, body: JSON.stringify({ name: 'Polls' }) })).json();
     const invite = await (await fetch(`/api/guilds/${g.id}/invites`, { method: 'POST', headers: h, body: '{}' })).json();
     return { id: g.id, channel: g.channels[0].id, code: invite.code };
   });
   await b.evaluate(async (code) => {
-    await fetch(`/api/invites/${code}`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    await fetch(`/api/invites/${code}`, { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   }, guild.code);
   await a.goto(`${BASE}/guild/${guild.id}/${guild.channel}`);
   await b.goto(`${BASE}/guild/${guild.id}/${guild.channel}`);

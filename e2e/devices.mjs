@@ -4,7 +4,7 @@
 // other devices" does the same to the rest while this one stays. Also the section on a phone,
 // and logging out normally ending the session on the server.
 //   node e2e/serve.mjs &   then   node e2e/devices.mjs [screenshot dir]
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, loginToken, devices, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -26,7 +26,8 @@ async function logIn(browser, username, password, contextOptions = { viewport: {
 
 // Whether `token` still works.
 const works = (page, token) => page.evaluate(async (t) => (await fetch('/api/profile', { headers: { Authorization: `Bearer ${t}` } })).status === 200, token);
-const tokenOf = (page) => page.evaluate(() => localStorage.getItem('token'));
+// The login cookie (helpers.mjs loginToken), still good as a Bearer token.
+const tokenOf = loginToken;
 const atLogin = (page) => page.waitForSelector('input[placeholder="Username"]', { timeout: 15000 });
 
 const browser = await launchChrome();

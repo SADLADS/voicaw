@@ -55,7 +55,7 @@ function fakeBridge() {
 const api = (p, method, path, body) => p.evaluate(async ([m, url, b]) => {
   const res = await fetch(`/api${url}`, {
     method: m,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: b ? JSON.stringify(b) : undefined,
   });
   return res.json();

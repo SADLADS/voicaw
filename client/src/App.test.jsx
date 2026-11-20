@@ -136,7 +136,7 @@ describe('App routing', () => {
     expect(closeWebSocket).toHaveBeenCalled();
     expect(localStorage.getItem('token')).toBeNull();
     expect(clearUserKeys).toHaveBeenCalled();
-    expect(api.post).toHaveBeenCalledWith('/logout', null, { headers: { Authorization: 'Bearer jwt-abc' } });
+    expect(api.post).toHaveBeenCalledWith('/logout', null, { login: expect.objectContaining({ token: 'jwt-abc' }) });
   });
 
   it("can log out on this device while the server can't be reached, without asking it", async () => {

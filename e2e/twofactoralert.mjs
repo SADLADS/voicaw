@@ -7,7 +7,7 @@
 // 2. The banner: /profile's twoFactorFailures (made up here: getting real wrong codes needs
 //    two-factor set up, which twofactor.mjs covers) shows it over every page in dark, light and a
 //    phone; Dismiss tells the server and it's gone; Change password opens Settings → My Account.
-import { launchChrome, signUp, BASE, devices } from './helpers.mjs';
+import { launchChrome, signUp, loginToken, BASE, devices } from './helpers.mjs';
 
 const dir = process.argv[2];
 const shot = async (page, name) => { if (dir) await page.screenshot({ path: `${dir}/${name}.png` }); };
@@ -60,7 +60,7 @@ try {
     const ctx = await browser.newContext(options);
     const p = await ctx.newPage();
     p.on('pageerror', (e) => console.log(`[${label}] page error:`, e.message));
-    const token = await alice.page.evaluate(() => localStorage.getItem('token'));
+    const token = await loginToken(alice.page);
     await ctx.addInitScript(([t, th]) => {
       localStorage.setItem('token', t);
       localStorage.setItem('theme', th);

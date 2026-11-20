@@ -55,7 +55,7 @@ const openGroup = async (page, name) => {
 };
 // What the API itself returns for the group (the list and the detail), as text.
 const apiText = (page, groupId) => page.evaluate(async (id) => {
-  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+  const headers = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid };
   const list = await (await fetch('/api/group-dms', { headers })).text();
   const detail = await (await fetch(`/api/group-dms/${id}`, { headers })).text();
   return list + detail;
