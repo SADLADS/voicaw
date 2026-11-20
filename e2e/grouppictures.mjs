@@ -57,7 +57,7 @@ const colours = (page, selector) => page.$eval(selector, async (img) => {
 });
 // What the API returns for the group's picture.
 const apiPicture = (page, groupId) => page.evaluate(async (id) => {
-  const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+  const headers = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid };
   const group = await (await fetch(`/api/group-dms/${id}`, { headers })).json();
   if (!group.picture_id) return { group };
   const res = await fetch(`/api/group-dms/${id}/pictures/${group.picture_id}`, { headers });

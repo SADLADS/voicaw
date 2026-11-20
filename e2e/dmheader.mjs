@@ -49,7 +49,7 @@ try {
   await bob.page.evaluate(async (displayName) => {
     const res = await fetch('/api/profile', {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+      headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
       body: JSON.stringify({ displayName }),
     });
     if (!res.ok) throw new Error(`profile ${res.status}`);

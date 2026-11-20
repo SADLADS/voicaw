@@ -5,7 +5,7 @@
 // must not log out the login A saved meanwhile (it used to post /logout with it: A then got
 // 403s, "Invalid token", and was logged out a few minutes after logging in).
 //   node e2e/serve.mjs &   then   node e2e/stalelogout.mjs [screenshot dir]
-import { launchChrome, signUp, BASE } from './helpers.mjs';
+import { launchChrome, signUp, loginToken, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -13,7 +13,8 @@ const shot = async (page, name) => {
 };
 
 const works = (page, token) => page.evaluate(async (t) => (await fetch('/api/profile', { headers: { Authorization: `Bearer ${t}` } })).status === 200, token);
-const tokenOf = (page) => page.evaluate(() => localStorage.getItem('token'));
+// The login cookie (helpers.mjs loginToken), still good as a Bearer token.
+const tokenOf = loginToken;
 
 const browser = await launchChrome();
 try {

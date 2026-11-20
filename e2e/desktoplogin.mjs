@@ -53,7 +53,7 @@ async function start() {
     if (!page) await sleep(100);
   }
   const refused = [];
-  page.on('response', (r) => { if (r.url().includes('/api/') && !r.url().includes('/admin/') && r.status() === 403) refused.push(r.url()); });
+  page.on('response', (r) => { if (r.url().includes('/api/') && !r.url().includes('/admin/') && [403, 409].includes(r.status())) refused.push(`${r.status()} ${r.url()}`); });
   return { electron, app, page, refused };
 }
 async function stop({ electron, app }) {
@@ -76,14 +76,26 @@ try {
   await run.page.fill('input[placeholder="Password"]', ann.password);
   await run.page.click('button:has-text("Login")');
   check(await inApp(run.page), 'logged in in the desktop app');
-  const fresh = await run.page.evaluate(() => localStorage.getItem('token'));
-  check(loginFile()?.token === fresh, 'the login is in the app\'s own file');
+  // The main process took the token out of the login cookie (electron/apiLogin.js): the page
+  // has only what it says, and its requests work because Node adds the token.
+  const fresh = loginFile()?.token;
+  const seen = await run.page.evaluate(() => ({
+    token: localStorage.getItem('token'),
+    login: JSON.parse(localStorage.getItem('login') ?? 'null'),
+    bridge: JSON.stringify(window.voicawDesktop.login.get()),
+    cookies: document.cookie,
+  }));
+  const { id, username, sid } = JSON.parse(Buffer.from(String(fresh).split('.')[1] ?? '', 'base64url').toString() || '{}');
+  check(Boolean(fresh) && seen.login?.sid === sid, "the login is in the app's own file, the page knows its session");
+  check(!seen.token && !seen.bridge.includes(fresh) && !seen.cookies.includes('voicaw_session'), 'the page never sees the token (localStorage, the bridge, cookies)');
+  const cookieJar = await run.app.contexts()[0].cookies().catch(() => []);
+  check(!cookieJar.some((c) => c.name === 'voicaw_session'), "Chromium's cookie jar doesn't keep the login either");
 
-  const { id, username } = JSON.parse(Buffer.from(fresh.split('.')[1], 'base64url'));
   const iat = Math.floor(Date.now() / 1000) - 35 * 86400;
   const stale = jwt.sign({ id, username, sid: 'gone', iat, exp: iat + 30 * 86400 }, 'e2e-only-secret');
+  const staleLogin = JSON.stringify({ id, username, sid: 'gone', iat });
 
-  await run.page.evaluate((t) => localStorage.setItem('token', t), stale);
+  await run.page.evaluate(([t, l]) => { localStorage.setItem('token', t); localStorage.setItem('login', l); }, [stale, staleLogin]);
   await run.page.reload();
   check(await inApp(run.page), 'localStorage back to an expired token, then a reload: still in the app');
   await run.page.click('text=Notes').catch(() => {});
@@ -92,7 +104,7 @@ try {
   await sleep(1500);
   check(run.refused.length === 0, `no 403s (${run.refused.slice(0, 3).join(', ')})`);
 
-  await run.page.evaluate((t) => localStorage.setItem('token', t), stale);
+  await run.page.evaluate(([t, l]) => { localStorage.setItem('token', t); localStorage.setItem('login', l); }, [stale, staleLogin]);
   await stop(run);
   run = await start();
   check(await inApp(run.page), 'restarted with the expired token in localStorage: still logged in');
@@ -103,7 +115,7 @@ try {
   await run.page.click('.user-menu-item:has-text("Log out")');
   await run.page.waitForSelector('input[placeholder="Username"]', { timeout: 20000 });
   check(loginFile()?.token === null, 'logging out writes "logged out" to the file');
-  await run.page.evaluate((t) => localStorage.setItem('token', t), stale);
+  await run.page.evaluate(([t, l]) => { localStorage.setItem('token', t); localStorage.setItem('login', l); }, [stale, staleLogin]);
   await run.page.reload();
   await sleep(2000);
   check(await run.page.isVisible('input[placeholder="Username"]') && run.refused.length === 0,

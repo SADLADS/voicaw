@@ -8,7 +8,7 @@
 //   node e2e/serve.mjs &   then   node e2e/userprofile.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
 import sharp from 'sharp';
-import { launchChrome, signUp, devices, BASE, makeFriends } from './helpers.mjs';
+import { launchChrome, signUp, loginToken, devices, BASE, makeFriends } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -21,7 +21,7 @@ const check = (ok, what) => {
 const api = (page, method, path, body) => page.evaluate(async ([m, p, b]) => {
   const res = await fetch(`/api${p}`, {
     method: m,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: b ? JSON.stringify(b) : undefined,
   });
   if (!res.ok) throw new Error(`${m} ${p}: ${res.status}`);
@@ -52,25 +52,25 @@ try {
 
   // Bob: a picture, a banner colour, and Hades on a socket of his own (as the desktop app sends it).
   await b.evaluate(async (png) => {
-    const auth = { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
+    const auth = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' };
     const bytes = Uint8Array.from(atob(png), (ch) => ch.charCodeAt(0));
     const start = await (await fetch('/api/profile/avatar', { method: 'POST', headers: auth, body: JSON.stringify({ type: 'image/png', size: bytes.length }) })).json();
     await fetch(start.url, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: bytes });
     await fetch(`/api/profile/avatar/${start.uploadId}/ready`, { method: 'POST', headers: auth, body: '{}' });
     await fetch('/api/profile', { method: 'PUT', headers: auth, body: JSON.stringify({ bannerColor: 0x2e8b57, bio: 'Hello from Bob' }) });
   }, GREEN.toString('base64'));
-  await b.evaluate(() => new Promise((resolve) => {
+  await b.evaluate((token) => new Promise((resolve) => {
     const socket = new WebSocket(`${location.origin.replace(/^http/, 'ws')}/ws`);
     window.gameSocket = socket;
     socket.onopen = () => {
       socket.send(JSON.stringify({ type: 'presence', visible: true, idleIn: 600000 }));
-      socket.send(JSON.stringify({ type: 'identify', token: localStorage.getItem('token') }));
+      socket.send(JSON.stringify({ type: 'identify', token }));
       setTimeout(() => {
         socket.send(JSON.stringify({ type: 'activity', activities: [{ name: 'Hades', type: 0, start: Date.now() - 60000 }] }));
         resolve();
       }, 500);
     };
-  }));
+  }), await loginToken(b));
 
   // Alice: her own profile from the user menu's Edit Profile (her picture and name there too).
   await a.goto(`${BASE}/guild/${guild.id}/${general.id}`);
@@ -95,12 +95,12 @@ try {
   check(true, 'the banner picture is saved and shown');
   await own.locator('input[aria-label="Banner colour"]').fill('#aa3366');
   await a.waitForFunction(async () => {
-    const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/profile', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).banner_color === 0xaa3366;
   }, null, { timeout: 10000 });
   check(true, 'the banner colour is saved once it rests');
   const saved = (field, value) => a.waitForFunction(async ([f, v]) => {
-    const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/profile', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json())[f] === v;
   }, [field, value], { timeout: 10000 });
   await own.locator('input[aria-label="Custom status"]').click();

@@ -15,7 +15,7 @@ const check = (ok, what) => {
 };
 
 const call = (page, method, path) => page.evaluate(async ({ method, path }) => {
-  const res = await fetch(`/api${path}`, { method, headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+  const res = await fetch(`/api${path}`, { method, headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   return res.status;
 }, { method, path });
 

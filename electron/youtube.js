@@ -10,9 +10,5 @@ function withYouTubeReferer(requestHeaders) {
     return { ...requestHeaders, Referer: REFERER };
 }
 
-function setUpYouTubeReferer(ses) {
-    ses.webRequest.onBeforeSendHeaders({ urls: EMBED_URLS }, (details, callback) =>
-        callback({ requestHeaders: withYouTubeReferer(details.requestHeaders) }));
-}
-
-module.exports = { REFERER, withYouTubeReferer, setUpYouTubeReferer };
+// (Registered with apiLogin.js's in main.js: a session has one onBeforeSendHeaders listener.)
+module.exports = { REFERER, EMBED_URLS, withYouTubeReferer };

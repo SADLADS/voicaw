@@ -127,7 +127,7 @@ try {
   const before = pages.pages;
   // Bob deletes the old message, the conversation's first (through the API: it's far up his chat).
   await b.evaluate(async (other) => {
-    const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+    const headers = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid };
     let oldest = null;
     let first = null;
     for (;;) {

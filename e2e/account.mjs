@@ -15,7 +15,7 @@ const shot = async (page, name) => {
 const call = (page, method, path, body) => page.evaluate(async ([m, p, b]) => {
   const res = await fetch(`/api${p}`, {
     method: m,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: b ? JSON.stringify(b) : undefined,
   });
   return { status: res.status, body: await res.json().catch(() => null) };
@@ -72,7 +72,7 @@ try {
   await shot(a, '02-ready');
   await a.click('button:has-text("Delete my account")');
   await a.waitForSelector('input[placeholder="New Username"]', { timeout: 30000 });
-  if (await a.evaluate(() => localStorage.getItem('token'))) throw new Error('still has a token');
+  if (await a.evaluate(() => localStorage.getItem('token') || localStorage.getItem('login'))) throw new Error('still has a login');
   console.log('ann deleted her account and is back at the login page');
 
   // Bea's open DM turns into "Deleted User", still readable, no composer.

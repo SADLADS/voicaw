@@ -18,7 +18,7 @@ const livekit = JSON.parse(readFileSync(livekitInfoPath(), 'utf8'));
 const roomService = new RoomServiceClient(livekit.url, livekit.key, livekit.secret);
 
 const currentCall = (page) => page.evaluate(async () => {
-  const res = await fetch('/api/dm-calls/current', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+  const res = await fetch('/api/dm-calls/current', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   return res.json();
 });
 

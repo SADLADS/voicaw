@@ -36,10 +36,31 @@ export async function signUp(browser, name, contextOptions = { viewport: { width
   await page.waitForSelector('#dm-main', { timeout: 20000 });
   await page.waitForLoadState('networkidle');
   const id = await page.evaluate(async () => {
-    const res = await fetch('/api/profile', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/profile', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).id;
   });
   return { page, name: username, id, password: `correct horse battery ${name}`, recoveryCode };
+}
+
+// A page's login token: the login cookie the page itself can't read (server/auth.js), which
+// Playwright can, or one an older login kept in localStorage. For calls made from Node
+// (`Authorization: Bearer`, still accepted). Inside a page, requests name their session instead:
+// `'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid`.
+export async function loginToken(page) {
+  const cookie = (await page.context().cookies()).find((c) => c.name === 'voicaw_session' && c.value);
+  return cookie?.value ?? page.evaluate(() => localStorage.getItem('token'));
+}
+
+// Logs page `to` (another browser context, on the app's origin) in as page `from`: the same
+// login cookie and saved login, as a second device that copied them would be.
+export async function copyLogin(from, to) {
+  const cookies = (await from.context().cookies()).filter((c) => c.name === 'voicaw_session');
+  if (cookies.length) await to.context().addCookies(cookies);
+  const saved = await from.evaluate(() => ({ login: localStorage.getItem('login'), token: localStorage.getItem('token') }));
+  await to.evaluate((s) => {
+    if (s.login) localStorage.setItem('login', s.login);
+    if (s.token) localStorage.setItem('token', s.token);
+  }, saved);
 }
 
 // Opens the conversation with user `otherId` and waits for the message box.
@@ -53,7 +74,7 @@ export async function openChat(page, otherId) {
 // that are open get the change live.
 export async function makeFriends(...users) {
   const call = (user, method, path) => user.page.evaluate(async ([m, p]) => {
-    const res = await fetch(`/api${p}`, { method: m, headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch(`/api${p}`, { method: m, headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     if (!res.ok) throw new Error(`${m} ${p}: ${res.status}`);
   }, [method, path]);
   for (const [i, a] of users.entries()) {

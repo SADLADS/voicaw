@@ -70,7 +70,7 @@ const sidebarMember = (name) => `.voice-member:has-text("${name}")`;
 const api = (page, method, path, body) => page.evaluate(async ({ method, path, body }) => {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status}`);
@@ -214,7 +214,7 @@ try {
   await cameraPlaying(b, `.call-panel-person:has([aria-label="${alice.name}'s camera"])`);
   await cameraPlaying(a, `.call-panel-person:has([aria-label="${bob.name}'s camera"])`);
   const call = await a.evaluate(async () => {
-    const res = await fetch('/api/dm-calls/current', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/dm-calls/current', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return res.json();
   });
   const participants = await roomService.listParticipants(`call-${call.id}`);

@@ -43,6 +43,56 @@ describe('api token renewal', () => {
   });
 });
 
+describe('the login cookie', () => {
+  const login = { id: 7, username: 'a', sid: 'S1', iat: 1 };
+  const sent = async (setup) => {
+    let seen;
+    await api.get('/profile', { ...setup, adapter: async (config) => { seen = config; return { data: {}, status: 200, statusText: 'OK', headers: {}, config }; } });
+    return seen;
+  };
+
+  it('names the session and sends the cookie, with no Authorization', async () => {
+    localStorage.clear();
+    localStorage.setItem('login', JSON.stringify(login));
+    const config = await sent();
+    expect(config.headers['X-Voicaw-Session']).toBe('S1');
+    expect(config.headers.Authorization).toBeUndefined();
+    expect(config.withCredentials).toBe(true);
+  });
+
+  it('logged out, asks for the cookie when logging in', async () => {
+    localStorage.clear();
+    const config = await sent();
+    expect(config.headers['X-Voicaw-Login']).toBe('cookie');
+    expect(config.withCredentials).toBe(true);
+  });
+
+  it('a 409 login_changed reloads onto the newer login another tab saved, only then', async () => {
+    const { onLoginReplaced } = await import('./loginToken');
+    const replaced = vi.fn();
+    const stop = onLoginReplaced(replaced);
+    const refuse = (meanwhile) => api.get('/profile', {
+      adapter: async (config) => {
+        meanwhile();
+        const err = new Error('409');
+        err.config = config;
+        err.response = { status: 409, data: { error: 'Another login replaced this one', code: 'login_changed' }, config };
+        throw err;
+      },
+    }).catch(() => {});
+    try {
+      localStorage.clear();
+      localStorage.setItem('login', JSON.stringify(login));
+      await refuse(() => {});
+      expect(replaced).not.toHaveBeenCalled();
+      await refuse(() => localStorage.setItem('login', JSON.stringify({ ...login, sid: 'S2' })));
+      expect(replaced).toHaveBeenCalledTimes(1);
+    } finally {
+      stop();
+    }
+  });
+});
+
 describe('api login token', () => {
   async function sentToken(config = {}) {
     let sent;

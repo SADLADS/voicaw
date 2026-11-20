@@ -74,7 +74,7 @@ async function setLimit(page, value) {
   await page.evaluate(async (v) => {
     const res = await fetch('/api/admin/settings/uploadLimit', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
       body: JSON.stringify({ value: v }),
     });
     if (!res.ok) throw new Error(`uploadLimit: ${res.status}`);

@@ -35,7 +35,7 @@ function fakeBridge() {
 const api = (p, method, path, body) => p.evaluate(async ([m, url, b]) => {
   const res = await fetch(`/api${url}`, {
     method: m,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: b ? JSON.stringify(b) : undefined,
   });
   return res.json();
@@ -131,7 +131,7 @@ try {
   await shot(b, 'settings-card');
   await card.getByLabel('Never').check();
   await b.waitForFunction(async () => {
-    const res = await fetch('/api/preferences', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/preferences', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).reactionNotifications === 'off';
   });
   await away();
@@ -151,7 +151,7 @@ try {
   check(box && box.x >= 0 && box.x + box.width <= width + 1, `the card fits the phone's width (${JSON.stringify(box)}, ${width})`);
   await phoneCard.getByLabel('Only in DMs and group DMs').tap();
   await phone.page.waitForFunction(async () => {
-    const res = await fetch('/api/preferences', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/preferences', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).reactionNotifications === 'dms';
   });
   check(true, 'a tap saves it');

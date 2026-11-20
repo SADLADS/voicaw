@@ -8,13 +8,13 @@ import { fetchGroups } from './groupService';
 import { leaveEntry } from './groupKeys';
 import { t } from '../i18n';
 import { errorText } from '../utils/errors';
-import { saveToken } from '../utils/loginToken';
+import { saveLogin } from '../utils/loginToken';
 
 // Logging in and registering: OPAQUE (the password never leaves the device) plus the
 // encryption keys, which the server keeps only as a backup encrypted with OPAQUE's
 // exportKey (and optionally a second one encrypted with a recovery code). On success the
-// keys go into this device's key store and the token into localStorage. Changing the
-// password or recovering the account re-encrypts the backup here, so the server never
+// keys go into this device's key store and the login is saved (utils/loginToken.js: a cookie
+// the page can't read, or a token for another server). Changing the password or recovering the account re-encrypts the backup here, so the server never
 // sees a password or a private key. (server/test/helpers/authFlow.js mirrors this protocol.)
 
 // The password is what the encryption keys are protected with, so insist on a reasonable
@@ -53,7 +53,7 @@ function loadOpaque() {
   return opaqueModule;
 }
 
-// Resolves to the user ({ token, id, username }); throws an Error with a message to show.
+// Resolves to the user ({ id, username, ... }); throws an Error with a message to show.
 // With two-factor on (server/twoFactor.js), resolves to { twoFactor: true, finish(code) }
 // instead: `finish` takes the authenticator app's code or a backup code and resolves to the
 // user (a wrong code throws, `code` 'two_factor_invalid', and can be tried again;
@@ -92,10 +92,10 @@ export async function logIn(username, password) {
   return finishLogIn(exportKey, data);
 }
 
-// Opens the key backup from a finished login (`data`) and stores the keys and token.
+// Opens the key backup from a finished login (`data`) and stores the keys and the login.
 async function finishLogIn(exportKey, data) {
-  const { token, id, keyBackup } = data;
-  if (!token || !keyBackup) throw new Error(t('auth.errors.loginFailed'));
+  const { id, keyBackup } = data;
+  if (!(data.token || data.login) || !keyBackup) throw new Error(t('auth.errors.loginFailed'));
 
   // The keys are encrypted with OPAQUE's exportKey, which only this password produces.
   let keys;
@@ -111,9 +111,9 @@ async function finishLogIn(exportKey, data) {
   }
 
   await storeUserKeys(id, keys);
-  saveToken(token);
+  saveLogin(data);
   return {
-    token, id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending),
+    id, username: data.username, hasRecoveryCode: Boolean(data.hasRecoveryCode), pending: Boolean(data.pending),
     termsAccepted: data.termsAccepted !== false, twoFactorFailures: data.twoFactorFailures ?? 0,
   };
 }
@@ -160,7 +160,7 @@ async function recoveryFields(code, keys) {
 }
 
 // Creates the account with new keys and a recovery code, with app invite `invite` (optional,
-// see server/signups.js). Resolves to { user, recoveryCode } (user: the logged-in { token, id,
+// see server/signups.js). Resolves to { user, recoveryCode } (user: the logged-in { id,
 // username, hasRecoveryCode, pending }, or null if the server registered it without logging in;
 // `pending` while it waits for an admin's approval). The code is shown once and never stored.
 // A refusal for the invite has `code` 'invite_required' or 'invalid_invite'. `acceptedTerms`:
@@ -189,12 +189,12 @@ export async function register(username, password, invite = '', acceptedTerms = 
     reason,
     acceptedTerms,
   });
-  if (!data.token) return { user: null, recoveryCode };
+  if (!data.token && !data.login) return { user: null, recoveryCode };
 
   await storeUserKeys(data.id, keys);
-  saveToken(data.token);
+  saveLogin(data);
   return {
-    user: { token: data.token, id: data.id, username: data.username, hasRecoveryCode: true, pending: Boolean(data.pending), termsAccepted: true },
+    user: { id: data.id, username: data.username, hasRecoveryCode: true, pending: Boolean(data.pending), termsAccepted: true },
     recoveryCode,
   };
 }
@@ -356,9 +356,9 @@ export async function startRecovery(username, code, newPassword) {
     const fields = { ...(await newPasswordFields(username, newPassword, keys)), ...(await recoveryFields(newCode, keys)) };
     const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
     await storeUserKeys(done.id, keys);
-    saveToken(done.token);
+    saveLogin(done);
     return {
-      token: done.token, id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending),
+      id: done.id, username: done.username, hasRecoveryCode: true, pending: Boolean(done.pending),
       termsAccepted: done.termsAccepted !== false, twoFactorFailures: done.twoFactorFailures ?? 0,
     };
   };

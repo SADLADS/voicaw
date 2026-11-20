@@ -64,6 +64,8 @@ async function signUpHere(page, name) {
   await page.click('button:has-text("Continue")');
   await page.waitForSelector('#dm-main', { timeout: 20000 });
   const id = await page.evaluate(async (api) => {
+    // Another server keeps a Bearer token in the page (no login cookie: cross-site).
+    if (!localStorage.getItem('token') || localStorage.getItem('login')) throw new Error('another server should keep a token, not the cookie');
     const res = await fetch(`${api}/api/profile`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     return (await res.json()).id;
   }, SECOND);
@@ -113,7 +115,7 @@ try {
   // Someone on the first server doesn't see them in its directory.
   const carol = await signUp(browser, 'carol');
   const directory = await carol.page.evaluate(async () => {
-    const res = await fetch('/api/dms-list', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/dms-list', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).map((user) => user.username);
   });
   check(Array.isArray(directory) && !directory.includes(alice.username), 'the first server knows nothing of it');

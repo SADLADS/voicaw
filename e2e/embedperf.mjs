@@ -9,7 +9,7 @@
 import http from 'http';
 import { writeFileSync } from 'fs';
 import sharp from 'sharp';
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, copyLogin, devices, BASE } from './helpers.mjs';
 
 const COUNT = Number(process.argv[2] || 150);
 const SHOTS = process.argv[3];
@@ -34,7 +34,7 @@ try {
   const api = (path, body, method = 'POST') => a.evaluate(async ([p, b, m]) => {
     const res = await fetch(`/api${p}`, {
       method: m,
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+      headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
       body: b ? JSON.stringify(b) : undefined,
     });
     return res.json();
@@ -152,7 +152,7 @@ try {
   const phoneCtx = await browser.newContext({ ...devices['Pixel 7'] });
   const phone = await phoneCtx.newPage();
   await phone.goto(`${BASE}/`);
-  await phone.evaluate((token) => localStorage.setItem('token', token), await a.evaluate(() => localStorage.getItem('token')));
+  await copyLogin(a, phone);
   // Keys live in IndexedDB per context: a guild needs none, so the token is enough here.
   await measure(phone, 'phone, 4x slower CPU', { cpu: 4 });
 } finally {

@@ -30,7 +30,7 @@ try {
     ctx.fillStyle = '#d8b930';
     ctx.fillRect(150, 150, 300, 300);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-    const auth = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+    const auth = { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid };
     const { url } = await (await fetch(`/api/upload_guild_icon?guildId=${id}&type=image/png&size=${blob.size}`, { headers: auth })).json();
     const put = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob });
     if (!put.ok) throw new Error(`icon upload failed: ${put.status}`);

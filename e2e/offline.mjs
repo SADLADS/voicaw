@@ -41,7 +41,7 @@ const waitForSaved = async (page, count) => {
 };
 
 const api = (page, method, path) => page.evaluate(async ([m, p]) => {
-  const res = await fetch(`/api${p}`, { method: m, headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+  const res = await fetch(`/api${p}`, { method: m, headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
   return res.headers.get('content-type')?.includes('json') ? res.json() : null;
 }, [method, path]);
 
@@ -194,7 +194,7 @@ try {
       };
     });
     const dbs = (await indexedDB.databases()).map((d) => d.name);
-    return { dbs, keys: await records('voicaw-keys'), groups: await records('voicaw-groups'), token: localStorage.getItem('token') };
+    return { dbs, keys: await records('voicaw-keys'), groups: await records('voicaw-groups'), token: (localStorage.getItem('token') || localStorage.getItem('login')) };
   });
   check(!left.token && !left.dbs.some((n) => /voicaw-(offline|search)/.test(n)) && left.keys === 0 && left.groups === 0,
     `logout left nothing of the account: ${JSON.stringify(left)}`);

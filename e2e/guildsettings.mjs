@@ -140,7 +140,7 @@ try {
   const phone = await signUp(browser, 'carol', { ...devices['Pixel 7'] });
   const p = phone.page;
   const guild = await p.evaluate(async (guildName) => {
-    const res = await fetch('/api/guilds', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: guildName }) });
+    const res = await fetch('/api/guilds', { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: guildName }) });
     return res.json();
   }, name);
   await p.goto(`${BASE}/guild/${guild.id}/${guild.channels[0].id}`);

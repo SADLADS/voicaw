@@ -6,7 +6,7 @@
 // tabs, nothing wider than the screen. Two people editing at once: e2e/docslive.mjs.
 //   node e2e/serve.mjs &   then   node e2e/docs.mjs [screenshot dir]
 import zlib from 'zlib';
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, copyLogin, devices, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -253,7 +253,7 @@ try {
   const p = await phone.newPage();
   p.on('pageerror', (e) => console.log('[phone] page error:', e.message));
   await p.goto(`${BASE}/`);
-  await p.evaluate((token) => localStorage.setItem('token', token), await b.evaluate(() => localStorage.getItem('token')));
+  await copyLogin(b, p);
   await p.goto(`${BASE}${docUrl.pathname}${docUrl.search}`);
   await p.waitForSelector('.document-page h1.document-title');
   await imageShown(p, '.document-page-cover img');

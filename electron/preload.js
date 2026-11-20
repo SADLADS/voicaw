@@ -13,8 +13,10 @@ function listen(channel) {
 contextBridge.exposeInMainWorld('voicawDesktop', {
     platform: process.platform,
     getInfo: () => ipcRenderer.invoke('desktop:info'),
-    // The saved login, kept in the app's own file (loginStore.js): get() is { known, token },
-    // set(token or null). Synchronous, so it's on disk before the page goes on.
+    // The saved login, kept in the app's own file (loginStore.js) by the main process, which adds
+    // it to the API's requests itself (apiLogin.js): get() is { known, login } (who and which
+    // session, never the token); set(null) logs out, set(token) takes over a token an older
+    // version kept in localStorage. Synchronous, so it's on disk before the page goes on.
     login: {
         get: () => ipcRenderer.sendSync('desktop:login-get'),
         set: (token) => ipcRenderer.sendSync('desktop:login-set', token),

@@ -13,7 +13,7 @@ const shot = async (page, name) => dir && page.screenshot({ path: path.join(dir,
 const api = (page, method, url, body) => page.evaluate(async ([m, u, b]) => {
   const res = await fetch(`/api${u}`, {
     method: m,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: b ? JSON.stringify(b) : undefined,
   });
   if (!res.ok) throw new Error(`${m} ${u}: ${res.status}`);

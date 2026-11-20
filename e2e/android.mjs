@@ -149,7 +149,7 @@ try {
   await enable.click();
   await page.waitForFunction(() => window.__android.record.calls.some((c) => c.method === 'getPushToken'));
   const devicesNow = await page.evaluate(async () => {
-    const res = await fetch('/api/test-push', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/test-push', { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return res.json();
   });
   check((await callsTo(page, 'requestNotifications')).length === 1, "asks Android's permission");
@@ -186,7 +186,7 @@ try {
   await send(bob.page, 'Secret plans for Saturday');
   await page.waitForSelector('text=Secret plans for Saturday');
   const ciphertext = await page.evaluate(async (id) => {
-    const res = await fetch(`/api/dm-messages/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch(`/api/dm-messages/${id}`, { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     const body = await res.json();
     const rows = Array.isArray(body) ? body : body.messages;
     return rows.find((m) => m.sender_id === id).content;
@@ -238,7 +238,7 @@ try {
   await bob.page.click(`button[aria-label="Call ${alice.name}"]:not([disabled])`);
   await page.waitForSelector('.incoming-call');
   const callId = await page.evaluate(async () => {
-    const res = await fetch('/api/dm-calls/current', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch('/api/dm-calls/current', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return (await res.json()).id;
   });
   await page.evaluate((id) => window.__android.emit('callAction', { action: 'answer', callId: id }), callId);
@@ -265,7 +265,7 @@ try {
   // The phone's page asleep with a socket that's gone without it knowing: no call events reach
   // it, and the phone still rings from the push.
   const apiFetch = (who, path, method = 'GET') => who.evaluate(async ([p, m]) => {
-    const res = await fetch(`/api${p}`, { method: m, headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await fetch(`/api${p}`, { method: m, headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
     return res.json();
   }, [path, method]);
   const bobCalls = async () => {

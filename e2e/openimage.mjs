@@ -147,7 +147,7 @@ try {
   // A guild channel's picture, opened by a logged-out browser.
   const guild = await a.evaluate(async () => (await fetch('/api/guilds', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Pictures' }),
   })).json());
   const general = guild.channels[0];

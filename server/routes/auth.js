@@ -3,7 +3,7 @@ const express = require('express');
 const opaque = require('@serenity-kit/opaque');
 const db = require('../db');
 const { opaqueServerSetup } = require('../config');
-const { startSession, authenticateJWT, authenticatePending } = require('../auth');
+const { sessionReply, sessionMode, setSessionCookie, loginOf, issueSocketTicket, authenticateJWT, authenticatePending } = require('../auth');
 const { endSessions } = require('../sessions');
 const { rateLimitsEnabled } = require('../config');
 const { createLimiter, tooManyAttempts } = require('../rateLimit');
@@ -194,9 +194,9 @@ const LOGIN_USER_COLUMNS = 'id, username, identity_key, encryption_key, encrypti
 
 // What a finished login answers: a new session, and the key backup for the client to open with
 // its OPAQUE exportKey (it checks the published public keys against the ones inside it).
-async function loggedIn(user, req) {
+async function loggedIn(user, req, res) {
   return {
-    token: await startSession(user, req),
+    ...(await sessionReply(user, req, res)),
     twoFactorFailures: await twoFactor.unseenFailures(user.id),
     id: user.id,
     username: user.username,
@@ -223,7 +223,7 @@ router.post('/finaliselogin', async (req, res) => {
 
   // Two-factor on (twoFactor.js): no session or key backup until /login/two-factor gets a code.
   if (await twoFactor.isEnabled(user.id)) return res.json({ twoFactor: true, ticket: twoFactor.createTicket(user.id) });
-  res.json(await loggedIn(user, req));
+  res.json(await loggedIn(user, req, res));
 });
 
 // The second step of logging in with two-factor on: { ticket, code } (the authenticator app's
@@ -239,7 +239,7 @@ router.post('/login/two-factor', async (req, res) => {
   const user = await db.get(`SELECT ${LOGIN_USER_COLUMNS} FROM users WHERE id = ? AND deleted_at IS NULL`, [userId]);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   if (user.suspended_at) return res.status(403).json(suspendedError(user));
-  res.json(await loggedIn(user, req));
+  res.json(await loggedIn(user, req, res));
 });
 
 router.post('/initiateregister', limit([limits.registerStartPerIp, byIp]), async (req, res) => {
@@ -334,18 +334,33 @@ router.post('/finaliseregister', limit([limits.registerPerIp, byIp]), async (req
     adminAlerts.notify('signup', { name: username });
   }
   res.status(201).json({
-    token: await startSession(user, req), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
+    ...(await sessionReply(user, req, res)), id: user.id, username, display_name: displayName, hasRecoveryCode: Boolean(recovery),
     pending: signup.pending,
     termsAccepted: true,
   });
 });
 
-// Restores a session from its token (the client keeps it in localStorage). `pending`: the account
+// Moves a Bearer login into the cookie (auth.js), for apps updated while logged in: the same
+// session, so nothing else changes. Only for a request that sent the token itself.
+router.post('/session-cookie', authenticatePending, async (req, res) => {
+  if (sessionMode(req)) return res.status(400).json({ error: 'Already logged in by cookie' });
+  setSessionCookie(res, req.loginToken);
+  res.json({ login: loginOf(req.loginToken) });
+});
+
+// A one-time ticket for the websocket's identify (auth.js issueSocketTicket), for pages whose
+// login the socket's host can't see.
+router.post('/socket-ticket', authenticatePending, async (req, res) => {
+  res.json({ ticket: issueSocketTicket(req.loginToken) });
+});
+
+// Restores a session from its saved login (the cookie, or a Bearer token). `pending`: the account
 // waits for an admin's approval (signups.js); the app shows only that.
 router.get('/profile', authenticatePending, async (req, res) => {
   const user = await db.get(`SELECT id, username, recovery_verifier, pending, terms_version, ${PROFILE_COLUMNS} FROM users WHERE id = ?`, [req.user.id]);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  const token = req.headers.authorization.split(' ')[1];
+  // A page in cookie mode never sees its token.
+  const token = sessionMode(req) ? undefined : req.loginToken;
   res.json({
     // The username from the database: a token from before usernames were lower-cased has the old one.
     token, id: req.user.id, username: user.username, hasRecoveryCode: Boolean(user.recovery_verifier),
@@ -570,7 +585,7 @@ router.post('/recover/finish', recoverLimits, async (req, res) => {
   const sessions = await db.all('SELECT id FROM sessions WHERE user_id = ?', [user.id]);
   await endSessions(user.id, sessions.map((row) => row.id));
   res.json({
-    token: await startSession(user, req),
+    ...(await sessionReply(user, req, res)),
     id: user.id,
     username: user.username,
     hasRecoveryCode: true,

@@ -5,7 +5,7 @@
 // and changes the fourth "and following" (a new event from then on). Bob opens the copied link:
 // that date, its own name; he's interested in it alone, not the first. Then the link on a phone.
 //   node e2e/serve.mjs &   then   node e2e/occurrences.mjs [screenshot dir]
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, copyLogin, devices, BASE } from './helpers.mjs';
 
 const shots = process.argv[2];
 const shot = async (page, name) => {
@@ -20,7 +20,7 @@ const check = (ok, what) => {
 const api = (page, method, path, body) => page.evaluate(async ([m, p, b]) => {
   const res = await fetch(`/api${p}`, {
     method: m,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, ...(b ? { 'Content-Type': 'application/json' } : {}) },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, ...(b ? { 'Content-Type': 'application/json' } : {}) },
     body: b ? JSON.stringify(b) : undefined,
   });
   const data = await res.json().catch(() => null);
@@ -185,7 +185,7 @@ try {
   const phone = await browser.newContext(devices['Pixel 7']);
   const p = await phone.newPage();
   await p.goto(`${BASE}/`);
-  await p.evaluate((token) => localStorage.setItem('token', token), await b.evaluate(() => localStorage.getItem('token')));
+  await copyLogin(b, p);
   await p.goto(link.replace(/^https?:\/\/[^/]+/, BASE));
   await p.waitForSelector('.event-detail-name:has-text("Late game night")', { timeout: 20000 });
   const fits = await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);

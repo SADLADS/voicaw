@@ -206,7 +206,9 @@ const MAX_PAYLOAD_BYTES = 256 * 1024;
 const IDENTIFY_WITHIN_MS = 15 * 1000;
 
 // Runs the websocket server on `server` (the HTTP server). Clients identify with their JWT
-// ({ type: 'identify', token }) and report presence; a heartbeat drops dead connections.
+// ({ type: 'identify', token }), or pages logged in by cookie with a one-time ticket from POST
+// /socket-ticket ({ type: 'identify', ticket }, auth.js), and report presence; a heartbeat
+// drops dead connections.
 // Connections to /api/gateway are bots' (gateway.js, Discord's protocol).
 // `identifyWithinMs`: tests shorten the wait for identify.
 function attachWebSocketServer(server, { identifyWithinMs = IDENTIFY_WITHIN_MS } = {}) {
@@ -254,7 +256,16 @@ function attachWebSocketServer(server, { identifyWithinMs = IDENTIFY_WITHIN_MS }
         } else if (data.type === 'identify') {
           if (ws.userId || ws.pendingUserId || ws.identifying) return;
           ws.identifying = true;
-          const user = await auth.verifyToken(data.token);
+          const token = data.ticket != null ? auth.redeemSocketTicket(data.ticket) : data.token;
+          // An unknown or expired ticket (the page slept after asking, or this server restarted)
+          // says nothing about the login: not 1008, which the app takes as logged out; it asks
+          // for another.
+          if (data.ticket != null && !token) {
+            ws.identifying = false;
+            ws.close(4001, 'Ticket not valid');
+            return;
+          }
+          const user = typeof token === 'string' ? await auth.verifyToken(token) : null;
           ws.identifying = false;
           // Closed while the token was checked: its close handler has already run.
           if (ws.readyState !== WebSocket.OPEN) return;

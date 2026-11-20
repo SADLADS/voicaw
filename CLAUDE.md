@@ -137,7 +137,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 
 - `docs/server.md`: server layout (which module does what), env vars, Node/sqlite on the host.
 - `docs/database.md`: `node:sqlite`, query helpers, transactions, migrations.
-- `docs/auth-and-encryption.md`: OPAQUE login, sessions and Settings → Devices, two-factor, rate limits, sign-ups (open, invite
+- `docs/auth-and-encryption.md`: OPAQUE login, the login cookie, sessions and Settings → Devices, two-factor, rate limits, sign-ups (open, invite
   only, admin approval), deleting an account,
   end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes,
   the spellcheck dictionary, emoji usage).
@@ -519,6 +519,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   (`~/.voicaw-desktop-update-key/`, never on the update host), one key backed up offline (no
   second trusted key), a bad signature refused as a plain failed update (no new message).
   Losing the key means everyone reinstalls by hand; changing it breaks updates for older apps.
+- **Login cookie** (built 2026-11-20, see The login cookie in `docs/auth-and-encryption.md`;
+  the audit's L2 follow-up): on the built-in server the login is an HttpOnly cookie the page
+  can't read, counted only beside an `X-Voicaw-Session: <sid>` header (CSRF; a mismatch is 409
+  `login_changed`, a reload, never a logout); the websocket, on another host, identifies with a
+  one-time ticket. The user chose: the desktop app's main process keeps the token and adds it
+  itself (the page never sees it), Android's WebView takes the cookie, other servers keep Bearer
+  tokens in localStorage. Bearer stays accepted (older apps, scripts).
 - **Sharing to Voicaw** (built 2026-11-02, see Sharing to Voicaw in `docs/desktop-and-site.md`):
   Android's share sheet lists Voicaw. The user chose Discord's way: a share screen with a
   message box and Send, several chats at once, sent from there without opening them (one

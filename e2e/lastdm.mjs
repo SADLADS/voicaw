@@ -67,7 +67,7 @@ try {
   // Phone: the button goes back to the remembered DM too.
   const c = carol.page;
   const guild = await c.evaluate(async () => {
-    const res = await fetch('/api/guilds', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Phone Guild' }) });
+    const res = await fetch('/api/guilds', { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Phone Guild' }) });
     return res.json();
   });
   await openChat(c, alice.id);

@@ -22,7 +22,7 @@ const check = (ok, what) => {
 const api = (page, method, p, body) => page.evaluate(async ([m, url, b]) => {
   const res = await fetch(`/api${url}`, {
     method: m,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+    headers: { 'Content-Type': 'application/json', 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid },
     body: b ? JSON.stringify(b) : undefined,
   });
   if (!res.ok) throw new Error(`${m} ${url}: ${res.status}`);

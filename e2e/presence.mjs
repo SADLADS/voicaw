@@ -9,7 +9,7 @@ const browser = await launchChrome();
 const api = (page, method, url, body) => page.evaluate(async ([method, url, body]) => {
   const res = await fetch(`/api${url}`, {
     method,
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
+    headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid, 'Content-Type': 'application/json' },
     body: body && JSON.stringify(body),
   });
   return res.json();

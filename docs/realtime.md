@@ -7,7 +7,9 @@ does it bind `PORT` (default 3000) and attach the `ws` server (`sockets.js`
 `attachWebSocketServer`) to the same HTTP server. `clients` and `sendToUserSockets` are
 module-level in `sockets.js`, so routes can push events (and tests can fake sockets through
 `app.locals.clients`). Clients
-identify themselves post-connect with `{ type: 'identify', token }` (JWT); the server maps
+identify themselves post-connect with `{ type: 'identify', token }` (JWT), or, logged in by
+the cookie, `{ type: 'identify', ticket }` (a one-time ticket from `POST /socket-ticket`; an
+unknown one closes with 4001, see The login cookie in `docs/auth-and-encryption.md`); the server maps
 `userId -> [sockets]` in an in-memory `clients` Map (a user can have multiple open sockets/tabs).
 Limits (security audit, 2026-11-18): a message is at most 256 KB (`maxPayload`; the biggest the
 app sends is `activity`, three pictures of 48 KB), a socket that hasn't identified within 15 s is

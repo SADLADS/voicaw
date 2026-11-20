@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 
 vi.mock('./utils/api', () => ({
-  default: { get: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(async () => ({ data: {} })) },
 }));
 vi.mock('./services/logout', () => ({ forgetLogin: vi.fn(async () => {}) }));
 
@@ -19,7 +19,7 @@ function Consumer() {
   if (!user) return <div>no user</div>;
   return (
     <div>
-      logged in as {user.username} (id {user.id}, token {user.token})
+      logged in as {user.username} (id {user.id})
     </div>
   );
 }
@@ -54,9 +54,24 @@ describe('AuthProvider', () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByText(/logged in as alice \(id 7, token jwt-abc\)/)).toBeInTheDocument()
+      expect(screen.getByText(/logged in as alice \(id 7\)/)).toBeInTheDocument()
     );
     expect(api.get).toHaveBeenCalledWith('/profile', { timeout: expect.any(Number), offlineCopy: 'fallback' });
+  });
+
+  it('moves a token saved before the login cookie into the cookie, then forgets the token', async () => {
+    const login = { id: 7, username: 'alice', sid: 'S', iat: 1 };
+    api.post.mockResolvedValueOnce({ data: { login } });
+    api.get.mockResolvedValue({ data: { id: 7, username: 'alice' } });
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>
+    );
+    await waitFor(() => expect(screen.getByText(/logged in as alice/)).toBeInTheDocument());
+    expect(api.post).toHaveBeenCalledWith('/session-cookie', null, expect.objectContaining({ login: expect.objectContaining({ token: 'saved-jwt' }) }));
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('login'))).toEqual(login);
   });
 
   it('sets user to null when the response has no id', async () => {

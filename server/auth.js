@@ -110,19 +110,127 @@ async function verifyToken(token, req = null) {
   };
 }
 
+// The login cookie (security audit follow-up, 2026-11-20). The web app and the Android app keep
+// their login in this HttpOnly cookie, so a script in the page can't read it and use the account
+// from elsewhere (SameSite=None: the Android app's page, https://localhost, is cross-site to the
+// API). Every request made with it names its session in `X-Voicaw-Session` (the session id,
+// `sid`). That header is what makes the cookie count at all: another site's form or link can't
+// send headers, and a script on another origin can't without CORS letting it, so they never act
+// as anyone. It also tells a page that a newer login replaced its own (409 `login_changed`:
+// another tab logged out and in again, or logout's last requests sent late). The desktop app's
+// main process keeps the token itself and sends it as Bearer beside the same header
+// (electron/apiLogin.js); apps logging in to another server, bots' owners' scripts and older
+// apps keep plain Bearer tokens. Clients ask for the cookie by logging in with
+// `X-Voicaw-Login: cookie`, and a client that names its session never gets a token back.
+const SESSION_COOKIE = 'voicaw_session';
+const SESSION_HEADER = 'X-Voicaw-Session';
+const LOGIN_MODE_HEADER = 'X-Voicaw-Login';
+const TOKEN_TEXT = /^[A-Za-z0-9_\-.]{1,4096}$/;
+
+function sessionCookieOf(req) {
+  for (const part of String(req.headers?.cookie ?? '').split(';')) {
+    const at = part.indexOf('=');
+    if (at < 0 || part.slice(0, at).trim() !== SESSION_COOKIE) continue;
+    const value = part.slice(at + 1).trim();
+    return TOKEN_TEXT.test(value) ? value : null;
+  }
+  return null;
+}
+
+const cookieLine = (value, maxAge) => `${SESSION_COOKIE}=${value}; Path=/api; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=None`;
+
+function setSessionCookie(res, token) {
+  res.append('Set-Cookie', cookieLine(token, SESSION_SECONDS));
+}
+
+function clearSessionCookie(res) {
+  res.append('Set-Cookie', cookieLine('', 0));
+}
+
+// Whether the request comes from a page that keeps its login in the cookie (or in the desktop
+// app's main process): it names its session.
+const sessionMode = (req) => Boolean(req.get?.(SESSION_HEADER));
+
+// What a page in cookie mode keeps instead of the token: who it is and which session. Not a
+// secret: without the cookie (or the desktop app's copy) none of it logs anyone in.
+function loginOf(token) {
+  const claims = jwt.decode(token);
+  return { id: claims.id, username: claims.username, sid: claims.sid, iat: claims.iat };
+}
+
+// A new session for `user` (startSession), answered the way the client asked: `{ token }`, or
+// for `X-Voicaw-Login: cookie` the cookie and `{ login }` (loginOf).
+async function sessionReply(user, req, res) {
+  const token = await startSession(user, req);
+  if (String(req.get?.(LOGIN_MODE_HEADER) ?? '').toLowerCase() === 'cookie') {
+    setSessionCookie(res, token);
+    return { login: loginOf(token) };
+  }
+  return { token };
+}
+
+// Websocket tickets: the app's socket is on another host than its API (wss://api.voicaw.com, the
+// API at app.voicaw.com/api), so the cookie never reaches it. A page logged in by cookie asks
+// POST /socket-ticket for one and sends it in its identify, once, within a minute. Kept in
+// memory: the socket and the API are the same process.
+const TICKET_MS = 60 * 1000;
+const MAX_TICKETS = 10000;
+const tickets = new Map();
+
+function issueSocketTicket(token) {
+  const at = Date.now();
+  if (tickets.size >= MAX_TICKETS) {
+    for (const [key, kept] of tickets) if (kept.expires <= at) tickets.delete(key);
+    if (tickets.size >= MAX_TICKETS) tickets.delete(tickets.keys().next().value);
+  }
+  const ticket = crypto.randomBytes(24).toString('base64url');
+  tickets.set(ticket, { token, expires: at + TICKET_MS });
+  return ticket;
+}
+
+// The token a ticket stands for (once), or null.
+function redeemSocketTicket(ticket) {
+  if (typeof ticket !== 'string') return null;
+  const kept = tickets.get(ticket);
+  if (!kept) return null;
+  tickets.delete(ticket);
+  return kept.expires > Date.now() ? kept.token : null;
+}
+
 function authenticate(allowPending) {
   return async (req, res, next) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const named = req.get(SESSION_HEADER);
+    let token;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (named) {
+      token = sessionCookieOf(req);
+      // Logged out here already (another tab, or the cookie cleared): nothing to log in with.
+      if (!token) return res.status(401).json({ error: 'Not logged in', code: 'no_session' });
+    } else {
       return res.status(401).json({ error: 'Missing or invalid Authorization header' });
     }
-    const user = await verifyToken(authHeader.split(' ')[1], req);
-    if (!user) return res.status(403).json({ error: 'Invalid token' });
-    if (user.renew) res.set(RENEWED_TOKEN_HEADER, generateToken(user, user.sid));
+    const user = await verifyToken(token, req);
+    if (!user) {
+      if (named) clearSessionCookie(res);
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+    if (named && named !== user.sid) {
+      return res.status(409).json({ error: 'Another login replaced this one', code: 'login_changed' });
+    }
+    if (user.renew) {
+      const renewed = generateToken(user, user.sid);
+      if (named) setSessionCookie(res, renewed);
+      else res.set(RENEWED_TOKEN_HEADER, renewed);
+    }
     if (user.pending && !allowPending) {
       return res.status(403).json({ error: 'Your account is waiting for an admin to approve it', code: 'pending' });
     }
     req.user = user;
+    // For this process only (socket tickets, moving a login into the cookie): never sent back
+    // to a client that names its session.
+    req.loginToken = token;
     next();
   };
 }
@@ -155,5 +263,6 @@ function startSessionCleanup() {
 
 module.exports = {
   generateToken, startSession, verifyToken, authenticateJWT, authenticatePending, pruneStaleSessions, startSessionCleanup,
-  SESSION_SECONDS, RENEW_AFTER_SECONDS, RENEWED_TOKEN_HEADER, SESSION_TOUCH_SECONDS,
+  sessionReply, sessionMode, setSessionCookie, clearSessionCookie, loginOf, issueSocketTicket, redeemSocketTicket,
+  SESSION_SECONDS, RENEW_AFTER_SECONDS, RENEWED_TOKEN_HEADER, SESSION_TOUCH_SECONDS, SESSION_COOKIE, SESSION_HEADER, LOGIN_MODE_HEADER,
 };

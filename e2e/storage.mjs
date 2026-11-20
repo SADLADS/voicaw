@@ -4,7 +4,7 @@
 // afresh), a non-admin is refused, light, dark and a phone.
 //   node e2e/serve.mjs &   then   node e2e/storage.mjs [screenshot dir]
 import fs from 'node:fs';
-import { launchChrome, signUp, devices, BASE } from './helpers.mjs';
+import { launchChrome, signUp, loginToken, devices, BASE } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) fs.mkdirSync(dir, { recursive: true });
@@ -61,7 +61,7 @@ try {
 
   // Non-admins are refused.
   const bob = await signUp(browser, 'bob');
-  const token = await bob.page.evaluate(() => localStorage.getItem('token'));
+  const token = await loginToken(bob.page);
   const refused = (await bob.page.request.get(`${API}/api/admin/storage`, { headers: { Authorization: `Bearer ${token}` } })).status();
   check(refused === 403, `a non-admin gets 403 (${refused})`);
 

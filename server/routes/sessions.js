@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { authenticatePending } = require('../auth');
+const { authenticatePending, sessionMode, clearSessionCookie } = require('../auth');
 const { listSessions, endSessions } = require('../sessions');
 
 // Where you're logged in (Settings → Devices), and logging out: this device, another one, or
@@ -25,9 +25,10 @@ router.delete('/sessions/:id', authenticatePending, async (req, res) => {
   res.json(await listSessions(req.user.id, req.user.sid));
 });
 
-// Logging out on this device: its token stops working.
+// Logging out on this device: its token stops working (and a login cookie goes, auth.js).
 router.post('/logout', authenticatePending, async (req, res) => {
   await endSessions(req.user.id, [req.user.sid], { fromSettings: false });
+  if (sessionMode(req)) clearSessionCookie(res);
   res.json({ ok: true });
 });
 

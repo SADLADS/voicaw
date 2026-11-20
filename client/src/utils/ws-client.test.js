@@ -15,6 +15,8 @@ import { presenceOf } from './presence';
 import { closeNotifications } from '../services/pushService';
 
 vi.mock('../services/pushService', async (importOriginal) => ({ ...(await importOriginal()), closeNotifications: vi.fn() }));
+vi.mock('./api', () => ({ default: { post: vi.fn(), get: vi.fn() } }));
+import api from './api';
 
 class MockWebSocket {
   constructor(url) {
@@ -87,6 +89,65 @@ describe('connectWebSocket', () => {
     expect(JSON.parse(socket.sent[0])).toEqual({ type: 'presence', visible: true, chatId: null, sideChatId: null, mobile: false, desktopNotifications: false, reactionPushes: true, idleIn: expect.any(Number) });
     expect(JSON.parse(socket.sent[0]).idleIn).toBeGreaterThan(9 * 60 * 1000);
     expect(JSON.parse(socket.sent[1])).toEqual({ type: 'identify', token: 'jwt-abc' });
+  });
+
+  describe('logged in by cookie', () => {
+    const login = { id: 1, username: 'a', sid: 'S1', iat: 1 };
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it('identifies with a one-time ticket from the API, never a token', async () => {
+      globalThis.localStorage.setItem('login', JSON.stringify(login));
+      api.post.mockResolvedValueOnce({ data: { ticket: 'T1' } });
+      connectWebSocket();
+      const socket = MockWebSocket.instances[0];
+      socket._open();
+      await flush();
+      expect(api.post).toHaveBeenCalledWith('/socket-ticket', null, { login });
+      expect(socket.sent.map((s) => JSON.parse(s))).toContainEqual({ type: 'identify', ticket: 'T1' });
+    });
+
+    it('takes the ticket being refused for the login as logged out, anything else as a retry', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      globalThis.localStorage.setItem('login', JSON.stringify(login));
+      const loggedOut = vi.fn();
+      const stop = onLoggedOutElsewhere(loggedOut);
+      try {
+        api.post.mockRejectedValueOnce(Object.assign(new Error('Network Error'), { response: undefined }));
+        connectWebSocket();
+        MockWebSocket.instances[0]._open();
+        await flush();
+        expect(MockWebSocket.instances[0].readyState).toBe(MockWebSocket.CLOSED);
+        expect(loggedOut).not.toHaveBeenCalled();
+
+        closeWebSocket();
+        api.post.mockRejectedValueOnce(Object.assign(new Error('refused'), { response: { status: 403, data: { error: 'Invalid token' } } }));
+        connectWebSocket();
+        MockWebSocket.instances.at(-1)._open();
+        await flush();
+        expect(loggedOut).toHaveBeenCalledTimes(1);
+      } finally {
+        stop();
+      }
+    });
+
+    it('asks again when the server did not know the ticket (4001), without logging out', async () => {
+      vi.useFakeTimers();
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      globalThis.localStorage.setItem('login', JSON.stringify(login));
+      const loggedOut = vi.fn();
+      const stop = onLoggedOutElsewhere(loggedOut);
+      try {
+        api.post.mockResolvedValue({ data: { ticket: 'T' } });
+        connectWebSocket();
+        MockWebSocket.instances[0]._open();
+        MockWebSocket.instances[0].close(4001, 'Ticket not valid');
+        await vi.advanceTimersByTimeAsync(3500);
+        expect(loggedOut).not.toHaveBeenCalled();
+        expect(MockWebSocket.instances.length).toBe(2);
+      } finally {
+        stop();
+      }
+    });
   });
 
   it('does not open a second socket if already connected', () => {

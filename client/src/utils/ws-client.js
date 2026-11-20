@@ -3,7 +3,8 @@ import { applyActivitiesSnapshot, applyUserActivities, resetActivities } from '.
 import { resetVoiceStreams } from './voiceStreams';
 import { mergeProfiles } from './profiles';
 import { applyTyping, resetTyping } from './typing';
-import { sameLogin, savedToken } from './loginToken';
+import { announceLoginReplaced, loginRejected, loginReplaced, onLoginReplaced as listenLoginReplaced, sameLogin, sameSaved, savedLogin } from './loginToken';
+import api from './api';
 import { closeNotifications, desktopNotificationsOn } from '../services/pushService';
 import { playMessageSound } from '../sounds/sounds';
 import { catchUp } from './catchUp';
@@ -11,7 +12,6 @@ import { websocketUrl } from './server';
 import { noteSocketState, resetConnection } from './connection';
 
 let ws;
-let token;
 const newDmlisteners = new Set();
 const deleteListeners = new Set();
 const editListeners = new Set();
@@ -25,7 +25,6 @@ const groupListeners = new Set();
 const botDmListeners = new Set();
 const notificationListeners = new Set();
 const loggedOutListeners = new Set();
-const loginReplacedListeners = new Set();
 const approvedListeners = new Set();
 const signupRequestListeners = new Set();
 const testerRequestListeners = new Set();
@@ -203,27 +202,41 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   }
 }
 
+// A login kept in the cookie can't reach the socket's host (server/auth.js): the page asks the
+// API for a one-time ticket and identifies with that. The server refusing the login itself (or
+// another login having replaced it) is a logout like a 1008; anything else (out of reach) closes
+// the socket, which tries again.
+function identifyWithTicket(socket) {
+  api.post('/socket-ticket', null, { login: socket.login }).then(({ data }) => {
+    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'identify', ticket: data.ticket }));
+  }, (err) => {
+    if (socket !== ws || socket.readyState !== WebSocket.OPEN) return;
+    if (loginRejected(err) || loginReplaced(err)) socket.refused = true;
+    socket.close();
+  });
+}
+
 export function connectWebSocket() {
   if (ws && ws.readyState === WebSocket.OPEN) {
     console.warn('[WS] Already connected');
     return;
   }
 
-  token = savedToken();
-  if (!token) {
-    console.warn('[WS] No JWT token found, not connecting');
+  const login = savedLogin();
+  if (!login) {
+    console.warn('[WS] Not logged in, not connecting');
     return;
   }
   // Still connecting for this login (Login connects, then Layout mounts at once when the login
   // was on a page of the app, such as a link to a chat): a second socket would take `ws` from it
   // before its onopen, which then sends on the one not open yet.
-  if (ws && ws.readyState === WebSocket.CONNECTING && ws.token === token) return;
+  if (ws && ws.readyState === WebSocket.CONNECTING && sameSaved(ws.login, login)) return;
 
   const url = websocketUrl();
   console.log("Connecting to WebSocket:", url);
   const socket = new WebSocket(url);
   // The login it's for: the one saved may change under it (another tab logs in).
-  socket.token = token;
+  socket.login = login;
   ws = socket;
   setConnectionState(typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connecting');
 
@@ -234,7 +247,8 @@ export function connectWebSocket() {
     console.log('[WS] Connection opened');
     // Presence first, so the server already knows this device's status when it identifies.
     sendPresence();
-    ws.send(JSON.stringify({ type: 'identify', token }));
+    if (login.token) socket.send(JSON.stringify({ type: 'identify', token: login.token }));
+    else identifyWithTicket(socket);
     // Whether this server answers checkConnection's pings.
     ws.send(JSON.stringify({ type: 'ping' }));
     clearInterval(presenceInterval);
@@ -369,8 +383,9 @@ export function connectWebSocket() {
     clearTimeout(pongTimeout);
     pongTimeout = null;
     // The server refused this login (logged out from another device, the account deleted,
-    // or the token no longer valid): no point reconnecting with it.
-    if (event.code === 1008) {
+    // or the token no longer valid): no point reconnecting with it. (A ticket it didn't know,
+    // 4001, is only asked for again.)
+    if (event.code === 1008 || socket.refused) {
       setConnectionState('offline');
       loggedOutElsewhere(socket);
       return;
@@ -384,7 +399,7 @@ export function connectWebSocket() {
       reconnectTimeout = null;
       nextAttemptAt = null;
       console.log('[WS] Attempting reconnect...');
-      connectWebSocket(); // uses token from localStorage
+      connectWebSocket(); // with the login saved then
     }, RECONNECT_MS);
   };
 
@@ -571,8 +586,7 @@ export function onLoggedOutElsewhere(callback) {
 // The login this page started with has ended and another tab has saved a new one (see
 // loggedOutElsewhere): time to reload onto it.
 export function onLoginReplaced(callback) {
-  loginReplacedListeners.add(callback);
-  return () => loginReplacedListeners.delete(callback);
+  return listenLoginReplaced(callback);
 }
 
 // An admin approved this account, which was waiting (server/signups.js): this socket carries on
@@ -601,9 +615,9 @@ function loggedOutElsewhere(socket) {
   // The socket's login ended, but another one is saved now: this page slept (a background tab,
   // a laptop's lid) while another tab logged out and in again. Logging out would end that new
   // login (logout ends the saved one): the page picks it up instead.
-  const saved = savedToken();
-  if (saved && !sameLogin(saved, socket.token)) {
-    loginReplacedListeners.forEach((cb) => cb());
+  const saved = savedLogin();
+  if (saved && !sameLogin(saved, socket.login)) {
+    announceLoginReplaced();
     return;
   }
   loggedOutListeners.forEach((cb) => cb());
