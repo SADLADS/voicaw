@@ -24,6 +24,19 @@ public class ShareTest {
     }
 
     @Test
+    public void takesGalleryPhotosOnlyFromAppsThatMayReadThem() {
+        assertTrue(Share.allowedShare("content", "media", "external", APP, true));
+        assertFalse(Share.allowedShare("content", "media", "external", APP, false));
+        assertFalse(Share.allowedShare("content", "media", null, APP, false));
+        // The photo picker's addresses need a grant anyway.
+        assertTrue(Share.allowedShare("content", "media", "picker", APP, false));
+        assertTrue(Share.allowedShare("content", "media", "picker_get_content", APP, false));
+        // Other apps' own providers are theirs to give.
+        assertTrue(Share.allowedShare("content", "com.google.android.apps.photos.contentprovider", "0", APP, false));
+        assertFalse(Share.allowedShare("content", APP + ".fileprovider", "cache", APP, true));
+    }
+
+    @Test
     public void refusesFilePathsAndOddUris() {
         assertFalse(Share.allowed("file", "", APP));
         assertFalse(Share.allowed("file", null, APP));

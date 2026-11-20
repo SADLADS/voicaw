@@ -85,6 +85,47 @@ function pictureUrl(activity) {
     }
 }
 
+// A web-address picture's bytes (`fetch` is the global one), or null: any address, home network
+// included (a music server at home is the point), but redirects only within the same host (so a
+// game's address can't be bounced elsewhere), only an image/* answer, and read a piece at a
+// time, stopping at `maxBytes` (a reply that streams on doesn't fill the main process's memory;
+// security audit, 2026-11-20). `timeoutMs` is for the whole of it.
+const MAX_PICTURE_REDIRECTS = 3;
+async function downloadPicture(url, { fetch, maxBytes, timeoutMs }) {
+    const signal = AbortSignal.timeout(timeoutMs);
+    const host = new URL(url).host;
+    let response;
+    for (let redirects = 0; ; redirects++) {
+        response = await fetch(url, { redirect: 'manual', signal });
+        if (![301, 302, 303, 307, 308].includes(response.status)) break;
+        const location = response.headers.get('location');
+        await response.body?.cancel().catch(() => {});
+        if (!location || redirects >= MAX_PICTURE_REDIRECTS) return null;
+        const next = new URL(location, url);
+        if (next.host !== host || !['http:', 'https:'].includes(next.protocol)) return null;
+        url = next.href;
+    }
+    const type = response.headers.get('content-type') ?? '';
+    if (!response.ok || !/^image\//.test(type) || Number(response.headers.get('content-length')) > maxBytes || !response.body) {
+        await response.body?.cancel().catch(() => {});
+        return null;
+    }
+    const chunks = [];
+    let size = 0;
+    const reader = response.body.getReader();
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maxBytes) {
+            await reader.cancel().catch(() => {});
+            return null;
+        }
+        chunks.push(value);
+    }
+    return Buffer.concat(chunks);
+}
+
 // Square, at most 128 px: a cover as JPEG, an icon (which may be see-through) as PNG.
 // `image` is an Electron nativeImage.
 function pictureFrom(image, { photo }) {
@@ -211,4 +252,4 @@ function createGameActivities({ identify, loadPicture, fetchPicture = async () =
     };
 }
 
-module.exports = { cleanActivity, pictureFrom, pictureUrl, createGameActivities, GAME_TYPES };
+module.exports = { cleanActivity, downloadPicture, pictureFrom, pictureUrl, createGameActivities, GAME_TYPES };

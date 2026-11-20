@@ -1,11 +1,15 @@
 package com.voicaw.app;
 
+import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 
 import com.getcapacitor.JSArray;
@@ -43,8 +47,62 @@ final class Share {
         return !authority.equals(ownPackage) && !authority.startsWith(ownPackage + ".");
     }
 
-    /** The share in `intent`, or null if nothing in it can be shared. */
-    static JSObject read(Context context, Intent intent) {
+    /**
+     * As above, for the share sheet, which any app can fill: the phone's gallery (MediaStore,
+     * content://media/...) also needs `senderReadsMedia`. Voicaw may read every photo (the +
+     * panel's grid), so an app without that permission could otherwise put any photo on the share
+     * screen by its number (security audit, 2026-11-20). Photo picker addresses
+     * (content://media/picker...) are only readable with a grant, so they pass as before.
+     */
+    static boolean allowedShare(String scheme, String authority, String firstPathSegment, String ownPackage, boolean senderReadsMedia) {
+        if (!allowed(scheme, authority, ownPackage)) return false;
+        if (!MediaStore.AUTHORITY.equals(authority) || senderReadsMedia) return true;
+        return firstPathSegment != null && firstPathSegment.startsWith("picker");
+    }
+
+    /**
+     * The app that sent `intent` to `activity`, as the system says (never the intent's own
+     * EXTRA_REFERRER*, which the sender writes), or null. Through the share sheet it's the app
+     * that shared, not the sheet. Read while the intent is being delivered.
+     */
+    static String sender(Activity activity, Intent intent) {
+        if (activity == null || hasReferrerExtra(intent) || hasReferrerExtra(activity.getIntent())) return null;
+        Uri referrer = activity.getReferrer();
+        return referrer != null && "android-app".equals(referrer.getScheme()) ? referrer.getHost() : null;
+    }
+
+    private static boolean hasReferrerExtra(Intent intent) {
+        return intent != null && (intent.hasExtra(Intent.EXTRA_REFERRER) || intent.hasExtra(Intent.EXTRA_REFERRER_NAME));
+    }
+
+    /** Whether `pkg` may read the gallery itself: a photo or video permission, or a system app. */
+    static boolean readsMedia(Context context, String pkg) {
+        if (pkg == null) return false;
+        PackageManager pm = context.getPackageManager();
+        for (String permission : MEDIA_PERMISSIONS) {
+            if (pm.checkPermission(permission, pkg) == PackageManager.PERMISSION_GRANTED) return true;
+        }
+        try {
+            ApplicationInfo info = pm.getApplicationInfo(pkg, 0);
+            return (info.flags & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    private static final String[] MEDIA_PERMISSIONS = {
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.MANAGE_EXTERNAL_STORAGE",
+    };
+
+    /**
+     * The share in `intent`, or null if nothing in it can be shared. `senderReadsMedia`: whether
+     * the app that shared may read the gallery itself (readsMedia of sender).
+     */
+    static JSObject read(Context context, Intent intent, boolean senderReadsMedia) {
         List<Uri> uris = new ArrayList<>();
         if (Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())) {
             List<Uri> list = streams(intent);
@@ -57,7 +115,7 @@ final class Share {
         JSArray files = new JSArray();
         int skipped = 0;
         for (Uri uri : uris) {
-            if (uri == null || !allowed(uri.getScheme(), uri.getAuthority(), context.getPackageName())) {
+            if (uri == null || !allowedShare(uri.getScheme(), uri.getAuthority(), first(uri), context.getPackageName(), senderReadsMedia)) {
                 skipped++;
                 continue;
             }
@@ -74,6 +132,11 @@ final class Share {
         String shared = text == null ? "" : text.toString().trim();
         if (files.length() == 0 && shared.isEmpty()) return null;
         return new JSObject().put("files", files).put("text", shared).put("skipped", skipped);
+    }
+
+    private static String first(Uri uri) {
+        List<String> segments = uri.getPathSegments();
+        return segments.isEmpty() ? null : segments.get(0);
     }
 
     @SuppressWarnings("deprecation")

@@ -62,6 +62,7 @@ constexpr DWORD INJECT_TIMEOUT_MS = 15000;  // the inject helper's own run
 constexpr DWORD HOOK_LOAD_TIMEOUT_MS = 15000; // the hook appearing in the game
 constexpr DWORD HOOK_READY_TIMEOUT_MS = 20000; // its first frame (a game on a menu still presents)
 constexpr DWORD GPU_WAIT_MS = 200;
+constexpr uint32_t MAX_SIDE = 16384; // Direct3D 11's largest texture side
 
 // ---- output ------------------------------------------------------------------------------
 
@@ -404,6 +405,8 @@ private:
     hook_info *info_ = nullptr;
     HANDLE data_map_ = nullptr;
     void *data_ = nullptr;
+    SIZE_T data_size_ = 0; // how much of data_ is really mapped (the hook's numbers are checked against it)
+    bool capturing_ = false; // data_ and source_ are what copy_frame may use (start_capture can fail half way)
     hook_graphics_offsets offsets_ = {};
 
     Com<ID3D11Device> device_;
@@ -684,8 +687,10 @@ bool Capture::start_capture()
     if (info_->hook_ver_major > HOOK_VER_MAJOR) {
         fail("hook_version", "The capture hook is newer than this helper understands.");
     }
+    capturing_ = false;
     if (data_) UnmapViewOfFile(data_);
     data_ = nullptr;
+    data_size_ = 0;
     close(data_map_);
     source_.reset();
 
@@ -703,12 +708,20 @@ bool Capture::start_capture()
     }
     data_ = MapViewOfFile(data_map_, FILE_MAP_ALL_ACCESS, 0, 0, info_->map_size);
     if (!data_) fail("no_frame_data", "Could not map the hook's frame data." + format_error(GetLastError()));
+    // The mapping's real size: the hook's map_size, offsets and pitch are only its word (and the
+    // hook may be any program of this user that named the objects first).
+    MEMORY_BASIC_INFORMATION region = {};
+    if (!VirtualQuery(data_, &region, sizeof(region))) fail("no_frame_data", "Could not size the hook's frame data.");
+    data_size_ = region.RegionSize;
 
     type_ = info_->type;
     width_ = info_->cx;
     height_ = info_->cy;
     pitch_ = info_->pitch;
     if (!width_ || !height_) fail("no_frame_data", "The game reported an empty picture.");
+    if (width_ > MAX_SIDE || height_ > MAX_SIDE) fail("no_frame_data", "The game reported an impossible picture size.");
+    const SIZE_T header = type_ == HOOK_CAPTURE_TEXTURE ? sizeof(hook_shtex_data) : sizeof(hook_shmem_data);
+    if (data_size_ < header) fail("no_frame_data", "The hook's frame data is too small.");
 
     if (type_ == HOOK_CAPTURE_TEXTURE) {
         const HANDLE shared = reinterpret_cast<HANDLE>(static_cast<uintptr_t>(static_cast<hook_shtex_data *>(data_)->tex_handle));
@@ -735,6 +748,7 @@ bool Capture::start_capture()
              info_->hook_ver_major, info_->hook_ver_minor);
     log_line(text);
     make_textures();
+    capturing_ = true;
     return true;
 }
 
@@ -752,6 +766,7 @@ bool Capture::wait_gpu()
 
 bool Capture::copy_frame(Slot &slot)
 {
+    if (!capturing_) return false;
     if (type_ == HOOK_CAPTURE_TEXTURE) {
         context_->CopyResource(slot.texture.p, source_.p);
     } else {
@@ -767,7 +782,13 @@ bool Capture::copy_frame(Slot &slot)
         } else {
             return false;
         }
-        const uint8_t *pixels = static_cast<uint8_t *>(data_) + (current == 0 ? shmem->tex1_offset : shmem->tex2_offset);
+        // Within what's mapped, or not at all (64-bit sums: the hook's numbers can be anything).
+        const uint64_t offset = current == 0 ? shmem->tex1_offset : shmem->tex2_offset;
+        if (offset + static_cast<uint64_t>(pitch_) * height_ > data_size_) {
+            ReleaseMutex(mutex);
+            return false;
+        }
+        const uint8_t *pixels = static_cast<uint8_t *>(data_) + offset;
         const uint32_t row = width_ * bytes_per_pixel(out_.dxgi);
         if (pitch_ >= row) context_->UpdateSubresource(slot.texture.p, 0, nullptr, pixels, pitch_, pitch_ * height_);
         ReleaseMutex(mutex);
