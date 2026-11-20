@@ -26,6 +26,7 @@ vi.mock('../services/shareService', async (importOriginal) => ({
 }));
 
 const { default: ShareDialog } = await import('./ShareDialog');
+const { setPrivacyPref } = await import('../utils/privacy');
 const { sendToChat } = await import('../services/chatSend');
 const { uploadSharedFiles } = await import('../services/shareService');
 const { showAndroidToast } = await import('../utils/android');
@@ -86,6 +87,16 @@ describe('ShareDialog', () => {
     pick('Bob');
     expect(screen.getByRole('alert')).toHaveTextContent('a.jpg is over the');
     expect(screen.getByRole('button', { name: 'Send to 1 chat' })).toBeDisabled();
+  });
+
+  it('takes tracking out of shared links when asked to', () => {
+    setPrivacyPref('cleanLinks', true);
+    try {
+      open({ share: { files: [], text: 'https://youtu.be/abc?si=XYZ&t=90', skipped: 0 } });
+      expect(screen.getByRole('textbox', { name: 'Add a message' })).toHaveValue('https://youtu.be/abc?t=90');
+    } finally {
+      setPrivacyPref('cleanLinks', false);
+    }
   });
 
   it('shares text alone', async () => {

@@ -16,6 +16,7 @@ import { formatBytes } from '../utils/formatBytes';
 import { DEFAULT_MAX_UPLOAD_BYTES, maxAttachmentBytes } from '../services/attachmentUpload';
 import { clearShare, fetchRecentChats, getShare, onShareChange, shareText, uploadSharedFiles } from '../services/shareService';
 import { sendToChat } from '../services/chatSend';
+import { cleanPastedLinks } from '../services/linkRules';
 import { t } from '../i18n';
 import { errorText } from '../utils/errors';
 
@@ -47,7 +48,7 @@ export default function ShareDialog({ user, share, onClose }) {
   const maxLength = config.maxPlaintextLength ?? 4000;
   const destinations = useChatDestinations(user);
   const [recents, setRecents] = useState(null);
-  const [caption, setCaption] = useState(share.text ?? '');
+  const [caption, setCaption] = useState(() => cleanPastedLinks(share.text ?? ''));
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState([]); // keys, in the order picked
   const [sentTo, setSentTo] = useState([]); // keys already sent to (a retry skips them)

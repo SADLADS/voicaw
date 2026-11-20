@@ -317,9 +317,14 @@ links pasted into the message box (`?utm_source=…`, X's `?s=20&t=…`, YouTube
 keeping the ones people mean to share (YouTube's `v`, `t`, `list`, `index`). Only on paste and
 only links (not typed text, not code spans or blocks); the original goes in first and the cleaned
 text replaces it as its own undo step (`closeHistory`), so Ctrl+Z right after pasting gives the
-link back as pasted (`MessageEditor.jsx` `handlePaste`). Only the removed `name=value` pieces
-are cut: the rest keeps its exact text, and a link with nothing to remove isn't touched. Other
-places that paste (documents, the share screen) don't clean yet.
+link back as pasted (`MessageEditor.jsx` `handlePaste`). Phone keyboards' clipboard
+suggestions (Gboard's chip above the keys) put the text in without a paste event, so text a
+keyboard inserts in one go goes through the same cleaning (`handleTextInput`, also an undo step
+of its own, swapped only once any composition has ended, since changing the text mid-composition
+confuses the keyboard). Text shared to the Android app (the share screen) is cleaned as it
+opens. Only the removed `name=value` pieces are cut: the rest keeps its exact text, and a link
+with nothing to remove isn't touched. Documents don't clean yet. The setting is per device
+(like all of Settings → Privacy): turned on on a computer, it's still off on the phone.
 
 You can't tell tracking from a useful parameter by its shape, so it's a list of known ones,
 and a maintained list since sites keep adding them:

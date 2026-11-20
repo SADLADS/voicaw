@@ -165,6 +165,19 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
       },
     });
 
+    // A keyboard's link waiting to be cleaned (handleTextInput): swapped only if the text is
+    // still where it went in.
+    let pendingClean = null;
+    const applyPendingClean = (v) => {
+      const pending = pendingClean;
+      pendingClean = null;
+      if (!pending || v.isDestroyed || v.composing) return;
+      const { start, text, cleaned } = pending;
+      const end = start + text.length;
+      if (end > v.state.doc.content.size || v.state.doc.textBetween(start, end) !== text) return;
+      v.dispatch(closeHistory(v.state.tr).insertText(cleaned, start, end).scrollIntoView());
+    };
+
     const view = new EditorView(mountRef.current, {
       state: EditorState.create({
         doc: textToDoc(current().initialText, parseOptions()),
@@ -214,6 +227,19 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
         }
         return true;
       },
+      // Text a keyboard puts in whole (Android keyboards' clipboard suggestion, which fires no
+      // paste event; also a word committed at once): links in it lose their tracking too, as
+      // its own undo step, once any composition is over (changing the text mid-composition
+      // confuses the keyboard).
+      handleTextInput(v, from, to, text, deflt) {
+        if (text.length < 8 || !text.includes('.')) return false;
+        const cleaned = cleanPastedLinks(text);
+        if (cleaned === text) return false;
+        v.dispatch(deflt());
+        pendingClean = { start: from, text, cleaned };
+        if (!v.composing) applyPendingClean(v);
+        return true;
+      },
       handleDrop(v, event) {
         // Files are attached by the page around the editor.
         return Array.from(event.dataTransfer?.types || []).includes('Files');
@@ -221,6 +247,8 @@ const MessageEditor = forwardRef(function MessageEditor(props, ref) {
       handleDOMEvents: {
         focus: () => { current().onFocus?.(); return false; },
         blur: () => { current().onBlur?.(); return false; },
+        // After ProseMirror has read the composition's last change.
+        compositionend: (v) => { if (pendingClean) setTimeout(() => applyPendingClean(v)); return false; },
       },
       dispatchTransaction(tr) {
         const state = view.state.apply(tr);

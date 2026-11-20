@@ -3,6 +3,7 @@
 // AdGuard's filter when it starts; needs the internet, else only the built-in list), a real
 // Ctrl+V of an X link and a YouTube link loses s/a and si but keeps t, Ctrl+Z gives back what was
 // pasted and Ctrl+Y the cleaned text again, code is left alone, and Bob gets the clean link;
+// a link put in by the keyboard (Android keyboards' clipboard suggestion: no paste event) too;
 // Settings → Admin's "Tracking parameter list"; the switch at phone width.
 //   node e2e/serve.mjs &   then   node e2e/cleanlinks.mjs [screenshot dir]
 import { launchChrome, signUp, openChat, makeFriends, devices, BASE } from './helpers.mjs';
@@ -89,6 +90,26 @@ try {
   if ((await boxText(a)) !== plain) throw new Error(`a clean link changed: ${await boxText(a)}`);
   await clear(a);
   console.log('a link without tracking is left exactly as pasted');
+
+  // A phone keyboard's clipboard suggestion: the text comes in from the keyboard, no paste
+  // event (CDP's insertText is that path), on its own and ending a composition.
+  const cdp = await a.context().newCDPSession(a);
+  await a.click('#dm-input');
+  await a.keyboard.type('see ');
+  await cdp.send('Input.insertText', { text: YT });
+  await a.waitForTimeout(200);
+  if ((await boxText(a)) !== 'see https://youtu.be/dQw4w9WgXcQ?t=42') throw new Error(`keyboard insert not cleaned: ${await boxText(a)}`);
+  await a.keyboard.press('Control+Z');
+  if ((await boxText(a)) !== `see ${YT}`) throw new Error(`Ctrl+Z after a keyboard insert: ${await boxText(a)}`);
+  await clear(a);
+  await cdp.send('Input.imeSetComposition', { text: 'wor', selectionStart: 3, selectionEnd: 3 });
+  await cdp.send('Input.insertText', { text: YT });
+  await a.waitForTimeout(200);
+  if ((await boxText(a)) !== 'https://youtu.be/dQw4w9WgXcQ?t=42') throw new Error(`insert ending a composition not cleaned: ${await boxText(a)}`);
+  await a.keyboard.type(' ok');
+  if ((await boxText(a)) !== 'https://youtu.be/dQw4w9WgXcQ?t=42 ok') throw new Error(`typing after it: ${await boxText(a)}`);
+  await clear(a);
+  console.log('keyboard insert (no paste event), also ending a composition: cleaned, Ctrl+Z = as inserted');
 
   // Settings → Admin's switch.
   await a.goto(`${BASE}/settings/admin`);

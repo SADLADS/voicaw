@@ -193,6 +193,30 @@ describe('MessageEditor', () => {
     }
   });
 
+  it('takes tracking out of a link a keyboard puts in whole (no paste event), as its own undo step', async () => {
+    const { ref, element } = setup();
+    setPrivacyPref('cleanLinks', true);
+    try {
+      act(() => ref.current.insertText('a '));
+      // What Android keyboards' clipboard suggestion does: the text changes in the page.
+      const node = element.querySelector('p').firstChild;
+      await act(async () => {
+        node.data = 'a https://youtu.be/abc?si=XYZ&t=90';
+        const range = document.createRange();
+        range.setStart(node, node.data.length);
+        range.collapse(true);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      expect(ref.current.getText()).toBe('a https://youtu.be/abc?t=90');
+      key(element, { key: 'z', ctrlKey: true });
+      expect(ref.current.getText()).toBe('a https://youtu.be/abc?si=XYZ&t=90');
+    } finally {
+      setPrivacyPref('cleanLinks', false);
+    }
+  });
+
   it('copies custom emoji and mentions as message text, so pasting gives them back', () => {
     setCustomEmojiBase('https://s3.test');
     const { ref, element } = setup({ mentionNames: { 2: 'Anna' } });
