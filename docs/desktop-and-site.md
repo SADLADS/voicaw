@@ -406,8 +406,27 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   progress (`onUpdateProgress`), and offers it again if it fails. A
   development run or an unsigned macOS app can't update itself ('unsupported'). An AppImage
   keeps its file name across updates, and in the Steam Deck's Gaming Mode nothing restarts (both
-  above). Releases are
-  only as trustworthy as that server (no signature of our own on the feed yet).
+  above).
+- **Signed updates** (`updateSignature.js`, built 2026-11-20 after the security audit): every
+  installer on the feed has an `<installer>.sig` beside it, an Ed25519 signature of
+  `voicaw/desktop-update/v1`, the installer's name, its version and the SHA-512 of its bytes
+  (the file is `v1.` and the signature in base64). The release key never sits on the update
+  host: it's made once (`node updates/make-update-key.mjs`, `~/.voicaw-desktop-update-key/`,
+  backed up offline like the Android key) on the machine that checks the attestations, which
+  signs each release there (`node updates/sign-desktop.mjs`, which also checks the result
+  against the app's key); `publish.mjs` refuses a folder with an installer unsigned or signed by
+  another key. The app hashes each download itself (not trusting the feed's hash), finds the
+  feed entry with that hash, fetches its `.sig` (Electron's `net`, like the download) and
+  checks it with the public key built into `updateSignature.js` (`UPDATE_PUBLIC_KEY`; a build
+  for another update site brings its own with `VOICAW_UPDATE_KEY`, carried in the packaged
+  `package.json` with the feed's address). Until it passes, nothing is offered or installed;
+  electron-updater's `install()` (which "Update now", the launch and the install on quit all
+  call) is wrapped to let only the checked file through, unchanged since (path, size, time).
+  A failed check is a failed update (Settings → App version's error); the next look tries
+  again. So whoever can write to updates.voicaw.com can't ship code to installed apps any more,
+  only hold updates back. Apps from before this release still install whatever the feed
+  names; losing the key means every app has to be reinstalled by hand to update again.
+  Windows installers aren't code-signed (SmartScreen still warns on a first install).
 - **Releases built by GitHub** (`.github/workflows/desktop-release.yml`; README "Desktop app"): a pushed `desktop-vX.Y.Z` tag builds the Linux and Windows installers
   on GitHub's machines from that commit (the version stamped in by `VOICAW_VERSION` in
   `builder.config.js`, `electron/package.json` untouched), attests each file and feed
@@ -415,9 +434,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   Its actions are pinned to commit SHAs (the tag in a comment), not tags that can be moved.
   The host downloads it, refuses anything whose attestation doesn't name that workflow, tag and
   commit (`gh attestation verify`), then publishes as before. So anyone can check an installer
-  against the public source, and nothing built on the host is shipped. The app itself doesn't
-  check attestations before installing an update yet: until it does, updates.voicaw.com is
-  still trusted for automatic updates.
+  against the public source, and nothing built on the host is shipped. The app doesn't check
+  attestations itself; it checks the release key's signature, which the host only adds after
+  the attestations check out (Signed updates, above).
 - **Turning updates off** (Settings → Desktop App → Update automatically, `autoUpdate` in
   `desktopSettings.js`, on by default): off, the app never looks by itself, not at launch (the
   splash just opens it) nor every 4 hours; only Settings → App version's "Check for updates"

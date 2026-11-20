@@ -3,8 +3,12 @@
 // as a resource (`app/`), served by protocol.js.
 //
 // Updates (updater.js) come from UPDATE_URL: after building, upload the installers and the
-// latest*.yml files next to them there. VOICAW_UPDATE_URL overrides it at build time.
+// latest*.yml files next to them there. VOICAW_UPDATE_URL overrides it at build time. Every
+// installer there must be signed (updateSignature.js, updates/sign-desktop.mjs): the app checks
+// with the key built into updateSignature.js, or VOICAW_UPDATE_KEY's (base64 SPKI, from
+// updates/make-update-key.mjs) for a build that updates from some other site.
 const UPDATE_URL = process.env.VOICAW_UPDATE_URL || 'https://updates.voicaw.com/desktop/';
+const UPDATE_KEY = process.env.VOICAW_UPDATE_KEY || null;
 // VOICAW_AUTO_UPDATE=off: the build starts with automatic updates off (desktopSettings.js), for
 // people who build the app themselves and don't want it replaced by the published one.
 const AUTO_UPDATE = !/^(off|false|0|no)$/i.test(process.env.VOICAW_AUTO_UPDATE ?? '');
@@ -31,7 +35,12 @@ module.exports = {
     appId: 'com.voicaw.app',
     productName: 'Voicaw',
     electronVersion,
-    extraMetadata: { voicawAutoUpdate: AUTO_UPDATE, ...(VERSION && { version: VERSION }) },
+    extraMetadata: {
+        voicawAutoUpdate: AUTO_UPDATE,
+        voicawUpdateUrl: UPDATE_URL,
+        ...(UPDATE_KEY && { voicawUpdateKey: UPDATE_KEY }),
+        ...(VERSION && { version: VERSION }),
+    },
     directories: { output: '../dist-desktop' },
     files: [
         '*.js', 'assets/**', '!builder.config.js', '!vitest.config.js', '!test/**',

@@ -512,6 +512,13 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   swapped into the game window's screen share, which stays as the fallback (with the reason).
   Windows desktop app only (the user's choice). Not yet: Vulkan games (OBS's layer would go into
   every Vulkan program), HDR pictures, two-GPU laptops. Untested on Windows when built.
+- **Signed desktop updates** (built 2026-11-20, see Signed updates in `docs/desktop-and-site.md`;
+  the audit's open medium): the desktop app installs only updates signed with our Ed25519
+  release key (`electron/updateSignature.js`), so the update host alone can't ship code to it.
+  The user chose: the key made once on the machine that checks attestations and signs Android
+  (`~/.voicaw-desktop-update-key/`, never on the update host), one key backed up offline (no
+  second trusted key), a bad signature refused as a plain failed update (no new message).
+  Losing the key means everyone reinstalls by hand; changing it breaks updates for older apps.
 - **Sharing to Voicaw** (built 2026-11-02, see Sharing to Voicaw in `docs/desktop-and-site.md`):
   Android's share sheet lists Voicaw. The user chose Discord's way: a share screen with a
   message box and Send, several chats at once, sent from there without opening them (one

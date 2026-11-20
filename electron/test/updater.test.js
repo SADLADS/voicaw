@@ -47,12 +47,12 @@ describe('desktop updates (updater.js)', () => {
         vi.useFakeTimers();
         autoUpdater = fakeAutoUpdater();
         onReady = vi.fn();
-        updater = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater });
+        updater = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater, verify: () => true });
     });
     afterEach(() => vi.useRealTimers());
 
     it('is unsupported in a development run', async () => {
-        const dev = createUpdater({ app: { isPackaged: false }, onReady, autoUpdater });
+        const dev = createUpdater({ app: { isPackaged: false }, onReady, autoUpdater, verify: () => true });
         expect(await dev.check()).toBe('unsupported');
         expect(await dev.install()).toBe(false);
     });
@@ -112,7 +112,7 @@ describe('desktop updates (updater.js)', () => {
 
     it("in Gaming Mode, doesn't announce updates and installs without restarting", async () => {
         const deckUpdater = fakeAutoUpdater();
-        const gaming = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater: deckUpdater, gamingMode: true });
+        const gaming = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater: deckUpdater, gamingMode: true, verify: () => true });
         deckUpdater.latest = '1.1.0';
         await gaming.check();
         deckUpdater.finishDownload();
@@ -134,7 +134,7 @@ describe('desktop updates (updater.js)', () => {
 
     it('never looks by itself with automatic updates off, but still checks when asked', async () => {
         let auto = false;
-        const manual = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater, autoUpdate: () => auto });
+        const manual = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater, autoUpdate: () => auto, verify: () => true });
         autoUpdater.latest = '1.1.0';
         expect(await manual.launch().result).toBe('start');
         manual.start();
@@ -160,7 +160,7 @@ describe('desktop updates (updater.js)', () => {
         });
 
         it('opens the app at once in a development run', async () => {
-            const dev = createUpdater({ app: { isPackaged: false }, onReady, autoUpdater });
+            const dev = createUpdater({ app: { isPackaged: false }, onReady, autoUpdater, verify: () => true });
             expect(await dev.launch().result).toBe('start');
             expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled();
         });
@@ -267,5 +267,75 @@ describe('the splash window (splash.js)', () => {
             .toEqual({ ring: 'progress', text: 'Downloading update', detail: 'Version 1.2.0' });
         expect(splashView({ state: 'installing', version: '1.2.0' }).text).toBe('Installing update');
         expect(splashView(null)).toEqual({ ring: 'spin', text: 'Starting' });
+    });
+});
+
+describe('signed updates (updater.js with updateSignature.js)', () => {
+    const fsMod = require('fs');
+    const osMod = require('os');
+    const pathMod = require('path');
+    let autoUpdater;
+    let onReady;
+    let file;
+    // electron-updater's install(), which quitAndInstall and the install on quit both call.
+    function withInstall(updater) {
+        updater.installerPath = file;
+        updater.realInstall = vi.fn(() => true);
+        updater.install = updater.realInstall;
+        updater.quitAndInstall = vi.fn((...args) => updater.install(...args));
+        // electron-updater's event names the downloaded file (from the cache too).
+        const emit = updater.emit.bind(updater);
+        updater.emit = (name, info, ...rest) => emit(name, name === 'update-downloaded' ? { downloadedFile: file, ...info } : info, ...rest);
+        return updater;
+    }
+    beforeEach(() => {
+        autoUpdater = fakeAutoUpdater();
+        onReady = vi.fn();
+        file = pathMod.join(fsMod.mkdtempSync(pathMod.join(osMod.tmpdir(), 'voicaw-updater-')), 'update.AppImage');
+        fsMod.writeFileSync(file, 'the app');
+    });
+
+    it('never offers or installs an update whose signature fails', async () => {
+        const updater = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater: withInstall(autoUpdater), verify: () => false });
+        autoUpdater.latest = '1.1.0';
+        await updater.check();
+        autoUpdater.finishDownload();
+        expect(onReady).not.toHaveBeenCalled();
+        expect(updater.readyVersion()).toBe(null);
+        expect(await updater.check()).toBe('error');
+        expect(await updater.install()).toBe(false);
+        expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+        // electron-updater's install on quit is refused too.
+        expect(autoUpdater.install(true, false)).toBe(false);
+        expect(autoUpdater.realInstall).not.toHaveBeenCalled();
+    });
+
+    it('waits for the check before offering or installing', async () => {
+        let pass;
+        const verify = vi.fn(() => new Promise((resolve) => { pass = resolve; }));
+        const updater = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater: withInstall(autoUpdater), verify });
+        autoUpdater.latest = '1.1.0';
+        await updater.check();
+        autoUpdater.finishDownload();
+        expect(verify).toHaveBeenCalledWith(expect.objectContaining({ version: '1.1.0', downloadedFile: file }));
+        expect(onReady).not.toHaveBeenCalled();
+        const launch = updater.launch();
+        pass(true);
+        expect(await launch.result).toBe('installing');
+        expect(onReady).toHaveBeenCalledWith('1.1.0');
+        expect(autoUpdater.realInstall).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses to install a file changed after its check', async () => {
+        const updater = createUpdater({ app: { isPackaged: true }, onReady, autoUpdater: withInstall(autoUpdater), verify: () => true });
+        autoUpdater.latest = '1.1.0';
+        await updater.check();
+        autoUpdater.finishDownload();
+        expect(updater.readyVersion()).toBe('1.1.0');
+        fsMod.writeFileSync(file, 'something else entirely');
+        expect(autoUpdater.install(true, false)).toBe(false);
+        expect(autoUpdater.realInstall).not.toHaveBeenCalled();
+        autoUpdater.installerPath = pathMod.join(pathMod.dirname(file), 'other.AppImage');
+        expect(autoUpdater.install(true, false)).toBe(false);
     });
 });

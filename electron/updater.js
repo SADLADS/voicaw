@@ -18,6 +18,11 @@
 // installs when the app is quit (and "Update now" in Settings quits without restarting).
 // AppImages keep their file name across updates (appImageInstall.js).
 //
+// Every download is checked before it can be installed (updateSignature.js): the file's own
+// SHA-512 must be signed with the release key, which never sits on the update host. One that
+// isn't is never installed, by "Update now", the launch or on quit (electron-updater's own
+// install is wrapped), and is reported as a failed update; the next look tries again.
+//
 // With automatic updates off (`autoUpdate()` false, Settings → Desktop App) it never looks by
 // itself, at launch or later: only `check` (Settings' "Check for updates") does, and an update
 // that finds is downloaded and offered as usual.
@@ -27,12 +32,40 @@ const LAST_LOOK_MS = 5000;
 // How long the launch waits for its look (offline or a slow server: open the app anyway).
 const LAUNCH_LOOK_MS = 5000;
 
+const fs = require('fs');
+const path = require('path');
 const { keepAppImageName } = require('./appImageInstall');
+const { checkDownloadedUpdate, fetchSig, UPDATE_PUBLIC_KEY } = require('./updateSignature');
+
+// The packaged app's update site and key (builder.config.js extraMetadata).
+function checkSignature(info) {
+    const meta = require('./package.json');
+    const { net } = require('electron');
+    return checkDownloadedUpdate(info, {
+        baseUrl: meta.voicawUpdateUrl,
+        key: meta.voicawUpdateKey || UPDATE_PUBLIC_KEY,
+        fetchText: (url) => fetchSig(url, (...args) => net.fetch(...args)),
+    });
+}
+
+// What identifies the file the check passed: an update swapped for another afterwards isn't it.
+function fileStamp(file) {
+    try {
+        const stat = fs.statSync(file);
+        return { file: path.resolve(file), size: stat.size, mtimeMs: stat.mtimeMs };
+    } catch {
+        return null;
+    }
+}
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// `autoUpdater` is for tests (electron-updater's otherwise).
-function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamingMode = false, autoUpdate = () => true }) {
+// `autoUpdater` and `verify` are for tests (electron-updater's, and the signature check, otherwise).
+// `verify(info)` returns, or resolves to, whether the download may be installed.
+function createUpdater({
+    app, onReady, onProgress = () => {}, autoUpdater, gamingMode = false, autoUpdate = () => true,
+    verify = checkSignature,
+}) {
     let updater = null;
     let state = 'idle'; // 'idle' | 'checking' | 'downloading' | 'current' | 'error'
     let readyVersion = null; // downloaded and installable
@@ -41,6 +74,8 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamin
     let endDownload = () => {};
     let installing = false;
     let onLaunchStatus = null; // the splash's, while the launch runs
+    let verified = null; // fileStamp of the download whose signature checked out
+    let checks = 0; // signature checks started (only the latest one counts)
 
     if (app.isPackaged) {
         try {
@@ -53,26 +88,64 @@ function createUpdater({ app, onReady, onProgress = () => {}, autoUpdater, gamin
                 state = 'downloading';
                 // The one already downloaded comes straight back from the cache; another
                 // replaces it (electron-updater empties its cache first).
-                if (info.version !== readyVersion) readyVersion = null;
+                if (info.version !== readyVersion) {
+                    readyVersion = null;
+                    verified = null;
+                }
                 if (!download) download = new Promise((resolve) => { endDownload = resolve; });
                 onLaunchStatus?.({ state: 'downloading', version: info.version });
             });
             updater.on('update-not-available', () => { state = 'current'; });
             updater.on('download-progress', (progress) => onProgress(progress.percent / 100));
             updater.on('update-downloaded', (info) => {
-                state = 'idle';
-                readyVersion = info.version;
-                finishDownload();
-                if (announced !== info.version && !gamingMode) {
-                    announced = info.version;
-                    onReady(info.version);
+                const check = ++checks;
+                const settle = (ok) => {
+                    if (check !== checks) return; // another download since
+                    if (!ok) {
+                        state = 'error';
+                        readyVersion = null;
+                        verified = null;
+                        console.error(`Update ${info.version} refused: its signature didn't check out.`);
+                        finishDownload();
+                        return;
+                    }
+                    state = 'idle';
+                    readyVersion = info.version;
+                    verified = fileStamp(info.downloadedFile);
+                    finishDownload();
+                    if (announced !== info.version && !gamingMode) {
+                        announced = info.version;
+                        onReady(info.version);
+                    }
+                };
+                let result;
+                try {
+                    result = verify(info);
+                } catch {
+                    result = false;
                 }
+                if (result && typeof result.then === 'function') result.then(settle, () => settle(false));
+                else settle(result === true);
             });
             updater.on('error', (err) => {
                 state = 'error';
                 finishDownload();
                 console.error('Update failed:', err?.message);
             });
+            // electron-updater's every way of installing (quitAndInstall, and on quit with
+            // autoInstallOnAppQuit) goes through install(): only the checked file gets through.
+            if (typeof updater.install === 'function') {
+                const install = updater.install.bind(updater);
+                updater.install = (...args) => {
+                    const now = fileStamp(updater.installerPath);
+                    if (!verified || !now || now.file !== verified.file || now.size !== verified.size
+                        || now.mtimeMs !== verified.mtimeMs) {
+                        console.error('Not installing an update whose signature wasn\'t checked.');
+                        return false;
+                    }
+                    return install(...args);
+                };
+            }
             if (!updater.isUpdaterActive()) updater = null;
         } catch (err) {
             console.error('Updates are unavailable:', err.message);

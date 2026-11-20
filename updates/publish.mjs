@@ -8,8 +8,12 @@
 // different machines: run this once per folder of installers; each run only replaces what it
 // brings (a Linux build leaves the Windows one in place).
 //
-// The site gets the download page (updates/site), the logo, and in desktop/: the installers and
-// blockmaps, then releases.json (what the page lists), then the latest*.yml files last, each
+// Every installer the feeds name must carry a signature made with the app's update key
+// (updates/sign-desktop.mjs, on the machine that checked the attestations): installed apps
+// refuse anything else (electron/updateSignature.js), so an unsigned folder isn't published.
+//
+// The site gets the download page (updates/site), the logo, and in desktop/: the installers,
+// blockmaps and signatures, then releases.json (what the page lists), then the latest*.yml files last, each
 // written to a hidden temporary file and renamed, so an installed app never sees a feed naming
 // a file that isn't there yet. Older installers stay (people may be mid-download).
 //
@@ -20,6 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSite } from '../website/build.mjs';
+import { checkFolder, FEED } from './desktopSignatures.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -36,8 +41,7 @@ const KINDS = [
     { test: /\.AppImage$/, platform: 'linux', label: 'AppImage (any distribution)' },
     { test: /\.deb$/i, platform: 'linux', label: '.deb (Debian, Ubuntu)' },
 ];
-const PUBLISHED = /\.(exe|dmg|zip|AppImage|deb|blockmap)$/i;
-const FEED = /^latest(-[a-z0-9]+)?\.yml$/;
+const PUBLISHED = /\.(exe|dmg|zip|AppImage|deb|blockmap)(\.sig)?$/i;
 
 function copyAtomic(from, to) {
     const tmp = path.join(path.dirname(to), `.${path.basename(to)}.tmp`);
@@ -77,6 +81,13 @@ for (const feed of feeds) {
     }
 }
 
+// VOICAW_UPDATE_KEY: a build for another update site, with its own key (builder.config.js).
+const problems = await checkFolder(buildDir, process.env.VOICAW_UPDATE_KEY || undefined);
+if (problems.length) {
+    for (const problem of problems) console.error(problem);
+    process.exit(1);
+}
+
 fs.mkdirSync(desktopDir, { recursive: true });
 
 // The page and its logo.
@@ -86,7 +97,7 @@ for (const name of fs.readdirSync(path.join(here, 'site'))) {
 copyAtomic(path.join(root, 'client/public/logo192.png'), path.join(siteDir, 'logo.png'));
 copyAtomic(path.join(root, 'client/public/favicon.ico'), path.join(siteDir, 'favicon.ico'));
 
-// 1. Installers and blockmaps.
+// 1. Installers, blockmaps and signatures.
 for (const name of files) {
     copyAtomic(path.join(buildDir, name), path.join(desktopDir, name));
     console.log(`  ${name}`);

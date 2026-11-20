@@ -590,8 +590,19 @@ own `VITE_API_BASE_URL` / `VITE_WS_URL`.
 
 Installed copies update themselves (`electron/updater.js`) from
 `https://updates.voicaw.com/desktop/` (set `VOICAW_UPDATE_URL` when building to use another
-address, or `VOICAW_AUTO_UPDATE=off` for a build that never looks unless asked: Settings →
-Desktop App → Update automatically starts off). That's its own static site, with a download page at `https://updates.voicaw.com/`
+address, with `VOICAW_UPDATE_KEY` for that site's own signing key, or `VOICAW_AUTO_UPDATE=off`
+for a build that never looks unless asked: Settings → Desktop App → Update automatically starts
+off). Every update must be signed with the release key (Signed updates in
+`docs/desktop-and-site.md`), made once, on the machine that checks and signs releases, never on
+the update host:
+
+```bash
+node updates/make-update-key.mjs   # ~/.voicaw-desktop-update-key/update-key.pem; back it up offline
+```
+
+It prints the public key, which goes in `electron/updateSignature.js` (`UPDATE_PUBLIC_KEY`; the
+one there is Voicaw's: a new key means apps built before it refuse every update). Without the
+key, no installed app updates again until reinstalled. That's its own static site, with a download page at `https://updates.voicaw.com/`
 (`updates/site/`) listing the newest installer for each system. Set it up once:
 
 1. DNS: an `A` record for `updates.voicaw.com` pointing at the host.
@@ -661,8 +672,11 @@ a commit that's on GitHub (usually `master`). Below, `X.Y.Z` is the new version 
    grep '^version' latest*.yml        # each says X.Y.Z
    mkdir android && mv *.apk *.aab android/ && cd ../..   # Android's files apart
    ```
-5. **Publish the desktop app:** `node updates/publish.mjs dist-release/X.Y.Z` (it rebuilds
-   voicaw.com's download links too), then check `https://updates.voicaw.com/desktop/latest-linux.yml`
+5. **Sign and publish the desktop app**, signing on the machine with the release key (the
+   attestations checked, above), never on the update host: `node updates/sign-desktop.mjs
+   dist-release/X.Y.Z` (writes a `.sig` beside each installer and checks it against the app's
+   key), then `node updates/publish.mjs dist-release/X.Y.Z` where the update site is (it
+   refuses unsigned installers, and rebuilds voicaw.com's download links too), then check `https://updates.voicaw.com/desktop/latest-linux.yml`
    says X.Y.Z.
 6. **Android**, the same version: section 10, "Releases built by GitHub".
 7. **The web app:** `npm install && npm run build` (put live only if the build succeeds).
