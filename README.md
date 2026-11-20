@@ -648,36 +648,29 @@ a commit that's on GitHub (usually `master`). Below, `X.Y.Z` is the new version 
    ```bash
    git tag -a desktop-vX.Y.Z -m "Desktop app X.Y.Z" && git push origin desktop-vX.Y.Z
    ```
-3. **Download the GitHub Release** once it's built, and put the Windows installer's original
-   name back: GitHub turns spaces into dots, but the update feeds name `Voicaw Setup X.Y.Z.exe`:
+3. **Download the GitHub Release** once it's built, with the tag:
    ```bash
    gh release download desktop-vX.Y.Z --repo R --dir dist-release/X.Y.Z
-   cd dist-release/X.Y.Z
-   mv Voicaw.Setup.X.Y.Z.exe "Voicaw Setup X.Y.Z.exe"
-   mv Voicaw.Setup.X.Y.Z.exe.blockmap "Voicaw Setup X.Y.Z.exe.blockmap"
+   git fetch origin tag desktop-vX.Y.Z
    ```
-4. **Check every file was built by the workflow, from that tag and commit, on GitHub's machines**
-   (attestations go by content, so renamed files still check out). Publish nothing that fails.
-   The release also carries OBS Studio's source archive (the source of the Windows app's game
-   capture files, see Game capture in `docs/desktop-and-site.md`): not built here, so it has no
-   attestation; it's checked against OBS's SHA-256 (in `electron/game-capture/prepare.mjs`) and
-   set aside, and isn't published to updates.voicaw.com:
+4. **Check it and sign it**, on the machine with the update key, never on the update host:
    ```bash
-   node --input-type=module -e "import('../../electron/game-capture/prepare.mjs').then((m) => console.log(m.SOURCE_SHA256 + '  ' + m.SOURCE_NAME))" | sha256sum -c -
-   mkdir -p ../obs-source && mv OBS-Studio-*-Sources.tar.gz ../obs-source/
-   for f in *; do gh attestation verify "$f" --repo R \
-     --signer-workflow R/.github/workflows/desktop-release.yml \
-     --source-ref refs/tags/desktop-vX.Y.Z --source-digest "$(git rev-parse 'desktop-vX.Y.Z^{commit}')" \
-     --deny-self-hosted-runners > /dev/null || echo "FAILED: $f"; done
-   grep '^version' latest*.yml        # each says X.Y.Z
-   mkdir android && mv *.apk *.aab android/ && cd ../..   # Android's files apart
+   node updates/check-release.mjs dist-release/X.Y.Z X.Y.Z
    ```
-5. **Sign and publish the desktop app**, signing on the machine with the release key (the
-   attestations checked, above), never on the update host: `node updates/sign-desktop.mjs
-   dist-release/X.Y.Z` (writes a `.sig` beside each installer and checks it against the app's
-   key), then `node updates/publish.mjs dist-release/X.Y.Z` where the update site is (it
-   refuses unsigned installers, and rebuilds voicaw.com's download links too), then check `https://updates.voicaw.com/desktop/latest-linux.yml`
-   says X.Y.Z.
+   It stops at the first problem, and nothing is published until it passes. It puts back the
+   Windows installer's name (GitHub turns its spaces into dots, but the feeds name
+   `Voicaw Setup X.Y.Z.exe`), then checks every file was built by the workflow, from that tag and
+   its commit, on GitHub's machines (`gh attestation verify`; attestations go by content, so
+   renamed files still check out). OBS Studio's source archive (the source of the Windows app's
+   game capture files, see Game capture in `docs/desktop-and-site.md`) isn't built by the
+   workflow, so it's checked against the SHA-256 pinned in `electron/game-capture/prepare.mjs`
+   at that commit instead and moved to `dist-release/obs-source/` (never published). Then each
+   feed must say X.Y.Z, Android's files go to `dist-release/X.Y.Z/android/`, and the desktop
+   installers are signed (Signed updates in `docs/desktop-and-site.md`).
+5. **Publish the desktop app** where the update site is: `node updates/publish.mjs
+   dist-release/X.Y.Z` (only what the feeds name, with blockmaps and signatures; it refuses
+   unsigned installers, and rebuilds voicaw.com's download links too), then check
+   `https://updates.voicaw.com/desktop/latest-linux.yml` says X.Y.Z.
 6. **Android**, the same version: section 10, "Releases built by GitHub".
 7. **The web app:** `npm install && npm run build` (put live only if the build succeeds).
 8. **The API**, in the live checkout: `git pull`, `npm install` if the lockfile changed, then

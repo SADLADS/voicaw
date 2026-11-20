@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSite } from '../website/build.mjs';
-import { checkFolder, FEED } from './desktopSignatures.mjs';
+import { checkFolder, FEED, feedNames } from './desktopSignatures.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -34,14 +34,13 @@ const siteDir = path.resolve(process.argv[3] || process.env.VOICAW_UPDATES_DIR |
 const desktopDir = path.join(siteDir, 'desktop');
 
 // Which system an installer is for, and how the page describes it. Update-only files (macOS's
-// zip, blockmaps) are published but not listed.
+// zip, blockmaps, signatures) are published but not listed.
 const KINDS = [
     { test: /\.exe$/i, platform: 'windows', label: 'Windows installer' },
     { test: /\.dmg$/i, platform: 'mac', label: 'macOS disk image' },
     { test: /\.AppImage$/, platform: 'linux', label: 'AppImage (any distribution)' },
     { test: /\.deb$/i, platform: 'linux', label: '.deb (Debian, Ubuntu)' },
 ];
-const PUBLISHED = /\.(exe|dmg|zip|AppImage|deb|blockmap)(\.sig)?$/i;
 
 function copyAtomic(from, to) {
     const tmp = path.join(path.dirname(to), `.${path.basename(to)}.tmp`);
@@ -65,21 +64,26 @@ if (!fs.existsSync(buildDir)) {
 }
 const names = fs.readdirSync(buildDir).filter((n) => fs.statSync(path.join(buildDir, n)).isFile());
 const feeds = names.filter((n) => FEED.test(n));
-const files = names.filter((n) => PUBLISHED.test(n));
-if (!feeds.length || !files.length) {
-    console.error(`Nothing to publish in ${buildDir} (no installers or latest*.yml).`);
-    process.exit(1);
-}
-// Every installer named in a feed must be here, or the feed would point at nothing.
+// Only what the feeds name (checked and signed: updates/check-release.mjs), with each one's
+// blockmap and signature: anything else lying in the folder stays out.
+const named = new Set();
 for (const feed of feeds) {
-    const text = fs.readFileSync(path.join(buildDir, feed), 'utf8');
-    for (const [, name] of text.matchAll(/^\s*(?:-\s*url|path):\s*['"]?([^'"\n]+?)['"]?\s*$/gm)) {
+    for (const name of feedNames(fs.readFileSync(path.join(buildDir, feed), 'utf8'))) {
+        // Every installer named in a feed must be here, or the feed would point at nothing.
         if (!names.includes(name)) {
             console.error(`${feed} names ${name}, which isn't in ${buildDir}.`);
             process.exit(1);
         }
+        named.add(name);
     }
 }
+const files = names.filter((n) => named.has(n) || named.has(n.replace(/\.(blockmap|sig)$/, '')));
+if (!feeds.length || !files.length) {
+    console.error(`Nothing to publish in ${buildDir} (no installers or latest*.yml).`);
+    process.exit(1);
+}
+const left = names.filter((n) => !files.includes(n) && !feeds.includes(n));
+if (left.length) console.log(`Not published (no feed names them): ${left.join(', ')}`);
 
 // VOICAW_UPDATE_KEY: a build for another update site, with its own key (builder.config.js).
 const problems = await checkFolder(buildDir, process.env.VOICAW_UPDATE_KEY || undefined);

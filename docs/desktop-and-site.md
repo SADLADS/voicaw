@@ -413,8 +413,8 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   (the file is `v1.` and the signature in base64). The release key never sits on the update
   host: it's made once (`node updates/make-update-key.mjs`, `~/.voicaw-desktop-update-key/`,
   backed up offline like the Android key) on the machine that checks the attestations, which
-  signs each release there (`node updates/sign-desktop.mjs`, which also checks the result
-  against the app's key); `publish.mjs` refuses a folder with an installer unsigned or signed by
+  signs each release there once they pass (`updates/check-release.mjs` ends with it;
+  `updates/sign-desktop.mjs` alone signs a folder; both check the result against the app's key); `publish.mjs` refuses a folder with an installer unsigned or signed by
   another key. The app hashes each download itself (not trusting the feed's hash), finds the
   feed entry with that hash, fetches its `.sig` (Electron's `net`, like the download) and
   checks it with the public key built into `updateSignature.js` (`UPDATE_PUBLIC_KEY`; a build
@@ -432,8 +432,10 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `builder.config.js`, `electron/package.json` untouched), attests each file and feed
   (`actions/attest-build-provenance`: Sigstore, in its public log) and makes a GitHub Release.
   Its actions are pinned to commit SHAs (the tag in a comment), not tags that can be moved.
-  The host downloads it, refuses anything whose attestation doesn't name that workflow, tag and
-  commit (`gh attestation verify`), then publishes as before. So anyone can check an installer
+  The host downloads it and runs `updates/check-release.mjs`, which stops at the first file
+  whose attestation doesn't name that workflow, tag and commit (`gh attestation verify`; OBS's
+  source by its pinned SHA-256 instead), then signs the installers; `publish.mjs` publishes only
+  what the feeds name (with blockmaps and signatures), whatever else lies in the folder. So anyone can check an installer
   against the public source, and nothing built on the host is shipped. The app doesn't check
   attestations itself; it checks the release key's signature, which the host only adds after
   the attestations check out (Signed updates, above).
