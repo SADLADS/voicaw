@@ -98,7 +98,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   (the last 50), so the page can't open or delete anything else. Open never runs a program
   (`.exe`, `.msi`, `.sh`, `.AppImage`, `.desktop`... `PROGRAM` in downloads.js; since
   2026-11-18): it shows it in its folder instead, so a script in the page couldn't save and
-  start one after a single Save dialog. It goes 8 s after the last
+  start one after a single Save dialog. On Windows, files written piece by piece get the
+  "came from the internet" mark (a `:Zone.Identifier` stream, ZoneId=3; since 2026-11-20) as
+  Electron's own downloads do, so Windows warns before running one. It goes 8 s after the last
   file, not while the pointer or focus is on it; Open closes that file's entry. Browsers show
   their own, and the Android app a notification (below).
 - **Notifications** (`notifications.js`): the server sends what would be a web push over the
@@ -256,8 +258,9 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   `mp:external/<hash>/https/host/path`, turned back into the address) gets that picture instead:
   music players do this with album covers on the person's own server (Feishin's "Serve Discord
   images from server" with Navidrome or Jellyfin, added 2026-10-09). The main process downloads
-  it (`fetchPicture`: Node's fetch, 8 s, at most 10 MB, an `image/*` that nativeImage can read,
-  so PNG or JPEG; private addresses allowed, since it's the person's own computer asking, so a
+  it (`fetchPicture` / `downloadPicture`: Node's fetch, 8 s, read a piece at a time and dropped
+  past 10 MB, redirects only within the same host, an `image/*` that nativeImage can read, so
+  PNG or JPEG; private addresses allowed, since it's the person's own computer asking, so a
   home server works, unlike in Discord), caches the last 50 addresses, and shares only the small
   copy: viewers and the server never see the address (it can hold a token) or ask that server.
   Anything else in that field is a Discord asset key, which only Discord can look up, so the
@@ -530,7 +533,11 @@ native bridge. Check real behaviour on a phone.
   while the activity lives), read by the page through Capacitor's server only when sent, like
   the + panel's photos; `file://` and the app's own providers are refused (`Share.allowed`:
   another app could otherwise hand back Voicaw's own files, decrypted attachments included),
-  as is anything past 10 files (one message's worth). The share screen
+  as is anything past 10 files (one message's worth). A gallery address (`content://media/…`,
+  not the photo picker's) is taken only from an app that may read photos or videos itself, or
+  a system app (`Share.allowedShare`, since 2026-11-20): Voicaw may read every photo, so an app
+  without that permission could otherwise put any photo on the share screen by its number. The
+  sender is the system's referrer (`Share.sender`, never the intent's own `EXTRA_REFERRER`). The share screen
   (`components/ShareDialog.jsx`, from `Layout`'s `ShareHost`; the share waits in
   `services/shareService.js`, in memory, cleared by logging out) shows the pictures, a message
   box (the shared text in it), a search box and the chats from `hooks/useChatDestinations.js`

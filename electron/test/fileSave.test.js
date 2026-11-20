@@ -38,6 +38,19 @@ describe('saving a file a piece at a time (fileSave.js)', () => {
         await expect(fileSaver.append(id, new Uint8Array([6]))).rejects.toThrow();
     });
 
+    it('marks a finished file as from the internet on Windows only', async () => {
+        for (const platform of ['win32', 'linux']) {
+            const written = [];
+            const target = path.join(dir, `setup-${platform}.exe`);
+            const fakeFs = { ...fs, promises: { ...fs.promises, writeFile: async (file, data) => { written.push([file, data]); } } };
+            const fileSaver = createFileSaver({ showSaveDialog: async () => ({ canceled: false, filePath: target }), fs: fakeFs, downloadsDir: () => dir, platform });
+            const id = await fileSaver.start('setup.exe');
+            await fileSaver.append(id, new Uint8Array([1]));
+            await fileSaver.finish(id);
+            expect(written).toEqual(platform === 'win32' ? [[`${target}:Zone.Identifier`, '[ZoneTransfer]\r\nZoneId=3\r\n']] : []);
+        }
+    });
+
     it('starts nothing when the dialog is cancelled', async () => {
         const { fileSaver } = saver(() => ({ canceled: true }));
         expect(await fileSaver.start('a.txt')).toBeNull();

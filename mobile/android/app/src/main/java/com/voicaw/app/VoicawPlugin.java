@@ -89,10 +89,12 @@ public class VoicawPlugin extends Plugin {
         if (Share.isShare(intent)) {
             // Handled: not again when the activity is recreated.
             Intent shared = new Intent(intent);
+            // Who shared it: asked now, while the system's answer is this intent's.
+            String sender = Share.sender(getActivity(), intent);
             intent.setAction(Intent.ACTION_MAIN);
             // Asking the sharing app for names and sizes can be slow (its own process).
             shares.execute(() -> {
-                JSObject share = Share.read(getContext(), shared);
+                JSObject share = Share.read(getContext(), shared, Share.readsMedia(getContext(), sender));
                 if (share != null) notifyListeners("share", share, true);
             });
             return;

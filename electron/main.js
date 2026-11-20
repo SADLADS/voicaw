@@ -31,7 +31,7 @@ const { fetchPage } = require('./pageFetch');
 const { createFileSaver } = require('./fileSave');
 const { createDownloads } = require('./downloads');
 const { createRichPresenceServer } = require('./richPresence');
-const { createGameActivities, pictureFrom } = require('./gameActivities');
+const { createGameActivities, downloadPicture, pictureFrom } = require('./gameActivities');
 const { identifyGame, steamApps, steamPicture, steamRoots } = require('./gameLookup');
 const { inGamingMode } = require('./gamingMode');
 const { createOverlay, OVERLAY_PRELOAD } = require('./overlay');
@@ -295,12 +295,8 @@ function setUpRichPresence() {
         // A picture the game gives as a web address (a music server's album cover): fetched
         // here, as anything on this computer could, then made small like the others.
         async fetchPicture(url) {
-            const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(8000) });
-            if (!response.ok || !/^image\//.test(response.headers.get('content-type') ?? '')) return null;
-            if (Number(response.headers.get('content-length')) > MAX_PICTURE_BYTES) return null;
-            const bytes = Buffer.from(await response.arrayBuffer());
-            if (bytes.length > MAX_PICTURE_BYTES) return null;
-            return pictureFrom(nativeImage.createFromBuffer(bytes), { photo: true });
+            const bytes = await downloadPicture(url, { fetch, maxBytes: MAX_PICTURE_BYTES, timeoutMs: 8000 });
+            return bytes ? pictureFrom(nativeImage.createFromBuffer(bytes), { photo: true }) : null;
         },
         onChange: (activities) => {
             win?.webContents.send('desktop:activities', activities);

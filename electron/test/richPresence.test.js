@@ -8,7 +8,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { OP, encode, decode, socketPath, createRichPresenceServer } = require('../richPresence.js');
 const { parseVdf, steamApps, steamGameForPaths, steamPicture, programName, identifyGame } = require('../gameLookup.js');
-const { cleanActivity, createGameActivities, pictureUrl } = require('../gameActivities.js');
+const { cleanActivity, createGameActivities, downloadPicture, pictureUrl } = require('../gameActivities.js');
 
 // A game: connects, and reads frames as they come.
 function connectGame(file) {
@@ -217,6 +217,33 @@ describe('activities for the page (gameActivities.js)', () => {
         expect(pictureUrl({ assets: { large_image: 'icon' } })).toBeNull();
         expect(pictureUrl({ assets: { large_image: 'file:///etc/passwd' } })).toBeNull();
         expect(pictureUrl({})).toBeNull();
+    });
+
+    it('downloads a web-address picture with a size cap, redirects only within the host', async () => {
+        const http = await import('http');
+        const server = http.createServer((req, res) => {
+            if (req.url === '/cover.png') return res.writeHead(200, { 'content-type': 'image/png' }).end(Buffer.alloc(100, 7));
+            if (req.url === '/moved') return res.writeHead(302, { location: '/cover.png' }).end();
+            if (req.url === '/away') return res.writeHead(302, { location: 'http://example.invalid/cover.png' }).end();
+            if (req.url === '/page') return res.writeHead(200, { 'content-type': 'text/html' }).end('<p>');
+            // No Content-Length: streams on past the cap.
+            res.writeHead(200, { 'content-type': 'image/jpeg' });
+            const timer = setInterval(() => res.write(Buffer.alloc(64 * 1024)), 5);
+            res.on('close', () => clearInterval(timer));
+        });
+        await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+        const base = `http://127.0.0.1:${server.address().port}`;
+        const get = (p) => downloadPicture(base + p, { fetch, maxBytes: 1024 * 1024, timeoutMs: 5000 });
+        try {
+            expect((await get('/cover.png')).length).toBe(100);
+            expect((await get('/moved')).length).toBe(100);
+            expect(await get('/away')).toBeNull();
+            expect(await get('/page')).toBeNull();
+            expect(await get('/endless')).toBeNull();
+        } finally {
+            server.closeAllConnections();
+            server.close();
+        }
     });
 
     it("uses a music player's cover (fetched once per address) over the program's picture", async () => {

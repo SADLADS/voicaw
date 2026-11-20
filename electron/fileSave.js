@@ -10,9 +10,15 @@ function safeFileName(name) {
     return base && base !== '.' && base !== '..' ? base.slice(0, 200) : 'download';
 }
 
+// Windows' "came from the internet" mark (Mark of the Web), as browsers give downloads: with it
+// Windows (SmartScreen, Office's Protected View) warns before running or trusting the file.
+// Electron's own downloads (`<a download>`) get it from Chromium; these are written by us, so
+// they'd go unmarked (security audit, 2026-11-20).
+const ZONE_IDENTIFIER = '[ZoneTransfer]\r\nZoneId=3\r\n';
+
 // `showSaveDialog(options)` resolves { canceled, filePath } (Electron's dialog, for the window);
 // `fs` is node:fs.
-function createFileSaver({ showSaveDialog, fs, downloadsDir }) {
+function createFileSaver({ showSaveDialog, fs, downloadsDir, platform = process.platform }) {
     const open = new Map(); // id -> { stream, filePath }
     let nextId = 1;
 
@@ -49,6 +55,8 @@ function createFileSaver({ showSaveDialog, fs, downloadsDir }) {
             const file = close(id);
             if (!file) throw new Error('No such file');
             await new Promise((resolve, reject) => file.stream.end((err) => (err ? reject(err) : resolve())));
+            // An NTFS stream beside the file; drives without them (FAT, exFAT, network) just don't.
+            if (platform === 'win32') await fs.promises.writeFile(`${file.filePath}:Zone.Identifier`, ZONE_IDENTIFIER).catch(() => {});
             return file.filePath;
         },
         async cancel(id) {
