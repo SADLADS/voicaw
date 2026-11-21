@@ -105,8 +105,13 @@ out. Now the page never holds it.
   `{ known, login }` from `voicawDesktop.login.get()`. Only for the built-in API, whose address
   the build writes into `voicaw-api.json` (`client/vite.config.js`), never one the page names.
   One `onBeforeSendHeaders` listener per session, shared with YouTube's Referer (`youtube.js`).
-- **Android** (the user's choice): the page uses the same cookie as browsers; `MainActivity`
-  lets the WebView take cross-site cookies (`setAcceptThirdPartyCookies`) and flushes them on pause.
+- **Android** (the user's choice): the page uses the same cookie as browsers. `VoicawWebView`
+  lets the WebView take cross-site cookies (`setAcceptThirdPartyCookies`) in its constructor,
+  before Capacitor loads the page, and `MainActivity` says so again on every start and flushes
+  cookies on pause. (android-v1.3.1 only did it after `super.onCreate`, and the app sometimes
+  opened on the login screen after being closed: a cold start's first `/profile` went without the
+  cookie.) As a safety net, `AuthProvider` asks for a first `/profile` that came back 401
+  `no_session` (no cookie sent) once more, 1.5 s later, before showing the login screen.
 - **Other servers** keep Bearer tokens in localStorage (the user's choice), with the known
   limit below for that case only.
 - Still possible for an XSS: acting through the open page (it can't take the login away).

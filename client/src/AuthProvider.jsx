@@ -13,6 +13,12 @@ const RETRY_MS = 3000;
 const PROFILE_TIMEOUT_MS = 10000;
 // In offline mode, how often to look for the server again.
 const OFFLINE_RETRY_MS = 5000;
+// A first /profile that went without the login cookie (401 `no_session`, server/auth.js) is
+// asked once more after this long before the login screen shows: the Android app's WebView
+// could start before it accepted the API's cross-site cookie (fixed in VoicawWebView, but an
+// app opening on the login screen with a good login is the worst way for it to go wrong).
+const NO_COOKIE_RETRY_MS = 1500;
+const missingCookie = (err) => err?.response?.status === 401 && err.response.data?.code === 'no_session';
 
 // Only the server saying the login is no good ends the session (loginRejected). Anything else
 // (no network yet after the computer starts, the API restarting, a proxy's error page) is
@@ -28,6 +34,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false;
     let retryTimer;
+    let askedAgain = false;
 
     async function fetchProfile() {
       if (!savedLogin()) {
@@ -66,7 +73,10 @@ export function AuthProvider({ children }) {
         setLoading(false);
       } catch (err) {
         if (cancelled) return;
-        if (isRejected(err)) {
+        if (missingCookie(err) && !askedAgain) {
+          askedAgain = true;
+          retryTimer = setTimeout(fetchProfile, NO_COOKIE_RETRY_MS);
+        } else if (isRejected(err)) {
           setUser(null);
           setLoading(false);
         } else {

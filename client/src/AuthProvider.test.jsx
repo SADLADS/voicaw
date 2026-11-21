@@ -98,6 +98,49 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(screen.getByText('no user')).toBeInTheDocument());
   });
 
+  // A cold start whose first request went without the login cookie (the Android app's WebView,
+  // before it accepted the API's cross-site cookie) asks once more before the login screen.
+  it('asks once more when the first /profile went without the login cookie', async () => {
+    vi.useFakeTimers();
+    try {
+      const noCookie = Object.assign(new Error('no session'), { response: { status: 401, data: { error: 'Not logged in', code: 'no_session' } } });
+      api.get.mockRejectedValueOnce(noCookie).mockResolvedValue({ data: { id: 7, username: 'alice' } });
+
+      render(
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      );
+
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(screen.getByText('loading')).toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(1500));
+      expect(screen.getByText(/logged in as alice/)).toBeInTheDocument();
+      expect(api.get).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the login screen when the login cookie is still missing the second time', async () => {
+    vi.useFakeTimers();
+    try {
+      api.get.mockRejectedValue(Object.assign(new Error('no session'), { response: { status: 401, data: { error: 'Not logged in', code: 'no_session' } } }));
+
+      render(
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      );
+
+      await act(() => vi.advanceTimersByTimeAsync(1500));
+      expect(screen.getByText('no user')).toBeInTheDocument();
+      expect(api.get).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps the saved login and tries again while the server is out of reach', async () => {
     vi.useFakeTimers();
     try {
