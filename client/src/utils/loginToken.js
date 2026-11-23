@@ -1,5 +1,5 @@
 import { isBuiltInServer } from './server';
-import { isAndroidApp } from './android';
+import { forgetNativeLogin, hasNativeApi } from './androidApi';
 
 // What a login token ("<JWT>", server/auth.js) says: { id, username, sid }, or null. Only read,
 // never trusted: the server checks it.
@@ -21,14 +21,13 @@ export function tokenClaims(token) {
 // Server: cross-site, where browsers block cookies) the page keeps a Bearer token as before:
 // `{ id, username, sid, iat, token }`.
 //
-// The Android app keeps a Bearer token too (since 2026-11-23): its WebView never sends the API's
-// cookie, which is cross-site to its page (https://localhost), whatever it's told
-// (setAcceptThirdPartyCookies, before or after the page loads; the API's access log showed a
-// cookie set by /session-cookie missing from /profile a second later). The cookie had it logging
-// out at every start from android-v1.3.1 to 1.3.3.
+// The Android app's native side keeps its login and makes its requests to the API
+// (utils/androidApi.js, since 2026-11-23): its WebView never sends the API's cookie, cross-site to
+// its page, so the page is in cookie mode like a browser's but the token stays in the app, as the
+// desktop app's main process keeps it.
 //
-// Whether this app keeps its login in the cookie: on the built-in server, outside the Android app.
-export const cookieMode = () => isBuiltInServer() && !isAndroidApp();
+// Whether this app keeps its login in the cookie (or the app's native side): on the built-in server only.
+export const cookieMode = () => isBuiltInServer();
 
 const loginFromToken = (token) => {
   const claims = tokenClaims(token);
@@ -126,6 +125,8 @@ function writeSaved(login) {
       else if (login.token) appStore().set(login.token);
     }
   } catch { /* not kept by the app */ }
+  // The Android app's native side forgets its copy (a logout that couldn't reach the server).
+  if (!login && cookieMode() && hasNativeApi()) forgetNativeLogin();
   try {
     if (!login) {
       localStorage.removeItem('token');

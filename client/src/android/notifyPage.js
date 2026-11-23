@@ -1,6 +1,7 @@
 import { notificationFromPush } from '../services/pushNotifications';
 import { declineCallRequest } from '../services/callService';
 import { t } from '../i18n';
+import { answerFromNotifyHost } from '../utils/androidApi';
 
 // The Android app's hidden page (notify.html). When a push arrives the app may not be
 // running, so it loads this page in an invisible WebView (mobile/android/.../NotifyRenderer.java)
@@ -39,6 +40,8 @@ const handlers = {
 };
 
 window.voicawNotify = {
+  // The API's answer to a request made through the app (utils/androidApi.js: declining a call).
+  apiAnswer: answerFromNotifyHost,
   async run(id, request) {
     let reply;
     try {

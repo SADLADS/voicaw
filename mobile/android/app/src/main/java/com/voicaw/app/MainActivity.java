@@ -34,6 +34,10 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(VoicawPlugin.class);
         super.onCreate(savedInstanceState);
+        // Capacitor's cookie plugin (off in capacitor.config.json, but always loaded) makes every
+        // HttpURLConnection share the WebView's cookies. The page's API requests are made here with
+        // the login the app keeps (ApiLogin), which must stay out of the WebView's cookie store.
+        java.net.CookieHandler.setDefault(null);
         keepClearOfSystemBars();
         // Back goes back in the app (its routes are history entries); from the first page it
         // leaves the app running, as Android's Home would, rather than closing it.

@@ -5,9 +5,12 @@ import { announceLoginReplaced, cookieMode, loginHeaders, loginReplaced, sameLog
 import { apiBaseUrl } from './server';
 import { noteRequestAnswered, noteRequestUnanswered } from './connection';
 import { errorKind } from './errors';
+import { hasNativeApi, nativeAdapter } from './androidApi';
 
 const api = axios.create({
   baseURL: apiBaseUrl(),
+  // The Android app makes the requests itself, with the login it keeps (utils/androidApi.js).
+  ...(cookieMode() && hasNativeApi() ? { adapter: nativeAdapter } : {}),
 });
 
 // The saved login (utils/loginToken.js), unless the request already says which one (`login`:

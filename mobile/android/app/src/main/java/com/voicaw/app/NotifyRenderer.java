@@ -145,6 +145,14 @@ final class NotifyRenderer {
             });
         }
 
+        /** The page's request to the API, made with the app's login (ApiLogin): declining a call. */
+        @JavascriptInterface
+        public void apiRequest(int id, String request) {
+            ApiLogin.request(context, request, (answer) -> main.post(() -> {
+                if (webView != null) webView.evaluateJavascript("window.voicawNotify.apiAnswer(" + id + "," + JSONObject.quote(answer) + ")", null);
+            }));
+        }
+
         @JavascriptInterface
         public void result(int id, String json) {
             main.post(() -> {

@@ -149,6 +149,28 @@ public class VoicawPlugin extends Plugin {
     }
 
     /** The page has read the keyboard's file `{ id }`: its leave to read it can go. */
+    /**
+     * A request from the page to the API, made here with the login the app keeps (ApiLogin): the
+     * page never holds the token. Answers `{ status, statusText, headers, body }` or `{ error }`.
+     */
+    @PluginMethod
+    public void apiRequest(PluginCall call) {
+        ApiLogin.request(getContext(), call.getString("request", "{}"), (answer) -> {
+            try {
+                call.resolve(new JSObject(answer));
+            } catch (Exception e) {
+                call.reject("Bad answer");
+            }
+        });
+    }
+
+    /** Logged out on this phone without the server: the kept token goes (utils/loginToken.js). */
+    @PluginMethod
+    public void forgetApiLogin(PluginCall call) {
+        ApiLogin.forget(getContext());
+        call.resolve();
+    }
+
     @PluginMethod
     public void releaseKeyboardContent(PluginCall call) {
         KeyboardContent.release(call.getString("id"));

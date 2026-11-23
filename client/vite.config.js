@@ -144,8 +144,9 @@ function contentSecurityPolicy() {
   };
 }
 
-// The desktop app's build carries the built-in server's API address in voicaw-api.json, read by
-// its main process (electron/apiLogin.js), which keeps the login and adds it only to requests
+// The desktop and Android apps' builds carry the built-in server's API address in
+// voicaw-api.json, read by the desktop app's main process (electron/apiLogin.js) and the Android
+// app's native side (mobile/.../ApiLogin.java), which keep the login and add it only to requests
 // for that address: taken from the build, never from the page.
 function desktopApiAddress(api) {
   return {
@@ -195,7 +196,7 @@ export default defineConfig(({ mode }) => {
       react(),
       twemojiAssets(),
       contentSecurityPolicy(),
-      ...(isElectron ? [desktopApiAddress(env.VITE_API_BASE_URL)] : []),
+      ...(isElectron || isAndroid ? [desktopApiAddress(env.VITE_API_BASE_URL)] : []),
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'src',

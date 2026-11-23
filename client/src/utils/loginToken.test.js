@@ -64,7 +64,7 @@ describe('saved logins', () => {
 describe('the saved login', () => {
   // A fresh copy of the module (its memory) over an empty localStorage. `builtIn` false: logged
   // in to another server (the login screen's Server).
-  async function fresh({ builtIn = true, androidApp = false } = {}) {
+  async function fresh({ builtIn = true, nativeApi = false } = {}) {
     const store = new Map();
     globalThis.localStorage = {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -73,12 +73,13 @@ describe('the saved login', () => {
     };
     vi.resetModules();
     vi.doMock('./server', () => ({ isBuiltInServer: () => builtIn }));
-    vi.doMock('./android', () => ({ isAndroidApp: () => androidApp }));
-    return { store, ...(await import('./loginToken')) };
+    const forgetNativeLogin = vi.fn(async () => {});
+    vi.doMock('./androidApi', () => ({ hasNativeApi: () => nativeApi, forgetNativeLogin }));
+    return { store, forgetNativeLogin, ...(await import('./loginToken')) };
   }
   afterEach(() => {
     vi.doUnmock('./server');
-    vi.doUnmock('./android');
+    vi.doUnmock('./androidApi');
   });
 
   const old = { id: 1, username: 'a', sid: 'old', iat: 100 };
@@ -93,21 +94,30 @@ describe('the saved login', () => {
     expect(savedLogin()).toEqual(login);
   });
 
-  // The Android app's WebView never sends the API's cross-site cookie: it keeps a token.
-  it('keeps a token in the Android app, never the cookie', async () => {
-    const { store, cookieMode, saveLogin, savedLogin } = await fresh({ androidApp: true });
-    expect(cookieMode()).toBe(false);
-    const token = `x.${btoa(JSON.stringify({ id: 1, username: 'a', sid: 'S', iat: 5 }))}.y`;
-    saveLogin({ token });
-    expect(store.get('token')).toBe(token);
-    expect(store.has('login')).toBe(false);
-    expect(savedLogin()).toMatchObject({ id: 1, sid: 'S', token });
+  // The Android app's native side keeps the token and makes the requests (utils/androidApi.js):
+  // the page keeps only what the login says, as a browser's.
+  it('in the Android app, keeps only what the login says, never the token', async () => {
+    const { store, cookieMode, saveLogin, savedLogin } = await fresh({ nativeApi: true });
+    expect(cookieMode()).toBe(true);
+    saveLogin({ login });
+    expect(stored(store)).toEqual(login);
+    expect(store.has('token')).toBe(false);
+    expect(savedLogin()).toEqual(login);
   });
 
-  it('in the Android app, a cookie login saved by 1.3.1 to 1.3.3 counts as logged out', async () => {
-    const { store, savedLogin } = await fresh({ androidApp: true });
-    store.set('login', JSON.stringify(login));
-    expect(savedLogin()).toBe(null);
+  it('in the Android app, forgetting the login tells the app to forget its token', async () => {
+    const { forgetNativeLogin, saveLogin, forgetSavedLogin } = await fresh({ nativeApi: true });
+    saveLogin({ login });
+    expect(forgetNativeLogin).not.toHaveBeenCalled();
+    forgetSavedLogin();
+    expect(forgetNativeLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it('in a browser, forgetting the login has no app to tell', async () => {
+    const { forgetNativeLogin, saveLogin, forgetSavedLogin } = await fresh();
+    saveLogin({ login });
+    forgetSavedLogin();
+    expect(forgetNativeLogin).not.toHaveBeenCalled();
   });
 
   it('keeps the newer login when storage goes back to an older one of the same account', async () => {

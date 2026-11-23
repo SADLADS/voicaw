@@ -526,8 +526,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   one-time ticket. The user chose: the desktop app's main process keeps the token and adds it
   itself (the page never sees it), other servers keep Bearer tokens in localStorage. Android's
   WebView never sends the cross-site cookie (found 2026-11-23 from the API's access log, after
-  1.3.1-1.3.3 logged out at every start), so the user chose a Bearer token there too. Bearer stays
-  accepted (older apps, scripts).
+  1.3.1-1.3.3 logged out at every start), so the user chose the desktop app's way there too: the
+  app's native side keeps the token and makes the page's API requests (`ApiLogin.java`,
+  `utils/androidApi.js`; checked in an emulator). Bearer stays accepted (older apps, scripts).
 - **Sharing to Voicaw** (built 2026-11-02, see Sharing to Voicaw in `docs/desktop-and-site.md`):
   Android's share sheet lists Voicaw. The user chose Discord's way: a share screen with a
   message box and Send, several chats at once, sent from there without opening them (one
