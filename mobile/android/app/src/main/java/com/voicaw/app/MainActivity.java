@@ -125,6 +125,8 @@ public class MainActivity extends BridgeActivity {
         // Onto disk now (the WebView otherwise writes cookies every so often): a login or a
         // renewal survives Android ending the app in the background.
         CookieManager.getInstance().flush();
+        // The app's own copy follows it (LoginCookie): the WebView loses it across a restart.
+        LoginCookie.save(this);
         super.onPause();
     }
 }

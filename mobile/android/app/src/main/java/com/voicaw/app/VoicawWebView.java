@@ -33,6 +33,9 @@ public class VoicawWebView extends CapacitorWebView {
         // cold start's first request (the saved login's /profile) could go without the cookie and
         // the app opened on the login screen, though the login was still good.
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true);
+        // And the WebView doesn't keep that cookie across a restart: the app's own copy goes back
+        // in, still before the page loads (LoginCookie).
+        LoginCookie.restore(context);
     }
 
     @Override

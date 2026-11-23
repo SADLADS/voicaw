@@ -108,10 +108,14 @@ out. Now the page never holds it.
 - **Android** (the user's choice): the page uses the same cookie as browsers. `VoicawWebView`
   lets the WebView take cross-site cookies (`setAcceptThirdPartyCookies`) in its constructor,
   before Capacitor loads the page, and `MainActivity` says so again on every start and flushes
-  cookies on pause. (android-v1.3.1 only did it after `super.onCreate`, and the app sometimes
-  opened on the login screen after being closed: a cold start's first `/profile` went without the
-  cookie.) As a safety net, `AuthProvider` asks for a first `/profile` that came back 401
-  `no_session` (no cookie sent) once more, 1.5 s later, before showing the login screen.
+  cookies on pause. The WebView still lost the cookie across a restart (android-v1.3.1 and
+  1.3.2 opened on the login screen after being closed, the login still good), so the app keeps its
+  own copy (`LoginCookie.java`, in its private storage, never in the page): on every pause it
+  follows the WebView (a cookie there is saved, none, after a logout or a refused login, forgets
+  the copy), and before the page loads it puts the copy back if the WebView has none, for what's
+  left of its 30 days. Only for the built-in API address, from the build's `voicaw-api.json` (as
+  the desktop app's). As a safety net, `AuthProvider` asks for a first `/profile` that came back
+  401 `no_session` (no cookie sent) once more, 1.5 s later, before showing the login screen.
 - **Other servers** keep Bearer tokens in localStorage (the user's choice), with the known
   limit below for that case only.
 - Still possible for an XSS: acting through the open page (it can't take the login away).
