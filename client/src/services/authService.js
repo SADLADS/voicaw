@@ -30,9 +30,9 @@ export function suspendedText(reason) {
 
 // Sends and resolves to the response body; a refusal throws the server's own message
 // (e.g. "Username already exists", or too many attempts), with its `code` if it has one.
-async function send(method, path, body) {
+async function send(method, path, body, config) {
   try {
-    return (await api[method](path, body)).data;
+    return (await (config ? api[method](path, body, config) : api[method](path, body))).data;
   } catch (err) {
     const data = err.response?.data;
     if (data?.code === 'suspended') throw Object.assign(new Error(suspendedText(data.reason)), { code: data.code });
@@ -41,6 +41,11 @@ async function send(method, path, body) {
 }
 
 const post = (path, body) => send('post', path, body);
+// A request that logs in (or signs up, or recovers an account): sent as logged out, whatever is
+// saved. A login the server no longer takes is still saved after a start that found it dead
+// (AuthProvider only shows the login screen), and sent with its session's name the new login
+// came back as a token instead of the cookie (server/auth.js sessionReply).
+const postLoggingIn = (path, body) => send('post', path, body, { login: null });
 
 // OPAQUE (with its WebAssembly, ~400 kB) loads the first time it's needed: logging in,
 // signing up or checking a password, not with the rest of the app on every start.
@@ -76,7 +81,7 @@ export async function logIn(username, password) {
   if (!loginResult) throw new Error(t('auth.errors.incorrectLogin'));
   const { finishLoginRequest, sessionKey, exportKey } = loginResult;
 
-  const data = await post('/finaliselogin', {
+  const data = await postLoggingIn('/finaliselogin', {
     finishLoginRequest,
     clientSessionKey: sessionKey,
     userIdentifier: username,
@@ -86,7 +91,7 @@ export async function logIn(username, password) {
     // The exportKey stays in this closure (never sent, never stored) until a code is given.
     return {
       twoFactor: true,
-      finish: async (code) => finishLogIn(exportKey, await post('/login/two-factor', { ticket: data.ticket, code: String(code ?? '').trim() })),
+      finish: async (code) => finishLogIn(exportKey, await postLoggingIn('/login/two-factor', { ticket: data.ticket, code: String(code ?? '').trim() })),
     };
   }
   return finishLogIn(exportKey, data);
@@ -179,7 +184,7 @@ export async function register(username, password, invite = '', acceptedTerms = 
   const keyBackup = await wrapKeyBackup(exportKey, keys);
   const recoveryCode = generateRecoveryCode();
 
-  const data = await post('/finaliseregister', {
+  const data = await postLoggingIn('/finaliseregister', {
     registrationRecord,
     userIdentifier: username,
     ...keys.public,
@@ -354,7 +359,7 @@ export async function startRecovery(username, code, newPassword) {
   const finish = async (twoFactorCode = '') => {
     twoFactorCode = String(twoFactorCode ?? '').trim();
     const fields = { ...(await newPasswordFields(username, newPassword, keys)), ...(await recoveryFields(newCode, keys)) };
-    const done = await post('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
+    const done = await postLoggingIn('/recover/finish', { userIdentifier: username, recoveryAuth: auth, ...fields, ...(twoFactorCode && { twoFactorCode }) });
     await storeUserKeys(done.id, keys);
     saveLogin(done);
     return {

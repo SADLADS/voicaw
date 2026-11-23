@@ -1,4 +1,5 @@
 import { isBuiltInServer } from './server';
+import { isAndroidApp } from './android';
 
 // What a login token ("<JWT>", server/auth.js) says: { id, username, sid }, or null. Only read,
 // never trusted: the server checks it.
@@ -20,8 +21,14 @@ export function tokenClaims(token) {
 // Server: cross-site, where browsers block cookies) the page keeps a Bearer token as before:
 // `{ id, username, sid, iat, token }`.
 //
-// Whether this app keeps its login in the cookie: on the built-in server only.
-export const cookieMode = () => isBuiltInServer();
+// The Android app keeps a Bearer token too (since 2026-11-23): its WebView never sends the API's
+// cookie, which is cross-site to its page (https://localhost), whatever it's told
+// (setAcceptThirdPartyCookies, before or after the page loads; the API's access log showed a
+// cookie set by /session-cookie missing from /profile a second later). The cookie had it logging
+// out at every start from android-v1.3.1 to 1.3.3.
+//
+// Whether this app keeps its login in the cookie: on the built-in server, outside the Android app.
+export const cookieMode = () => isBuiltInServer() && !isAndroidApp();
 
 const loginFromToken = (token) => {
   const claims = tokenClaims(token);

@@ -110,7 +110,9 @@ describe('Login - login form', () => {
     expect(onLoginSuccess).toHaveBeenCalledWith({ id: 5, username: 'alice', hasRecoveryCode: true, pending: false, termsAccepted: true, twoFactorFailures: 0 });
     // The client's OPAQUE login state is its secret: it must never be sent to the server.
     expect(api.post).toHaveBeenCalledWith('/initiatelogin', { startLoginRequest: 'SLR', userIdentifier: 'alice', perAttempt: true });
-    expect(api.post).toHaveBeenCalledWith('/finaliselogin', { finishLoginRequest: 'FLR', clientSessionKey: 'SK', userIdentifier: 'alice', loginId: 'LID' });
+    // Sent as logged out (`login: null`): a dead login still saved mustn't make it a session's
+    // request, or the new login would come back as a token rather than the cookie.
+    expect(api.post).toHaveBeenCalledWith('/finaliselogin', { finishLoginRequest: 'FLR', clientSessionKey: 'SK', userIdentifier: 'alice', loginId: 'LID' }, { login: null });
     for (const [, body] of api.post.mock.calls) expect(body).not.toHaveProperty('clientLoginState');
   });
 
@@ -216,7 +218,7 @@ describe('Login - two-factor', () => {
     fireEvent.change(input, { target: { value: ' 123456 ' } });
     fireEvent.submit(input.closest('form'));
     await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
-    expect(api.post).toHaveBeenCalledWith('/login/two-factor', { ticket: 'TICKET', code: '123456' });
+    expect(api.post).toHaveBeenCalledWith('/login/two-factor', { ticket: 'TICKET', code: '123456' }, { login: null });
     expect(unwrapKeyBackup).toHaveBeenCalledWith('EXPORT-KEY', 'BACKUP');
     expect(localStorage.getItem('token')).toBe('jwt2fa');
   });
@@ -529,7 +531,7 @@ describe('Login - forgot password', () => {
     expect(api.post).toHaveBeenCalledWith('/recover/finish', {
       userIdentifier: 'alice', recoveryAuth: 'REC-AUTH', registrationRecord: 'NEW-REC', keyBackup: 'NEW-BACKUP',
       recoveryVerifier: 'REC-VERIFIER', recoveryBackup: 'REC-BACKUP',
-    });
+    }, { login: null });
     for (const [, body] of api.post.mock.calls) {
       expect(JSON.stringify(body)).not.toMatch(/PRIV|brand new password|AAAAA|FFFFF/);
     }
@@ -554,7 +556,7 @@ describe('Login - forgot password', () => {
     fireEvent.change(field, { target: { value: 'abcd-efgh' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reset password and log in' }));
     await waitFor(() => expect(onLoginSuccess).toHaveBeenCalled());
-    expect(api.post).toHaveBeenCalledWith('/recover/finish', expect.objectContaining({ twoFactorCode: 'abcd-efgh', recoveryVerifier: 'REC-VERIFIER' }));
+    expect(api.post).toHaveBeenCalledWith('/recover/finish', expect.objectContaining({ twoFactorCode: 'abcd-efgh', recoveryVerifier: 'REC-VERIFIER' }), { login: null });
   });
 
   it('keeps the same new code when the two-factor code is refused', async () => {

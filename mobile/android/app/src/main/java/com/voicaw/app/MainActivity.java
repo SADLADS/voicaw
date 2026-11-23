@@ -4,7 +4,6 @@ import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
-import android.webkit.CookieManager;
 import android.webkit.WebView;
 
 import androidx.activity.EdgeToEdge;
@@ -36,7 +35,6 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(VoicawPlugin.class);
         super.onCreate(savedInstanceState);
         keepClearOfSystemBars();
-        acceptLoginCookie();
         // Back goes back in the app (its routes are history entries); from the first page it
         // leaves the app running, as Android's Home would, rather than closing it.
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -104,29 +102,9 @@ public class MainActivity extends BridgeActivity {
         resumed++;
     }
 
-    /**
-     * The login cookie (server/auth.js) is cross-site to the page: VoicawWebView accepts it from
-     * the start; said again whenever the app comes back, in case anything reset it.
-     */
-    private void acceptLoginCookie() {
-        WebView page = getBridge() != null ? getBridge().getWebView() : null;
-        if (page != null) CookieManager.getInstance().setAcceptThirdPartyCookies(page, true);
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        acceptLoginCookie();
-    }
-
     @Override
     public void onPause() {
         resumed--;
-        // Onto disk now (the WebView otherwise writes cookies every so often): a login or a
-        // renewal survives Android ending the app in the background.
-        CookieManager.getInstance().flush();
-        // The app's own copy follows it (LoginCookie): the WebView loses it across a restart.
-        LoginCookie.save(this);
         super.onPause();
     }
 }

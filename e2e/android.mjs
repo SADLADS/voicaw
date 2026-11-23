@@ -12,7 +12,7 @@
 // ringing and takes down one that ended.
 //   node e2e/serve.mjs &   then   node e2e/android.mjs [screenshot dir]
 import { mkdirSync } from 'fs';
-import { launchChrome, signUp, openChat, send, devices, fakeMicArgs, BASE } from './helpers.mjs';
+import { launchChrome, signUp, openChat, send, devices, fakeMicArgs, loginToken, BASE } from './helpers.mjs';
 
 const dir = process.argv[2];
 if (dir) mkdirSync(dir, { recursive: true });
@@ -97,6 +97,14 @@ try {
   await page.evaluate(async () => {
     for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
   });
+  // The Android app keeps a token, not the browser's cookie (its WebView never sends that,
+  // utils/loginToken.js cookieMode): her login becomes what an Android login saves.
+  const token = await loginToken(page);
+  await page.evaluate((t) => {
+    localStorage.removeItem('login');
+    localStorage.setItem('token', t);
+  }, token);
+  await page.context().clearCookies({ name: 'voicaw_session' });
   await page.context().addInitScript(fakeAndroid);
   // Her websocket goes through a stand-in that can drop call events (see the end).
   let deafToCalls = false;
@@ -149,7 +157,7 @@ try {
   await enable.click();
   await page.waitForFunction(() => window.__android.record.calls.some((c) => c.method === 'getPushToken'));
   const devicesNow = await page.evaluate(async () => {
-    const res = await fetch('/api/test-push', { method: 'POST', headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
+    const res = await fetch('/api/test-push', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     return res.json();
   });
   check((await callsTo(page, 'requestNotifications')).length === 1, "asks Android's permission");
@@ -186,7 +194,7 @@ try {
   await send(bob.page, 'Secret plans for Saturday');
   await page.waitForSelector('text=Secret plans for Saturday');
   const ciphertext = await page.evaluate(async (id) => {
-    const res = await fetch(`/api/dm-messages/${id}`, { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
+    const res = await fetch(`/api/dm-messages/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     const body = await res.json();
     const rows = Array.isArray(body) ? body : body.messages;
     return rows.find((m) => m.sender_id === id).content;
@@ -238,7 +246,7 @@ try {
   await bob.page.click(`button[aria-label="Call ${alice.name}"]:not([disabled])`);
   await page.waitForSelector('.incoming-call');
   const callId = await page.evaluate(async () => {
-    const res = await fetch('/api/dm-calls/current', { headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
+    const res = await fetch('/api/dm-calls/current', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     return (await res.json()).id;
   });
   await page.evaluate((id) => window.__android.emit('callAction', { action: 'answer', callId: id }), callId);
@@ -265,7 +273,10 @@ try {
   // The phone's page asleep with a socket that's gone without it knowing: no call events reach
   // it, and the phone still rings from the push.
   const apiFetch = (who, path, method = 'GET') => who.evaluate(async ([p, m]) => {
-    const res = await fetch(`/api${p}`, { method: m, headers: { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid } });
+    // Alice (the Android app) has a token, Bob (a browser) the cookie and his session's name.
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : { 'X-Voicaw-Session': JSON.parse(localStorage.getItem('login')).sid };
+    const res = await fetch(`/api${p}`, { method: m, headers });
     return res.json();
   }, [path, method]);
   const bobCalls = async () => {

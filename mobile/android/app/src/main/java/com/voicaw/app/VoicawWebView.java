@@ -5,7 +5,6 @@ import android.text.InputType;
 import android.util.AttributeSet;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.webkit.CookieManager;
 
 import androidx.core.view.inputmethod.EditorInfoCompat;
 import androidx.core.view.inputmethod.InputConnectionCompat;
@@ -27,15 +26,6 @@ public class VoicawWebView extends CapacitorWebView {
 
     public VoicawWebView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        // The login is an HttpOnly cookie set by the API, which is cross-site to the page
-        // (https://localhost), and a WebView only takes such cookies when told to. Told here,
-        // before Capacitor loads the page: told after (MainActivity.onCreate, android-v1.3.1), a
-        // cold start's first request (the saved login's /profile) could go without the cookie and
-        // the app opened on the login screen, though the login was still good.
-        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true);
-        // And the WebView doesn't keep that cookie across a restart: the app's own copy goes back
-        // in, still before the page loads (LoginCookie).
-        LoginCookie.restore(context);
     }
 
     @Override

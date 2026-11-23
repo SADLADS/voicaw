@@ -70,8 +70,8 @@ Since 2026-11-20 (security audit follow-up): before, a script injected into the 
 could read the token from localStorage and use the account from elsewhere until it was logged
 out. Now the page never holds it.
 - **Server** (`auth.js`): a login sent with `X-Voicaw-Login: cookie` (`sessionReply`) answers
-  with `voicaw_session` (HttpOnly, Secure, `SameSite=None` (the Android app's page,
-  https://localhost, is cross-site to the API), `Path=/api`, 30 days, renewed like the token)
+  with `voicaw_session` (HttpOnly, Secure, `SameSite=None` (meant for the Android app's page,
+  https://localhost, cross-site to the API, which ended up not using it), `Path=/api`, 30 days, renewed like the token)
   and `login: { id, username, sid, iat }` instead of `token`. A request counts the cookie only
   when it also names its session in `X-Voicaw-Session: <sid>`: another site's form or link can't
   send headers, and a script on another origin can't without passing CORS, so the cookie alone
@@ -105,17 +105,18 @@ out. Now the page never holds it.
   `{ known, login }` from `voicawDesktop.login.get()`. Only for the built-in API, whose address
   the build writes into `voicaw-api.json` (`client/vite.config.js`), never one the page names.
   One `onBeforeSendHeaders` listener per session, shared with YouTube's Referer (`youtube.js`).
-- **Android** (the user's choice): the page uses the same cookie as browsers. `VoicawWebView`
-  lets the WebView take cross-site cookies (`setAcceptThirdPartyCookies`) in its constructor,
-  before Capacitor loads the page, and `MainActivity` says so again on every start and flushes
-  cookies on pause. The WebView still lost the cookie across a restart (android-v1.3.1 and
-  1.3.2 opened on the login screen after being closed, the login still good), so the app keeps its
-  own copy (`LoginCookie.java`, in its private storage, never in the page): on every pause it
-  follows the WebView (a cookie there is saved, none, after a logout or a refused login, forgets
-  the copy), and before the page loads it puts the copy back if the WebView has none, for what's
-  left of its 30 days. Only for the built-in API address, from the build's `voicaw-api.json` (as
-  the desktop app's). As a safety net, `AuthProvider` asks for a first `/profile` that came back
-  401 `no_session` (no cookie sent) once more, 1.5 s later, before showing the login screen.
+- **Android** keeps a Bearer token in localStorage, as other servers do (since 2026-11-23,
+  the user's choice once it was found): its WebView never sends the API's cookie, cross-site to
+  its page (https://localhost), whatever it's told. android-v1.3.1 to 1.3.3 used the cookie and
+  logged out at every start: the API's access log showed a cookie set by `/session-cookie`
+  missing from `/profile` a second later, in the same run (`setAcceptThirdPartyCookies` before
+  or after the page loaded, and a native copy of the cookie, changed nothing). It only seemed to
+  work because the next login came back as a token (below). An XSS could read the token there,
+  as before the cookie.
+- **Logging in is sent as logged out** (`authService.js` `postLoggingIn`: finishing a login,
+  the two-factor step, signing up, recovering): a start that found the saved login dead only
+  shows the login screen, and the next login sent with that session's name came back as a token
+  (`sessionReply` gives the cookie only to `X-Voicaw-Login: cookie`).
 - **Other servers** keep Bearer tokens in localStorage (the user's choice), with the known
   limit below for that case only.
 - Still possible for an XSS: acting through the open page (it can't take the login away).

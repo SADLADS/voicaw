@@ -11,7 +11,7 @@ vi.mock('./draftStore', () => ({ clearDrafts: vi.fn() }));
 vi.mock('./searchIndex', () => ({ clearSearchIndex: vi.fn(async () => {}) }));
 vi.mock('./offlineCopy', () => ({ clearOfflineCopy: vi.fn(async () => {}) }));
 vi.mock('./pushSecret', () => ({ forgetPushUpdateSecret: vi.fn(async () => {}) }));
-vi.mock('../utils/android', () => ({ setAndroidLoggedOut: vi.fn(async () => {}) }));
+vi.mock('../utils/android', () => ({ setAndroidLoggedOut: vi.fn(async () => {}), isAndroidApp: () => false }));
 
 const api = (await import('../utils/api')).default;
 const { closeWebSocket } = await import('../utils/ws-client');
