@@ -82,8 +82,11 @@ function audioContext() {
 }
 
 // Starts the audio context on the first click or key press (a context made before one stays
-// suspended), so a sound that comes later (a message, a ring) can play.
-if (typeof window !== 'undefined') {
+// suspended), so a sound that comes later (a message, a ring) can play. Not in the desktop app,
+// which needs neither (Electron plays sound without one): there the context is made by the first
+// sound, since making one starts Chromium's audio service (~24 MB, kept until the app quits,
+// even once the context is closed; Memory and start-up in docs/desktop-and-site.md).
+if (typeof window !== 'undefined' && !isDesktopApp()) {
   const unlock = () => {
     const ctx = audioContext();
     if (!ctx || ctx.state === 'running') {

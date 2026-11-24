@@ -9,6 +9,7 @@ import { leaveEntry } from './groupKeys';
 import { t } from '../i18n';
 import { errorText } from '../utils/errors';
 import { saveLogin } from '../utils/loginToken';
+import { withOpaque } from './opaqueSession';
 
 // Logging in and registering: OPAQUE (the password never leaves the device) plus the
 // encryption keys, which the server keeps only as a backup encrypted with OPAQUE's
@@ -47,16 +48,8 @@ const post = (path, body) => send('post', path, body);
 // came back as a token instead of the cookie (server/auth.js sessionReply).
 const postLoggingIn = (path, body) => send('post', path, body, { login: null });
 
-// OPAQUE (with its WebAssembly, ~400 kB) loads the first time it's needed: logging in,
-// signing up or checking a password, not with the rest of the app on every start.
-let opaqueModule = null;
-function loadOpaque() {
-  opaqueModule ??= import('@serenity-kit/opaque').then(async (m) => {
-    await m.ready;
-    return m;
-  });
-  return opaqueModule;
-}
+// OPAQUE runs in a worker of its own for each exchange (opaqueSession.js), loaded only when
+// logging in, signing up or checking a password.
 
 // Resolves to the user ({ id, username, ... }); throws an Error with a message to show.
 // With two-factor on (server/twoFactor.js), resolves to { twoFactor: true, finish(code) }
@@ -66,16 +59,13 @@ function loadOpaque() {
 export async function logIn(username, password) {
   if (!username || !password) throw new Error(t('auth.errors.usernameAndPasswordRequired'));
 
-  const opaque = await loadOpaque();
-  const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
-  // clientLoginState is this device's secret half of the OPAQUE exchange: never send it.
-  // perAttempt: the server keeps this login under its own `loginId`, so someone else starting
-  // logins for the same name meanwhile can't break it.
-  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username, perAttempt: true });
-  const loginResult = opaque.client.finishLogin({
-    clientLoginState,
-    loginResponse: started.loginResponse,
-    password,
+  const { started, loginResult } = await withOpaque(async (opaque) => {
+    const { clientLoginState, startLoginRequest } = await opaque.startLogin({ password });
+    // clientLoginState is this device's secret half of the OPAQUE exchange: never send it.
+    // perAttempt: the server keeps this login under its own `loginId`, so someone else starting
+    // logins for the same name meanwhile can't break it.
+    const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username, perAttempt: true });
+    return { started, loginResult: await opaque.finishLogin({ clientLoginState, loginResponse: started.loginResponse, password }) };
   });
   // Wrong password and unknown username look the same here (on purpose).
   if (!loginResult) throw new Error(t('auth.errors.incorrectLogin'));
@@ -134,16 +124,13 @@ function checkNewPassword(password) {
 // account: { invite, reason }) lets the server refuse a sign-up that needs an invite (or a
 // reason) straight away.
 async function registerPassword(username, password, signup = null) {
-  const opaque = await loadOpaque();
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({ password });
-  const started = await post('/initiateregister', {
-    userIdentifier: username, registrationRequest, ...(signup && { signup: true, invite: signup.invite, reason: signup.reason }),
-  });
-  if (started.error) throw new Error(started.error);
-  return opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse: started.registrationResponse,
-    password,
+  return withOpaque(async (opaque) => {
+    const { clientRegistrationState, registrationRequest } = await opaque.startRegistration({ password });
+    const started = await post('/initiateregister', {
+      userIdentifier: username, registrationRequest, ...(signup && { signup: true, invite: signup.invite, reason: signup.reason }),
+    });
+    if (started.error) throw new Error(started.error);
+    return opaque.finishRegistration({ clientRegistrationState, registrationResponse: started.registrationResponse, password });
   });
 }
 
@@ -214,12 +201,13 @@ export function inviteCode(text) {
 // backup with it. Resolves to { proof, keys }; `proof` goes along with the change.
 async function unlockWithPassword(username, password) {
   if (!password) throw new Error(t('auth.errors.currentPasswordRequired'));
-  const opaque = await loadOpaque();
-  const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
-  // perAttempt: the server keeps this login under its own `loginId`, so someone else starting
-  // logins for the same name meanwhile can't break it.
-  const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username, perAttempt: true });
-  const result = opaque.client.finishLogin({ clientLoginState, loginResponse: started.loginResponse, password });
+  const { started, result } = await withOpaque(async (opaque) => {
+    const { clientLoginState, startLoginRequest } = await opaque.startLogin({ password });
+    // perAttempt: the server keeps this login under its own `loginId`, so someone else starting
+    // logins for the same name meanwhile can't break it.
+    const started = await post('/initiatelogin', { startLoginRequest, userIdentifier: username, perAttempt: true });
+    return { started, result: await opaque.finishLogin({ clientLoginState, loginResponse: started.loginResponse, password }) };
+  });
   if (!result) throw new Error(t('auth.errors.currentPasswordIncorrect'));
 
   const { keyBackup } = await send('get', '/key-backup');

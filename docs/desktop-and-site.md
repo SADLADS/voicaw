@@ -459,6 +459,30 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   replace their build with the published one): `VOICAW_AUTO_UPDATE=off` at build time
   (`builder.config.js` writes `voicawAutoUpdate` into the packaged `package.json`) makes it off
   from the first launch.
+- **Memory and start-up** (2026-11-24, branch `desktop-memory`): the user wanted a lighter,
+  faster desktop app. A Rust frontend was considered and dropped (kept on branch `rust-client`):
+  measured, an empty Electron window is already ~267 MB (PSS: main process ~90, GPU ~77,
+  network ~29, zygotes ~29, renderer ~42), about 70% of the app's idle total, which only leaving
+  Chromium could lower (a second, native client; Tauri's WebKitGTK has no WebRTC on Linux).
+  So the app is slimmed inside Electron, measured with `e2e/desktopmemory.mjs` (the floor, then
+  the app logged out, logged in, a DM open and started logged in, by process type, with when
+  each helper process starts):
+  - OPAQUE runs in a worker per login, sign-up or password check (client
+    `services/opaqueSession.js`): its argon2id grew WebAssembly memory by ~70 MB, which
+    WebAssembly never gives back; ending the worker does (the web app and Android gain too).
+    The stretching parameters can't change: they decide the exportKey that opens key backups.
+  - Listening for `devicechange` started Chromium's audio and video capture services at load
+    (~40 MB, the audio one kept); `voice/voiceClient.js` now listens only while voices play.
+  - The sounds' AudioContext is made by the first sound in the desktop app, not on the first
+    click (`sounds.js`; `autoplayPolicy` set in `main.js`): making one starts the audio service
+    (~24 MB), which stays until the app quits even once the context is closed. Browsers keep
+    the first-click unlock (Safari on iPhones only starts sound inside one).
+  - Measured on the dev host (Xvfb, unpackaged, so no update check): logged in and idle 459 →
+    ~395 MB, started logged in 382 → ~368 MB; to the app on screen ~0.9–1.3 s either way.
+    Left to look at: the main process's ~20 MB over the floor (native: the tray is 4 MB;
+    spellcheck and notifications nothing; only ~3 MB is JS heap), the renderer's ~80 MB over an
+    empty page (its JS heap is only ~15–20 MB), and a packaged start, where the splash waits for
+    the update check.
 - **Not done yet:** screen share sound on macOS and
   Linux (Electron's loopback is Windows only), streaming videos (no
   service worker: they download whole on Play; `protocol.js` could serve them instead), code

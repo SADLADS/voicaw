@@ -484,6 +484,7 @@ async function teardown() {
   endGameCapture();
   const oldPlayback = playback;
   playback = null;
+  watchDevicesWhilePlaying();
   if (old) {
     old.removeAllListeners();
     await old.disconnect().catch(() => {});
@@ -567,10 +568,17 @@ onPushToTalkChange((next, previous) => {
   playSound(next.pressed ? 'pushToTalkOn' : 'pushToTalkOff');
 });
 
-// A device plugged in or out: the chosen speakers may be back.
-onDeviceChange(() => {
-  if (outputSinkId()) playback?.setSinkId?.();
-});
+// A device plugged in or out while voices play: the chosen speakers may be back. Listened for
+// only then: listening for device changes at all makes Chromium start its audio and video
+// capture services (~40 MB in the desktop app) and keep the audio one running (Memory and
+// start-up in docs/desktop-and-site.md).
+let stopWatchingDevices = null;
+function watchDevicesWhilePlaying() {
+  stopWatchingDevices?.();
+  stopWatchingDevices = playback ? onDeviceChange(() => {
+    if (outputSinkId()) playback?.setSinkId?.();
+  }) : null;
+}
 
 // Voice settings changed (Settings → Voice & video): a new microphone or processing means
 // capturing it again (or, while muted, dropping the track so unmuting captures it afresh).
@@ -832,6 +840,7 @@ async function connect(target, getToken, e2eeKey, { rejoining = false, unencrypt
     callEncrypted = Boolean(e2ee);
     onUnencrypted = e2ee ? unencrypted ?? leaveVoice : null;
     playback = newPlaybackContext();
+    watchDevicesWhilePlaying();
     startMeters(current);
     const newRoom = new livekit.Room({
       webAudioMix: playback ? { audioContext: playback } : false,

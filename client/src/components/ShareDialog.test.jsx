@@ -17,7 +17,7 @@ vi.mock('../hooks/useChatDestinations', async (importOriginal) => ({
 vi.mock('./Avatar', () => ({ default: () => null }));
 vi.mock('./group/GroupPicture', () => ({ default: () => null }));
 vi.mock('./guild/ChannelIcon', () => ({ default: () => null }));
-vi.mock('../utils/android', () => ({ sharedFileSrc: (f) => `https://localhost/_capacitor_content_/${f.name}`, showAndroidToast: vi.fn() }));
+vi.mock('../utils/android', () => ({ android: null, sharedFileSrc: (f) => `https://localhost/_capacitor_content_/${f.name}`, showAndroidToast: vi.fn() }));
 vi.mock('../services/chatSend', () => ({ sendToChat: vi.fn() }));
 vi.mock('../services/shareService', async (importOriginal) => ({
   ...(await importOriginal()),

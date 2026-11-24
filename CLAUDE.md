@@ -571,6 +571,11 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   hands-off upkeep: our server downloads AdGuard's URL Tracking filter (GPL-3.0) daily and serves
   it converted (devices never contact AdGuard; it only sees the server), with our own short list
   bundled (not AdGuard's, so no GPL data in the app) for when there's none.
+- **Desktop memory and start-up** (2026-11-24, see Memory and start-up in
+  `docs/desktop-and-site.md`): the user wanted a lighter, faster desktop app. Rewriting the
+  frontend in Rust was dropped for now (an empty Electron window is ~267 MB, ~70% of the
+  app's idle memory; branch `rust-client` kept, a start on a Rust/WebAssembly core): the app is
+  slimmed inside Electron instead, each change measured with `e2e/desktopmemory.mjs`.
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

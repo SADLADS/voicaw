@@ -47,7 +47,7 @@ try {
   await bob.page.goto(`${BASE}/settings#sounds`);
   await bob.page.waitForSelector('.sound-settings');
   const rows = await bob.page.locator('.sound-list li').count();
-  if (rows !== 10) throw new Error(`expected 10 sounds, saw ${rows}`);
+  if (rows !== 12) throw new Error(`expected 12 sounds, saw ${rows}`);
   let before = await made(bob.page);
   await bob.page.click('[aria-label="Play User join"]');
   await grew(bob.page, before, 'Play User join');

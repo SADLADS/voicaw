@@ -147,6 +147,9 @@ function createWindow(hidden, onShown = () => {}) {
             spellcheck: true,
             // Ringing, voice and the websocket carry on normally while it's in the tray.
             backgroundThrottling: false,
+            // Electron's default, relied on: the page's sounds start without a click first, so
+            // their audio context is only made when one plays (client sounds/sounds.js).
+            autoplayPolicy: 'no-user-gesture-required',
         },
     });
     setUpSpellcheck(win);
