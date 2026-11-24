@@ -60,6 +60,12 @@ let splash = null; // while the app starts
 // The popped-out screen share's window (windowOpen.js), while it's open.
 const streamWindows = new WeakSet();
 let quitting = false;
+// While the splash looks for an update, the main window loads hidden behind it (startWithSplash):
+// asking for the app then (the tray, starting it again) brings the splash forward instead.
+let launching = false;
+// A window made hidden that was last maximised: maximised when first shown (maximize() would
+// show it at once).
+let maximizeOnShow = false;
 let settings;
 let login;
 // The login's go-between for the API's requests (apiLogin.js).
@@ -93,9 +99,13 @@ if (!app.requestSingleInstanceLock()) {
 const fromApp = (event) => (event.senderFrame?.url ?? '').startsWith(`${ORIGIN}/`) && !overlay?.isOverlay(event.sender);
 
 function showWindow() {
-    if (!win) {
+    if (!win || launching) {
         splash?.window.focus();
         return;
+    }
+    if (maximizeOnShow) {
+        maximizeOnShow = false;
+        win.maximize();
     }
     if (win.isMinimized()) win.restore();
     win.show();
@@ -153,7 +163,11 @@ function createWindow(hidden, onShown = () => {}) {
         },
     });
     setUpSpellcheck(win);
-    if (settings.get().window?.maximized) win.maximize();
+    maximizeOnShow = false;
+    if (settings.get().window?.maximized) {
+        if (hidden) maximizeOnShow = true;
+        else win.maximize();
+    }
 
     if (process.platform === 'darwin') {
         // macOS needs a menu for copy/paste shortcuts to work.
@@ -640,11 +654,30 @@ function openApp(hidden, onShown) {
 }
 
 // The splash looks for an update and installs it (the app restarts onto it), or opens the app,
-// staying up until the main window is on screen. Closing it quits.
+// staying up until the main window is on screen. Closing it quits. The main window loads hidden
+// meanwhile, so the app is on screen as soon as the check is done rather than a page load after
+// it (Memory and start-up in docs/desktop-and-site.md); an update being installed just quits it.
 function startWithSplash() {
     let launch = null;
+    let loaded = false;
+    let started = false;
+    const reveal = () => {
+        if (!loaded || !started || quitting || !win) return;
+        launching = false;
+        showWindow();
+        splash?.close();
+    };
+    launching = true;
     splash = createSplash({ icon: ICON, onStartAnyway: () => launch?.startAnyway() });
-    splash.window.on('closed', () => { splash = null; });
+    splash.window.on('closed', () => {
+        splash = null;
+        // Closed by the person while it's still up (not by reveal): quit, hidden window and all.
+        if (launching) quit();
+    });
+    openApp(true, () => {
+        loaded = true;
+        reveal();
+    });
     launch = updater.launch({
         onStatus: (status) => splash?.status(status),
         beforeQuit: () => { quitting = true; },
@@ -652,7 +685,8 @@ function startWithSplash() {
     launch.result.then((outcome) => {
         if (outcome === 'installing' || quitting) return;
         splash?.status(null); // starting
-        openApp(false, () => splash?.close());
+        started = true;
+        reveal();
         updater.start({ lookNow: false });
     });
 }

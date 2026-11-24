@@ -368,7 +368,13 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
   day: everyone starts on the latest version, page included). After 10 s of downloading it
   offers "Start anyway" (the download carries on and the page offers it once ready; the main
   window re-announces a ready update when its page loads). Then "Starting" until the main
-  window is on screen. Started at login (`--hidden`), there's no splash: the app opens to the
+  window is on screen. Since 2026-11-24 the main window loads hidden behind the splash while it
+  looks (`main.js` `startWithSplash`), so the app is on screen as soon as the check is done,
+  not a page load later (~300 ms sooner on the dev host); meanwhile asking for the app (the
+  tray, starting it again) brings the splash forward, closing the splash quits, an update just
+  quits the hidden window with the app, and a window last maximised is maximised only when
+  first shown (`maximize()` would show it at once; started at login too). The hidden page is
+  already connected and may notify, as the tray's is. Started at login (`--hidden`), there's no splash: the app opens to the
   tray and updates in the background as below. `e2e/desktopsplash.mjs` draws each state and
   starts the real app under Xvfb.
 - **Steam Deck Gaming Mode** (`gamingMode.js`, `appImageInstall.js`; 2026-10-13): Gaming Mode
@@ -477,12 +483,15 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
     click (`sounds.js`; `autoplayPolicy` set in `main.js`): making one starts the audio service
     (~24 MB), which stays until the app quits even once the context is closed. Browsers keep
     the first-click unlock (Safari on iPhones only starts sound inside one).
+  - The main window loads behind the splash during the update check (Splash window above):
+    with the check faked at 300 ms the app was on screen at ~630 ms instead of ~850, at 1 s at
+    ~1260 instead of ~1580 (the page load, ~300 ms here, no longer comes after the check; a
+    check from here takes 0.1–0.3 s, and `electron-updater` itself ~70 ms to load).
   - Measured on the dev host (Xvfb, unpackaged, so no update check): logged in and idle 459 →
     ~395 MB, started logged in 382 → ~368 MB; to the app on screen ~0.9–1.3 s either way.
     Left to look at: the main process's ~20 MB over the floor (native: the tray is 4 MB;
-    spellcheck and notifications nothing; only ~3 MB is JS heap), the renderer's ~80 MB over an
-    empty page (its JS heap is only ~15–20 MB), and a packaged start, where the splash waits for
-    the update check.
+    spellcheck and notifications nothing; only ~3 MB is JS heap) and the renderer's ~80 MB over
+    an empty page (its JS heap is only ~15–20 MB).
 - **Not done yet:** screen share sound on macOS and
   Linux (Electron's loopback is Windows only), streaming videos (no
   service worker: they download whole on Play; `protocol.js` could serve them instead), code
