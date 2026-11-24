@@ -117,6 +117,10 @@ const vendorPatterns = Object.entries(VENDOR_CHUNKS).flatMap(([chunk, names]) =>
   new RegExp(`/node_modules/${name.replace('*', '[^/]+')}/`),
 ]));
 function vendorChunk(id) {
+  // Each language but British English in one file of its own (src/i18n/index.js loads only the
+  // one in use).
+  const language = /[\\/]src[\\/]i18n[\\/]([^\\/]+)[\\/][^\\/]+\.json$/.exec(id)?.[1];
+  if (language && language !== 'en-GB') return `i18n-${language}`;
   return vendorPatterns.find(([, pattern]) => pattern.test(id))?.[0];
 }
 

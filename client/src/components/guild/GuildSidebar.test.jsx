@@ -49,6 +49,10 @@ vi.mock('../../services/voiceService', async (importOriginal) => ({
 import GuildSidebar from './GuildSidebar';
 import { moveVoiceMember } from '../../services/voiceService';
 import { ConfigContext, InteractionContext, LayoutContext } from '../../contexts';
+// Lazy in GuildSidebar.jsx: loaded up front, so opening one doesn't wait for the module.
+import '../events/EventsDialog';
+import '../events/EventEditor';
+import './GuildSettingsDialog';
 import { joinVoice } from '../../voice/voiceClient';
 import {
   cloneChannel,

@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../Icon';
 import {
@@ -32,7 +32,6 @@ import { createPortal } from 'react-dom';
 import InviteDialog from './InviteDialog';
 import ChannelDialog from './ChannelDialog';
 import CategoryDialog from './CategoryDialog';
-import GuildSettingsDialog from './GuildSettingsDialog';
 import ConfirmDialog from './ConfirmDialog';
 import NotificationDialog from './NotificationDialog';
 import AuditLogDialog from './AuditLogDialog';
@@ -46,8 +45,6 @@ import CloneChannelDialog from './CloneChannelDialog';
 import ChannelIcon from './ChannelIcon';
 import VoiceChannelMembers from './VoiceChannelMembers';
 import '../../assets/css/events.css';
-import EventsDialog from '../events/EventsDialog';
-import EventEditor from '../events/EventEditor';
 import EventEmoji from '../events/EventEmoji';
 import { useGuildEvents } from '../../hooks/useGuildEvents';
 import { useEventHistory } from '../../hooks/useEventHistory';
@@ -59,6 +56,11 @@ import { useVoice } from '../../hooks/useVoice';
 import { joinVoice } from '../../voice/voiceClient';
 import { PERMISSIONS, has } from '../../utils/permissions';
 import { t } from '../../i18n';
+
+// Loaded when first opened, not with the app (Memory and start-up in docs/desktop-and-site.md).
+const GuildSettingsDialog = lazy(() => import('./GuildSettingsDialog'));
+const EventsDialog = lazy(() => import('../events/EventsDialog'));
+const EventEditor = lazy(() => import('../events/EventEditor'));
 
 const COLLAPSED_KEY = 'collapsedCategories';
 
@@ -595,7 +597,7 @@ export default function GuildSidebar({ guild, user }) {
         />
       )}
       {dialog?.type === 'events' && (
-        <EventsDialog
+        <Suspense fallback={null}><EventsDialog
           guild={guild}
           user={user}
           events={guildEvents.events}
@@ -613,10 +615,10 @@ export default function GuildSidebar({ guild, user }) {
           onCreate={(start = null) => setDialog({ type: 'eventEditor', start, back: true })}
           onEdit={(event, scope, occurrence = null) => setDialog({ type: 'eventEditor', event, scope, occurrence, back: true })}
           onClose={closeDialog}
-        />
+        /></Suspense>
       )}
       {dialog?.type === 'eventEditor' && (
-        <EventEditor
+        <Suspense fallback={null}><EventEditor
           guild={guild}
           event={dialog.event}
           scope={dialog.scope ?? 'all'}
@@ -628,13 +630,13 @@ export default function GuildSidebar({ guild, user }) {
             setDialog({ type: 'events', eventId: saved.id, occurrence: dialog.scope === 'this' ? dialog.occurrence : null });
           }}
           onClose={() => (dialog.back ? setDialog({ type: 'events', eventId: dialog.event?.id ?? null, occurrence: dialog.occurrence ?? null }) : closeDialog())}
-        />
+        /></Suspense>
       )}
       {dialog?.type === 'invite' && <InviteDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'audit' && <AuditLogDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'leaderboard' && <LeaderboardDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}
-      {dialog?.type === 'settings' && <GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} />}
+      {dialog?.type === 'settings' && <Suspense fallback={null}><GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} /></Suspense>}
       {dialog?.type === 'category' && <CategoryDialog guild={guild} category={dialog.category} onClose={closeDialog} />}
       {dialog?.type === 'channel' && (
         <ChannelDialog

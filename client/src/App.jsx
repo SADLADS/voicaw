@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { HashRouter, BrowserRouter, unstable_HistoryRouter as HistoryRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { ConfigContext, InteractionContext } from './contexts';
@@ -9,7 +9,6 @@ import { lastChat } from './utils/lastChat';
 import Login from './components/Login.jsx';
 import PendingApproval from './components/PendingApproval.jsx';
 import Layout from './components/Layout.jsx';
-import Settings from './components/Settings.jsx';
 import Dm from './components/Dm.jsx';
 import Friends from './components/Friends';
 import Notes from './components/Notes.jsx';
@@ -17,7 +16,6 @@ import GroupDm from './components/group/GroupDm.jsx';
 import BotDm from './components/BotDm.jsx';
 import GuildView from './components/guild/GuildView.jsx';
 import InvitePage from './components/guild/InvitePage.jsx';
-import DeveloperPortal from './components/developers/DeveloperPortal.jsx';
 import AuthorizePage from './components/developers/AuthorizePage.jsx';
 import api from './utils/api';
 import './assets/css/mobile.css';
@@ -42,6 +40,10 @@ import { watchKeyboardViewport } from './utils/keyboardViewport';
 import TermsGate from './components/TermsGate';
 import ImageLinkAccount from './components/ImageLinkAccount';
 import DesktopTitleBar from './components/DesktopTitleBar';
+
+// Loaded when first opened, not with the app (Memory and start-up in docs/desktop-and-site.md).
+const Settings = lazy(() => import('./components/Settings.jsx'));
+const DeveloperPortal = lazy(() => import('./components/developers/DeveloperPortal.jsx'));
 
 
 
@@ -222,7 +224,7 @@ export default function App() {
 
             {user && (
               <Route element={<Layout user={user} onLogout={handleLogout} />}>
-                <Route path="/settings/*" element={<Settings onLogout={handleLogout} />} />
+                <Route path="/settings/*" element={<Suspense fallback={null}><Settings onLogout={handleLogout} /></Suspense>} />
                 <Route path="/dm/:id?" element={<Dm user={user} />} />
                 <Route path="/dm/notes" element={<Notes user={user} />} />
                 <Route path="/dm/friends" element={<Friends user={user} />} />
@@ -234,8 +236,8 @@ export default function App() {
             )}
 
             {/* The developer portal and a bot's invite link: pages of their own (docs/bots.md). */}
-            {user && <Route path="/developers" element={<DeveloperPortal />} />}
-            {user && <Route path="/developers/applications/:appId" element={<DeveloperPortal />} />}
+            {user && <Route path="/developers" element={<Suspense fallback={null}><DeveloperPortal /></Suspense>} />}
+            {user && <Route path="/developers/applications/:appId" element={<Suspense fallback={null}><DeveloperPortal /></Suspense>} />}
             {user && <Route path="/oauth2/authorize" element={<AuthorizePage />} />}
 
             {/* Logged out, an invite link asks you to log in first, then shows the invite (the

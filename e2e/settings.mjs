@@ -147,7 +147,7 @@ try {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto(`${BASE}/settings/appearance`);
   await page.waitForSelector('.settings-page-title');
-  check(JSON.stringify(await navSubs(page)) === JSON.stringify(['Theme', 'Message display']), "Appearance lists its subsections: Theme, Message display");
+  check(JSON.stringify(await navSubs(page)) === JSON.stringify(['Theme', 'Seasonal themes', 'Message display', 'Picture in picture']), 'Appearance lists its subsections: Theme, Seasonal themes, Message display, Picture in picture');
   await shot(page, '6-desktop-appearance-dark');
 
   // A phone.
@@ -160,6 +160,8 @@ try {
   const before = await p.evaluate(() => location.pathname);
   await p.tap('.user-panel-settings');
   await p.waitForURL('**/settings');
+  // Settings loads when first opened (lazy in App.jsx).
+  await p.waitForSelector('.settings-nav', { timeout: 10000 });
   await settle(p);
   check(await pane(p) === 'list', 'the gear opens Settings on its list');
   check(await p.isVisible('.settings-nav') && (await navSubs(p)).length === 0, 'pages listed, no subsections');

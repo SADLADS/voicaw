@@ -113,12 +113,13 @@ describe('App routing', () => {
     expect(screen.getByTestId('login-page')).toBeInTheDocument();
   });
 
-  it('renders Settings under Layout for a logged-in user', () => {
+  it('renders Settings under Layout for a logged-in user', async () => {
     useAuth.mockReturnValue({ user: { id: 1, username: 'alice' }, setUser: vi.fn(), loading: false });
 
     setPath('/settings');
     const { unmount } = render(<App />);
-    expect(screen.getByTestId('settings-page')).toBeInTheDocument();
+    // Loaded when first opened (lazy in App.jsx).
+    expect(await screen.findByTestId('settings-page')).toBeInTheDocument();
     expect(screen.getByTestId('layout')).toBeInTheDocument();
     unmount();
   });
@@ -130,7 +131,7 @@ describe('App routing', () => {
     localStorage.setItem('token', 'jwt-abc');
 
     render(<App />);
-    fireEvent.click(screen.getByTestId('settings-page'));
+    fireEvent.click(await screen.findByTestId('settings-page'));
 
     await waitFor(() => expect(setUser).toHaveBeenCalledWith(null));
     expect(closeWebSocket).toHaveBeenCalled();

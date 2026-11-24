@@ -487,11 +487,20 @@ with a stand-in for the bridge. Check real behaviour on a desktop.
     with the check faked at 300 ms the app was on screen at ~630 ms instead of ~850, at 1 s at
     ~1260 instead of ~1580 (the page load, ~300 ms here, no longer comes after the check; a
     check from here takes 0.1–0.3 s, and `electron-updater` itself ~70 ms to load).
+  - Less JavaScript at start (the page's code is held as source text twice, in Blink's memory
+    cache and as V8's script strings, beside its compiled code): only the language in use is
+    loaded (Translations in `docs/client.md`; −760 kB), and Settings, the developer portal,
+    Guild Settings and the events dialogs load when first opened (`React.lazy` in `App.jsx`,
+    `Sidebar.jsx`, `GuildSidebar.jsx`; −220 kB): ~3.4 MB → ~2.4 MB at start.
   - Measured on the dev host (Xvfb, unpackaged, so no update check): logged in and idle 459 →
-    ~395 MB, started logged in 382 → ~368 MB; to the app on screen ~0.9–1.3 s either way.
-    Left to look at: the main process's ~20 MB over the floor (native: the tray is 4 MB;
-    spellcheck and notifications nothing; only ~3 MB is JS heap) and the renderer's ~80 MB over
-    an empty page (its JS heap is only ~15–20 MB).
+    ~376 MB, started logged in 382 → ~361 MB, against the floor's 267.
+  - What's left, looked at and kept: the renderer's ~75 MB over an empty page (a Chromium
+    memory dump: V8 +28 MB, of which live objects ~17 (the emoji data, needed to draw any
+    chat, ~1–2), malloc +20, the scripts' source +14, DOM +6, tiles +3: spread out, mostly
+    proportional to the code); the main process's ~16 MB (by mapping: +11 anonymous, of which
+    JS ~3; +4 of Electron's own code pages; the tray ~4 and its fonts ~1.5; spellcheck and
+    notifications nothing; `protocol.js` keeps no files). The measuring scripts inject ~1 MB
+    of their own (Playwright's utility script) into the page.
 - **Not done yet:** screen share sound on macOS and
   Linux (Electron's loopback is Windows only), streaming videos (no
   service worker: they download whole on Play; `protocol.js` could serve them instead), code

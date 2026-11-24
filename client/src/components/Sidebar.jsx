@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useContext, useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon } from './Icon';
 import { faFolder, faPlus, faVolumeHigh } from '@fortawesome/free-solid-svg-icons';
@@ -12,7 +12,6 @@ import GuildMenu from './guild/GuildMenu';
 import FolderMenu from './guild/FolderMenu';
 import FolderSettingsDialog from './guild/FolderSettingsDialog';
 import InviteDialog from './guild/InviteDialog';
-import GuildSettingsDialog from './guild/GuildSettingsDialog';
 import AuditLogDialog from './guild/AuditLogDialog';
 import LeaderboardDialog from './guild/LeaderboardDialog';
 import ConfirmDialog from './guild/ConfirmDialog';
@@ -27,6 +26,9 @@ import { showContent } from '../utils/mobilePanes';
 import { lastDm } from '../utils/lastChat';
 import { colorToHex } from '../utils/permissions';
 import { folderLabel, loadOpenFolders, rowKey, saveOpenFolders } from '../utils/guildFolders';
+
+// Loaded when first opened, not with the app (Memory and start-up in docs/desktop-and-site.md).
+const GuildSettingsDialog = lazy(() => import('./guild/GuildSettingsDialog'));
 
 // The guild rail down the left (like Discord's): the bird (DMs), then each guild (a pill on the
 // left marks unread messages, a taller one the open guild), then "+" to create or join one.
@@ -276,7 +278,7 @@ export default function Sidebar({ user, hasUnreadDms, unreadChats = [], rail = [
       )}
       {dialogFolder && <FolderSettingsDialog folder={dialogFolder} onClose={closeDialog} />}
       {dialogGuild && dialog.type === 'invite' && <InviteDialog guild={dialogGuild} onClose={closeDialog} />}
-      {dialogGuild && dialog.type === 'settings' && <GuildSettingsDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
+      {dialogGuild && dialog.type === 'settings' && <Suspense fallback={null}><GuildSettingsDialog guild={dialogGuild} user={user} onClose={closeDialog} /></Suspense>}
       {dialogGuild && dialog.type === 'audit' && <AuditLogDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
       {dialogGuild && dialog.type === 'leaderboard' && <LeaderboardDialog guild={dialogGuild} user={user} onClose={closeDialog} />}
       {dialogGuild && dialog.type === 'leave' && (

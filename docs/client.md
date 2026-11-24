@@ -28,8 +28,12 @@
     in Russian falls back to the English plural). The service worker can't read the choice,
     so notification text follows the browser's language.
   - `import { t } from '../i18n'` works anywhere (components, hooks, services, memoised
-    parts): the strings are bundled and looked up synchronously. Changing language will
-    reload the app, so there's no `useTranslation` hook to thread through.
+    parts): the strings are looked up synchronously. British English is bundled; another
+    language is its own file (`i18n-ru`…, `vite.config.js` `vendorChunk`) that `i18n/index.js`
+    loads with a top-level await before it finishes, so importers still find every string (one
+    that can't be loaded leaves the app in British English; since 2026-11-24, it saved ~760 kB of
+    JS on every start). Changing language will reload the app, so there's no
+    `useTranslation` hook to thread through.
   - One key per whole sentence, with `{{name}}` for what goes in it; never glue translated
     pieces together (word order differs). Counts use i18next plurals: `foo_one` / `foo_other`
     and `t('area.foo', { count })` (Russian will add `_few` / `_many`). A sentence with
