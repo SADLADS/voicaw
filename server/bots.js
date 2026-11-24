@@ -286,6 +286,7 @@ async function removeBotRole(guildId, botId) {
   if (!role) return false;
   await db.run('DELETE FROM guild_member_roles WHERE role_id = ?', [role.id]);
   await db.run(`DELETE FROM guild_channel_overrides WHERE target_type = 'role' AND target_id = ?`, [role.id]);
+  await db.run(`DELETE FROM guild_category_overrides WHERE target_type = 'role' AND target_id = ?`, [role.id]);
   await db.run('DELETE FROM guild_roles WHERE id = ?', [role.id]);
   return true;
 }

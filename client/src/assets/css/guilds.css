@@ -2297,6 +2297,28 @@ button.audit-log-row:focus-visible {
   margin: 0 0 0 26px;
 }
 
+/* A channel in a category: synced with it or not (docs/guilds.md, Category permissions). */
+.permissions-sync {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: var(--vc-warning-soft);
+  color: var(--vc-fg);
+}
+
+.permissions-sync.synced {
+  background-color: var(--vc-bg-subtle);
+  color: var(--vc-fg-muted);
+}
+
+.permissions-sync .btn {
+  flex-shrink: 0;
+}
+
 .private-roles legend {
   font-size: 12px;
   color: var(--vc-fg-muted);

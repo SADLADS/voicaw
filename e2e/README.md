@@ -14,6 +14,7 @@ node e2e/catchup.mjs     # an open DM gets what its websocket missed: dropped, t
 node e2e/guilds.mjs [dir] # guilds end to end (desktop + phone); screenshots into dir
 node e2e/guildsettings.mjs [dir] # Guild Settings' side list: groups and pages (owner, 100-character name cut with an ellipsis), every page fits (nothing wider than the dialog) and keeps its height, English and Russian, dark and light, Roles' Save bar at the bottom, narrow window (Roles stacks), no permissions, phone (list, page over it, Back)
 node e2e/roles.mjs [dir]  # roles, colours, private channels, channel permissions
+node e2e/categorypermissions.mjs [dir] # category permissions: a private category (and the channel made in it) hidden from a member, a channel dragged into it takes its permissions (member loses it), Synced / Not synced after a hand change / Sync now, the category's own tab (every type's permissions; dark, light, Slack), making it public reaches both synced channels
 node e2e/auditlog.mjs [dir] # audit log: mod deletes a message, role change, details, filters, no access, phone
 node e2e/emoji.mjs [dir]  # custom emoji (upload, picker, :name:, reactions, DM), rail order
 node e2e/guildfolders.mjs [dir] # guild folders: drag a guild onto another (ring), closed folder's small icons, open it, drag into it (line), Folder Settings name and colour, kept after reload (open per device), drag out, folder dragged whole, Ungroup, phone long-press drag makes one

@@ -637,7 +637,7 @@ export default function GuildSidebar({ guild, user }) {
       {dialog?.type === 'leaderboard' && <LeaderboardDialog guild={guild} user={user} onClose={closeDialog} />}
       {dialog?.type === 'notifications' && <NotificationDialog guild={guild} onClose={closeDialog} />}
       {dialog?.type === 'settings' && <Suspense fallback={null}><GuildSettingsDialog guild={guild} user={user} onClose={closeDialog} /></Suspense>}
-      {dialog?.type === 'category' && <CategoryDialog guild={guild} category={dialog.category} onClose={closeDialog} />}
+      {dialog?.type === 'category' && <CategoryDialog guild={guild} user={user} category={dialog.category} onClose={closeDialog} />}
       {dialog?.type === 'channel' && (
         <ChannelDialog
           guild={guild}

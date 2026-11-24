@@ -291,14 +291,15 @@ function channelObject(channel, { everyoneRoleId, overrides = [], lastMessageId 
   return { ...shared, topic: channel.topic ?? null, last_message_id: id(lastMessageId), rate_limit_per_user: 0, default_auto_archive_duration: 10080 };
 }
 
-function categoryObject(category, guildId) {
+// `context` { everyoneRoleId, overrides (its rows in guild_category_overrides) }.
+function categoryObject(category, guildId, { everyoneRoleId, overrides = [] } = {}) {
   return {
     id: categoryId(category.id),
     type: CHANNEL_TYPES.category,
     guild_id: id(guildId),
     name: category.name,
     position: category.position ?? 0,
-    permission_overwrites: [],
+    permission_overwrites: overrides.map((o) => overwriteObject(o, guildId, everyoneRoleId)),
     parent_id: null,
     nsfw: false,
     flags: 0,

@@ -125,8 +125,9 @@ export async function acceptInvite(code) {
   return (await api.post(invitePath(code))).data;
 }
 
-export async function createCategory(guildId, name) {
-  return (await api.post(`/guilds/${guildId}/categories`, { name })).data;
+// `options` { private, roleIds }: a private category (its channels start private too).
+export async function createCategory(guildId, name, options = {}) {
+  return (await api.post(`/guilds/${guildId}/categories`, { name, ...options })).data;
 }
 
 export async function renameCategory(guildId, categoryId, name) {
@@ -323,6 +324,21 @@ export async function fetchChannelOverrides(guildId, channelId) {
 // allow = deny = 0 removes the override.
 export async function setChannelOverride(guildId, channelId, targetType, targetId, { allow = 0, deny = 0 }) {
   return (await api.put(`/guilds/${guildId}/channels/${channelId}/overrides/${targetType}/${targetId}`, { allow, deny })).data;
+}
+
+// A category's own overrides (its channels synced with it follow them; docs/guilds.md).
+export async function fetchCategoryOverrides(guildId, categoryId) {
+  return (await api.get(`/guilds/${guildId}/categories/${categoryId}/overrides`)).data;
+}
+
+// Resolves to { ..., synced_channels: how many channels followed }.
+export async function setCategoryOverride(guildId, categoryId, targetType, targetId, { allow = 0, deny = 0 }) {
+  return (await api.put(`/guilds/${guildId}/categories/${categoryId}/overrides/${targetType}/${targetId}`, { allow, deny })).data;
+}
+
+// Sync now: the channel's overrides become its category's.
+export async function syncChannelPermissions(guildId, channelId) {
+  await api.put(`/guilds/${guildId}/channels/${channelId}/sync`);
 }
 
 // ---- Custom emoji and the guild rail order ----

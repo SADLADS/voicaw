@@ -106,7 +106,14 @@
         "manageDocuments": "ドキュメントと返信の管理",
         "createEvents": "イベントを作成",
         "manageEvents": "イベントの管理"
-      }
+      },
+      "categoryHint": "ここでの変更は、権限がカテゴリーと同じ(同期済み)このカテゴリーのすべてのチャンネルにも反映されます。手動で変更したチャンネルはその権限を保ちます。",
+      "sync": {
+        "synced": "{{category}} と同期済み",
+        "notSynced": "{{category}} と同期されていません: カテゴリーの変更はこのチャンネルに反映されません。",
+        "now": "今すぐ同期"
+      },
+      "syncedChannels_other": "同期済みの {{count}} 件のチャンネルでも変更しました。"
     },
     "permissions": {
       "VIEW_CHANNEL": {
@@ -367,7 +374,9 @@
         "importMapping": "{{actor}} がインポートの作成者またはチャンネルを変更しました",
         "importFinish_other": "{{actor}} が {{count}} 件のメッセージをインポートしました",
         "importDelete": "{{actor}} が {{source}} からインポートした履歴を削除しました",
-        "importDeleteUnnamed": "{{actor}} がインポートした履歴を削除しました"
+        "importDeleteUnnamed": "{{actor}} がインポートした履歴を削除しました",
+        "channelPermissionsSync": "{{actor}} が {{channel}} の権限をカテゴリー {{category}} と同期しました",
+        "categoryOverrideUpdate": "{{actor}} がカテゴリー {{category}} での {{target}} の権限を変更しました"
       },
       "fields": {
         "name": "名前",
@@ -426,7 +435,8 @@
           "removed": "繰り返しを解除",
           "split": "以降の日程を変更: 別のイベントになりました",
           "shortened": "以降の日程を中止"
-        }
+        },
+        "syncedChannels": "{{list}} でも変更"
       },
       "age": {
         "year": "1 年",
@@ -441,7 +451,12 @@
       "delete": "カテゴリーを削除",
       "name": "カテゴリー名",
       "namePlaceholder": "新しいカテゴリー",
-      "deleteHint": "カテゴリーを削除しても、チャンネルは残ります。"
+      "deleteHint": "カテゴリーを削除しても、チャンネルは残ります。",
+      "private": {
+        "label": "プライベートカテゴリー",
+        "hint": "下で「チャンネルを見る」を許可されたロールとメンバー(と管理者)だけが、このカテゴリーと同期済みのチャンネルを見られます。",
+        "createHint": "選んだロール(と管理者)だけが見られます。この中で作ったチャンネルも最初からプライベートになります。"
+      }
     },
     "categoryMenu": {
       "markAsRead": "既読にする",

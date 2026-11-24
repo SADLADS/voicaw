@@ -222,6 +222,20 @@ CREATE TABLE IF NOT EXISTS guild_channel_overrides (
 );
 `);
 
+// A category's own overrides, the same shape as a channel's. They don't count in any channel by
+// themselves: they're copied into its channels (categoryOverrides.js, docs/guilds.md).
+sqlite.exec(`
+CREATE TABLE IF NOT EXISTS guild_category_overrides (
+  category_id INTEGER NOT NULL,
+  target_type TEXT CHECK(target_type IN ('role', 'member')) NOT NULL,
+  target_id INTEGER NOT NULL,
+  allow INTEGER NOT NULL DEFAULT 0,
+  deny INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (category_id, target_type, target_id),
+  FOREIGN KEY (category_id) REFERENCES guild_categories(id)
+);
+`);
+
 // Custom emoji: plain images (not encrypted), stored as emojis/<id> in the
 // object store and written `<:name:id>` in messages. A row is created before its upload and
 // only counts (available = 1) once the uploader says the upload finished.

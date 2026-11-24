@@ -142,7 +142,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   end-to-end encryption (keys, backups, recovery code, contact pinning, DMs, reactions, notes,
   the spellcheck dictionary, emoji usage).
 - `docs/realtime.md`: websocket events, online status, web push.
-- `docs/guilds.md`: guilds (permissions, overrides, audit log, invites, custom emoji, channel
+- `docs/guilds.md`: guilds (permissions, overrides, category permissions, audit log, invites, custom emoji, channel
   menus, NSFW channels), threads, list channels, document channels, events (scheduled, repeating),
   guild search, webhooks (Discord's API).
 - `docs/voice-and-calls.md`: voice channels (LiveKit, reconnecting, screen sharing, microphone
@@ -576,6 +576,12 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   frontend in Rust was dropped for now (an empty Electron window is ~267 MB, ~70% of the
   app's idle memory; branch `rust-client` kept, a start on a Rust/WebAssembly core): the app is
   slimmed inside Electron instead, each change measured with `e2e/desktopmemory.mjs`.
+- **Category permissions** (built 2026-11-24, see Category permissions in `docs/guilds.md`):
+  Discord's copy-and-sync model, not live inheritance (the user agreed): a category has its own
+  overrides, copied into its channels (new ones, and synced ones on every change); a channel's
+  permissions still come only from its own overrides, so no permission check changed. A synced
+  channel dragged into another category silently takes that one's (as Discord; its Permissions
+  tab shows Synced / Not synced, with Sync now).
 - **Custom emoji** are per guild and unencrypted (like profile pictures). As in Discord, a guild's
   members can use them anywhere, DMs included; unlike Discord, no paid tier is needed for that.
 - **Everyone sees everyone** once logged in (the app is for groups who know each other); only

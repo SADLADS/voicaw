@@ -1,5 +1,6 @@
 const db = require('./db');
 const { sendToUserSockets } = require('./sockets');
+const { guildCategoryOverrides, isSynced } = require('./categoryOverrides');
 const {
   PERMISSIONS,
   has,
@@ -138,9 +139,12 @@ function isPrivate(member, overrides) {
 // `my_permissions` and `my_role_ids`, and the categories and channels they can see, in order, each channel with
 // `my_permissions`, `private` and `nsfw` (and a voice channel with `voice`, who's in it, and
 // `watch_party`, what its Watch Together is playing), and
-// `threads`: the active threads in those channels (threads.js, with `joined` and `my_permissions`). Categories left empty by hidden channels are hidden too,
-// except from people who manage channels. What GET /guilds/:id returns and `guild_update` sends.
-async function layoutFor(member, overridesByChannel) {
+// `threads`: the active threads in those channels (threads.js, with `joined` and `my_permissions`).
+// Each category comes with `my_permissions` and `private` from its own overrides
+// (categoryOverrides.js), and each channel in one with `permissions_synced`. A category is shown
+// if any of its channels is; otherwise only to those who can view the category itself, and
+// then if it's empty or they manage channels. What GET /guilds/:id returns and `guild_update` sends.
+async function layoutFor(member, overridesByChannel, overridesByCategory) {
   const { guild } = member;
   const categories = await db.all(
     'SELECT id, name, position FROM guild_categories WHERE guild_id = ? ORDER BY position, id',
@@ -156,7 +160,13 @@ async function layoutFor(member, overridesByChannel) {
     const overrides = overridesByChannel.get(channel.id) ?? [];
     const permissions = channelPermissions(member, member.userId, overrides);
     if (!has(permissions, PERMISSIONS.VIEW_CHANNEL)) continue;
-    const entry = { ...channel, nsfw: Boolean(channel.nsfw), my_permissions: permissions, private: isPrivate(member, overrides) };
+    const entry = {
+      ...channel,
+      nsfw: Boolean(channel.nsfw),
+      my_permissions: permissions,
+      private: isPrivate(member, overrides),
+      permissions_synced: isSynced(channel, overrides, overridesByCategory.get(channel.category_id)),
+    };
     // Who's in it right now (voice.js; required here, since it requires this file), and what
     // its Watch Together is playing (watchParty.js; null: nothing).
     if (channel.type === 'voice') {
@@ -171,9 +181,14 @@ async function layoutFor(member, overridesByChannel) {
     channels.push(entry);
   }
   const managesChannels = has(member.permissions, PERMISSIONS.MANAGE_CHANNELS);
-  const visibleCategories = categories.filter((category) => managesChannels ||
-    channels.some((c) => c.category_id === category.id) ||
-    !allChannels.some((c) => c.category_id === category.id));
+  const visibleCategories = [];
+  for (const category of categories) {
+    const overrides = overridesByCategory.get(category.id) ?? [];
+    const permissions = channelPermissions(member, member.userId, overrides);
+    const shown = channels.some((c) => c.category_id === category.id) || (has(permissions, PERMISSIONS.VIEW_CHANNEL) &&
+      (managesChannels || !allChannels.some((c) => c.category_id === category.id)));
+    if (shown) visibleCategories.push({ ...category, my_permissions: permissions, private: isPrivate(member, overrides) });
+  }
   const own = await db.get('SELECT notify_level FROM guild_members WHERE guild_id = ? AND user_id = ?', [guild.id, member.userId]);
   // The active threads of the text channels they can see (threads.js).
   const textChannels = new Map(channels.filter((c) => c.type === 'text').map((c) => [c.id, c]));
@@ -203,7 +218,7 @@ async function layoutFor(member, overridesByChannel) {
 async function getGuildLayout(guildId, userId) {
   const member = await getMember(guildId, userId);
   if (!member) return null;
-  return layoutFor(member, await getOverrides({ guildId }));
+  return layoutFor(member, await getOverrides({ guildId }), await guildCategoryOverrides(guildId));
 }
 
 async function getMemberIds(guildId) {
@@ -235,8 +250,9 @@ async function sendToChannel(channel, payload) {
 async function announceGuildUpdate(guildId) {
   const members = await getAllMembers(guildId);
   const overrides = await getOverrides({ guildId });
+  const categoryOverrides = await guildCategoryOverrides(guildId);
   for (const member of members.values()) {
-    sendToUserSockets(member.userId, { type: 'guild_update', guild: await layoutFor(member, overrides) });
+    sendToUserSockets(member.userId, { type: 'guild_update', guild: await layoutFor(member, overrides, categoryOverrides) });
   }
   // Anyone who may no longer be in their voice channel leaves it.
   await require('./voice').enforceGuild(guildId);
@@ -328,6 +344,11 @@ async function removeMember(guildId, userId) {
       [userId, guildId]
     );
     await db.run(
+      `DELETE FROM guild_category_overrides WHERE target_type = 'member' AND target_id = ?
+       AND category_id IN (SELECT id FROM guild_categories WHERE guild_id = ?)`,
+      [userId, guildId]
+    );
+    await db.run(
       'DELETE FROM guild_thread_members WHERE user_id = ? AND thread_id IN (SELECT id FROM guild_channels WHERE guild_id = ?)',
       [userId, guildId]
     );
@@ -374,6 +395,7 @@ async function deleteGuild(guildId) {
     await require('./guildEvents').deleteGuildEvents(guildId);
     await require('./guildLevels').deleteGuildLevels(guildId);
     await db.run('DELETE FROM guild_category_mutes WHERE category_id IN (SELECT id FROM guild_categories WHERE guild_id = ?)', [guildId]);
+    await db.run('DELETE FROM guild_category_overrides WHERE category_id IN (SELECT id FROM guild_categories WHERE guild_id = ?)', [guildId]);
     for (const table of [
       'guild_emojis', 'guild_sounds', 'guild_audit_log', 'webhook_blocks', 'guild_media_servers',
       'guild_channels', 'guild_categories', 'guild_invites', 'guild_bans',

@@ -33,6 +33,34 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   all allows), the member's own. A **private channel** is @everyone denied View Channel. A
   channel you can't view doesn't exist for you: left out of your layout, 404, no events
   (`sendToChannel`), not in unread counts.
+- **Category permissions** (2026-11-24, Discord's copy-and-sync model; `server/categoryOverrides.js`):
+  a category has overrides of its own (`guild_category_overrides`, the same shape), edited in
+  its dialog's Permissions tab (`CategoryDialog` → `ChannelPermissions` with `category`, every
+  channel type's permissions) or made with "Private category" when creating it. They never count
+  by themselves: a channel's permissions still come only from its own overrides, so every check
+  stays as it was. Instead they're copied:
+  - a new channel in a category starts with its overrides (a private one adds its own on top);
+  - a change to a category's override goes, in the same transaction, to every channel of it that
+    was **synced** (its overrides exactly the category's; worked out by comparing, nothing
+    stored); channels changed by hand keep theirs. One `category_override_update` audit entry
+    lists the channels that followed (`syncedChannels`);
+  - a channel moved into another category (drag, `/move`, `/layout`, `PATCH` `categoryId`) that
+    was synced with its old one (or had no category and no overrides) takes the new one's,
+    silently, as in Discord (the user's choice), if the mover may make that change by hand
+    (Manage Roles, only targets below them, only bits they have there); otherwise it moves and
+    keeps its own, no longer synced. `lockPermissions` true always syncs, false never;
+  - **Sync now** (`PUT /guilds/:id/channels/:c/sync`, Manage Roles, the same rules; audited as
+    `channel_permissions_sync`) makes a channel its category's again. The channel's Permissions
+    tab says "Synced with X" or "Not synced with X" with the button;
+  - deleting a category keeps its channels' overrides.
+
+  Routes: `GET /guilds/:id/categories/:c/overrides` and `PUT …/overrides/:targetType/:targetId`
+  (`{ allow, deny }`, the channel route's rules with the actor's permissions in the category;
+  answers `synced_channels`), `POST /guilds/:id/categories { name, private, roleIds }`. The
+  layout gives each category `my_permissions` and `private` (from its own overrides) and each
+  channel `permissions_synced`. A category is shown when you can see one of its channels, or
+  else when you can view the category itself and it's empty or you manage channels, so a
+  private category is hidden from those it's closed to.
 - **Hierarchy:** you only manage roles, and kick, ban, change the roles of or set channel
   overrides for members, below your own highest role (yourself too; the owner is above all;
   `outranks`), only reorder roles below yours, and never give a permission (to a role or an
@@ -273,7 +301,7 @@ group DMs. Anyone can create a guild; its creator is the owner (`guilds.owner`).
   a note saying how many. "Loading…" shows until the preferences have loaded, so someone who
   ticked never sees the gate flash. It's a client-side check: the API still serves an NSFW
   channel to any member (bots included), as Discord's does.
-- **Not done yet:** category-level permissions (overrides are per channel), search dates (see Guild search), muting a category, a list of your
+- **Not done yet:** search dates (see Guild search), muting a category, a list of your
   recent mentions. Voice: see
   Voice channels.
 

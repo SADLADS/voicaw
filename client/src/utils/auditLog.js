@@ -17,7 +17,7 @@ export const AUDIT_FILTERS = [
     key: 'channels',
     label: t('guildAdmin.auditLog.filters.channels'),
     actions: [
-      'channel_create', 'channel_update', 'channel_delete', 'channel_override_update', 'category_create', 'category_update', 'category_delete',
+      'channel_create', 'channel_update', 'channel_delete', 'channel_override_update', 'channel_permissions_sync', 'category_override_update', 'category_create', 'category_update', 'category_delete',
       'thread_create', 'thread_update', 'thread_delete',
     ],
   },
@@ -114,6 +114,12 @@ export function describeEntry(entry, names) {
       const who = entry.target_type === 'role' ? { name: d.targetName ?? t('guildAdmin.auditLog.aRole') } : target();
       return sentence('channelOverrideUpdate', { actor, target: who, channel: channel(d.channelName) });
     }
+    case 'channel_permissions_sync':
+      return sentence('channelPermissionsSync', { actor, channel: channel(d.channelName), category: named(d.categoryName) });
+    case 'category_override_update': {
+      const who = entry.target_type === 'role' ? { name: d.targetName ?? t('guildAdmin.auditLog.aRole') } : target();
+      return sentence('categoryOverrideUpdate', { actor, target: who, category: named(d.categoryName) });
+    }
     case 'thread_create': return sentence('threadCreate', { actor, thread: named(d.name), channel: channel(d.channelName) });
     case 'thread_update': return sentence('threadUpdate', { actor, thread: named(d.name) });
     case 'thread_delete': return sentence('threadDelete', { actor, thread: named(d.name), channel: channel(d.channelName) });
@@ -201,7 +207,7 @@ export function entryChanges(entry) {
     if (d.added?.length) lines.push(t('guildAdmin.auditLog.changes.rolesAdded', { list: d.added.map((r) => r.name).join(', ') }));
     if (d.removed?.length) lines.push(t('guildAdmin.auditLog.changes.rolesRemoved', { list: d.removed.map((r) => r.name).join(', ') }));
   }
-  if (entry.action === 'channel_override_update' && d.before && d.after) {
+  if (['channel_override_update', 'category_override_update'].includes(entry.action) && d.before && d.after) {
     const bits = (d.before.allow | d.before.deny | d.after.allow | d.after.deny);
     for (const [bit, key] of Object.entries(PERMISSION_KEYS)) {
       if (!(bits & Number(bit))) continue;
@@ -211,6 +217,9 @@ export function entryChanges(entry) {
         lines.push(change(permissionLabel(key), t(`guildAdmin.auditLog.overrideStates.${was}`), t(`guildAdmin.auditLog.overrideStates.${now}`)));
       }
     }
+  }
+  if (entry.action === 'category_override_update' && d.syncedChannels?.length) {
+    lines.push(t('guildAdmin.auditLog.changes.syncedChannels', { list: d.syncedChannels.map((name) => `#${name}`).join(', ') }));
   }
   if (entry.action === 'vanity_update' && d.before && d.after) {
     lines.push(t('guildAdmin.auditLog.changes.vanityWas', { code: d.before }));

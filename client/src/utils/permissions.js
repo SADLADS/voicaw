@@ -109,6 +109,21 @@ const CHANNEL_PERMISSION_ITEMS = {
   ],
 };
 
+// A category's overrides are copied into channels of every type, so it shows them all (each
+// permission once, with its label in the first type that has it).
+CHANNEL_PERMISSION_ITEMS.category = Object.values(CHANNEL_PERMISSION_ITEMS)
+  .flat()
+  .filter(([key], index, all) => all.findIndex(([other]) => other === key) === index);
+
+// Whether two override lists are the same set (empty ones don't count), as the server's
+// categoryOverrides.js sameOverrides: a channel is synced with its category when they are.
+export function sameOverrides(a = [], b = []) {
+  const real = (list) => list.filter((o) => o.allow || o.deny);
+  const right = real(b);
+  return real(a).length === right.length && real(a).every((o) => right.some((r) =>
+    r.target_type === o.target_type && r.target_id === o.target_id && r.allow === o.allow && r.deny === o.deny));
+}
+
 export const channelPermissionItems = (type) => CHANNEL_PERMISSION_ITEMS[type] ?? CHANNEL_PERMISSION_ITEMS.text;
 
 // A member's roles (from `roles`, the guild's list, highest first), highest first.
