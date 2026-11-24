@@ -36,6 +36,7 @@ const { JOIN, setJoinLog, logMembership } = require('../joinLog');
 const { getObject, putObject, deleteObject } = require('../s3');
 const { processAvatar, parseCrop, AvatarImageError } = require('../avatarImage');
 const guildLimits = require('../guildLimits');
+const categoryOverrides = require('../categoryOverrides');
 const { limit } = guildLimits;
 
 // Guilds: creating and managing them, members, bans, invites, categories and
@@ -623,9 +624,13 @@ async function checkRoomForChannel(guildId) {
   }
 }
 
+// `private: true` (needs Manage Roles too) gives it the overrides a private channel gets (see
+// POST /channels), which its new channels then start with (categoryOverrides.js).
 router.post('/guilds/:guildId/categories', manageChannels, limit('structure'), withActionErrors(async (req, res) => {
   const name = cleanName(req.body?.name, MAX_CATEGORY_NAME);
   if (!name) return res.status(400).json({ error: `Category names are 1–${MAX_CATEGORY_NAME} characters` });
+  const { private: isPrivate = false, roleIds = [] } = req.body ?? {};
+  const privateOverrides = privateOverridesFor(req.member, isPrivate, roleIds);
   const position = await nextPosition('guild_categories', 'guild_id = ?', [req.guild.id]);
   const { lastID } = await db.transaction(async () => {
     await checkRoomForChannel(req.guild.id);
@@ -633,7 +638,13 @@ router.post('/guilds/:guildId/categories', manageChannels, limit('structure'), w
       'INSERT INTO guild_categories (guild_id, name, position) VALUES (?, ?, ?)',
       [req.guild.id, name, position]
     );
-    await audit(req, { action: 'category_create', targetType: 'category', targetId: result.lastID, details: { name } });
+    for (const o of privateOverrides) {
+      await db.run(
+        'INSERT INTO guild_category_overrides (category_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)',
+        [result.lastID, o.target_type, o.target_id, o.allow, o.deny]
+      );
+    }
+    await audit(req, { action: 'category_create', targetType: 'category', targetId: result.lastID, details: { name, ...(isPrivate ? { private: true } : {}) } });
     return result;
   });
   await announceGuildUpdate(req.guild.id);
@@ -664,6 +675,7 @@ router.delete('/guilds/:guildId/categories/:categoryId', manageChannels, async (
     if (!category) return false;
     await db.run('DELETE FROM guild_categories WHERE id = ?', [categoryId]);
     await db.run('DELETE FROM guild_category_mutes WHERE category_id = ?', [categoryId]);
+    await categoryOverrides.deleteCategoryOverrides('?', [categoryId]);
     await db.run('UPDATE guild_channels SET category_id = NULL WHERE category_id = ?', [categoryId]);
     await audit(req, { action: 'category_delete', targetType: 'category', targetId: categoryId, details: { name: category.name } });
     return true;
@@ -739,6 +751,22 @@ router.post('/guilds/:guildId/channels', manageChannels, limit('structure'), wit
   res.status(201).json(await channelRow(id));
 }));
 
+// The overrides making a new channel or category private (`isPrivate`; needs Manage Roles):
+// @everyone denied View Channel, `roleIds` allowed it, and the actor too unless they'd see it
+// anyway (owner, administrators). Throws ActionError.
+function privateOverridesFor(actor, isPrivate, roleIds) {
+  const guildRoleIds = new Set(actor.allRoles.filter((r) => !r.is_everyone).map((r) => r.id));
+  if (!Array.isArray(roleIds) || roleIds.some((id) => !guildRoleIds.has(id))) throw new ActionError(400, 'Invalid roles');
+  if (!isPrivate) return [];
+  if (!has(actor.permissions, PERMISSIONS.MANAGE_ROLES)) throw new ActionError(403, 'Making it private needs Manage Roles');
+  const view = PERMISSIONS.VIEW_CHANNEL;
+  return [
+    { target_type: 'role', target_id: actor.everyone.id, allow: 0, deny: view },
+    ...roleIds.map((roleId) => ({ target_type: 'role', target_id: roleId, allow: view, deny: 0 })),
+    ...(has(actor.permissions, PERMISSIONS.ADMINISTRATOR) ? [] : [{ target_type: 'member', target_id: actor.userId, allow: view, deny: 0 }]),
+  ];
+}
+
 // `actor` (a member context with Manage Channels) makes a channel; resolves to its id. Shared
 // with the bot API (routes/botApi.js). Throws ActionError.
 async function createChannel(actor, { name: givenName, type = 'text', topic = null, categoryId = null, nsfw = false, isPrivate = false, roleIds = [], ...settings }) {
@@ -750,11 +778,7 @@ async function createChannel(actor, { name: givenName, type = 'text', topic = nu
   if (typeof nsfw !== 'boolean') throw new ActionError(400, 'Invalid nsfw');
   if (!(await checkCategory(actor.guild.id, categoryId))) throw new ActionError(400, 'Invalid category');
   const voiceSettings = voiceSettingsOf(settings, type);
-  if (isPrivate && !has(actor.permissions, PERMISSIONS.MANAGE_ROLES)) {
-    throw new ActionError(403, 'Making a channel private needs Manage Roles');
-  }
-  const guildRoleIds = new Set(actor.allRoles.filter((r) => !r.is_everyone).map((r) => r.id));
-  if (!Array.isArray(roleIds) || roleIds.some((id) => !guildRoleIds.has(id))) throw new ActionError(400, 'Invalid roles');
+  const privateOverrides = privateOverridesFor(actor, isPrivate, roleIds);
 
   // One transaction, so a private channel is never briefly visible to everyone.
   const lastID = await db.transaction(async () => {
@@ -768,16 +792,13 @@ async function createChannel(actor, { name: givenName, type = 'text', topic = nu
     if (keys.length) {
       await db.run(`UPDATE guild_channels SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...keys.map((k) => voiceSettings[k]), id]);
     }
-    if (isPrivate) {
-      const view = PERMISSIONS.VIEW_CHANNEL;
-      const addOverride = (targetType, targetId, allow, deny) => db.run(
-        'INSERT INTO guild_channel_overrides (channel_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)',
-        [id, targetType, targetId, allow, deny]
-      );
-      await addOverride('role', actor.everyone.id, 0, view);
-      for (const roleId of roleIds) await addOverride('role', roleId, view, 0);
-      if (!has(actor.permissions, PERMISSIONS.ADMINISTRATOR)) await addOverride('member', actor.userId, view, 0);
+    // Its category's overrides (categoryOverrides.js), with a private channel's laid over them.
+    let overrides = categoryId == null ? [] : await categoryOverrides.categoryOverrides(categoryId);
+    for (const o of privateOverrides) {
+      const was = overrides.find((e) => e.target_type === o.target_type && e.target_id === o.target_id) ?? { allow: 0, deny: 0 };
+      overrides = categoryOverrides.withRow(overrides, o.target_type, o.target_id, (was.allow & ~o.deny) | o.allow, (was.deny & ~o.allow) | o.deny);
     }
+    await categoryOverrides.replaceChannelOverrides(id, overrides);
     await logAudit({ guildId: actor.guild.id, actorId: actor.userId, action: 'channel_create', targetType: 'channel', targetId: id, channelId: id, details: { name, type, ...(nsfw ? { nsfw } : {}) } });
     return id;
   });
@@ -881,14 +902,19 @@ async function updateChannel(actor, channel, body) {
     updates.push('category_id = ?');
     params.push(body.categoryId);
   }
+  if (body.lockPermissions !== undefined && typeof body.lockPermissions !== 'boolean') throw new ActionError(400, 'Invalid lockPermissions');
   const voiceSettings = voiceSettingsOf(body, channel.type);
   for (const [key, value] of Object.entries(voiceSettings)) {
     updates.push(`${key} = ?`);
     params.push(value);
   }
-  if (!updates.length) return;
+  if (!updates.length && body.lockPermissions !== true) return;
   const saved = await db.transaction(async () => {
-    await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
+    // A synced channel moved into another category takes its overrides (categoryOverrides.js);
+    // `lockPermissions` true always, false never.
+    const toCategory = body.categoryId === undefined ? channel.category_id : body.categoryId;
+    await categoryOverrides.syncOnMove(actor, channel.id, channel.category_id, toCategory, body.lockPermissions);
+    if (updates.length) await db.run(`UPDATE guild_channels SET ${updates.join(', ')} WHERE id = ?`, [...params, channel.id]);
     const saved = await db.get(
       `SELECT name, topic, nsfw, category_id${channel.type === 'voice' ? ', bitrate, user_limit, rtc_region' : ''} FROM guild_channels WHERE id = ?`,
       [channel.id]
@@ -971,6 +997,7 @@ router.put('/guilds/:guildId/channels/:channelId/move', manageChannels, async (r
   }
   rest.splice(at, 0, { id: channel.id, category_id: categoryId });
   await db.transaction(async () => {
+    await categoryOverrides.syncOnMove(req.member, channel.id, channel.category_id, categoryId);
     for (const [position, c] of rest.entries()) {
       await db.run('UPDATE guild_channels SET position = ?, category_id = ? WHERE id = ?', [position, c.category_id ?? null, c.id]);
     }
@@ -1019,9 +1046,14 @@ router.put('/guilds/:guildId/layout', manageChannels, async (req, res) => {
     return res.status(400).json({ error: 'Invalid category' });
   }
 
+  const was = new Map((await db.all("SELECT id, category_id FROM guild_channels WHERE guild_id = ? AND type != 'thread'", [req.guild.id]))
+    .map((c) => [c.id, c.category_id]));
   await db.transaction(async () => {
     for (const [position, id] of categories.entries()) {
       await db.run('UPDATE guild_categories SET position = ? WHERE id = ?', [position, id]);
+    }
+    for (const { id, categoryId } of channels) {
+      if ((categoryId ?? null) !== was.get(id)) await categoryOverrides.syncOnMove(req.member, id, was.get(id), categoryId ?? null);
     }
     for (const [position, { id, categoryId }] of channels.entries()) {
       await db.run('UPDATE guild_channels SET position = ?, category_id = ? WHERE id = ?', [position, categoryId ?? null, id]);

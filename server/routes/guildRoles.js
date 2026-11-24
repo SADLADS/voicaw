@@ -1,7 +1,8 @@
 const express = require('express');
 const db = require('../db');
 const { authenticateJWT } = require('../auth');
-const { PERMISSIONS, ALL_PERMISSIONS, CHANNEL_PERMISSIONS, has } = require('../permissions');
+const { PERMISSIONS, ALL_PERMISSIONS, CHANNEL_PERMISSIONS, has, channelPermissions } = require('../permissions');
+const overrides = require('../categoryOverrides');
 const {
   MAX_ROLE_NAME,
   ROLE_COLUMNS,
@@ -157,6 +158,7 @@ async function deleteRole(actor, roleId) {
     const userIds = await db.all('SELECT user_id FROM guild_member_roles WHERE role_id = ?', [role.id]);
     await db.run('DELETE FROM guild_member_roles WHERE role_id = ?', [role.id]);
     await db.run(`DELETE FROM guild_channel_overrides WHERE target_type = 'role' AND target_id = ?`, [role.id]);
+    await db.run(`DELETE FROM guild_category_overrides WHERE target_type = 'role' AND target_id = ?`, [role.id]);
     await db.run('DELETE FROM guild_roles WHERE id = ?', [role.id]);
     await renumberRoles(actor.guild.id);
     await audit(actor, { action: 'role_delete', targetType: 'role', targetId: role.id, details: { name: role.name, color: role.color } });
@@ -274,23 +276,29 @@ router.get('/guilds/:guildId/channels/:channelId/overrides', manageRoles, requir
 // (`targetType` 'role' or 'member'). `channelPermissions` are the actor's in the channel. Only
 // channel permissions can be overridden, only ones you have here, and only for roles and members
 // below yours (or yourself).
-async function setOverride(actor, channel, channelPermissions, targetType, targetId, { allow = 0, deny = 0 }) {
+// The checks shared by channel and category overrides: Manage Roles, valid channel bits, and a
+// role below yours or a member you outrank (or yourself). Resolves to the role's name (null for a member).
+async function checkOverrideTarget(actor, targetType, targetId, allow, deny) {
   requireManageRoles(actor);
   if (!validBits(allow, CHANNEL_PERMISSIONS) || !validBits(deny, CHANNEL_PERMISSIONS) || (allow & deny)) {
     throw new ActionError(400, 'Invalid permissions');
   }
-  let targetName = null;
   if (targetType === 'role') {
     const role = await findRole(actor.guild.id, targetId);
     if (!role) throw new ActionError(404, 'Role not found', 10011);
     if (role.position >= actor.highest) throw new ActionError(403, 'That role is as high as yours or higher');
-    targetName = role.name;
-  } else if (targetType === 'member') {
+    return role.name;
+  }
+  if (targetType === 'member') {
     if (!(await getMember(actor.guild.id, targetId))) throw new ActionError(404, 'Not a member', 10007);
     if (targetId !== actor.userId && !(await outranks(actor, targetId))) throw new ActionError(403, 'Their role is as high as yours or higher');
-  } else {
-    throw new ActionError(400, 'Invalid target');
+    return null;
   }
+  throw new ActionError(400, 'Invalid target');
+}
+
+async function setOverride(actor, channel, channelPermissions, targetType, targetId, { allow = 0, deny = 0 }) {
+  const targetName = await checkOverrideTarget(actor, targetType, targetId, allow, deny);
 
   const existing = await db.get(
     'SELECT allow, deny FROM guild_channel_overrides WHERE channel_id = ? AND target_type = ? AND target_id = ?',
@@ -342,10 +350,126 @@ router.put('/guilds/:guildId/channels/:channelId/overrides/:targetType/:targetId
   res.json({ target_type: targetType, target_id: targetId, allow, deny });
 }));
 
+// ---- Category overrides (categoryOverrides.js, docs/guilds.md) ----
+
+// The category in the URL, with the caller's permissions in it (from its own overrides).
+async function requireCategory(req, res, next) {
+  const category = await db.get(
+    'SELECT id, guild_id, name FROM guild_categories WHERE id = ? AND guild_id = ?',
+    [Number(req.params.categoryId), req.guild.id]
+  );
+  if (!category) return res.status(404).json({ error: 'Category not found' });
+  req.category = category;
+  req.categoryPermissions = channelPermissions(req.member, req.user.id, await overrides.categoryOverrides(category.id));
+  next();
+}
+
+router.get('/guilds/:guildId/categories/:categoryId/overrides', manageRoles, requireCategory, async (req, res) => {
+  res.json(await overrides.categoryOverrides(req.category.id));
+});
+
+// Sets (or, with nothing allowed or denied, removes) `category`'s override for a role or member,
+// and makes the same change in every channel of it that was synced with it (whose overrides were
+// exactly the category's), in one transaction. The rules are setOverride's, with the actor's
+// permissions in the category (`categoryPermissions`) standing for those in a channel; a synced
+// channel's are the same. Resolves to the names of the channels that followed.
+async function setCategoryOverride(actor, category, categoryPermissions, targetType, targetId, { allow = 0, deny = 0 }) {
+  const targetName = await checkOverrideTarget(actor, targetType, targetId, allow, deny);
+  const before = await overrides.categoryOverrides(category.id);
+  const existing = before.find((o) => o.target_type === targetType && o.target_id === targetId) ?? { allow: 0, deny: 0 };
+  const changedBits = (existing.allow ^ allow) | (existing.deny ^ deny);
+  if ((changedBits & ~categoryPermissions) !== 0) {
+    throw new ActionError(403, "You can't change permissions you don't have here");
+  }
+  const synced = await db.transaction(async () => {
+    const channels = await db.all(
+      "SELECT id, name FROM guild_channels WHERE category_id = ? AND type != 'thread' ORDER BY position, id",
+      [category.id]
+    );
+    const followers = [];
+    for (const channel of channels) {
+      if (overrides.sameOverrides(await overrides.channelOverrides(channel.id), before)) followers.push(channel);
+    }
+    if (allow === 0 && deny === 0) {
+      await db.run(
+        'DELETE FROM guild_category_overrides WHERE category_id = ? AND target_type = ? AND target_id = ?',
+        [category.id, targetType, targetId]
+      );
+    } else {
+      await db.run(
+        `INSERT INTO guild_category_overrides (category_id, target_type, target_id, allow, deny) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(category_id, target_type, target_id) DO UPDATE SET allow = excluded.allow, deny = excluded.deny`,
+        [category.id, targetType, targetId, allow, deny]
+      );
+    }
+    const after = overrides.withRow(before, targetType, targetId, allow, deny);
+    for (const channel of followers) await overrides.replaceChannelOverrides(channel.id, after);
+    if (changedBits) {
+      await audit(actor, {
+        action: 'category_override_update',
+        targetType: targetType === 'role' ? 'role' : 'user',
+        targetId,
+        details: {
+          categoryName: category.name,
+          targetName,
+          before: { allow: existing.allow, deny: existing.deny },
+          after: { allow, deny },
+          syncedChannels: followers.map((c) => c.name),
+        },
+      });
+    }
+    return changedBits ? followers.map((c) => c.name) : [];
+  });
+  await announceGuildUpdate(actor.guild.id);
+  return synced;
+}
+
+router.put('/guilds/:guildId/categories/:categoryId/overrides/:targetType/:targetId', manageRoles, requireCategory, withActionErrors(async (req, res) => {
+  const { targetType } = req.params;
+  const targetId = Number(req.params.targetId);
+  const allow = req.body?.allow ?? 0;
+  const deny = req.body?.deny ?? 0;
+  const synced = await setCategoryOverride(req.member, req.category, req.categoryPermissions, targetType, targetId, { allow, deny });
+  res.json({ target_type: targetType, target_id: targetId, allow, deny, synced_channels: synced.length });
+}));
+
+// Sync now: makes `channel`'s overrides its category's again, under the rules of changing them
+// one by one (categoryOverrides.js whyNotChange). Throws ActionError.
+async function syncChannel(actor, channel) {
+  requireManageRoles(actor);
+  const row = await db.get('SELECT category_id FROM guild_channels WHERE id = ?', [channel.id]);
+  if (row?.category_id == null) throw new ActionError(400, 'This channel is not in a category');
+  const category = await db.get('SELECT id, name FROM guild_categories WHERE id = ?', [row.category_id]);
+  const changed = await db.transaction(async () => {
+    const own = await overrides.channelOverrides(channel.id);
+    const target = await overrides.categoryOverrides(category.id);
+    if (overrides.sameOverrides(own, target)) return false;
+    const why = await overrides.whyNotChange(actor, own, target);
+    if (why) throw new ActionError(403, why);
+    await overrides.replaceChannelOverrides(channel.id, target);
+    await audit(actor, {
+      action: 'channel_permissions_sync',
+      targetType: 'channel',
+      targetId: channel.id,
+      channelId: channel.id,
+      details: { channelName: channel.name, categoryName: category.name },
+    });
+    return true;
+  });
+  if (changed) await announceGuildUpdate(actor.guild.id);
+}
+
+router.put('/guilds/:guildId/channels/:channelId/sync', manageRoles, requireChannel, withActionErrors(async (req, res) => {
+  await syncChannel(req.member, req.channel);
+  res.json({ success: true });
+}));
+
 module.exports = router;
 module.exports.createRole = createRole;
 module.exports.updateRole = updateRole;
 module.exports.deleteRole = deleteRole;
 module.exports.setMemberRoles = setMemberRoles;
 module.exports.setOverride = setOverride;
+module.exports.setCategoryOverride = setCategoryOverride;
+module.exports.syncChannel = syncChannel;
 module.exports.reorderRoles = reorderRoles;

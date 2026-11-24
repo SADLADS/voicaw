@@ -107,7 +107,15 @@
         "manageDocuments": "Manage Documents and Replies",
         "createEvents": "Create Events",
         "manageEvents": "Manage Events"
-      }
+      },
+      "categoryHint": "Changes here also go to every channel in this category whose permissions are the same as the category's (synced). Channels changed by hand keep theirs.",
+      "sync": {
+        "synced": "Synced with {{category}}",
+        "notSynced": "Not synced with {{category}}: changes to the category don't reach this channel.",
+        "now": "Sync now"
+      },
+      "syncedChannels_one": "Also changed in {{count}} synced channel.",
+      "syncedChannels_other": "Also changed in {{count}} synced channels."
     },
     "permissions": {
       "VIEW_CHANNEL": {
@@ -371,7 +379,9 @@
         "importFinish_one": "{{actor}} finished importing {{count}} message",
         "importFinish_other": "{{actor}} finished importing {{count}} messages",
         "importDelete": "{{actor}} deleted the history imported from {{source}}",
-        "importDeleteUnnamed": "{{actor}} deleted some imported history"
+        "importDeleteUnnamed": "{{actor}} deleted some imported history",
+        "channelPermissionsSync": "{{actor}} synced the permissions of {{channel}} with the category {{category}}",
+        "categoryOverrideUpdate": "{{actor}} changed the permissions of {{target}} in the category {{category}}"
       },
       "fields": {
         "name": "Name",
@@ -431,7 +441,8 @@
           "removed": "No longer repeats",
           "split": "Later dates changed: they're now a separate event",
           "shortened": "Later dates cancelled"
-        }
+        },
+        "syncedChannels": "Also changed in {{list}}"
       },
       "age": {
         "year": "a year",
@@ -449,7 +460,12 @@
       "delete": "Delete category",
       "name": "Category name",
       "namePlaceholder": "New category",
-      "deleteHint": "Deleting a category keeps its channels."
+      "deleteHint": "Deleting a category keeps its channels.",
+      "private": {
+        "label": "Private category",
+        "hint": "Only the roles and members allowed \"View Channel\" below (and admins) will see it and its synced channels.",
+        "createHint": "Only the roles you pick (and admins) will see it. Channels made in it start private too."
+      }
     },
     "categoryMenu": {
       "markAsRead": "Mark As Read",

@@ -5,9 +5,10 @@ import Modal from './Modal';
 import ChannelPermissions from './ChannelPermissions';
 import ChannelWebhooks from './ChannelWebhooks';
 import VoiceChannelSettings from './VoiceChannelSettings';
+import PrivateChoice from './PrivateChoice';
 import { createChannel, deleteChannel, updateChannel } from '../../services/guildService';
 import { errorMessage } from '../../utils/guildDisplay';
-import { PERMISSIONS, colorToHex, has, memberRank } from '../../utils/permissions';
+import { PERMISSIONS, has, memberRank } from '../../utils/permissions';
 import { t } from '../../i18n';
 
 // Creating a channel (no `channel`; in `categoryId` if given), optionally private to some
@@ -215,35 +216,19 @@ export default function ChannelDialog({ guild, channel, user, categoryId = null,
         )}
 
         {!editing && managesRoles && (
-          <>
-            <label className="role-toggle private-toggle">
-              <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
-              <span>
-                <strong>{t('guildAdmin.channelDialog.private.label')}</strong>
-                <span className="vc-hint">
-                  {t('guildAdmin.channelDialog.private.hint')}
-                  {type === 'list' && ` ${t('guildAdmin.channelDialog.private.listHint')}`}
-                  {type === 'doc' && ` ${t('guildAdmin.channelDialog.private.docHint')}`}
-                </span>
-              </span>
-            </label>
-            {isPrivate && grantableRoles.length > 0 && (
-              <fieldset className="private-roles">
-                <legend>{t('guildAdmin.channelDialog.private.whoCanSee')}</legend>
-                {grantableRoles.map((role) => (
-                  <label key={role.id} className="role-toggle">
-                    <input
-                      type="checkbox"
-                      checked={privateRoleIds.includes(role.id)}
-                      onChange={(e) => setPrivateRoleIds((ids) => (e.target.checked ? [...ids, role.id] : ids.filter((id) => id !== role.id)))}
-                    />
-                    <span className="role-dot" style={{ backgroundColor: role.color != null ? colorToHex(role.color) : undefined }} />
-                    <span>{role.name}</span>
-                  </label>
-                ))}
-              </fieldset>
-            )}
-          </>
+          <PrivateChoice
+            label={t('guildAdmin.channelDialog.private.label')}
+            hint={[
+              t('guildAdmin.channelDialog.private.hint'),
+              type === 'list' ? t('guildAdmin.channelDialog.private.listHint') : null,
+              type === 'doc' ? t('guildAdmin.channelDialog.private.docHint') : null,
+            ].filter(Boolean).join(' ')}
+            checked={isPrivate}
+            onChange={setIsPrivate}
+            roles={grantableRoles}
+            roleIds={privateRoleIds}
+            onRoleIdsChange={setPrivateRoleIds}
+          />
         )}
       </form>
       )}

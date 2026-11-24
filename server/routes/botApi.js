@@ -1,7 +1,8 @@
 const express = require('express');
 const db = require('../db');
 const config = require('../config');
-const { PERMISSIONS, CHANNEL_PERMISSIONS, has } = require('../permissions');
+const { PERMISSIONS, CHANNEL_PERMISSIONS, has, channelPermissions } = require('../permissions');
+const categoryPerms = require('../categoryOverrides');
 const {
   getMember, getChannelAccess, getGuildLayout, getOverrides, getChannelViewers, removeMember, announceGuildUpdate,
 } = require('../guilds');
@@ -664,7 +665,9 @@ async function guildChannels(guildId, botId) {
       lastMessageId: await lastMessageId(row.id),
     }));
   }
-  return [...layout.categories.map((c) => D.categoryObject(c, guildId)), ...channels];
+  const categoryOverrides = await categoryPerms.guildCategoryOverrides(guildId);
+  const categories = layout.categories.map((c) => D.categoryObject(c, guildId, { everyoneRoleId: everyone, overrides: categoryOverrides.get(c.id) ?? [] }));
+  return [...categories, ...channels];
 }
 
 router.get('/guilds/:guildId/channels', auth, inGuild, route(async (req, res) => {
@@ -1108,12 +1111,21 @@ router.post('/channels/:channelId/invites', auth, limit('invite', 5, 5000), inCh
 // ---- Channels ----
 
 router.get('/channels/:channelId', auth, inChannel, route(async (req, res) => {
-  if (req.category) return res.json(D.categoryObject(req.category, req.category.guild_id));
+  if (req.category) return res.json(await categoryOf(req.category));
   res.json(await channelOf(req.access.channel));
 }));
 
-// Threads: `name`, `archived`. Channels: `name`, `topic`, `nsfw`, `parent_id`, and voice
-// channels' `bitrate`, `user_limit`, `rtc_region`.
+// A category as Discord's channel object, with its overwrites (categoryOverrides.js).
+async function categoryOf(category) {
+  return D.categoryObject(category, category.guild_id, {
+    everyoneRoleId: await everyoneRoleId(category.guild_id),
+    overrides: await categoryPerms.categoryOverrides(category.id),
+  });
+}
+
+// Threads: `name`, `archived`. Channels: `name`, `topic`, `nsfw`, `parent_id` (with
+// `lock_permissions`: true takes the category's overwrites, false keeps its own; left out, a
+// synced channel takes the new category's), and voice channels' `bitrate`, `user_limit`, `rtc_region`.
 router.patch('/channels/:channelId', auth, limit('channel-update', 5, 10000), inChannel, route(async (req, res) => {
   if (req.category) throw new ActionError(400, "Categories can't be changed through the bot API yet", 50024);
   const { channel, permissions, member } = req.access;
@@ -1132,6 +1144,7 @@ router.patch('/channels/:channelId', auth, limit('channel-update', 5, 10000), in
         throw new webhooks.FormError(['parent_id'], 'Unknown category.', 'CHANNEL_PARENT_INVALID');
       }
     }
+    if (body.lock_permissions !== undefined && body.lock_permissions !== null) changes.lockPermissions = Boolean(body.lock_permissions);
     // Manage Channels counts in the channel (overrides), as in Discord.
     await guildActions.updateChannel({ ...member, permissions }, channel, changes);
     await applyOverwrites(req, channel.id, body.permission_overwrites);
@@ -1151,14 +1164,43 @@ router.delete('/channels/:channelId', auth, limit('channel-delete', 5, 10000), i
   res.json(object);
 }));
 
+// A category's overwrite (categoryOverrides.js): the same change goes to its synced channels.
+async function setCategoryOverwrite(req, targetId, { type, allow = '0', deny = '0' }) {
+  const { category, member } = req;
+  const isRole = Number(type) === 0 || type === 'role';
+  const target = isRole ? await D.roleIdFromDiscord(category.guild_id, targetId) : D.ourId(targetId);
+  if (target == null) throw new ActionError(404, isRole ? 'Unknown Role' : 'Unknown Member', isRole ? 10011 : 10007);
+  let bits;
+  try {
+    bits = { allow: D.fromDiscordPermissions(allow ?? '0') & CHANNEL_PERMISSIONS, deny: D.fromDiscordPermissions(deny ?? '0') & CHANNEL_PERMISSIONS };
+  } catch {
+    throw new webhooks.FormError(['allow'], 'Invalid permissions.', 'BASE_TYPE_INVALID');
+  }
+  const here = channelPermissions(member, req.bot.id, await categoryPerms.categoryOverrides(category.id));
+  await roleActions.setCategoryOverride(member, category, here, isRole ? 'role' : 'member', target, bits);
+}
+
 router.put('/channels/:channelId/permissions/:overwriteId', auth, limit('overwrite', 10, 10000), inChannel, route(async (req, res) => {
-  if (req.category || req.access.channel.type === 'thread') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
+  if (req.category) {
+    await setCategoryOverwrite(req, req.params.overwriteId, req.body ?? {});
+    return res.status(204).end();
+  }
+  if (req.access.channel.type === 'thread') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
   await setOverwrite(req, req.access.channel.id, req.params.overwriteId, req.body ?? {});
   res.status(204).end();
 }));
 
 router.delete('/channels/:channelId/permissions/:overwriteId', auth, limit('overwrite', 10, 10000), inChannel, route(async (req, res) => {
-  if (req.category || req.access.channel.type === 'thread') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
+  if (req.category) {
+    const { category } = req;
+    const rows = await categoryPerms.categoryOverrides(category.id);
+    const roleId = await D.roleIdFromDiscord(category.guild_id, req.params.overwriteId);
+    const userId = D.ourId(req.params.overwriteId);
+    if (rows.some((o) => o.target_type === 'role' && o.target_id === roleId)) await setCategoryOverwrite(req, req.params.overwriteId, { type: 0 });
+    else if (rows.some((o) => o.target_type === 'member' && o.target_id === userId)) await setCategoryOverwrite(req, req.params.overwriteId, { type: 1 });
+    return res.status(204).end();
+  }
+  if (req.access.channel.type === 'thread') throw new ActionError(400, 'Cannot execute action on this channel type', 50024);
   const { channel } = req.access;
   const guildId = channel.guild_id;
   const roleId = await D.roleIdFromDiscord(guildId, req.params.overwriteId);

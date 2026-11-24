@@ -92,7 +92,12 @@ Unknown paths get Discord's 404.
   own, are `CATEGORY_ID_BASE` (2^40) + their id so they can't clash with channels. Our ids aren't
   snowflakes: "created at" worked out from one is meaningless.
 - **Channels**: text (0), voice (2), category (4) and threads (11). List and document channels
-  aren't in the bot API (no Discord type fits).
+  aren't in the bot API (no Discord type fits). A category has its real `permission_overwrites`
+  (Category permissions in `docs/guilds.md`), and `PUT`/`DELETE /channels/:category/permissions/:id`
+  change them, the same change going to its synced channels, as in Discord. `PATCH` on a
+  channel takes `lock_permissions` with or without `parent_id`: true makes its overwrites the
+  category's, false keeps its own; left out, a synced channel moved takes the new category's.
+  Categories still can't be created, changed or deleted through the bot API.
 - **Permissions** are Discord's bits as decimal strings. Each of ours stands for one; Discord's
   that we don't have are implied by the nearest of ours (Read Message History by View Channel;
   Embed Links, Attach Files, Use External Emoji and Use Application Commands by Send Messages;

@@ -15,6 +15,9 @@ const { PERMISSIONS, has, channelPermissions } = require('./permissions');
 //   category_create / category_delete { name }, category_update { name, changes }
 //   channel_override_update { channelName, targetName, before: { allow, deny }, after }
 //     (target: the role or member)
+//   category_override_update { categoryName, targetName, before, after, syncedChannels: [names] }
+//     (target: the role or member; the same change made in the category's synced channels,
+//     categoryOverrides.js), channel_permissions_sync { channelName, categoryName } (Sync now)
 //   role_create / role_delete { name }, role_update { name, changes }
 //   member_role_update { added: [{ id, name }], removed } (target: the member)
 //   member_kick, member_ban_add, member_ban_remove (target: the user)

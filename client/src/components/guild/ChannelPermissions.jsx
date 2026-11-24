@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { Icon } from '../Icon';
 import { faCheck, faSlash, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { fetchChannelOverrides, fetchMembers, setChannelOverride } from '../../services/guildService';
-import { PERMISSIONS, channelPermissionItems, colorToHex, has, memberRank } from '../../utils/permissions';
+import {
+  fetchCategoryOverrides, fetchChannelOverrides, fetchMembers, setCategoryOverride, setChannelOverride, syncChannelPermissions,
+} from '../../services/guildService';
+import { PERMISSIONS, channelPermissionItems, colorToHex, has, memberRank, sameOverrides } from '../../utils/permissions';
 import { errorMessage } from '../../utils/guildDisplay';
 import { t } from '../../i18n';
 
-// Editing a channel → Permissions (Manage Roles): "Private channel" (hides it from
-// @everyone), then per-role and per-member overrides, each permission denied (✕), inherited
-// (/) or allowed (✓), like Discord. Changes save straight away. Only roles below yours, and
-// only permissions you have in this channel, can be changed.
-export default function ChannelPermissions({ guild, channel, user }) {
+// Editing a channel or a category (`category` instead of `channel`) → Permissions (Manage
+// Roles): "Private channel" (hides it from @everyone), then per-role and per-member overrides,
+// each permission denied (✕), inherited (/) or allowed (✓), like Discord. Changes save straight
+// away. Only roles below yours, and only permissions you have here, can be changed. A category's
+// overrides are copied into its channels that were synced with it (docs/guilds.md, Category
+// permissions); a channel in a category says whether it's synced, with Sync now if not.
+export default function ChannelPermissions({ guild, channel, category, user }) {
+  const target = category ?? channel;
+  const parent = channel?.category_id != null ? guild.categories?.find((c) => c.id === channel.category_id) : null;
   const [overrides, setOverrides] = useState(null);
+  const [parentOverrides, setParentOverrides] = useState(null);
+  const [syncedNote, setSyncedNote] = useState(null);
   const [members, setMembers] = useState([]);
   const [selected, setSelected] = useState(null); // 'role:<id>' | 'member:<id>'
   const [error, setError] = useState(null);
@@ -19,23 +27,44 @@ export default function ChannelPermissions({ guild, channel, user }) {
   const roles = guild.roles ?? [];
   const everyone = roles.find((r) => r.is_everyone);
   const myRank = memberRank(guild, user.id, guild.my_role_ids);
-  const myChannelPermissions = channel.my_permissions ?? 0;
+  const myChannelPermissions = target.my_permissions ?? 0;
+  const parentId = parent?.id ?? null;
+  const categoryId = category?.id ?? null;
+  const channelId = channel?.id ?? null;
 
   useEffect(() => {
-    fetchChannelOverrides(guild.id, channel.id).then(setOverrides).catch((err) => setError(errorMessage(err)));
+    const load = categoryId != null ? fetchCategoryOverrides(guild.id, categoryId) : fetchChannelOverrides(guild.id, channelId);
+    load.then(setOverrides).catch((err) => setError(errorMessage(err)));
+    if (parentId != null) fetchCategoryOverrides(guild.id, parentId).then(setParentOverrides).catch(() => {});
     fetchMembers(guild.id).then(setMembers).catch(() => {});
-  }, [guild.id, channel.id]);
+  }, [guild.id, categoryId, channelId, parentId]);
 
   const find = (type, id) => overrides?.find((o) => o.target_type === type && o.target_id === id) ?? { allow: 0, deny: 0 };
 
   async function save(type, id, allow, deny) {
     setError(null);
+    setSyncedNote(null);
     try {
-      await setChannelOverride(guild.id, channel.id, type, id, { allow, deny });
+      if (category) {
+        const saved = await setCategoryOverride(guild.id, category.id, type, id, { allow, deny });
+        setSyncedNote(saved?.synced_channels ?? 0);
+      } else {
+        await setChannelOverride(guild.id, channel.id, type, id, { allow, deny });
+      }
       setOverrides((list) => {
         const rest = list.filter((o) => !(o.target_type === type && o.target_id === id));
         return allow || deny ? [...rest, { target_type: type, target_id: id, allow, deny }] : rest;
       });
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  async function syncNow() {
+    setError(null);
+    try {
+      await syncChannelPermissions(guild.id, channel.id);
+      setOverrides(parentOverrides.map((o) => ({ ...o })));
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -75,9 +104,23 @@ export default function ChannelPermissions({ guild, channel, user }) {
   ];
 
   const { allow, deny } = find(current.type, current.id);
+  const synced = parentOverrides && sameOverrides(overrides, parentOverrides);
 
   return (
     <div className="channel-permissions">
+      {parent && parentOverrides && (
+        <div className={`permissions-sync${synced ? ' synced' : ''}`} role="status">
+          <span>
+            {synced
+              ? t('guildAdmin.channelPermissions.sync.synced', { category: parent.name })
+              : t('guildAdmin.channelPermissions.sync.notSynced', { category: parent.name })}
+          </span>
+          {!synced && (
+            <button type="button" className="btn btn-sm btn-secondary" onClick={syncNow}>{t('guildAdmin.channelPermissions.sync.now')}</button>
+          )}
+        </div>
+      )}
+      {category && <p className="vc-hint">{t('guildAdmin.channelPermissions.categoryHint')}</p>}
       <label className="role-toggle private-toggle">
         <input
           type="checkbox"
@@ -89,8 +132,8 @@ export default function ChannelPermissions({ guild, channel, user }) {
           }}
         />
         <span>
-          <strong>{t('guildAdmin.channelDialog.private.label')}</strong>
-          <span className="vc-hint">{t('guildAdmin.channelPermissions.privateHint')}</span>
+          <strong>{category ? t('guildAdmin.categoryDialog.private.label') : t('guildAdmin.channelDialog.private.label')}</strong>
+          <span className="vc-hint">{category ? t('guildAdmin.categoryDialog.private.hint') : t('guildAdmin.channelPermissions.privateHint')}</span>
         </span>
       </label>
 
@@ -131,7 +174,7 @@ export default function ChannelPermissions({ guild, channel, user }) {
 
         <div className="override-grid" aria-label={t('guildAdmin.channelPermissions.gridLabel', { name: current.name })}>
           {current.locked && <p className="vc-hint">{t('guildAdmin.channelPermissions.locked')}</p>}
-          {channelPermissionItems(channel.type).map(([key, labelKey]) => {
+          {channelPermissionItems(category ? 'category' : channel.type).map(([key, labelKey]) => {
             const label = t(`guildAdmin.channelPermissions.items.${labelKey}`);
             const bit = PERMISSIONS[key];
             const state = has(deny, bit) ? 'deny' : has(allow, bit) ? 'allow' : 'inherit';
@@ -161,6 +204,9 @@ export default function ChannelPermissions({ guild, channel, user }) {
           })}
         </div>
       </div>
+      {syncedNote != null && syncedNote > 0 && (
+        <p className="vc-hint" role="status">{t('guildAdmin.channelPermissions.syncedChannels', { count: syncedNote })}</p>
+      )}
       {error && <p className="error-msg" role="alert">{error}</p>}
     </div>
   );

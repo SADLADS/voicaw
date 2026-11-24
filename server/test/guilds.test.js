@@ -68,7 +68,7 @@ describe('guilds', () => {
     events.stop();
 
     expect(guild).toMatchObject({ name: 'My Guild', owner: owner.id, icon_version: 0 });
-    expect(guild.categories).toEqual([{ id: expect.any(Number), name: 'Text Channels', position: 0 }]);
+    expect(guild.categories).toEqual([{ id: expect.any(Number), name: 'Text Channels', position: 0, my_permissions: expect.any(Number), private: false }]);
     expect(guild.channels).toEqual([
       expect.objectContaining({ name: 'general', type: 'text', category_id: guild.categories[0].id }),
     ]);
