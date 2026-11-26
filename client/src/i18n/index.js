@@ -1,5 +1,4 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
+import { FALLBACK_LANGUAGE, LANGUAGE, initI18n } from './core';
 
 // The app's text. Each language is a folder (en-GB/, ru/, ja/, th/) with one file per area of the app
 // ({ "settings": { ... } } in settings.json), and keys start with the area:
@@ -9,42 +8,12 @@ import { initReactI18next } from 'react-i18next';
 // British English is in the bundle; another language is loaded (its own file, vite.config.js)
 // before this module finishes, so importers still find every string: bundling all four cost
 // the desktop app ~1 MB of text on every start (Memory and start-up in docs/desktop-and-site.md).
+// That wait is a top-level await, which a (classic) service worker can't run: the service
+// worker's build uses worker.js instead (vite.config.js `serviceWorkerI18n`).
+export { FALLBACK_LANGUAGE, LANGUAGES, LANGUAGE, languageChoice, setLanguage } from './core';
+
 const english = import.meta.glob('./en-GB/*.json', { eager: true, import: 'default' });
 const others = import.meta.glob(['./*/*.json', '!./en-GB/*.json'], { import: 'default' });
-
-export const FALLBACK_LANGUAGE = 'en-GB';
-
-// The languages to choose from, each named in itself.
-export const LANGUAGES = [
-  { code: 'en-GB', name: 'English (UK)' },
-  { code: 'ru', name: 'Русский' },
-  { code: 'ja', name: '日本語' },
-  { code: 'th', name: 'ไทย' },
-];
-
-const STORAGE_KEY = 'voicaw-language';
-
-// The language chosen on this device (Settings → Language), or null to follow the browser.
-export function languageChoice() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return LANGUAGES.some((l) => l.code === stored) ? stored : null;
-  } catch {
-    return null;
-  }
-}
-
-// The browser's (on a computer, the system's) language if we have it, else British English.
-function browserLanguage() {
-  const wanted = typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language];
-  for (const tag of wanted) {
-    const found = LANGUAGES.find((l) => l.code === tag) ?? LANGUAGES.find((l) => l.code === tag?.split('-')[0]);
-    if (found) return found.code;
-  }
-  return FALLBACK_LANGUAGE;
-}
-
-export const LANGUAGE = languageChoice() ?? browserLanguage();
 
 // The loaded languages' strings: British English, and LANGUAGE if it's another one (if it can't
 // be loaded, the app is in British English this time).
@@ -58,27 +27,7 @@ if (LANGUAGE !== FALLBACK_LANGUAGE) {
   }
 }
 
-// Changing language reloads the app, so everything (module-level labels too) is redrawn in it.
-// `code` null follows the browser again.
-export function setLanguage(code) {
-  try {
-    if (code) localStorage.setItem(STORAGE_KEY, code);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Private mode: only this page load changes, which the reload undoes.
-  }
-  location.reload();
-}
-
-i18n.use(initReactI18next).init({
-  lng: LANGUAGE,
-  fallbackLng: FALLBACK_LANGUAGE,
-  resources,
-  initAsync: false,
-  // React escapes text itself.
-  interpolation: { escapeValue: false },
-  react: { useSuspense: false },
-});
+const i18n = initI18n(resources);
 
 if (typeof document !== 'undefined') document.documentElement.lang = LANGUAGE;
 

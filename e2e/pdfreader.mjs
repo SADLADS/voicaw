@@ -7,6 +7,7 @@
 //   E2E_WEB_PORT=5232 node e2e/pdfreader.mjs [screenshot dir]
 // - Alice attaches a 12-page PDF: its first page in the tray; Bob sees it and "12 pages" before
 //   anything of the PDF itself is downloaded (the store's reads), with Open and Download;
+// - PDF.js's data files kept for offline use once a PDF has been opened (production build);
 // - Open: pages drawn, a page number typed jumps there, zoom, Contents, Find (a match on every
 //   page), Back closes it and it reopens where it was left;
 // - a locked PDF: no preview, the password asked for, a wrong one said so, then it opens;
@@ -103,6 +104,59 @@ try {
   check((await bob.page.locator('.pdf-reader-toolbar').boundingBox()).y === 0, 'reader covers the app');
   check(await bob.page.locator('.pdf-reader .textLayer span', { hasText: 'Page 1' }).count() >= 1, 'selectable text');
   await shot(bob.page, '3-reader');
+
+  // PDF.js's data files: QuickJS (its PDF-JavaScript sandbox) isn't served at all; with a
+  // service worker (a production build), opening a PDF keeps every file for offline use, and
+  // they load with the network cut.
+  // (A missing file may come back as the app's page, so it's the bytes that tell.)
+  const isWasm = (path) => bob.page.evaluate(async (p) => {
+    const res = await fetch(p);
+    const head = new Uint8Array(await res.arrayBuffer()).slice(0, 4);
+    return res.ok && head.join() === '0,97,115,109';
+  }, path);
+  check(await isWasm('/pdfjs/wasm/openjpeg.wasm') && !(await isWasm('/pdfjs/wasm/quickjs-eval.wasm')), 'QuickJS is not served (its decoders are)');
+  // The dev server's service worker (dev-sw.js) can't start: it shares the page's i18n module,
+  // whose top-level await a service worker can't run (only builds swap in i18n/worker.js).
+  const production = await bob.page.evaluate(async () => (await fetch('/service-worker.js')).headers.get('content-type')?.includes('javascript')
+    && !(await (await fetch('/service-worker.js')).text()).includes('import.meta'));
+  const hasWorker = production && await bob.page.evaluate(() => 'serviceWorker' in navigator && Promise.race([
+    navigator.serviceWorker.ready.then(() => true),
+    new Promise((resolve) => { setTimeout(() => resolve(false), 15000); }),
+  ]));
+  if (!production) console.log('(dev server: no working service worker, so no offline check)');
+  else check(hasWorker, 'the service worker starts');
+  // A first visit isn't the service worker's yet: it takes over from the next page load.
+  if (hasWorker && !(await bob.page.evaluate(() => Boolean(navigator.serviceWorker.controller)))) {
+    await bob.page.reload();
+    await bob.page.waitForSelector('#dm-input');
+    await row.getByRole('button', { name: 'Open guide.pdf' }).click();
+    await drawn(bob.page);
+  }
+  if (hasWorker) {
+    const total = await bob.page.evaluate(async () => (await (await fetch('/pdfjs/files.json')).json()).length);
+    // (Polled from here: waitForFunction takes an async check's promise as true.)
+    const kept = () => bob.page.evaluate(async () => {
+      const name = (await caches.keys()).find((n) => n.startsWith('pdfjs-'));
+      return name ? (await (await caches.open(name)).keys()).filter((r) => !r.url.endsWith('files.json')).length : 0;
+    });
+    const until = Date.now() + 90000;
+    while (await kept() < total) {
+      if (Date.now() > until) throw new Error(`FAILED: only ${await kept()} of ${total} data files kept`);
+      await bob.page.waitForTimeout(1000);
+    }
+    await bob.page.context().setOffline(true);
+    const offline = await bob.page.evaluate(async () => Promise.all(
+      ['/pdfjs/cmaps/UniJIS-UCS2-H.bcmap', '/pdfjs/wasm/openjpeg.wasm', '/pdfjs/standard_fonts/FoxitSerif.pfb'].map(async (u) => {
+        try {
+          return (await fetch(u)).ok;
+        } catch (err) {
+          return `${u}: ${err.message}`;
+        }
+      }),
+    ));
+    await bob.page.context().setOffline(false);
+    check(offline.every((ok) => ok === true), `all ${total} data files kept, and served offline (${offline})`);
+  }
 
   await pageInput(bob.page).fill('7');
   await pageInput(bob.page).press('Enter');

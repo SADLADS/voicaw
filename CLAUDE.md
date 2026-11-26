@@ -620,6 +620,9 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
     text boxes (titles, bio, task fields) keep the browser's, which can disagree with our
     suggestions there. Our dictionaries are English only (UK, US); other languages fall back
     to the browser's (or the desktop app's) own checker.
+  - The dev server's service worker can't start: it loads the page's `i18n/index.js`, whose
+    top-level await a service worker can't run (builds swap in `i18n/worker.js`; see
+    Translations in `docs/client.md`). Test push notifications and offline on a build.
   - npm 11 warns that the install scripts of `esbuild` and `uiohook-napi` (the desktop app's
     push to talk hook) aren't in an `allowScripts` list yet. They still run today; a future npm
     will need them approved (`npm install-scripts approve`).

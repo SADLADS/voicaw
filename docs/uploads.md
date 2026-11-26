@@ -505,10 +505,16 @@ Electron's needs plugins on, and opening a `blob:` PDF as a page is what Attachm
     256 MB, and a PDF of more than 10,000 pages isn't opened.
 - **Nothing is fetched from another site**: PDF.js's data files (character maps, standard fonts,
   colour profiles, and its JPEG 2000/JBIG2 decoders as WebAssembly with JavaScript fallbacks) are
-  served by us at `/pdfjs/<folder>/` (`vite.config.js` `pdfjsAssets`: from the npm package in dev,
-  copied into the build), and left out of the precache: only some PDFs want them, so a PDF that
-  needs one (CJK text without its own fonts, say) may not draw fully offline. PDF.js and its
-  worker are precached.
+  served by us at `/pdfjs/<folder>/`, listed in `/pdfjs/files.json` (`vite.config.js`
+  `pdfjsAssets`: from the npm package in dev, copied into the build). QuickJS, the engine of
+  PDF.js's PDF-JavaScript sandbox, isn't shipped at all. PDF.js and its worker are precached.
+- **Offline** (web app; the desktop and Android apps have every file inside them): the data
+  files (~4 MB) aren't precached, so devices that never open a PDF don't download them. The
+  service worker keeps each one cache-first in `pdfjs-<version>` as it's fetched (older versions'
+  caches deleted), and the first PDF opened while online fetches the rest in the background, one
+  at a time (`services/pdf/pdfjsData.js` `keepPdfDataOffline`). From then on any PDF draws fully
+  without a connection, a CJK one without its own fonts or a JPEG 2000 picture included. (The
+  PDF itself must still be downloaded: attachments aren't kept offline.)
 - **Broken or other files**: one that can't be read says "This PDF couldn't be opened" (damaged or
   not a PDF); Download still works.
 - Not done: streaming big PDFs in ranges (the whole file is downloaded and decrypted first, as for

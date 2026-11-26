@@ -20,7 +20,7 @@
   `i18n/<language>/<area>.json`, one file per area of the app (`settings`, `chat`, `guilds`,
   `guildAdmin`, `voice`...), each holding one top-level key named after the file; `common.json`
   has the everyday words (Cancel, Save, Close...). Files there are picked up automatically;
-  a new language also goes in `LANGUAGES` (`i18n/index.js`).
+  a new language also goes in `LANGUAGES` (`i18n/core.js`).
   - **Choosing:** Settings → Language (`LanguageSettings.jsx`), on this device
     (`localStorage`); Automatic, the default, takes the browser's languages in order and
     falls back to British English. Changing it reloads the app. Anything missing from a
@@ -34,6 +34,13 @@
     that can't be loaded leaves the app in British English; since 2026-11-24, it saved ~760 kB of
     JS on every start). Changing language will reload the app, so there's no
     `useTranslation` hook to thread through.
+  - **The service worker** (notification text, `services/pushNotifications.js`) can't run that
+    top-level await: a classic service worker with one doesn't start at all (from 2026-11-24
+    until 2026-11-26 the built web app's didn't: no push notifications, offline page or update
+    prompt; found with the PDF reader). Its build resolves `i18n/index.js` to `i18n/worker.js`
+    (`vite.config.js` `serviceWorkerI18n`), which bundles every language and awaits nothing; the
+    two share `i18n/core.js`. The dev server's service worker loads the page's modules, so it
+    still can't start there (test push and offline on a build).
   - One key per whole sentence, with `{{name}}` for what goes in it; never glue translated
     pieces together (word order differs). Counts use i18next plurals: `foo_one` / `foo_other`
     and `t('area.foo', { count })` (Russian will add `_few` / `_many`). A sentence with

@@ -6,6 +6,7 @@ import {
 import { Icon } from './Icon';
 import { ErrorState } from './ErrorState';
 import { openPdf, pdfjsLib, PdfPasswordError } from '../services/pdf/pdfjs';
+import { keepPdfDataOffline } from '../services/pdf/pdfjsData';
 import {
   readPosition, savePosition, readZoom, saveZoom, MIN_SCALE, MAX_SCALE, NAMED_ZOOMS,
 } from '../utils/pdfPosition';
@@ -135,6 +136,7 @@ export default function PdfReader({ name, load, positionKey, onClose }) {
         }
         setPassword(null);
         setState({ status: 'ready', doc: opened });
+        keepPdfDataOffline(); // the rest of PDF.js's data files, for reading offline later
       } catch (err) {
         if (!live) return;
         setPassword(null);

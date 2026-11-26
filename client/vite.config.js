@@ -97,17 +97,24 @@ function twemojiAssets() {
 
 // PDF.js's data files (the PDF reader, services/pdf/pdfjs.js): character maps, standard fonts,
 // colour profiles and its image decoders (WebAssembly, and plain-JavaScript fallbacks), self-hosted
-// at /pdfjs/<folder>/ so PDF.js never fetches them from another site. Served straight from the
-// npm package in dev, copied into the build otherwise. Left out of the precache (they're only
-// wanted by some PDFs).
+// at /pdfjs/<folder>/ so PDF.js never fetches them from another site, with their list at
+// /pdfjs/files.json. Served straight from the npm package in dev, copied into the build
+// otherwise. Not precached (~4 MB every device would download): the service worker keeps each as
+// it's fetched, and opening a PDF fetches the rest in the background (services/pdf/pdfjsData.js).
+// Left out: licence files, and QuickJS, the engine of PDF.js's PDF-JavaScript sandbox, which the
+// app never runs.
 const PDFJS_FOLDERS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'];
 function pdfjsAssets() {
   const require = createRequire(import.meta.url);
   const root = path.dirname(require.resolve('pdfjs-dist/package.json'));
-  const TYPES = { '.bcmap': 'application/octet-stream', '.pfb': 'application/octet-stream', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.js': 'text/javascript', '.mjs': 'text/javascript', '.icc': 'application/octet-stream' };
+  const TYPES = { '.bcmap': 'application/octet-stream', '.pfb': 'application/octet-stream', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.js': 'text/javascript', '.icc': 'application/octet-stream' };
+  const wanted = (name) => /^[A-Za-z0-9._-]+$/.test(name) && !name.startsWith('.') && !name.startsWith('LICENSE') && !name.startsWith('quickjs');
+  const files = () => PDFJS_FOLDERS.flatMap((folder) => fs.readdirSync(path.join(root, folder))
+    .filter((name) => wanted(name) && fs.statSync(path.join(root, folder, name)).isFile())
+    .map((name) => `${folder}/${name}`));
   const fileFor = (url) => {
     const [folder, name, ...rest] = decodeURIComponent(url.split('?')[0]).replace(/^\//, '').split('/');
-    if (rest.length || !PDFJS_FOLDERS.includes(folder) || !/^[A-Za-z0-9._-]+$/.test(name ?? '') || name.startsWith('.')) return null;
+    if (rest.length || !PDFJS_FOLDERS.includes(folder) || !wanted(name ?? '')) return null;
     const file = path.join(root, folder, name);
     return fs.existsSync(file) && fs.statSync(file).isFile() ? file : null;
   };
@@ -115,6 +122,11 @@ function pdfjsAssets() {
     name: 'pdfjs-assets',
     configureServer(server) {
       server.middlewares.use('/pdfjs', (req, res, next) => {
+        if (req.url.split('?')[0] === '/files.json') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(files()));
+          return undefined;
+        }
         const file = fileFor(req.url);
         if (!file) return next();
         res.setHeader('Content-Type', TYPES[path.extname(file)] ?? 'application/octet-stream');
@@ -124,14 +136,31 @@ function pdfjsAssets() {
       });
     },
     writeBundle(options) {
-      for (const folder of PDFJS_FOLDERS) {
-        const from = path.join(root, folder);
-        const to = path.join(options.dir, 'pdfjs', folder);
-        fs.mkdirSync(to, { recursive: true });
-        for (const name of fs.readdirSync(from)) {
-          if (!name.startsWith('LICENSE') && fs.statSync(path.join(from, name)).isFile()) fs.copyFileSync(path.join(from, name), path.join(to, name));
-        }
+      const list = files();
+      for (const file of list) {
+        const to = path.join(options.dir, 'pdfjs', file);
+        fs.mkdirSync(path.dirname(to), { recursive: true });
+        fs.copyFileSync(path.join(root, file), to);
       }
+      fs.writeFileSync(path.join(options.dir, 'pdfjs', 'files.json'), JSON.stringify(list));
+    },
+  };
+}
+
+// The service worker's build (VitePWA injectManifest) gets src/i18n/worker.js wherever the app
+// imports src/i18n/index.js: the page's loads its language with a top-level await, which stops a
+// classic service worker from starting at all (it did from 2026-11-24 until this; found when the
+// PDF reader's offline cache didn't work).
+function serviceWorkerI18n() {
+  const page = path.resolve(__dirname, 'src/i18n/index.js');
+  const worker = path.resolve(__dirname, 'src/i18n/worker.js');
+  return {
+    name: 'voicaw-service-worker-i18n',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      if (!importer || !/(^|\/)i18n(\/index(\.js)?)?$/.test(source)) return null;
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      return resolved?.id === page ? worker : null;
     },
   };
 }
@@ -254,8 +283,9 @@ export default defineConfig(({ mode }) => {
         // no MIME type for .webmanifest), so don't generate a second manifest.
         manifest: false,
         injectManifest: {
+          buildPlugins: { vite: [serviceWorkerI18n()] },
           // DeepFilterNet (17 MB, "Strong" noise suppression) only downloads for those who
-          // choose it; PDF.js's data files (pdfjsAssets) for the PDFs that need them.
+          // choose it; PDF.js's data files (pdfjsAssets) are kept by the service worker as they're used.
           globIgnores: ['**/df_bg-*.wasm', 'pdfjs/**'],
           // Workbox skips (and the plugin then fails the build on) any file over this; the
           // default is 2 MiB. Big libraries get their own files (VENDOR_CHUNKS) to stay well
