@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { mayBeAnimated, makeThumbnail } from './mediaDimensions';
+import { describe, it, expect, vi } from 'vitest';
+import { mayBeAnimated, makeThumbnail, readMediaDimensions } from './mediaDimensions';
+
+vi.mock('../services/epub/epubCover', () => ({
+  readEpubCover: vi.fn(async (file) => (file.size > 1 ? { width: 2, height: 3, thumbnail: 'cover' } : null)),
+}));
 import { stillType } from '../services/attachmentCache';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -55,5 +59,14 @@ describe('stillType', () => {
     expect(stillType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]).buffer)).toBe('image/jpeg');
     expect(stillType(new Uint8Array(PNG_SIGNATURE).buffer)).toBe('image/png');
     expect(stillType(new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 ').buffer)).toBe('image/webp');
+  });
+});
+
+describe('readMediaDimensions', () => {
+  it("gives a book its cover as the thumbnail, found by type or name, or nothing", async () => {
+    expect(await readMediaDimensions(new File(['book'], 'a.epub', { type: 'application/epub+zip' }))).toEqual({ width: 2, height: 3, thumbnail: 'cover' });
+    expect(await readMediaDimensions(new File(['book'], 'B.EPUB'))).toEqual({ width: 2, height: 3, thumbnail: 'cover' });
+    expect(await readMediaDimensions(new File(['x'], 'c.epub'))).toBeNull();
+    expect(await readMediaDimensions(new File(['book'], 'notes.txt', { type: 'text/plain' }))).toBeNull();
   });
 });

@@ -190,6 +190,24 @@
       "rate": "{{rate}}×",
       "speed": "Playback speed {{rate}}×",
       "speedTitle": "Playback speed"
+    },
+    "epub": {
+      "read": "Read",
+      "readName": "Read {{name}}",
+      "cover": "Cover of {{name}}",
+      "opening": "Opening the book…",
+      "contents": "Contents",
+      "closeContents": "Close contents",
+      "close": "Close the book",
+      "previous": "Previous chapter",
+      "next": "Next chapter",
+      "chapterOf": "Chapter {{number}} of {{total}}",
+      "smaller": "Smaller text",
+      "bigger": "Bigger text",
+      "cantOpenTitle": "This book couldn't be opened",
+      "cantOpen": "It may be damaged, copy-protected or not an EPUB book. You can still download it.",
+      "chapterFailed": "This chapter couldn't be shown.",
+      "untitled": "Untitled book"
     }
   }
 }

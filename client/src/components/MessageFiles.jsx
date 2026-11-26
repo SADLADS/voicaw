@@ -1,12 +1,15 @@
 import React, { useContext } from 'react';
 import { Icon } from './Icon';
-import { faFile } from '@fortawesome/free-solid-svg-icons';
+import { faBookOpen, faFile } from '@fortawesome/free-solid-svg-icons';
 import VideoPlayer from './VideoPlayer';
 import MediaCover from './MediaCover';
 import { saveUrlAs } from '../utils/saveFile';
 import { mediaBoxStyle } from '../utils/mediaBox';
 import { useMediaCover } from '../hooks/useMediaCover';
-import { ImageViewerContext } from '../contexts';
+import { ConfigContext, EpubReaderContext, ImageViewerContext } from '../contexts';
+import { inOwnStore } from '../services/attachmentCrypto';
+import { isEpub } from '../utils/epub';
+import { positionKeyFor } from '../utils/epubPosition';
 import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { t } from '../i18n';
 
@@ -18,13 +21,16 @@ function fileSize(bytes) {
 
 // Files a webhook sent with a message (Discord's `attachments`; plain files in our object store,
 // not encrypted, like the rest of a guild): images, videos and sounds inline, anything else a
-// download box. Files whose URL is in `shownElsewhere` (an embed's image) are left out. Images
-// and videos are covered in an NSFW channel (MediaCover); a covered video isn't loaded.
+// download box (a book in our store with Read beside it). Files whose URL is in `shownElsewhere`
+// (an embed's image) are left out. Images and videos are covered in an NSFW channel
+// (MediaCover); a covered video isn't loaded.
 // Images open in the image viewer with the message's other images, like people's; they stay
 // links, so a middle or Ctrl click still opens one in a new tab.
 export default function MessageFiles({ attachments, shownElsewhere = [] }) {
   const cover = useMediaCover();
   const viewer = useContext(ImageViewerContext);
+  const reader = useContext(EpubReaderContext);
+  const s3Endpoint = useContext(ConfigContext)?.s3Endpoint;
   const files = (attachments ?? []).filter((file) => !shownElsewhere.includes(file.url));
   if (!files.length) return null;
   return (
@@ -82,12 +88,31 @@ export default function MessageFiles({ attachments, shownElsewhere = [] }) {
             </div>
           );
         }
-        return (
+        const box = (
           <a key={file.id} className="message-file-box" href={file.url} download={file.filename} target="_blank" rel="noopener noreferrer">
             <Icon icon={faFile} className="message-file-icon" />
             <span className="message-file-name">{file.filename}</span>
             <span className="vc-hint">{fileSize(file.size)}</span>
           </a>
+        );
+        // A book in our own file store opens in the reader too (EPUB reader, docs/uploads.md).
+        if (!reader || !isEpub(type, file.filename) || !inOwnStore(file.url, s3Endpoint)) return box;
+        const read = () => reader.openBook({
+          name: file.filename,
+          positionKey: positionKeyFor(file.url),
+          load: async () => {
+            const res = await fetch(file.url);
+            if (!res.ok) throw new Error(`Download failed (${res.status})`);
+            return res.blob();
+          },
+        });
+        return (
+          <div key={file.id} className="message-file-book">
+            {box}
+            <button type="button" className="attachment-book-read" onClick={read} aria-label={t('media.epub.readName', { name: file.filename })}>
+              <Icon icon={faBookOpen} /> {t('media.epub.read')}
+            </button>
+          </div>
         );
       })}
     </div>

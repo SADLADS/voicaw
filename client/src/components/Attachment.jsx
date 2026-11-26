@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
-import { faFile, faDownload } from '@fortawesome/free-solid-svg-icons';
+import { faFile, faDownload, faBook, faBookOpen } from '@fortawesome/free-solid-svg-icons';
 import { inOwnStore, parseAttachmentUrl } from '../services/attachmentCrypto';
 import {
   loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
@@ -10,7 +10,9 @@ import { saveAttachment } from '../services/attachmentSave';
 import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 import { triggerDownload } from '../utils/saveFile';
-import { ConfigContext, ImageViewerContext } from '../contexts';
+import { ConfigContext, EpubReaderContext, ImageViewerContext } from '../contexts';
+import { isEpub } from '../utils/epub';
+import { positionKeyFor } from '../utils/epubPosition';
 import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { parseGifUrl } from '../utils/gifMarkup';
 import { usePrivacyPrefs } from '../utils/privacy';
@@ -31,34 +33,78 @@ function kindOf(type, size = 0, hasThumbnail = false) {
   return 'file';
 }
 
-// Spans rather than divs throughout: markdown renders images inside <p>. `progress` (0 to 1):
-// how far its download is, while the app downloads it.
-function FileBox({ name, size, onDownload, status, progress = null }) {
-  let detail = formatBytes(size);
+// A file box's second line: its size, or how its download is going. `progress` (0 to 1): how
+// far its download is, while the app downloads it.
+function fileDetail(size, status, progress) {
   if (status === 'loading') {
-    detail = progress != null && progress < 1
+    return progress != null && progress < 1
       ? t('media.attachment.downloading', { percent: Math.floor(progress * 100) })
       : t('media.attachment.decrypting');
-  } else if (status === 'error') detail = t('media.attachment.downloadFailed');
+  }
+  return status === 'error' ? t('media.attachment.downloadFailed') : formatBytes(size);
+}
+
+function DownloadButton({ name, onDownload, status }) {
+  return (
+    <button
+      type="button"
+      className="attachment-file-download"
+      onClick={onDownload}
+      disabled={status === 'loading'}
+      title={t('media.attachment.download', { name })}
+      aria-label={t('media.attachment.download', { name })}
+    >
+      <Icon icon={faDownload} />
+    </button>
+  );
+}
+
+// Spans rather than divs throughout: markdown renders images inside <p>.
+function FileBox({ name, size, onDownload, status, progress = null }) {
   return (
     <span className="attachment-file">
       <Icon icon={faFile} className="attachment-file-icon" />
       <span className="attachment-file-info">
         <span className="attachment-file-name" title={name}>{name}</span>
-        <span className="attachment-file-size">{detail}</span>
+        <span className="attachment-file-size">{fileDetail(size, status, progress)}</span>
       </span>
-      <button
-        type="button"
-        className="attachment-file-download"
-        onClick={onDownload}
-        disabled={status === 'loading'}
-        title={t('media.attachment.download', { name })}
-        aria-label={t('media.attachment.download', { name })}
-      >
-        <Icon icon={faDownload} />
-      </button>
+      <DownloadButton name={name} onDownload={onDownload} status={status} />
     </span>
   );
+}
+
+// An EPUB book (EPUB reader in docs/uploads.md): its cover, if the sender's app sent one (the
+// attachment's thumbnail; `coverPending` while it loads), behind a cover like an image when it's
+// a spoiler or in an NSFW channel; Read opens it in the reader (`onRead`, null where there's no
+// reader) and the download button saves it.
+function BookBox({ name, size, cover, coverPending, width, height, spoiler, onRead, onDownload, status, progress = null }) {
+  const coverLabel = useMediaCover(spoiler);
+  const aspect = width && height ? { aspectRatio: `${width} / ${height}` } : undefined;
+  const picture = cover
+    ? <img className="attachment-book-cover" src={cover} alt={t('media.epub.cover', { name })} style={aspect} />
+    : coverPending ? <span className="attachment-book-cover loading" style={aspect} /> : null;
+  return (
+    <span className="attachment-file attachment-book">
+      {picture ? <MediaCover label={coverLabel} name={name}>{picture}</MediaCover> : <Icon icon={faBook} className="attachment-file-icon" />}
+      <span className="attachment-file-info">
+        <span className="attachment-file-name" title={name}>{name}</span>
+        <span className="attachment-file-size">{fileDetail(size, status, progress)}</span>
+        {onRead && (
+          <button type="button" className="attachment-book-read" onClick={onRead} aria-label={t('media.epub.readName', { name })}>
+            <Icon icon={faBookOpen} /> {t('media.epub.read')}
+          </button>
+        )}
+      </span>
+      <DownloadButton name={name} onDownload={onDownload} status={status} />
+    </span>
+  );
+}
+
+// The book's file as a Blob, from a URL of it (a blob: URL of the decrypted file, or the store's).
+async function blobAt(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  return res.blob();
 }
 
 // An image in a message; clicking (or Enter) opens it in the full-screen viewer, along with
@@ -125,8 +171,24 @@ function VideoView({ spoiler, poster, width, height, ...player }) {
 }
 
 function LocalAttachment({ local, name }) {
+  const reader = useContext(EpubReaderContext);
   const kind = kindOf(local.type, local.size, !!local.thumbnail);
   const download = () => triggerDownload(local.previewUrl, name);
+  if (isEpub(local.type, name)) {
+    const read = reader && (() => reader.openBook({ name, positionKey: null, load: () => blobAt(local.previewUrl) }));
+    return (
+      <BookBox
+        name={name}
+        size={local.size}
+        cover={local.coverUrl}
+        width={local.width}
+        height={local.height}
+        spoiler={local.spoiler}
+        onRead={read}
+        onDownload={download}
+      />
+    );
+  }
   if (local.voice) {
     return <VoiceMessage src={local.previewUrl} duration={local.duration} waveform={local.waveform} name={name} onDownload={download} />;
   }
@@ -227,6 +289,60 @@ function EncryptedVoice({ url, meta, name }) {
       waveform={meta.waveform}
       name={name}
       onDownload={() => saveAttachment(url, meta, name).catch((err) => console.error('Failed to download attachment', err))}
+    />
+  );
+}
+
+// An encrypted book: its cover (the thumbnail, `p=`, small, loaded straight away), and the book
+// itself downloaded and decrypted whole when it's read or saved.
+function EncryptedBook({ url, meta, name }) {
+  const reader = useContext(EpubReaderContext);
+  const [cover, setCover] = useState(() => (meta.posterUrl ? getCachedPoster(meta) : null));
+  const [coverFailed, setCoverFailed] = useState(false);
+  const [status, setStatus] = useState('idle');
+  const [progress, setProgress] = useState(null);
+
+  useEffect(() => {
+    if (!meta.posterUrl || cover) return undefined;
+    let live = true;
+    loadDecryptedPoster(meta).then((objectUrl) => live && setCover(objectUrl), (err) => {
+      console.error('Failed to load book cover', err);
+      if (live) setCoverFailed(true);
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
+  const download = async () => {
+    setProgress(null);
+    setStatus('loading');
+    try {
+      await saveAttachment(url, meta, name, setProgress);
+      setStatus('idle');
+    } catch (err) {
+      console.error('Failed to download attachment', err);
+      setStatus('error');
+    }
+  };
+  const read = reader && (() => reader.openBook({
+    name,
+    positionKey: positionKeyFor(meta.fileUrl),
+    load: (onProgress) => loadDecryptedAttachment(url, meta, onProgress).then(blobAt),
+  }));
+
+  return (
+    <BookBox
+      name={name}
+      size={meta.size}
+      cover={cover}
+      coverPending={Boolean(meta.posterUrl) && !cover && !coverFailed}
+      width={meta.width}
+      height={meta.height}
+      spoiler={meta.spoiler}
+      onRead={read}
+      onDownload={download}
+      status={status}
+      progress={progress}
     />
   );
 }
@@ -402,6 +518,7 @@ export default function Attachment({ src, alt, localAttachments }) {
   }
 
   if (meta.voice) return <EncryptedVoice url={src} meta={meta} name={name} />;
+  if (isEpub(meta.type, name)) return <EncryptedBook url={src} meta={meta} name={name} />;
   if (kindOf(meta.type) === 'video') return <EncryptedVideo url={src} meta={meta} name={name} />;
   return <EncryptedAttachment url={src} meta={meta} name={name} />;
 }

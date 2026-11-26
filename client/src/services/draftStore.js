@@ -8,6 +8,12 @@ const drafts = new Map();
 // chat id -> { drafts, mediaInfo }: useAttachmentDrafts' attachments while it shows another chat.
 const attachments = new Map();
 
+// Lets go of a draft's object URLs: the file's, and its book cover's (useAttachmentDrafts).
+export function forgetDraftUrls(draft) {
+  URL.revokeObjectURL(draft.previewUrl);
+  if (draft.coverUrl) URL.revokeObjectURL(draft.coverUrl);
+}
+
 const EMBED_RE = /!\[((?:\\.|[^\]\\])*)\]\(([^)\s]+)\)/g;
 
 // The text, without placeholders of attachments that aren't there any more (`keptIds`: the
@@ -44,7 +50,7 @@ export function newDraftId() {
 // draftGeneration()), until it's opened again.
 export function keepAttachments(chatId, kept, since = generation) {
   if (since !== generation) {
-    kept.drafts.forEach((d) => URL.revokeObjectURL(d.previewUrl));
+    kept.drafts.forEach(forgetDraftUrls);
     return;
   }
   if (kept.drafts.length) attachments.set(String(chatId), kept);
@@ -60,7 +66,7 @@ export function takeAttachments(chatId) {
 
 export function clearDrafts() {
   drafts.clear();
-  attachments.forEach((kept) => kept.drafts.forEach((d) => URL.revokeObjectURL(d.previewUrl)));
+  attachments.forEach((kept) => kept.drafts.forEach(forgetDraftUrls));
   attachments.clear();
   generation++;
   nextDraftId = 1;

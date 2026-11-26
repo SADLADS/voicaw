@@ -152,7 +152,7 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, timestamps, forwarding, pinned messages, drafts, messages that couldn't be sent,
   search in encrypted chats (on the device), the offline copy, the message list and history
   loading.
-- `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, image
+- `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, the EPUB reader, image
   viewer.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, errors and the connection strip, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
@@ -576,6 +576,14 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   frontend in Rust was dropped for now (an empty Electron window is ~267 MB, ~70% of the
   app's idle memory; branch `rust-client` kept, a start on a Rust/WebAssembly core): the app is
   slimmed inside Electron instead, each change measured with `e2e/desktopmemory.mjs`.
+- **EPUB reader** (built 2026-11-26, see EPUB reader in `docs/uploads.md`): books sent as
+  attachments open in a full-screen reader in the app, chapters scrolling (the user's choice over
+  turning pages), with the cover in the chat, made and redrawn as pixels on the sender's device
+  and sent encrypted as the attachment's thumbnail. Our own small reader (not epub.js or
+  foliate-js, which run a book's pages as documents): chapters sanitised with DOMPurify into a
+  shadow root, every address rewritten so nothing loads from another site, the book's pictures
+  as blobs typed by their bytes (SVGs only inline, sanitised). Where a book was left stays on the
+  device.
 - **Category permissions** (built 2026-11-24, see Category permissions in `docs/guilds.md`):
   Discord's copy-and-sync model, not live inheritance (the user agreed): a category has its own
   overrides, copied into its channels (new ones, and synced ones on every change); a channel's

@@ -20,7 +20,7 @@ vi.mock('../services/videoStream', () => ({
 import Attachment from './Attachment';
 import { setPrivacyPref } from '../utils/privacy';
 import { applyPreferences } from '../utils/preferences';
-import { ConfigContext, NsfwChannelContext } from '../contexts';
+import { ConfigContext, EpubReaderContext, NsfwChannelContext } from '../contexts';
 
 // The app's config names its file store: only files there are attachments (else another site's).
 const STORE = 'https://s3.test';
@@ -362,6 +362,77 @@ describe('Attachment', () => {
       ));
       expect(screen.getByRole('img', { name: 'art.png' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Spoiler: twist.png, select to reveal' })).toBeInTheDocument();
+    });
+  });
+
+  describe('books', () => {
+    const withReader = (ui, openBook = vi.fn()) => (
+      <EpubReaderContext.Provider value={{ openBook }}>{ui}</EpubReaderContext.Provider>
+    );
+
+    it("shows a book's cover, loaded from its thumbnail, with Read and Download", async () => {
+      loadDecryptedPoster.mockResolvedValue('blob:cover');
+      const openBook = vi.fn();
+      render(withReader(<Attachment src={encryptedUrl('application/epub+zip', 300_000, { width: 280, height: 400, poster: 'cover-1.bin' })} alt="novel.epub" />, openBook));
+      const cover = await screen.findByRole('img', { name: 'Cover of novel.epub' });
+      expect(cover).toHaveAttribute('src', 'blob:cover');
+      expect(cover.style.aspectRatio).toBe('280 / 400');
+      expect(screen.getByRole('button', { name: 'Download novel.epub' })).toBeInTheDocument();
+      expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Read novel.epub' }));
+      expect(openBook).toHaveBeenCalledWith(expect.objectContaining({ name: 'novel.epub', positionKey: 'abc.bin' }));
+      // The book itself downloads only when the reader asks for it.
+      expect(loadDecryptedAttachment).not.toHaveBeenCalled();
+      loadDecryptedAttachment.mockResolvedValue('blob:book');
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, blob: async () => new Blob(['zip']) });
+      const progress = vi.fn();
+      await expect(openBook.mock.calls[0][0].load(progress)).resolves.toBeInstanceOf(Blob);
+      expect(loadDecryptedAttachment).toHaveBeenCalledWith(expect.any(String), expect.anything(), progress);
+      expect(fetchSpy).toHaveBeenCalledWith('blob:book');
+      fetchSpy.mockRestore();
+    });
+
+    it('shows a book without a cover (an older app sent it) as a book, by type or by name', () => {
+      render(withReader(
+        <>
+          <Attachment src={encryptedUrl('application/epub+zip')} alt="a.epub" />
+          <Attachment src={encryptedUrl('application/octet-stream')} alt="old.EPUB" />
+        </>
+      ));
+      expect(screen.getByRole('button', { name: 'Read a.epub' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Read old.EPUB' })).toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: /Cover/ })).toBeNull();
+      expect(loadDecryptedPoster).not.toHaveBeenCalled();
+    });
+
+    it('gives other files no Read button, and books none where there is no reader', () => {
+      render(
+        <>
+          {withReader(<Attachment src={encryptedUrl('application/pdf')} alt="report.pdf" />)}
+          <Attachment src={encryptedUrl('application/epub+zip')} alt="b.epub" />
+        </>
+      );
+      expect(screen.queryByRole('button', { name: /^Read/ })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Download b.epub' })).toBeInTheDocument();
+    });
+
+    it("covers a spoiler book's cover until clicked", async () => {
+      loadDecryptedPoster.mockResolvedValue('blob:cover');
+      render(withReader(<Attachment src={encryptedUrl('application/epub+zip', 10, { width: 2, height: 3, poster: 'c.bin', spoiler: true })} alt="twist.epub" />));
+      fireEvent.click(await screen.findByRole('button', { name: 'Spoiler: twist.epub, select to reveal' }));
+      expect(screen.getByRole('img', { name: 'Cover of twist.epub' })).toBeInTheDocument();
+    });
+
+    it("shows a pending book from the local file, with the cover read when it was attached", () => {
+      const openBook = vi.fn();
+      render(withReader(
+        <Attachment src="attachment:3" alt="new.epub" localAttachments={{ 3: { previewUrl: 'blob:local', coverUrl: 'blob:local-cover', type: 'application/epub+zip', size: 10, width: 2, height: 3 } }} />,
+        openBook,
+      ));
+      expect(screen.getByRole('img', { name: 'Cover of new.epub' })).toHaveAttribute('src', 'blob:local-cover');
+      fireEvent.click(screen.getByRole('button', { name: 'Read new.epub' }));
+      expect(openBook).toHaveBeenCalledWith(expect.objectContaining({ name: 'new.epub', positionKey: null }));
     });
   });
 

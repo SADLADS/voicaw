@@ -98,7 +98,7 @@ export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, sp
 // image/svg+xml, anything XML...) would let a sender's script run as the app if the blob were
 // ever opened, so only types that can't hold script are kept; the rest are plain files. Pictures
 // are only the raster types browsers show.
-const SAFE_TYPE = /^(?:image\/(?:png|jpeg|gif|webp|avif|bmp)|video\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+|application\/(?:pdf|zip|gzip|x-7z-compressed|x-tar|x-rar-compressed)|text\/plain)$/;
+const SAFE_TYPE = /^(?:image\/(?:png|jpeg|gif|webp|avif|bmp)|video\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+|application\/(?:pdf|epub\+zip|zip|gzip|x-7z-compressed|x-tar|x-rar-compressed)|text\/plain)$/;
 
 export function safeAttachmentType(type) {
   const bare = String(type ?? '').split(';')[0].trim().toLowerCase();

@@ -125,7 +125,8 @@ a download box), and plain URLs (legacy unencrypted uploads, external images) as
 **Attachment types** (security audit, 2026-11-18): `t=` is whatever the sender wrote, and becomes
 the type of the decrypted `blob:` URL, which is the app's own origin. `parseAttachmentUrl` keeps
 only types that can't hold script (`safeAttachmentType`: png, jpeg, gif, webp, avif and bmp
-pictures, any video/ or audio/ type, pdf, a few archives, text/plain; parameters dropped) and makes
+pictures, any video/ or audio/ type, pdf, epub (see EPUB reader), a few archives, text/plain;
+parameters dropped) and makes
 the rest `application/octet-stream`, so an SVG (or HTML...) arrives as a download box, never a
 picture, and the service worker never serves one with that type. `openInNewTab`
 (`utils/saveFile.js`, the image menu's Open Image) only opens a blob whose type is a picture,
@@ -375,3 +376,75 @@ timer runs (a hidden page's are slowed), so it stays in time with the audio.
   previews and replies say "🎤 Voice message".
 - Checked by `e2e/voicemessages.mjs`. Not yet tried on a real iPhone: Safari records AAC, which
   everything plays, but Safari may not play others' WebM/Opus.
+
+## EPUB reader
+
+Books (`.epub`) sent as attachments are read in the app (2026-11-26, Kan card VOI-275), in DMs,
+group DMs, notes and guilds, without leaving it and without anything going to the server or
+another site. A book is someone else's HTML, so the design is mostly about what it can't do.
+
+- **In the chat** (`Attachment.jsx` `BookBox`): the book's cover, its name and size, **Read** and
+  the download button. A book is told by its type (`application/epub+zip`, kept by
+  `safeAttachmentType`) or a `.epub` name (some systems give the file no type, and older apps
+  sent it as `application/octet-stream`; `utils/epub.js` `isEpub`, and new uploads are typed by
+  the name when the system gave none). A spoiler book's cover is covered like an image, as in
+  an NSFW channel. Webhooks' and bots' books (`MessageFiles.jsx`) get Read too when they're in
+  our own store, without a cover.
+- **The cover** is made on the sender's device when the book is attached
+  (`utils/mediaDimensions.js` → `services/epub/epubCover.js`) and sent as the attachment's
+  thumbnail (`p=` with `w`/`h`, encrypted with the file's key like an image's, see Image
+  thumbnails), so others see it without downloading the book. It's found as the manifest's
+  `cover-image` (EPUB 3), the item `<meta name="cover">` names (EPUB 2), or the first picture of
+  a first page called a cover; only a PNG, JPEG, GIF or WebP (by its bytes) is used, decoded and
+  redrawn on a canvas as a new JPEG (at most 280×400), so nothing of the book's own file is
+  passed on and an SVG cover (which could carry script) means no cover. The tray shows it too.
+  Books sent before this, or by older apps, have no cover; older apps show a book with one as a
+  plain file. Readers never download a book to find its cover.
+- **The reader** (`EpubReader.jsx`, loaded with its parser and DOMPurify only when a book is
+  first opened; `EpubReaderProvider.jsx` adds a history entry, so Back closes it, as the image
+  viewer): full screen, the book's title and author, text size (−/+, kept per device in
+  `epubTextSize`), Contents (EPUB 3's `nav`, else the EPUB 2 NCX), chapters that scroll one at a
+  time with Previous/Next chapter at the end, keys (Escape, ← →, ↑ ↓, Page Up/Down, Space,
+  Home/End). The app's theme colours are laid over the book's own CSS (text, links, no
+  backgrounds), pictures fit the page. Where a book was left (chapter and how far down) is kept
+  in this device's localStorage only (`epubPosition:<the file's name in the store>`,
+  `utils/epubPosition.js`), deleted at logout (`services/logout.js`). The book is downloaded and
+  decrypted whole when Read is pressed (`loadDecryptedAttachment`), read in place as a zip
+  (`utils/zip.js`, shared with the history import), each chapter parsed when shown.
+- **Nothing in a book runs** (`services/epub/sanitize.js`):
+  - Chapters are parsed by `DOMParser` (inert documents: no scripts, nothing loaded, no external
+    entities or DTDs) and sanitised by DOMPurify into nodes (never turned back into HTML and
+    parsed again): no `script`, `iframe`/`object`/`embed`, forms and their fields, `base`, `meta`,
+    `link`, `video`/`audio`, `template`, SVG `foreignObject` and animation elements, no `on*`
+    attribute (a hook removes any that's left), no `data-*`. They're drawn into a **shadow root**,
+    never as a page of their own (no iframe, no new tab).
+  - The app's Content-Security-Policy is the second line (no inline script or handler runs in a
+    built app), but the reader doesn't rely on it: `e2e/epubreader.mjs` runs against the dev
+    server, which has none.
+- **Nothing is fetched from another site**: every address left is rewritten. A file of the book
+  becomes a `blob:` URL of its bytes, typed by what the bytes are (`services/epub/imageType.js`:
+  PNG, JPEG, GIF or WebP only, never the manifest's type; anything else is no picture). An SVG
+  picture is sanitised (DOMPurify's SVG profile) and put inline in the `<img>`'s place, never a
+  blob typed `image/svg+xml` (opened from the browser's own menu, that would be a page of the
+  app's origin). A link to a chapter jumps there (`#epub:<chapter>:<place>`, handled by the
+  reader; the address bar never changes); a link to another site (`http(s):`, `mailto:` only)
+  stays a link that opens in the browser, `noopener noreferrer`, and is never loaded inline;
+  anything else loses its address (`srcset`, `poster`, `background` and the like are removed).
+  CSS (stylesheets, `<style>`, `style` attributes) has its escapes written out first, then every
+  `url()` resolved inside the book (pictures only) or replaced with `none`, `@import`,
+  `@font-face` and `@namespace` dropped, and functions that could still fetch (`image-set()`,
+  `image()`, `src()`, `cross-fade()`, `element()`, `paint()`, `expression()`, and any `url(` the
+  pattern didn't take) made invalid, so the browser drops the declaration. A book's own fonts
+  aren't used (a shadow root doesn't apply `@font-face` anyway).
+- **The book stays in its box**: the page has `contain: paint`, so even `position: fixed`
+  content is drawn inside it, under the reader's toolbar.
+- **Broken or hostile files**: each zip entry inflates only up to the size its directory gave
+  and 50 MB at most (zip bombs), at most 20,000 entries and 5,000 chapters, chapters up to 10 MB,
+  stylesheets 2 MB, SVGs 5 MB. A file that can't be read says "This book couldn't be opened"
+  (damaged, copy-protected or not an EPUB); Download still works.
+- Not done: fixed-layout books (comics, picture books) open as ordinary chapters; no page
+  turning (the user chose scrolling); no audio or video in books; positions aren't synced
+  between devices (nothing about reading reaches the server).
+- **Privacy:** the server sees one more upload (the cover) beside the book, never what's in
+  either, as for image thumbnails; in guilds, where it can read the message, it could read both,
+  as any guild file. Checked by `e2e/epubreader.mjs`.

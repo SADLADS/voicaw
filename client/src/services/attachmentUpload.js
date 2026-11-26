@@ -1,6 +1,7 @@
 import api from '../utils/api';
 import { buildAttachmentUrl } from './attachmentCrypto';
 import { chunkedEncryptor, encryptedSize, CHUNK_SIZE, TAG_BYTES } from './chunkedAttachment';
+import { EPUB_TYPE, isEpub } from '../utils/epub';
 import { t } from '../i18n';
 
 // The biggest file anyone may send unless the server says otherwise (/api/config
@@ -102,7 +103,7 @@ async function putInParts(encryptor, onProgress) {
 // image { thumbnail (a Blob) }, for a voice message { duration, waveform (bytes) }; `spoiler` marks it as a spoiler. The file itself is sent as it
 // is.
 export async function uploadAttachment(file, onProgress, info = null, spoiler = false) {
-  const type = file.type || 'application/octet-stream';
+  const type = file.type || (isEpub('', file.name) ? EPUB_TYPE : 'application/octet-stream');
   const encryptor = await chunkedEncryptor(file);
   const still = info?.poster ?? info?.thumbnail;
   const posterUrl = still ? await putEncrypted(await encryptor.poster(still)) : null;

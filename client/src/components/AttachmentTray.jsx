@@ -7,7 +7,8 @@ import { t } from '../i18n';
 
 // Thumbnails of the attachments referenced in the message being composed. Images and videos
 // can be marked as spoilers (sent blurred until clicked); the thumbnail is blurred to match.
-// Clicking an image's thumbnail opens it in the image viewer, with the tray's other images.
+// Clicking an image's thumbnail opens it in the image viewer, with the tray's other images. A
+// book shows its cover.
 export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
   const viewer = useContext(ImageViewerContext);
   if (drafts.length === 0) return null;
@@ -37,6 +38,9 @@ export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
             )
           ) : draft.type.startsWith('video/') ? (
             <video src={draft.previewUrl} muted preload="metadata" />
+          ) : draft.coverUrl ? (
+            // A book's cover (useAttachmentDrafts), read from it when it was attached.
+            <img src={draft.coverUrl} alt={t('media.epub.cover', { name: draft.name })} />
           ) : (
             <div className="attachment-draft-file">
               <Icon icon={faFile} />

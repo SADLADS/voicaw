@@ -973,7 +973,8 @@ files); others can be added as adapters on the client.
 - **Reading** happens in the browser (`client/src/services/historyImport/`): `archive.js` takes
   picked `.json` files, a picked folder (`webkitRelativePath`) or a `.zip`, read in place (its
   directory from the end of the file, each entry sliced out and inflated with
-  `DecompressionStream`, Zip64 too), so a multi-GB export is never in memory at once.
+  `DecompressionStream`, Zip64 too; `utils/zip.js`, shared with the EPUB reader), so a multi-GB
+  export is never in memory at once.
   `discordChatExporter.js` makes one channel's file into the import's own shape: its content is
   already plain text, so `@Nickname` (with the people in `mentions`) becomes `<@archiveId>` and
   `:name:` (in `inlineEmojis`) `<:name:archiveId>`; replies; edits; pins; bots' answers to
