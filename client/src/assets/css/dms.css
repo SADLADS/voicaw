@@ -988,6 +988,56 @@ small {
   cursor: default;
 }
 
+.attachment-book {
+  align-items: flex-start;
+}
+
+/* A book's cover, as a small book would sit on the page (more specific than `.dm-message img`
+   in voicaw.css). */
+.attachment-book-cover,
+.dm-message img.attachment-book-cover {
+  display: block;
+  width: 72px;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--vc-radius-sm);
+  box-shadow: var(--vc-elevation-1);
+  background-color: var(--vc-bg-subtle);
+}
+
+.attachment-book .attachment-spoiler {
+  flex-shrink: 0;
+}
+
+.attachment-book .attachment-file-icon {
+  align-self: center;
+}
+
+.attachment-book .attachment-file-download {
+  align-self: center;
+}
+
+.attachment-book-read {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--vc-bg-hover);
+  color: var(--vc-fg);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.attachment-book-read:hover {
+  background-color: var(--vc-bg-elevated-hover);
+}
+
 .attachment-missing {
   color: var(--vc-fg-muted);
   font-style: italic;
@@ -4402,6 +4452,18 @@ body.mobile-mode .dm-user-list-container .dm-user {
   width: auto;
   height: auto;
   border-radius: 4px;
+}
+
+.message-file-book {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.message-file-book .attachment-book-read {
+  margin-top: 0;
+  align-self: center;
 }
 
 .message-file-box {

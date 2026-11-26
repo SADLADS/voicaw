@@ -315,7 +315,7 @@ export default function Composer({
         localAttachments: Object.fromEntries(
           sending.map((d) => [
             d.id,
-            { previewUrl: d.previewUrl, type: d.type, size: d.size, width: d.width, height: d.height, spoiler: !!d.spoiler },
+            { previewUrl: d.previewUrl, coverUrl: d.coverUrl, type: d.type, size: d.size, width: d.width, height: d.height, spoiler: !!d.spoiler },
           ])
         ),
         resolveText: sending.length > 0 ? async () => {

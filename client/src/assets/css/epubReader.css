@@ -1,0 +1,217 @@
+/* The EPUB reader (EpubReader.jsx): full screen, the book's chapter scrolling in the middle. */
+
+.epub-reader {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  height: var(--vc-app-height);
+  background-color: var(--vc-bg-base);
+  color: var(--vc-fg);
+  animation: epub-reader-in 0.12s ease-out;
+}
+
+@keyframes epub-reader-in {
+  from { opacity: 0; }
+}
+
+.epub-reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: var(--vc-header-height);
+  padding: env(safe-area-inset-top, 0px) calc(8px + env(safe-area-inset-right, 0px)) 0
+    calc(8px + env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--vc-border-light);
+  background-color: var(--vc-bg-elevated);
+}
+
+.epub-reader-toolbar button {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  background: none;
+  color: var(--vc-fg);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.epub-reader-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.epub-reader-toolbar button:not(:disabled):hover,
+.epub-reader-toolbar button:focus-visible,
+.epub-reader-toolbar button.active {
+  background-color: var(--vc-bg-hover);
+}
+
+.epub-reader-title {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.epub-reader-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.epub-reader-author {
+  font-size: 12px;
+  color: var(--vc-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.epub-reader-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.epub-reader-main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.epub-reader-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  padding: 24px calc(20px + env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px))
+    calc(20px + env(safe-area-inset-left, 0px));
+}
+
+/* The chapter: a column of comfortable width. contain: paint keeps everything the book draws,
+   even position: fixed, inside this box (and its own stacking), never over the app. */
+.epub-reader-page {
+  position: relative;
+  max-width: 42em;
+  margin: 0 auto;
+  contain: paint;
+  overflow-x: auto;
+  font-size: var(--vc-text-md);
+}
+
+.epub-reader-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 42em;
+  margin: 32px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--vc-border-light);
+}
+
+.epub-reader-progress {
+  color: var(--vc-fg-muted);
+  font-size: 13px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.epub-reader-status {
+  margin: auto;
+  padding: 24px;
+  color: var(--vc-fg-muted);
+  text-align: center;
+}
+
+.epub-reader-error {
+  margin: auto;
+}
+
+.epub-reader-contents {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 100%);
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-left: 1px solid var(--vc-border-light);
+  background-color: var(--vc-popup);
+  box-shadow: var(--vc-popup-shadow);
+  z-index: 1;
+}
+
+.epub-reader-contents-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 16px;
+  background-color: var(--vc-popup);
+  font-weight: 600;
+}
+
+.epub-reader-contents-header button {
+  min-width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  background: none;
+  color: var(--vc-fg);
+  cursor: pointer;
+}
+
+.epub-reader-contents-header button:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.epub-reader-contents ol {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 12px;
+}
+
+.epub-reader-contents > ol {
+  padding: 0 8px 12px;
+}
+
+.epub-reader-contents li > button,
+.epub-reader-contents li > span {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--vc-radius-sm);
+  background: none;
+  color: var(--vc-fg);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.epub-reader-contents li > span {
+  color: var(--vc-fg-muted);
+}
+
+.epub-reader-contents li > button {
+  cursor: pointer;
+}
+
+.epub-reader-contents li > button:hover {
+  background-color: var(--vc-bg-hover);
+}
+
+.epub-reader-contents li > button.current {
+  background-color: var(--vc-accent-soft);
+  color: var(--vc-accent-text);
+}

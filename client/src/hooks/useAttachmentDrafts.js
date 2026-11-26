@@ -6,7 +6,8 @@ import { ConfigContext } from '../contexts';
 import { formatBytes } from '../utils/formatBytes';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 import { t } from '../i18n';
-import { draftGeneration, keepAttachments, newDraftId, takeAttachments } from '../services/draftStore';
+import { draftGeneration, forgetDraftUrls as forgetUrls, keepAttachments, newDraftId, takeAttachments } from '../services/draftStore';
+import { EPUB_TYPE, isEpub } from '../utils/epub';
 
 // Files attached to the message being composed. They stay on the device, referenced from the
 // text as `![name](attachment:ID)` placeholders, until the message is sent (see
@@ -72,7 +73,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       id: newDraftId(),
       file,
       name: file.name || t('media.drafts.defaultName'),
-      type: file.type || 'application/octet-stream',
+      type: file.type || (isEpub('', file.name) ? EPUB_TYPE : 'application/octet-stream'),
       size: file.size,
       previewUrl: URL.createObjectURL(file),
       ...(source != null ? { source } : {}),
@@ -86,7 +87,10 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       const reading = readMediaDimensions(d.file, d.previewUrl);
       mediaInfo.current.set(d.id, reading);
       reading.then((dims) => {
-        if (dims) setDrafts((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...dims } : x)));
+        if (!dims) return;
+        // A book's cover, shown in the tray and the message while it's sent.
+        const coverUrl = dims.thumbnail && isEpub(d.type, d.name) ? URL.createObjectURL(dims.thumbnail) : null;
+        setDrafts((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...dims, ...(coverUrl ? { coverUrl } : {}) } : x)));
       });
     });
 
@@ -117,7 +121,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
 
   function removeDraft(id) {
     const draft = draftsRef.current.find((d) => d.id === id);
-    if (draft) URL.revokeObjectURL(draft.previewUrl);
+    if (draft) forgetUrls(draft);
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }
 
@@ -125,7 +129,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
   // (their placeholders were deleted) are dropped.
   function takeDrafts(ids) {
     const taken = draftsRef.current.filter((d) => ids.has(d.id));
-    draftsRef.current.filter((d) => !ids.has(d.id)).forEach((d) => URL.revokeObjectURL(d.previewUrl));
+    draftsRef.current.filter((d) => !ids.has(d.id)).forEach(forgetUrls);
     setDrafts([]);
     return taken;
   }

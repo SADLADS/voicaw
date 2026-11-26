@@ -189,6 +189,24 @@
       "rate": "{{rate}}×",
       "speed": "再生速度 {{rate}}×",
       "speedTitle": "再生速度"
+    },
+    "epub": {
+      "read": "読む",
+      "readName": "{{name}} を読む",
+      "cover": "{{name}} の表紙",
+      "opening": "本を開いています…",
+      "contents": "目次",
+      "closeContents": "目次を閉じる",
+      "close": "本を閉じる",
+      "previous": "前の章",
+      "next": "次の章",
+      "chapterOf": "{{total}} 章中 {{number}} 章",
+      "smaller": "文字を小さく",
+      "bigger": "文字を大きく",
+      "cantOpenTitle": "この本を開けませんでした",
+      "cantOpen": "ファイルが壊れているか、コピー保護されているか、EPUB の本ではない可能性があります。ダウンロードはできます。",
+      "chapterFailed": "この章を表示できませんでした。",
+      "untitled": "無題の本"
     }
   }
 }

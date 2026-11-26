@@ -130,6 +130,8 @@ describe('forgetLogin', () => {
     localStorage.setItem('lastChat', '/dm/7');
     localStorage.setItem('taskCollapsed:3', '[]');
     localStorage.setItem('recoveryPromptDismissed', '1');
+    localStorage.setItem('epubPosition:abc.bin', '{"index":2,"fraction":0.5}');
+    localStorage.setItem('epubTextSize', '130');
     sessionStorage.setItem('something', 'x');
     sessionStorage.setItem('suspendedNotice', '{"reason":null}');
     await forgetLogin();
@@ -141,6 +143,8 @@ describe('forgetLogin', () => {
     expect(localStorage.getItem('lastChat')).toBeNull();
     expect(localStorage.getItem('taskCollapsed:3')).toBeNull();
     expect(localStorage.getItem('recoveryPromptDismissed')).toBeNull();
+    expect(localStorage.getItem('epubPosition:abc.bin')).toBeNull();
+    expect(localStorage.getItem('epubTextSize')).toBe('130');
     expect(sessionStorage.getItem('something')).toBeNull();
     // The login page says why an account was suspended, after this logout.
     expect(sessionStorage.getItem('suspendedNotice')).toBe('{"reason":null}');

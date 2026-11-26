@@ -65,7 +65,7 @@ describe('attachmentCrypto', () => {
   });
 
   it('keeps only types that cannot hold script; the rest are plain files', () => {
-    for (const type of ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'audio/webm', 'application/pdf', 'text/plain']) {
+    for (const type of ['image/png', 'image/jpeg', 'image/webp', 'video/mp4', 'audio/webm', 'application/pdf', 'application/epub+zip', 'text/plain']) {
       expect(safeAttachmentType(type)).toBe(type);
     }
     expect(safeAttachmentType('audio/webm;codecs=opus')).toBe('audio/webm');

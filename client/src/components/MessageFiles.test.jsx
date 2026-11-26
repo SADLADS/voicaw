@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ImageViewerProvider from './ImageViewerProvider';
 import MessageFiles from './MessageFiles';
+import { ConfigContext, EpubReaderContext } from '../contexts';
 
 const files = [
   { id: '1', filename: 'tweet.png', url: 'https://s3.test/uploads/webhooks/1/tweet.png', content_type: 'image/png', size: 2048, width: 600, height: 400 },
@@ -48,5 +49,23 @@ describe('MessageFiles', () => {
     render(<MessageFiles attachments={[files[0]]} />);
     fireEvent.click(screen.getByAltText('tweet.png'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it("lets a bot's book in our store be read, but not one on another site", () => {
+    const openBook = vi.fn();
+    render(
+      <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>
+        <EpubReaderContext.Provider value={{ openBook }}>
+          <MessageFiles attachments={[
+            { id: '3', filename: 'story.epub', url: 'https://s3.test/uploads/webhooks/3/story.epub', content_type: 'application/epub+zip', size: 10 },
+            { id: '4', filename: 'elsewhere.epub', url: 'https://cdn.example/elsewhere.epub', content_type: 'application/epub+zip', size: 10 },
+          ]}
+          />
+        </EpubReaderContext.Provider>
+      </ConfigContext.Provider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Read story.epub' }));
+    expect(openBook).toHaveBeenCalledWith(expect.objectContaining({ name: 'story.epub', positionKey: 'story.epub' }));
+    expect(screen.queryByRole('button', { name: 'Read elsewhere.epub' })).toBeNull();
   });
 });

@@ -582,3 +582,9 @@
     margin-left: 0;
     font-size: 11px;
 }
+
+/* The EPUB reader's contents (EpubReader.jsx) cover the page on a phone. */
+.mobile-mode .epub-reader-contents {
+    width: 100%;
+    border-left: none;
+}
