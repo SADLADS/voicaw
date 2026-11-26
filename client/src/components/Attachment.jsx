@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
-import { faFile, faDownload, faBook, faBookOpen } from '@fortawesome/free-solid-svg-icons';
+import { faFile, faFilePdf, faDownload, faBook, faBookOpen } from '@fortawesome/free-solid-svg-icons';
 import { inOwnStore, parseAttachmentUrl } from '../services/attachmentCrypto';
 import {
   loadDecryptedAttachment, getCachedAttachment, loadDecryptedPoster, getCachedPoster,
@@ -10,9 +10,10 @@ import { saveAttachment } from '../services/attachmentSave';
 import { formatBytes } from '../utils/formatBytes';
 import { placeholderIdFromUrl } from '../utils/attachmentMarkup';
 import { triggerDownload } from '../utils/saveFile';
-import { ConfigContext, EpubReaderContext, ImageViewerContext } from '../contexts';
+import { ConfigContext, ImageViewerContext, ReaderContext } from '../contexts';
 import { isEpub } from '../utils/epub';
-import { positionKeyFor } from '../utils/epubPosition';
+import { isPdf } from '../utils/pdf';
+import { positionKeyFor } from '../utils/readerPosition';
 import { galleryAround, galleryItemRef } from '../utils/imageGallery';
 import { parseGifUrl } from '../utils/gifMarkup';
 import { usePrivacyPrefs } from '../utils/privacy';
@@ -73,25 +74,37 @@ function FileBox({ name, size, onDownload, status, progress = null }) {
   );
 }
 
-// An EPUB book (EPUB reader in docs/uploads.md): its cover, if the sender's app sent one (the
-// attachment's thumbnail; `coverPending` while it loads), behind a cover like an image when it's
-// a spoiler or in an NSFW channel; Read opens it in the reader (`onRead`, null where there's no
+// A book (EPUB reader in docs/uploads.md) or a PDF (PDF reader): its cover or first page, if the
+// sender's app sent one (the attachment's thumbnail; `coverPending` while it loads), behind a
+// cover like an image when it's a spoiler or in an NSFW channel; a PDF's number of `pages` beside
+// its size. Read (a book) or Open (a PDF) opens it in its reader (`onRead`, null where there's no
 // reader) and the download button saves it.
-function BookBox({ name, size, cover, coverPending, width, height, spoiler, onRead, onDownload, status, progress = null }) {
+function DocumentBox({ kind, name, size, pages = null, cover, coverPending, width, height, spoiler, onRead, onDownload, status, progress = null }) {
   const coverLabel = useMediaCover(spoiler);
+  const pdf = kind === 'pdf';
   const aspect = width && height ? { aspectRatio: `${width} / ${height}` } : undefined;
+  const alt = pdf ? t('media.pdf.preview', { name }) : t('media.epub.cover', { name });
   const picture = cover
-    ? <img className="attachment-book-cover" src={cover} alt={t('media.epub.cover', { name })} style={aspect} />
+    ? <img className="attachment-book-cover" src={cover} alt={alt} style={aspect} />
     : coverPending ? <span className="attachment-book-cover loading" style={aspect} /> : null;
+  let detail = fileDetail(size, status, progress);
+  if (pages && status !== 'loading' && status !== 'error') detail = t('media.pdf.pagesAndSize', { count: pages, size: detail });
   return (
-    <span className="attachment-file attachment-book">
-      {picture ? <MediaCover label={coverLabel} name={name}>{picture}</MediaCover> : <Icon icon={faBook} className="attachment-file-icon" />}
+    <span className={`attachment-file attachment-book${pdf ? ' attachment-pdf' : ''}`}>
+      {picture
+        ? <MediaCover label={coverLabel} name={name}>{picture}</MediaCover>
+        : <Icon icon={pdf ? faFilePdf : faBook} className="attachment-file-icon" />}
       <span className="attachment-file-info">
         <span className="attachment-file-name" title={name}>{name}</span>
-        <span className="attachment-file-size">{fileDetail(size, status, progress)}</span>
+        <span className="attachment-file-size">{detail}</span>
         {onRead && (
-          <button type="button" className="attachment-book-read" onClick={onRead} aria-label={t('media.epub.readName', { name })}>
-            <Icon icon={faBookOpen} /> {t('media.epub.read')}
+          <button
+            type="button"
+            className="attachment-book-read"
+            onClick={onRead}
+            aria-label={pdf ? t('media.pdf.openName', { name }) : t('media.epub.readName', { name })}
+          >
+            <Icon icon={faBookOpen} /> {pdf ? t('media.pdf.open') : t('media.epub.read')}
           </button>
         )}
       </span>
@@ -100,7 +113,14 @@ function BookBox({ name, size, cover, coverPending, width, height, spoiler, onRe
   );
 }
 
-// The book's file as a Blob, from a URL of it (a blob: URL of the decrypted file, or the store's).
+// Which reader a file opens in, if any: 'epub', 'pdf' or null.
+function readerKind(type, name) {
+  if (isEpub(type, name)) return 'epub';
+  if (isPdf(type, name)) return 'pdf';
+  return null;
+}
+
+// A book's or PDF's file as a Blob, from a URL of it (a blob: URL of the decrypted file, or the store's).
 async function blobAt(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
@@ -171,15 +191,18 @@ function VideoView({ spoiler, poster, width, height, ...player }) {
 }
 
 function LocalAttachment({ local, name }) {
-  const reader = useContext(EpubReaderContext);
+  const reader = useContext(ReaderContext);
   const kind = kindOf(local.type, local.size, !!local.thumbnail);
   const download = () => triggerDownload(local.previewUrl, name);
-  if (isEpub(local.type, name)) {
-    const read = reader && (() => reader.openBook({ name, positionKey: null, load: () => blobAt(local.previewUrl) }));
+  const readable = readerKind(local.type, name);
+  if (readable) {
+    const read = reader && (() => reader.openReader({ kind: readable, name, positionKey: null, load: () => blobAt(local.previewUrl) }));
     return (
-      <BookBox
+      <DocumentBox
+        kind={readable}
         name={name}
         size={local.size}
+        pages={readable === 'pdf' ? local.pages : null}
         cover={local.coverUrl}
         width={local.width}
         height={local.height}
@@ -293,10 +316,11 @@ function EncryptedVoice({ url, meta, name }) {
   );
 }
 
-// An encrypted book: its cover (the thumbnail, `p=`, small, loaded straight away), and the book
-// itself downloaded and decrypted whole when it's read or saved.
-function EncryptedBook({ url, meta, name }) {
-  const reader = useContext(EpubReaderContext);
+// An encrypted book or PDF (`kind` 'epub' or 'pdf'): its cover or first page (the thumbnail,
+// `p=`, small, loaded straight away), and the file itself downloaded and decrypted whole when
+// it's read or saved.
+function EncryptedDocument({ kind, url, meta, name }) {
+  const reader = useContext(ReaderContext);
   const [cover, setCover] = useState(() => (meta.posterUrl ? getCachedPoster(meta) : null));
   const [coverFailed, setCoverFailed] = useState(false);
   const [status, setStatus] = useState('idle');
@@ -306,7 +330,7 @@ function EncryptedBook({ url, meta, name }) {
     if (!meta.posterUrl || cover) return undefined;
     let live = true;
     loadDecryptedPoster(meta).then((objectUrl) => live && setCover(objectUrl), (err) => {
-      console.error('Failed to load book cover', err);
+      console.error('Failed to load cover', err);
       if (live) setCoverFailed(true);
     });
     return () => { live = false; };
@@ -324,16 +348,19 @@ function EncryptedBook({ url, meta, name }) {
       setStatus('error');
     }
   };
-  const read = reader && (() => reader.openBook({
+  const read = reader && (() => reader.openReader({
+    kind,
     name,
     positionKey: positionKeyFor(meta.fileUrl),
     load: (onProgress) => loadDecryptedAttachment(url, meta, onProgress).then(blobAt),
   }));
 
   return (
-    <BookBox
+    <DocumentBox
+      kind={kind}
       name={name}
       size={meta.size}
+      pages={kind === 'pdf' ? meta.pages : null}
       cover={cover}
       coverPending={Boolean(meta.posterUrl) && !cover && !coverFailed}
       width={meta.width}
@@ -518,7 +545,8 @@ export default function Attachment({ src, alt, localAttachments }) {
   }
 
   if (meta.voice) return <EncryptedVoice url={src} meta={meta} name={name} />;
-  if (isEpub(meta.type, name)) return <EncryptedBook url={src} meta={meta} name={name} />;
+  const readable = readerKind(meta.type, name);
+  if (readable) return <EncryptedDocument kind={readable} url={src} meta={meta} name={name} />;
   if (kindOf(meta.type) === 'video') return <EncryptedVideo url={src} meta={meta} name={name} />;
   return <EncryptedAttachment url={src} meta={meta} name={name} />;
 }

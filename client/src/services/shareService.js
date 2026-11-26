@@ -63,7 +63,9 @@ export async function uploadSharedFiles(files, { maxBytes, onProgress } = {}) {
     try {
       const dims = await readMediaDimensions(file, objectUrl);
       if (dims?.width && dims?.height) {
-        info = { width: dims.width, height: dims.height, duration: dims.duration, poster: dims.poster, thumbnail: dims.thumbnail };
+        info = { width: dims.width, height: dims.height, duration: dims.duration, poster: dims.poster, thumbnail: dims.thumbnail, pages: dims.pages };
+      } else if (dims?.pages) {
+        info = { pages: dims.pages }; // a PDF whose first page couldn't be drawn
       }
     } finally {
       URL.revokeObjectURL(objectUrl);

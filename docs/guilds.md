@@ -674,8 +674,10 @@ Not end-to-end encrypted, like the rest of a guild.
   as bars), dated as their maker meant wherever they're read (`dateIn`). `emoji` (Unicode or a
   custom `<:name:id>`, checked like a reaction's) is shown before the name (`EventEmoji`), and
   `color` (0xRRGGBB, the role swatches or any) tints its chip, dot and day-list entry on the
-  calendar (`--event-color`). The editor has All day under the topic (dates only), and Emoji
-  (the emoji picker) and Colour after the cover; the audit log shows changes to all three.
+  calendar (`--event-color`). The editor has All day under the topic (dates only; moving the
+  first day moves the last with it when the event is one day, or when the last would come
+  first), and Emoji (the emoji picker) and Colour after the cover; the audit log shows changes
+  to all three.
 - **RSVPs** (built 2026-10-27, as Guilded's; they replaced Discord's Interested): each person
   answers **Going**, **Maybe** or **Can't go** (`rsvp` 'going' / 'maybe' / 'declined'), or
   nothing; its creator is going, at once. Discord's Interested is going or maybe: that's

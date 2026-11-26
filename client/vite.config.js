@@ -95,6 +95,91 @@ function twemojiAssets() {
   };
 }
 
+// PDF.js's data files (the PDF reader, services/pdf/pdfjs.js): character maps, standard fonts,
+// colour profiles and its image decoders (WebAssembly, and plain-JavaScript fallbacks), self-hosted
+// at /pdfjs/<folder>/ so PDF.js never fetches them from another site, with their list at
+// /pdfjs/files.json. Served straight from the npm package in dev, copied into the build
+// otherwise. Not precached (~4 MB every device would download): the service worker keeps each as
+// it's fetched, and opening a PDF fetches the rest in the background (services/pdf/pdfjsData.js).
+// Left out: licence files, and QuickJS, the engine of PDF.js's PDF-JavaScript sandbox, which the
+// app never runs.
+const PDFJS_FOLDERS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'];
+function pdfjsAssets() {
+  const require = createRequire(import.meta.url);
+  const root = path.dirname(require.resolve('pdfjs-dist/package.json'));
+  const TYPES = { '.bcmap': 'application/octet-stream', '.pfb': 'application/octet-stream', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.js': 'text/javascript', '.icc': 'application/octet-stream' };
+  const wanted = (name) => /^[A-Za-z0-9._-]+$/.test(name) && !name.startsWith('.') && !name.startsWith('LICENSE') && !name.startsWith('quickjs');
+  const files = () => PDFJS_FOLDERS.flatMap((folder) => fs.readdirSync(path.join(root, folder))
+    .filter((name) => wanted(name) && fs.statSync(path.join(root, folder, name)).isFile())
+    .map((name) => `${folder}/${name}`));
+  const fileFor = (url) => {
+    const [folder, name, ...rest] = decodeURIComponent(url.split('?')[0]).replace(/^\//, '').split('/');
+    if (rest.length || !PDFJS_FOLDERS.includes(folder) || !wanted(name ?? '')) return null;
+    const file = path.join(root, folder, name);
+    return fs.existsSync(file) && fs.statSync(file).isFile() ? file : null;
+  };
+  return {
+    name: 'pdfjs-assets',
+    configureServer(server) {
+      server.middlewares.use('/pdfjs', (req, res, next) => {
+        if (req.url.split('?')[0] === '/files.json') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(files()));
+          return undefined;
+        }
+        const file = fileFor(req.url);
+        if (!file) return next();
+        res.setHeader('Content-Type', TYPES[path.extname(file)] ?? 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        fs.createReadStream(file).pipe(res);
+        return undefined;
+      });
+    },
+    writeBundle(options) {
+      const list = files();
+      for (const file of list) {
+        const to = path.join(options.dir, 'pdfjs', file);
+        fs.mkdirSync(path.dirname(to), { recursive: true });
+        fs.copyFileSync(path.join(root, file), to);
+      }
+      fs.writeFileSync(path.join(options.dir, 'pdfjs', 'files.json'), JSON.stringify(list));
+    },
+  };
+}
+
+// The service worker gets src/i18n/worker.js wherever the app imports src/i18n/index.js: the
+// page's loads its language with a top-level await, which stops a service worker from starting
+// at all (it did from 2026-11-24 until this; found when the PDF reader's offline cache didn't
+// work). In a build the service worker is its own bundle (VitePWA injectManifest's
+// `buildPlugins`). On the dev server it loads the page's modules by their URLs, so its own
+// imports (src/service-worker.js's, and theirs in turn) are marked `?sw`, making them modules of
+// its own, and theirs get worker.js.
+const SW_MARK = /[?&]sw(?:&|$)/;
+function serviceWorkerI18n({ dev = false } = {}) {
+  const src = path.resolve(__dirname, 'src');
+  const entry = path.join(src, 'service-worker.js');
+  const page = path.join(src, 'i18n/index.js');
+  const worker = path.join(src, 'i18n/worker.js');
+  const file = (id) => id.split('?')[0];
+  return {
+    name: dev ? 'voicaw-service-worker-i18n-dev' : 'voicaw-service-worker-i18n',
+    enforce: 'pre',
+    ...(dev ? { apply: 'serve' } : {}),
+    async resolveId(source, importer, options) {
+      if (!importer) return null;
+      const fromWorker = !dev || file(importer) === entry || SW_MARK.test(importer);
+      if (!fromWorker) return null;
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      if (!resolved || resolved.external) return resolved;
+      const id = file(resolved.id) === page ? worker : resolved.id;
+      if (!dev) return id === worker ? worker : null;
+      // Only the app's own files (dependencies are shared, and have no i18n).
+      if (!file(id).startsWith(src + path.sep) || SW_MARK.test(id)) return id === resolved.id ? null : id;
+      return `${id}${id.includes('?') ? '&' : '?'}sw`;
+    },
+  };
+}
+
 // Libraries the app needs at startup, each in its own file, so no one file outgrows the
 // precache limit (see maximumFileSizeToCacheInBytes). Only libraries that are all loaded at
 // startup anyway: one also used by lazily loaded code (e.g. ProseMirror, shared with the
@@ -199,6 +284,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       twemojiAssets(),
+      pdfjsAssets(),
+      serviceWorkerI18n({ dev: true }),
       contentSecurityPolicy(),
       ...(isElectron || isAndroid ? [desktopApiAddress(env.VITE_API_BASE_URL)] : []),
       VitePWA({
@@ -212,9 +299,10 @@ export default defineConfig(({ mode }) => {
         // no MIME type for .webmanifest), so don't generate a second manifest.
         manifest: false,
         injectManifest: {
+          buildPlugins: { vite: [serviceWorkerI18n()] },
           // DeepFilterNet (17 MB, "Strong" noise suppression) only downloads for those who
-          // choose it.
-          globIgnores: ['**/df_bg-*.wasm'],
+          // choose it; PDF.js's data files (pdfjsAssets) are kept by the service worker as they're used.
+          globIgnores: ['**/df_bg-*.wasm', 'pdfjs/**'],
           // Workbox skips (and the plugin then fails the build on) any file over this; the
           // default is 2 MiB. Big libraries get their own files (VENDOR_CHUNKS) to stay well
           // under it; scripts/publish-web.mjs reports the precache's total, which is what each
@@ -247,7 +335,15 @@ export default defineConfig(({ mode }) => {
           : isElectron
             ? { main: path.resolve(__dirname, 'index.html'), overlay: path.resolve(__dirname, 'overlay.html') }
             : undefined,
-        output: { manualChunks: vendorChunk },
+        output: {
+          manualChunks: vendorChunk,
+          // PDF.js's worker is a .mjs file, emitted as is (services/pdf/pdfjs.js): named .js, so
+          // the precache takes it and servers give it a script's type (a module worker refuses
+          // anything else, and nginx's older MIME list has no .mjs).
+          assetFileNames: (asset) => (asset.names?.some((name) => name.endsWith('.mjs'))
+            ? 'assets/[name]-[hash].js'
+            : 'assets/[name]-[hash][extname]'),
+        },
       },
     },
     server: {

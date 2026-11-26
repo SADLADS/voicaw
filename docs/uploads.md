@@ -125,7 +125,7 @@ a download box), and plain URLs (legacy unencrypted uploads, external images) as
 **Attachment types** (security audit, 2026-11-18): `t=` is whatever the sender wrote, and becomes
 the type of the decrypted `blob:` URL, which is the app's own origin. `parseAttachmentUrl` keeps
 only types that can't hold script (`safeAttachmentType`: png, jpeg, gif, webp, avif and bmp
-pictures, any video/ or audio/ type, pdf, epub (see EPUB reader), a few archives, text/plain;
+pictures, any video/ or audio/ type, pdf (see PDF reader), epub (see EPUB reader), a few archives, text/plain;
 parameters dropped) and makes
 the rest `application/octet-stream`, so an SVG (or HTML...) arrives as a download box, never a
 picture, and the service worker never serves one with that type. `openInNewTab`
@@ -383,7 +383,7 @@ Books (`.epub`) sent as attachments are read in the app (2026-11-26, Kan card VO
 group DMs, notes and guilds, without leaving it and without anything going to the server or
 another site. A book is someone else's HTML, so the design is mostly about what it can't do.
 
-- **In the chat** (`Attachment.jsx` `BookBox`): the book's cover, its name and size, **Read** and
+- **In the chat** (`Attachment.jsx` `DocumentBox`, shared with PDFs): the book's cover, its name and size, **Read** and
   the download button. A book is told by its type (`application/epub+zip`, kept by
   `safeAttachmentType`) or a `.epub` name (some systems give the file no type, and older apps
   sent it as `application/octet-stream`; `utils/epub.js` `isEpub`, and new uploads are typed by
@@ -401,7 +401,7 @@ another site. A book is someone else's HTML, so the design is mostly about what 
   Books sent before this, or by older apps, have no cover; older apps show a book with one as a
   plain file. Readers never download a book to find its cover.
 - **The reader** (`EpubReader.jsx`, loaded with its parser and DOMPurify only when a book is
-  first opened; `EpubReaderProvider.jsx` adds a history entry, so Back closes it, as the image
+  first opened; `ReaderProvider.jsx`, shared with the PDF reader, adds a history entry, so Back closes it, as the image
   viewer): full screen, the book's title and author, text size (−/+, kept per device in
   `epubTextSize`), Contents (EPUB 3's `nav`, else the EPUB 2 NCX), chapters that scroll one at a
   time with Previous/Next chapter at the end, keys (Escape, ← →, ↑ ↓, Page Up/Down, Space,
@@ -448,3 +448,78 @@ another site. A book is someone else's HTML, so the design is mostly about what 
 - **Privacy:** the server sees one more upload (the cover) beside the book, never what's in
   either, as for image thumbnails; in guilds, where it can read the message, it could read both,
   as any guild file. Checked by `e2e/epubreader.mjs`.
+
+## PDF reader
+
+PDFs sent as attachments are read in the app (2026-11-26, Kan card VOI-276), in DMs, group DMs,
+notes and guilds, without leaving it and without anything going to the server or another site.
+Drawn by Mozilla's PDF.js (`pdfjs-dist`, Apache-2.0, credited in Settings → About), its legacy
+build: the modern one needs JavaScript newer than many phones' WebViews (`Uint8Array.toHex`), and
+the legacy one is only ~60 KB bigger. Not the browser's own viewer: Android's WebView has none,
+Electron's needs plugins on, and opening a `blob:` PDF as a page is what Attachment types avoid.
+
+- **In the chat** (`Attachment.jsx` `DocumentBox`, shared with books): the PDF's first page, its
+  name, "12 pages · 3.4 MB", **Open** and the download button. A PDF is told by its type
+  (`application/pdf`) or a `.pdf` name (`utils/pdf.js` `isPdf`; new uploads with no type are typed
+  by the name, `utils/fileTypeFromName.js`). A spoiler's page is covered like an image.
+  Webhooks' and bots' PDFs (`MessageFiles.jsx`) get Open when they're in our own store, without a
+  preview or page count (they don't carry our fragment).
+- **The preview and page count** are made on the sender's device when the PDF is attached
+  (`utils/mediaDimensions.js` → `services/pdf/pdfPreview.js`), for PDFs up to 50 MB (PDF.js reads a
+  whole file into memory): page 1 drawn by PDF.js on a canvas and saved as a new JPEG (at most
+  280×400), sent as the attachment's thumbnail (`p=` with `w`/`h`, encrypted with the file's key,
+  see Image thumbnails), and the number of pages as `pg=` in the attachment's URL (inside the
+  message's encryption in DMs and groups; `attachmentCrypto.js`, at most 10,000). Bigger, locked
+  and broken PDFs get neither. Older apps ignore both and show a plain file. Readers never
+  download a PDF to find either.
+- **The reader** (`PdfReader.jsx`, loaded with PDF.js only when a PDF is first opened; the same
+  provider as books, `ReaderProvider.jsx`, so Back closes it): full screen, pages scrolling,
+  laid out and drawn by PDF.js's `PDFViewer` (only pages near the screen are drawn; far ones are
+  let go), with selectable text. Toolbar: the page number (type one to jump), zoom (−/+ and a menu:
+  Automatic, the page's width up to 125%, the default; Fit width; Fit page; percentages; pinch and
+  Ctrl+wheel too; on a phone only the menu and pinching), Find (PDF.js's find controller: every
+  match highlighted, next/previous, "3 of 12"), Contents (the PDF's outline, when it has one) and
+  Download. Keys: Escape (Find, then Contents, then the PDF), ← → and Page Up/Down by a page,
+  Home/End, Ctrl/⌘+F, Ctrl/⌘ +/−/0. Pages stay white, like paper (the user chose no dark pages);
+  everything around them is the theme's (`pdfReader.css`; `pdfjsViewer.css` is the part of PDF.js's
+  `pdf_viewer.css` the reader uses, copied because the whole file styles global names such as
+  `.dialog` and `.sidebar`; regenerate it when updating `pdfjs-dist`). Where a PDF was left (page and
+  how far down it) is kept in this device's localStorage (`pdfPosition:<the file's name in the
+  store>`, `utils/pdfPosition.js`), deleted at logout; the zoom is the device's own (`pdfZoom`).
+- **Locked PDFs** (the user's choice): the reader asks for the password (PDF.js's `onPassword`),
+  says when one was wrong and asks again; Cancel closes it. The password is only handed to PDF.js
+  in this page, never saved or sent anywhere.
+- **What PDF.js may do** (`services/pdf/pdfjs.js`, the only place it's set up):
+  - Its worker is our own file (`pdf.worker.min-*.js`; Vite emits it as `.js`, so the precache takes
+    it and servers give it a script's type), allowed by the CSP's `script-src 'self'`.
+  - PDF JavaScript never runs: no scripting sandbox (`PDFScriptingManager`) is ever made, XFA is off,
+    and PDF.js 6 has no eval-based font path (CVE-2024-4367's route; the CSP refuses eval anyway).
+  - Forms are drawn but can't be filled in (`annotationMode: ENABLE`), and files attached inside a
+    PDF are never opened (no download manager).
+  - Links: the PDF's own (`#...`) go to their page; a link to another site opens in the browser
+    (target `_blank`, `noopener noreferrer`), and only `http(s):` and `mailto:` ones (the reader
+    stops anything else). PDF.js itself makes a plain web link of a script that only opens an
+    address (`app.launchURL`) and of a link to another site's PDF (GoToR); Launch, form
+    submissions and `javascript:` become no link at all.
+  - Caps against hostile files: pictures over 50 megapixels aren't decoded, a canvas is at most
+    256 MB, and a PDF of more than 10,000 pages isn't opened.
+- **Nothing is fetched from another site**: PDF.js's data files (character maps, standard fonts,
+  colour profiles, and its JPEG 2000/JBIG2 decoders as WebAssembly with JavaScript fallbacks) are
+  served by us at `/pdfjs/<folder>/`, listed in `/pdfjs/files.json` (`vite.config.js`
+  `pdfjsAssets`: from the npm package in dev, copied into the build). QuickJS, the engine of
+  PDF.js's PDF-JavaScript sandbox, isn't shipped at all. PDF.js and its worker are precached.
+- **Offline** (web app; the desktop and Android apps have every file inside them): the data
+  files (~4 MB) aren't precached, so devices that never open a PDF don't download them. The
+  service worker keeps each one cache-first in `pdfjs-<version>` as it's fetched (older versions'
+  caches deleted), and the first PDF opened while online fetches the rest in the background, one
+  at a time (`services/pdf/pdfjsData.js` `keepPdfDataOffline`). From then on any PDF draws fully
+  without a connection, a CJK one without its own fonts or a JPEG 2000 picture included. (The
+  PDF itself must still be downloaded: attachments aren't kept offline.)
+- **Broken or other files**: one that can't be read says "This PDF couldn't be opened" (damaged or
+  not a PDF); Download still works.
+- Not done: streaming big PDFs in ranges (the whole file is downloaded and decrypted first, as for
+  books); filling in forms, printing, annotating; positions synced between devices.
+- **Privacy:** the server sees one more upload (the preview) beside the PDF, never what's in
+  either, as for image thumbnails; in guilds, where it can read the message, it could read both,
+  as any guild file. The page count is inside the encrypted message in DMs and groups. Passwords
+  and reading positions never leave the device. Checked by `e2e/pdfreader.mjs`.

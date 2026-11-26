@@ -3,6 +3,7 @@ import { Icon } from './Icon';
 import { ImageViewerContext } from '../contexts';
 import { faEye, faEyeSlash, faFile, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { formatBytes } from '../utils/formatBytes';
+import { isPdf } from '../utils/pdf';
 import { t } from '../i18n';
 
 // Thumbnails of the attachments referenced in the message being composed. Images and videos
@@ -39,8 +40,8 @@ export default function AttachmentTray({ drafts, onRemove, onToggleSpoiler }) {
           ) : draft.type.startsWith('video/') ? (
             <video src={draft.previewUrl} muted preload="metadata" />
           ) : draft.coverUrl ? (
-            // A book's cover (useAttachmentDrafts), read from it when it was attached.
-            <img src={draft.coverUrl} alt={t('media.epub.cover', { name: draft.name })} />
+            // A book's cover or a PDF's first page (useAttachmentDrafts), read from it when it was attached.
+            <img src={draft.coverUrl} alt={isPdf(draft.type, draft.name) ? t('media.pdf.preview', { name: draft.name }) : t('media.epub.cover', { name: draft.name })} />
           ) : (
             <div className="attachment-draft-file">
               <Icon icon={faFile} />

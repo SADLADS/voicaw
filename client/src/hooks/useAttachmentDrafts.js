@@ -7,7 +7,9 @@ import { formatBytes } from '../utils/formatBytes';
 import { readMediaDimensions } from '../utils/mediaDimensions';
 import { t } from '../i18n';
 import { draftGeneration, forgetDraftUrls as forgetUrls, keepAttachments, newDraftId, takeAttachments } from '../services/draftStore';
-import { EPUB_TYPE, isEpub } from '../utils/epub';
+import { isEpub } from '../utils/epub';
+import { isPdf } from '../utils/pdf';
+import { typeFromName } from '../utils/fileTypeFromName';
 
 // Files attached to the message being composed. They stay on the device, referenced from the
 // text as `![name](attachment:ID)` placeholders, until the message is sent (see
@@ -73,7 +75,7 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       id: newDraftId(),
       file,
       name: file.name || t('media.drafts.defaultName'),
-      type: file.type || (isEpub('', file.name) ? EPUB_TYPE : 'application/octet-stream'),
+      type: file.type || typeFromName(file.name),
       size: file.size,
       previewUrl: URL.createObjectURL(file),
       ...(source != null ? { source } : {}),
@@ -88,8 +90,8 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
       mediaInfo.current.set(d.id, reading);
       reading.then((dims) => {
         if (!dims) return;
-        // A book's cover, shown in the tray and the message while it's sent.
-        const coverUrl = dims.thumbnail && isEpub(d.type, d.name) ? URL.createObjectURL(dims.thumbnail) : null;
+        // A book's cover or a PDF's first page, shown in the tray and the message while it's sent.
+        const coverUrl = dims.thumbnail && (isEpub(d.type, d.name) || isPdf(d.type, d.name)) ? URL.createObjectURL(dims.thumbnail) : null;
         setDrafts((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...dims, ...(coverUrl ? { coverUrl } : {}) } : x)));
       });
     });
@@ -178,8 +180,10 @@ export function useAttachmentDrafts({ chatId, s3Endpoint, insertAttachments, onE
               duration: d.duration ?? read.duration,
               poster: d.poster ?? read.poster,
               thumbnail: d.thumbnail ?? read.thumbnail,
+              pages: d.pages ?? read.pages,
             }
-            : d.waveform ? { duration: d.duration, waveform: d.waveform } : null;
+            : d.waveform ? { duration: d.duration, waveform: d.waveform }
+              : read.pages ? { pages: read.pages } : null;
           const url = await uploadAttachment(d.file, (bytes) => {
             loaded[d.id] = bytes;
             report();

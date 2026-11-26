@@ -30,7 +30,7 @@ import OfflineBanner from './components/OfflineBanner';
 import TwoFactorAlert from './components/TwoFactorAlert';
 import Toasts from './components/Toasts';
 import ImageViewerProvider from './components/ImageViewerProvider';
-import EpubReaderProvider from './components/EpubReaderProvider';
+import ReaderProvider from './components/ReaderProvider';
 import PageMenus from './components/PageMenus';
 import SafetyDialogs from './components/SafetyDialogs';
 import { setCustomEmojiBase } from './emoji/customEmoji';
@@ -198,7 +198,7 @@ export default function App() {
       <EmojiProvider>
       <InteractionContext.Provider value={interaction}>
         <ImageViewerProvider>
-        <EpubReaderProvider>
+        <ReaderProvider>
         <Router {...routerProps}>
           <SWMessageHandler />
           <DesktopTitleBar loggedIn={Boolean(user && !user.pending)} />
@@ -257,7 +257,7 @@ export default function App() {
           </Routes>
           )}
         </Router>
-        </EpubReaderProvider>
+        </ReaderProvider>
         </ImageViewerProvider>
       </InteractionContext.Provider>
       </EmojiProvider>

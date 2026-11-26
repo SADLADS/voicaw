@@ -53,7 +53,7 @@ function ContentsList({ items, current, total, onPick }) {
 }
 
 // The full-screen reader of an EPUB book (docs/uploads.md, EPUB reader), opened by
-// EpubReaderProvider. `load(onProgress)` resolves to the book's file (a Blob); `positionKey`
+// ReaderProvider. `load(onProgress)` resolves to the book's file (a Blob); `positionKey`
 // names it for remembering where it was left (none: not remembered). Chapters scroll, one at a
 // time, each drawn into a shadow root from sanitised nodes (services/epub/sanitize.js), inside a
 // box that keeps even fixed-position content in itself.

@@ -100,6 +100,27 @@ describe('EventEditor', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Events somewhere else need an end date and time.');
   });
 
+  it('keeps a one-day all-day event one day when its date moves, late in the evening too', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 10, 26, 22, 30)); // the default start is tomorrow
+      renderEditor();
+      fireEvent.click(screen.getByLabelText(/Somewhere else/));
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      fireEvent.click(screen.getByLabelText('All day'));
+      expect(screen.getByLabelText('Start date')).toHaveValue('2026-11-27');
+      expect(screen.getByLabelText('End date')).toHaveValue('2026-11-27');
+      fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-11-26' } });
+      expect(screen.getByLabelText('End date')).toHaveValue('2026-11-26');
+      // A longer one keeps its last day when the first moves earlier.
+      fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2026-11-29' } });
+      fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2026-11-25' } });
+      expect(screen.getByLabelText('End date')).toHaveValue('2026-11-29');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('makes an all-day event today, in a colour', async () => {
     const onSaved = vi.fn();
     renderEditor({ onSaved });

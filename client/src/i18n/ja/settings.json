@@ -238,6 +238,7 @@
       "attribution": "絵文字のグラフィックは <twemoji>Twemoji</twemoji>（© Twitter, Inc およびその他の貢献者、<ccby>CC-BY 4.0</ccby> ライセンス）を使用しています。絵文字フォントは <font>twemoji-color-font</font> を改変したもので、<ofl>SIL Open Font License 1.1</ofl> でライセンスされています。GIF は <klipy>KLIPY</klipy> 提供です。",
       "gameCaptureAttribution": "ゲームキャプチャには <obs>OBS Studio</obs> のグラフィックフックを無改変で使用しています。<gpl>GNU GPL バージョン 2</gpl> でライセンスされています（<source>ソースコード</source>）。",
       "linkRulesAttribution": "貼り付けたリンクから取り除くトラッキングパラメータは <adguard>AdGuard の URL トラッキングフィルタ</adguard>（<gpl>GNU GPL バージョン 3</gpl> でライセンス）を Voicaw サーバーが変換したものです。",
+      "pdfAttribution": "PDF は Mozilla の <pdfjs>PDF.js</pdfjs>（<apache>Apache License 2.0</apache> でライセンス）で表示し、PDFium の標準フォント（BSD ライセンス）と Liberation フォント（<ofl>SIL Open Font License</ofl>）を使っています。",
       "privacy": "プライバシーポリシー",
       "terms": "利用規約",
       "deleteAccount": "アカウントの削除について"
