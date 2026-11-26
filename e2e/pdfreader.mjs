@@ -7,7 +7,7 @@
 //   E2E_WEB_PORT=5232 node e2e/pdfreader.mjs [screenshot dir]
 // - Alice attaches a 12-page PDF: its first page in the tray; Bob sees it and "12 pages" before
 //   anything of the PDF itself is downloaded (the store's reads), with Open and Download;
-// - PDF.js's data files kept for offline use once a PDF has been opened (production build);
+// - PDF.js's data files kept for offline use once a PDF has been opened (the service worker);
 // - Open: pages drawn, a page number typed jumps there, zoom, Contents, Find (a match on every
 //   page), Back closes it and it reopens where it was left;
 // - a locked PDF: no preview, the password asked for, a wrong one said so, then it opens;
@@ -105,8 +105,8 @@ try {
   check(await bob.page.locator('.pdf-reader .textLayer span', { hasText: 'Page 1' }).count() >= 1, 'selectable text');
   await shot(bob.page, '3-reader');
 
-  // PDF.js's data files: QuickJS (its PDF-JavaScript sandbox) isn't served at all; with a
-  // service worker (a production build), opening a PDF keeps every file for offline use, and
+  // PDF.js's data files: QuickJS (its PDF-JavaScript sandbox) isn't served at all; the service
+  // worker (dev server or build) starts, opening a PDF keeps every file for offline use, and
   // they load with the network cut.
   // (A missing file may come back as the app's page, so it's the bytes that tell.)
   const isWasm = (path) => bob.page.evaluate(async (p) => {
@@ -115,16 +115,11 @@ try {
     return res.ok && head.join() === '0,97,115,109';
   }, path);
   check(await isWasm('/pdfjs/wasm/openjpeg.wasm') && !(await isWasm('/pdfjs/wasm/quickjs-eval.wasm')), 'QuickJS is not served (its decoders are)');
-  // The dev server's service worker (dev-sw.js) can't start: it shares the page's i18n module,
-  // whose top-level await a service worker can't run (only builds swap in i18n/worker.js).
-  const production = await bob.page.evaluate(async () => (await fetch('/service-worker.js')).headers.get('content-type')?.includes('javascript')
-    && !(await (await fetch('/service-worker.js')).text()).includes('import.meta'));
-  const hasWorker = production && await bob.page.evaluate(() => 'serviceWorker' in navigator && Promise.race([
+  const hasWorker = await bob.page.evaluate(() => 'serviceWorker' in navigator && Promise.race([
     navigator.serviceWorker.ready.then(() => true),
     new Promise((resolve) => { setTimeout(() => resolve(false), 15000); }),
   ]));
-  if (!production) console.log('(dev server: no working service worker, so no offline check)');
-  else check(hasWorker, 'the service worker starts');
+  check(hasWorker, 'the service worker starts');
   // A first visit isn't the service worker's yet: it takes over from the next page load.
   if (hasWorker && !(await bob.page.evaluate(() => Boolean(navigator.serviceWorker.controller)))) {
     await bob.page.reload();

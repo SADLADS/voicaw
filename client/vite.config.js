@@ -147,20 +147,35 @@ function pdfjsAssets() {
   };
 }
 
-// The service worker's build (VitePWA injectManifest) gets src/i18n/worker.js wherever the app
-// imports src/i18n/index.js: the page's loads its language with a top-level await, which stops a
-// classic service worker from starting at all (it did from 2026-11-24 until this; found when the
-// PDF reader's offline cache didn't work).
-function serviceWorkerI18n() {
-  const page = path.resolve(__dirname, 'src/i18n/index.js');
-  const worker = path.resolve(__dirname, 'src/i18n/worker.js');
+// The service worker gets src/i18n/worker.js wherever the app imports src/i18n/index.js: the
+// page's loads its language with a top-level await, which stops a service worker from starting
+// at all (it did from 2026-11-24 until this; found when the PDF reader's offline cache didn't
+// work). In a build the service worker is its own bundle (VitePWA injectManifest's
+// `buildPlugins`). On the dev server it loads the page's modules by their URLs, so its own
+// imports (src/service-worker.js's, and theirs in turn) are marked `?sw`, making them modules of
+// its own, and theirs get worker.js.
+const SW_MARK = /[?&]sw(?:&|$)/;
+function serviceWorkerI18n({ dev = false } = {}) {
+  const src = path.resolve(__dirname, 'src');
+  const entry = path.join(src, 'service-worker.js');
+  const page = path.join(src, 'i18n/index.js');
+  const worker = path.join(src, 'i18n/worker.js');
+  const file = (id) => id.split('?')[0];
   return {
-    name: 'voicaw-service-worker-i18n',
+    name: dev ? 'voicaw-service-worker-i18n-dev' : 'voicaw-service-worker-i18n',
     enforce: 'pre',
+    ...(dev ? { apply: 'serve' } : {}),
     async resolveId(source, importer, options) {
-      if (!importer || !/(^|\/)i18n(\/index(\.js)?)?$/.test(source)) return null;
+      if (!importer) return null;
+      const fromWorker = !dev || file(importer) === entry || SW_MARK.test(importer);
+      if (!fromWorker) return null;
       const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
-      return resolved?.id === page ? worker : null;
+      if (!resolved || resolved.external) return resolved;
+      const id = file(resolved.id) === page ? worker : resolved.id;
+      if (!dev) return id === worker ? worker : null;
+      // Only the app's own files (dependencies are shared, and have no i18n).
+      if (!file(id).startsWith(src + path.sep) || SW_MARK.test(id)) return id === resolved.id ? null : id;
+      return `${id}${id.includes('?') ? '&' : '?'}sw`;
     },
   };
 }
@@ -270,6 +285,7 @@ export default defineConfig(({ mode }) => {
       react(),
       twemojiAssets(),
       pdfjsAssets(),
+      serviceWorkerI18n({ dev: true }),
       contentSecurityPolicy(),
       ...(isElectron || isAndroid ? [desktopApiAddress(env.VITE_API_BASE_URL)] : []),
       VitePWA({

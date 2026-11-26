@@ -39,8 +39,8 @@
     until 2026-11-26 the built web app's didn't: no push notifications, offline page or update
     prompt; found with the PDF reader). Its build resolves `i18n/index.js` to `i18n/worker.js`
     (`vite.config.js` `serviceWorkerI18n`), which bundles every language and awaits nothing; the
-    two share `i18n/core.js`. The dev server's service worker loads the page's modules, so it
-    still can't start there (test push and offline on a build).
+    two share `i18n/core.js`. On the dev server, whose service worker loads modules by the
+    page's URLs, its own imports are marked `?sw` (separate modules) and get `worker.js` too.
   - One key per whole sentence, with `{{name}}` for what goes in it; never glue translated
     pieces together (word order differs). Counts use i18next plurals: `foo_one` / `foo_other`
     and `t('area.foo', { count })` (Russian will add `_few` / `_many`). A sentence with

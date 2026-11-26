@@ -259,8 +259,10 @@ export default function EventEditor({ guild, event: series = null, scope = 'all'
 
   function changeStartDate(value) {
     setStartDate(value);
-    // All day, the last day follows when it would come before the first.
-    if (allDay && (!endDate || endDate < value)) setEndDate(value);
+    // All day, the last day follows when it would come before the first, and a one-day event
+    // stays one day (late in the evening the default start is tomorrow, so picking today would
+    // otherwise make it two).
+    if (allDay && (!endDate || endDate < value || endDate === startDate)) setEndDate(value);
     // Weekdays only can't start on a weekend: back to not repeating.
     const day = fromInputs(value, startTime);
     if (day != null && repeat !== 'none' && repeat !== 'custom' && !ruleFor(repeat, new Date(day * 1000))) setRepeat('none');
