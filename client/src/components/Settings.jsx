@@ -230,6 +230,17 @@ export default function Settings({ onLogout }) {
                   }}
                 />
               </p>
+              {/* The PDF reader (services/pdf/pdfjs.js) and the fonts pdfjs-dist ships. */}
+              <p className="settings-attribution">
+                <Trans
+                  i18nKey="settings.about.pdfAttribution"
+                  components={{
+                    pdfjs: <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noreferrer" />,
+                    apache: <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noreferrer" />,
+                    ofl: <a href="https://openfontlicense.org/open-font-license-official-text/" target="_blank" rel="noreferrer" />,
+                  }}
+                />
+              </p>
             </div>
           ),
         }),

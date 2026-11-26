@@ -1,7 +1,7 @@
 import api from '../utils/api';
 import { buildAttachmentUrl } from './attachmentCrypto';
 import { chunkedEncryptor, encryptedSize, CHUNK_SIZE, TAG_BYTES } from './chunkedAttachment';
-import { EPUB_TYPE, isEpub } from '../utils/epub';
+import { typeFromName } from '../utils/fileTypeFromName';
 import { t } from '../i18n';
 
 // The biggest file anyone may send unless the server says otherwise (/api/config
@@ -100,10 +100,11 @@ async function putInParts(encryptor, onProgress) {
 // returns the attachment URL to embed in the message (upload URL + decryption key/metadata in
 // the fragment). `onProgress(bytes)` hears how much has been sent. `info` is what's known of
 // the media: { width, height }, for a video { duration, poster (a JPEG Blob) }, and for a big
-// image { thumbnail (a Blob) }, for a voice message { duration, waveform (bytes) }; `spoiler` marks it as a spoiler. The file itself is sent as it
+// image { thumbnail (a Blob) }, for a voice message { duration, waveform (bytes) }, for a PDF { thumbnail
+// (its first page), pages }; `spoiler` marks it as a spoiler. The file itself is sent as it
 // is.
 export async function uploadAttachment(file, onProgress, info = null, spoiler = false) {
-  const type = file.type || (isEpub('', file.name) ? EPUB_TYPE : 'application/octet-stream');
+  const type = file.type || typeFromName(file.name);
   const encryptor = await chunkedEncryptor(file);
   const still = info?.poster ?? info?.thumbnail;
   const posterUrl = still ? await putEncrypted(await encryptor.poster(still)) : null;
@@ -124,5 +125,6 @@ export async function uploadAttachment(file, onProgress, info = null, spoiler = 
     duration: info?.duration,
     poster: posterUrl?.split('/').pop(),
     waveform: info?.waveform,
+    pages: info?.pages,
   });
 }

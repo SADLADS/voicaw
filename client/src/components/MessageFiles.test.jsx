@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ImageViewerProvider from './ImageViewerProvider';
 import MessageFiles from './MessageFiles';
-import { ConfigContext, EpubReaderContext } from '../contexts';
+import { ConfigContext, ReaderContext } from '../contexts';
 
 const files = [
   { id: '1', filename: 'tweet.png', url: 'https://s3.test/uploads/webhooks/1/tweet.png', content_type: 'image/png', size: 2048, width: 600, height: 400 },
@@ -52,20 +52,38 @@ describe('MessageFiles', () => {
   });
 
   it("lets a bot's book in our store be read, but not one on another site", () => {
-    const openBook = vi.fn();
+    const openReader = vi.fn();
     render(
       <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>
-        <EpubReaderContext.Provider value={{ openBook }}>
+        <ReaderContext.Provider value={{ openReader }}>
           <MessageFiles attachments={[
             { id: '3', filename: 'story.epub', url: 'https://s3.test/uploads/webhooks/3/story.epub', content_type: 'application/epub+zip', size: 10 },
             { id: '4', filename: 'elsewhere.epub', url: 'https://cdn.example/elsewhere.epub', content_type: 'application/epub+zip', size: 10 },
           ]}
           />
-        </EpubReaderContext.Provider>
+        </ReaderContext.Provider>
       </ConfigContext.Provider>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Read story.epub' }));
-    expect(openBook).toHaveBeenCalledWith(expect.objectContaining({ name: 'story.epub', positionKey: 'story.epub' }));
+    expect(openReader).toHaveBeenCalledWith(expect.objectContaining({ name: 'story.epub', positionKey: 'story.epub' }));
     expect(screen.queryByRole('button', { name: 'Read elsewhere.epub' })).toBeNull();
+  });
+
+  it("lets a bot's PDF in our store be opened, but not one on another site", () => {
+    const openReader = vi.fn();
+    render(
+      <ConfigContext.Provider value={{ s3Endpoint: 'https://s3.test' }}>
+        <ReaderContext.Provider value={{ openReader }}>
+          <MessageFiles attachments={[
+            { id: '5', filename: 'report.pdf', url: 'https://s3.test/uploads/webhooks/5/report.pdf', content_type: 'application/pdf', size: 10 },
+            { id: '6', filename: 'elsewhere.pdf', url: 'https://cdn.example/elsewhere.pdf', content_type: 'application/pdf', size: 10 },
+          ]}
+          />
+        </ReaderContext.Provider>
+      </ConfigContext.Provider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Open report.pdf' }));
+    expect(openReader).toHaveBeenCalledWith(expect.objectContaining({ kind: 'pdf', name: 'report.pdf', positionKey: 'report.pdf' }));
+    expect(screen.queryByRole('button', { name: 'Open elsewhere.pdf' })).toBeNull();
   });
 });

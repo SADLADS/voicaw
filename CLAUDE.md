@@ -152,8 +152,8 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
 - `docs/messages.md`: emoji, message markdown, GIFs, YouTube links, link previews, polls, mentions, timestamps, forwarding, pinned messages, drafts, messages that couldn't be sent,
   search in encrypted chats (on the device), the offline copy, the message list and history
   loading.
-- `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, the EPUB reader, image
-  viewer.
+- `docs/uploads.md`: the object store, encrypted attachments, video streaming, voice messages, spoilers, the EPUB reader, the PDF
+  reader, image viewer.
 - `docs/client.md`: client structure (contexts, translations, Layout, settings, dates, themes, errors and the connection strip, sidebar, phone
   panes, PWA updates, spellcheck, right-click menus, pinned and muted conversations, account preferences),
   other servers (the login screen's Server),
@@ -584,6 +584,15 @@ elsewhere ("see Guilds", "see Polls"...) are headings in these files.
   shadow root, every address rewritten so nothing loads from another site, the book's pictures
   as blobs typed by their bytes (SVGs only inline, sanitised). Where a book was left stays on the
   device.
+- **PDF reader** (built 2026-11-26, see PDF reader in `docs/uploads.md`): PDFs sent as
+  attachments open in a full-screen reader in the app (pages scrolling, page number, zoom, Find,
+  Contents), with the first page and the page count in the chat, made on the sender's device and
+  sent encrypted (the page as the thumbnail, the count as `pg=`). Mozilla's PDF.js (legacy build,
+  for older phones), not the browser's viewer (Android's WebView has none): its worker and data
+  files our own, no PDF JavaScript, forms not fillable, attached files never opened, only
+  http(s)/mailto links out. The user chose: locked PDFs ask for the password (held in memory
+  only), pages stay white (no dark pages), the page count shown. Where a PDF was left stays on
+  the device.
 - **Category permissions** (built 2026-11-24, see Category permissions in `docs/guilds.md`):
   Discord's copy-and-sync model, not live inheritance (the user agreed): a category has its own
   overrides, copied into its channels (new ones, and synced ones on every change); a channel's

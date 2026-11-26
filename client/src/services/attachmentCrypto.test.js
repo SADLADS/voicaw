@@ -21,7 +21,7 @@ describe('attachmentCrypto', () => {
     const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', { key, type: file.type, size: file.size });
     const meta = parseAttachmentUrl(url);
     expect(meta).toEqual({
-      version: 1, fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null, spoiler: false, posterUrl: null,
+      version: 1, fileUrl: 'https://s3.test/uploads/abc.bin', key, type: 'image/png', size: 5000, width: null, height: null, spoiler: false, posterUrl: null, pages: null,
     });
 
     const plain = await decryptAttachment(await blob.arrayBuffer(), meta.key);
@@ -88,6 +88,7 @@ describe('attachmentCrypto', () => {
       height: null,
       spoiler: false,
       posterUrl: null,
+      pages: null,
     });
   });
 
@@ -154,9 +155,28 @@ describe('attachmentCrypto', () => {
       nonce: 'NNNNNNNNNNNNNNNN',
       duration: 12.3,
       posterUrl: 'https://s3.test/uploads/def-1.bin',
+      pages: null,
       voice: false,
       waveform: null,
     });
+  });
+
+  it("carries a PDF's number of pages (pg=), ignoring nonsense", () => {
+    const url = buildAttachmentUrl('https://s3.test/uploads/abc.bin', {
+      key: 'KEY', type: 'application/pdf', size: 123, width: 280, height: 396,
+      nonce: 'NNNNNNNNNNNNNNNN', poster: 'def-1.bin', pages: 12,
+    });
+    expect(new URLSearchParams(url.split('#')[1]).get('pg')).toBe('12');
+    expect(parseAttachmentUrl(url)).toMatchObject({ type: 'application/pdf', pages: 12, width: 280, height: 396 });
+    for (const pages of [0, -3, 1.5, 10001, null, undefined, '7']) {
+      const built = buildAttachmentUrl('https://s3.test/x.bin', { key: 'K', type: 'application/pdf', size: 1, nonce: 'NNNNNNNNNNNNNNNN', pages });
+      expect(built).not.toContain('pg=');
+    }
+    for (const pg of ['0', '-3', '1.5', 'abc', '10001', '00012']) {
+      expect(parseAttachmentUrl(`https://s3.test/x.bin#v=2&k=K&s=1&n=NNNNNNNNNNNNNNNN&pg=${pg}`).pages).toBeNull();
+    }
+    // Older links have none.
+    expect(parseAttachmentUrl('https://s3.test/x.bin#v=2&k=K&s=1&n=NNNNNNNNNNNNNNNN').pages).toBeNull();
   });
 
   it("never lets a poster name point outside the file's folder", () => {

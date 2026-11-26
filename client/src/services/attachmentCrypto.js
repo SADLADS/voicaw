@@ -20,9 +20,12 @@
 // A voice message (2026-10-09, services/voiceMessage.js) is a v2 audio file with &vm=1, its
 // length (&d=) and &wf=<base64url waveform: one byte (0-255) per slice of the recording>.
 // Older clients show it as a file to download.
+// A PDF (2026-11-26, PDF reader in docs/uploads.md) may add &pg=<its number of pages>, beside
+// its first page as the thumbnail (&p=, with &w/&h). Older clients ignore both.
 
 import { toBase64Url, fromBase64Url } from './chunkedAttachment';
 import { decodeWaveform, encodeWaveform } from './voiceMessage';
+import { MAX_PDF_PAGES } from '../utils/pdf';
 
 const IV_LENGTH = 12;
 
@@ -76,7 +79,7 @@ export function decryptThumbnail(encrypted, keyB64Url) {
   return unseal(encrypted, keyB64Url, THUMBNAIL_CONTEXT);
 }
 
-export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler, nonce, duration, poster, waveform }) {
+export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, spoiler, nonce, duration, poster, waveform, pages }) {
   const params = new URLSearchParams({ v: nonce ? '2' : '1', k: key, t: type, s: String(size) });
   if (nonce) params.set('n', nonce);
   if (width > 0 && height > 0) {
@@ -86,6 +89,7 @@ export function buildAttachmentUrl(fileUrl, { key, type, size, width, height, sp
   if (nonce && duration > 0) params.set('d', String(Math.round(duration * 10) / 10));
   if (poster) params.set('p', poster); // a video's poster, an image's thumbnail
   if (spoiler) params.set('sp', '1');
+  if (Number.isInteger(pages) && pages > 0 && pages <= MAX_PDF_PAGES) params.set('pg', String(pages));
   if (nonce && waveform) {
     params.set('vm', '1');
     params.set('wf', encodeWaveform(waveform));
@@ -120,7 +124,7 @@ export function inOwnStore(url, s3Endpoint) {
 // Returns { version, fileUrl, key, type, size, width, height, spoiler } for an encrypted
 // attachment URL, or null for any other URL (legacy unencrypted uploads, external images, …).
 // v2 adds { nonce, duration, voice (a voice message), waveform (its Uint8Array, or null) }. `posterUrl` is a video's poster (v2) or an image's thumbnail
-// (v1), or null.
+// (v1), or null. `pages`: a PDF's number of pages, or null.
 export function parseAttachmentUrl(url) {
   if (typeof url !== 'string') return null;
   const hashIndex = url.indexOf('#');
@@ -145,6 +149,7 @@ export function parseAttachmentUrl(url) {
     v2.voice = params.get('vm') === '1';
     v2.waveform = v2.voice ? decodeWaveform(params.get('wf')) : null;
   }
+  const pages = positiveInt(params.get('pg'));
   const poster = params.get('p');
   // Only a plain name in the same folder: the URL can't point the poster anywhere else.
   const posterUrl = /^[A-Za-z0-9_-]+\.bin$/.test(poster ?? '') ? fileUrl.replace(/[^/]*$/, poster) : null;
@@ -158,6 +163,7 @@ export function parseAttachmentUrl(url) {
     height: width && height ? height : null,
     spoiler: params.get('sp') === '1',
     posterUrl,
+    pages: pages && pages <= MAX_PDF_PAGES ? pages : null,
     ...v2,
   };
 }

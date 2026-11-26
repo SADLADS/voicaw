@@ -19,9 +19,10 @@ export const LayoutContext = createContext();
 // gallery items from utils/imageGallery.js. Null outside the provider (e.g. in component tests).
 export const ImageViewerContext = createContext(null);
 
-// Opens the EPUB reader (EpubReaderProvider): `openBook({ name, load(onProgress) -> Promise<Blob>,
-// positionKey })`. Null outside the provider, where books are only downloaded.
-export const EpubReaderContext = createContext(null);
+// Opens the EPUB or PDF reader (ReaderProvider): `openReader({ kind: 'epub' | 'pdf', name,
+// load(onProgress) -> Promise<Blob>, positionKey })`. Null outside the provider, where books and
+// PDFs are only downloaded.
+export const ReaderContext = createContext(null);
 
 // Guild channels that `<#id>` mentions name (Layout): `channels` ({ id: { id, guildId, name,
 // type, private } }: every channel you can see in the guilds opened so far) and `loadAll()`,

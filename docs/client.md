@@ -640,8 +640,8 @@ connections (other servers, LiveKit) come from wherever they did. The page loads
 or font from another site (Font Awesome's CSS from cdnjs went, 2026-11-19: icons are inline
 SVGs). app.voicaw.com's nginx adds the headers a `<meta>` can't (see Security headers in
 `docs/desktop-and-site.md`).
-`'wasm-unsafe-eval'` is for RNNoise and DeepFilterNet; workers and AudioWorklets are our own
-files. A page opened from a `blob:` URL inherits the policy, so a script in one doesn't run (the
+`'wasm-unsafe-eval'` is for RNNoise and DeepFilterNet (and PDF.js's image decoders); workers and
+AudioWorklets are our own files (PDF.js's worker and data files too, see PDF reader in `docs/uploads.md`). A page opened from a `blob:` URL inherits the policy, so a script in one doesn't run (the
 second line behind Attachment types in `docs/uploads.md`). The dev server has none (Vite adds
 inline scripts of its own); `e2e/attachmenttypes.mjs` checks a production build. Anything new
 that needs `eval`, an inline script added at run time or a script from another site will be

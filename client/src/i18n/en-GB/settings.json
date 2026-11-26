@@ -239,6 +239,7 @@
       "attribution": "Emoji graphics by <twemoji>Twemoji</twemoji>, © Twitter, Inc and other contributors, licensed under <ccby>CC-BY 4.0</ccby>. Emoji font modified from <font>twemoji-color-font</font>, licensed under the <ofl>SIL Open Font License 1.1</ofl>. GIFs from <klipy>KLIPY</klipy>.",
       "gameCaptureAttribution": "Game capture uses <obs>OBS Studio</obs>'s graphics hook, unmodified, licensed under the <gpl>GNU GPL version 2</gpl> (<source>its source code</source>).",
       "linkRulesAttribution": "Tracking parameters removed from pasted links come from <adguard>AdGuard's URL Tracking filter</adguard>, licensed under the <gpl>GNU GPL version 3</gpl>, converted by the Voicaw server.",
+      "pdfAttribution": "PDFs are drawn by Mozilla's <pdfjs>PDF.js</pdfjs>, licensed under the <apache>Apache License 2.0</apache>, with PDFium's standard fonts (BSD licence) and the Liberation fonts (<ofl>SIL Open Font License</ofl>).",
       "privacy": "Privacy policy",
       "terms": "Terms of use",
       "deleteAccount": "Deleting your account"

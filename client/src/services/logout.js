@@ -55,8 +55,8 @@ async function endOnServer(login) {
 
 // localStorage keys that are about the account rather than this device: which channel each
 // guild was last on, the chat the app reopens on and the DM page, collapsed categories and tasks, the old emoji
-// usage, the recovery prompt, where each book was left (utils/epubPosition.js).
-const ACCOUNT_KEYS = [/^epubPosition:/, /^guildChannel:/, /^lastChat$/, /^lastDm$/, /^taskCollapsed:/, /^collapsedCategories$/, /^emojiFrequent$/, /^recoveryPromptDismissed$/];
+// usage, the recovery prompt, where each book and PDF was left (utils/epubPosition.js, utils/pdfPosition.js).
+const ACCOUNT_KEYS = [/^epubPosition:/, /^pdfPosition:/, /^guildChannel:/, /^lastChat$/, /^lastDm$/, /^taskCollapsed:/, /^collapsedCategories$/, /^emojiFrequent$/, /^recoveryPromptDismissed$/];
 
 function forgetAccountStorage() {
   try {

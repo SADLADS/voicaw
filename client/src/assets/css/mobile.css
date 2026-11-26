@@ -588,3 +588,29 @@
     width: 100%;
     border-left: none;
 }
+
+/* The PDF reader (PdfReader.jsx) on a phone: the controls go on a row of their own under the
+   name, without −/+ (pinching zooms; the zoom menu stays), and the contents cover the page. */
+.mobile-mode .pdf-reader-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0;
+}
+
+.mobile-mode .pdf-reader-actions {
+    width: 100%;
+    justify-content: space-between;
+    padding-bottom: 4px;
+}
+
+.mobile-mode .pdf-reader-zoom button {
+    display: none;
+}
+
+.mobile-mode .pdf-reader-zoom-select {
+    min-width: 0;
+}
+
+.mobile-mode .pdf-reader-contents {
+    width: 100%;
+    border-left: none;
+}

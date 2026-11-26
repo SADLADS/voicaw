@@ -95,6 +95,47 @@ function twemojiAssets() {
   };
 }
 
+// PDF.js's data files (the PDF reader, services/pdf/pdfjs.js): character maps, standard fonts,
+// colour profiles and its image decoders (WebAssembly, and plain-JavaScript fallbacks), self-hosted
+// at /pdfjs/<folder>/ so PDF.js never fetches them from another site. Served straight from the
+// npm package in dev, copied into the build otherwise. Left out of the precache (they're only
+// wanted by some PDFs).
+const PDFJS_FOLDERS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'];
+function pdfjsAssets() {
+  const require = createRequire(import.meta.url);
+  const root = path.dirname(require.resolve('pdfjs-dist/package.json'));
+  const TYPES = { '.bcmap': 'application/octet-stream', '.pfb': 'application/octet-stream', '.ttf': 'font/ttf', '.wasm': 'application/wasm', '.js': 'text/javascript', '.mjs': 'text/javascript', '.icc': 'application/octet-stream' };
+  const fileFor = (url) => {
+    const [folder, name, ...rest] = decodeURIComponent(url.split('?')[0]).replace(/^\//, '').split('/');
+    if (rest.length || !PDFJS_FOLDERS.includes(folder) || !/^[A-Za-z0-9._-]+$/.test(name ?? '') || name.startsWith('.')) return null;
+    const file = path.join(root, folder, name);
+    return fs.existsSync(file) && fs.statSync(file).isFile() ? file : null;
+  };
+  return {
+    name: 'pdfjs-assets',
+    configureServer(server) {
+      server.middlewares.use('/pdfjs', (req, res, next) => {
+        const file = fileFor(req.url);
+        if (!file) return next();
+        res.setHeader('Content-Type', TYPES[path.extname(file)] ?? 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        fs.createReadStream(file).pipe(res);
+        return undefined;
+      });
+    },
+    writeBundle(options) {
+      for (const folder of PDFJS_FOLDERS) {
+        const from = path.join(root, folder);
+        const to = path.join(options.dir, 'pdfjs', folder);
+        fs.mkdirSync(to, { recursive: true });
+        for (const name of fs.readdirSync(from)) {
+          if (!name.startsWith('LICENSE') && fs.statSync(path.join(from, name)).isFile()) fs.copyFileSync(path.join(from, name), path.join(to, name));
+        }
+      }
+    },
+  };
+}
+
 // Libraries the app needs at startup, each in its own file, so no one file outgrows the
 // precache limit (see maximumFileSizeToCacheInBytes). Only libraries that are all loaded at
 // startup anyway: one also used by lazily loaded code (e.g. ProseMirror, shared with the
@@ -199,6 +240,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       twemojiAssets(),
+      pdfjsAssets(),
       contentSecurityPolicy(),
       ...(isElectron || isAndroid ? [desktopApiAddress(env.VITE_API_BASE_URL)] : []),
       VitePWA({
@@ -213,8 +255,8 @@ export default defineConfig(({ mode }) => {
         manifest: false,
         injectManifest: {
           // DeepFilterNet (17 MB, "Strong" noise suppression) only downloads for those who
-          // choose it.
-          globIgnores: ['**/df_bg-*.wasm'],
+          // choose it; PDF.js's data files (pdfjsAssets) for the PDFs that need them.
+          globIgnores: ['**/df_bg-*.wasm', 'pdfjs/**'],
           // Workbox skips (and the plugin then fails the build on) any file over this; the
           // default is 2 MiB. Big libraries get their own files (VENDOR_CHUNKS) to stay well
           // under it; scripts/publish-web.mjs reports the precache's total, which is what each
@@ -247,7 +289,15 @@ export default defineConfig(({ mode }) => {
           : isElectron
             ? { main: path.resolve(__dirname, 'index.html'), overlay: path.resolve(__dirname, 'overlay.html') }
             : undefined,
-        output: { manualChunks: vendorChunk },
+        output: {
+          manualChunks: vendorChunk,
+          // PDF.js's worker is a .mjs file, emitted as is (services/pdf/pdfjs.js): named .js, so
+          // the precache takes it and servers give it a script's type (a module worker refuses
+          // anything else, and nginx's older MIME list has no .mjs).
+          assetFileNames: (asset) => (asset.names?.some((name) => name.endsWith('.mjs'))
+            ? 'assets/[name]-[hash].js'
+            : 'assets/[name]-[hash][extname]'),
+        },
       },
     },
     server: {

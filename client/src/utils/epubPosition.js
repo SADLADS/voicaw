@@ -1,5 +1,5 @@
 // Where each book was left, on this device only (localStorage `epubPosition:<key>`, the key being
-// the attachment's file name in the store): { index (chapter), fraction (how far down it) }.
+// the attachment's file name in the store, utils/readerPosition.js): { index (chapter), fraction (how far down it) }.
 // Logging out deletes them (services/logout.js). The text size is the device's own.
 
 const PREFIX = 'epubPosition:';
@@ -24,12 +24,6 @@ export function savePosition(key, { index, fraction }) {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify({ index, fraction: Math.round(fraction * 1000) / 1000 }));
   } catch { /* storage full or blocked */ }
-}
-
-// The file's own name in the store (`<uuid>.bin`), from its address.
-export function positionKeyFor(fileUrl) {
-  const name = String(fileUrl ?? '').split('#')[0].split('?')[0].split('/').pop();
-  return name || null;
 }
 
 export function readTextSize() {

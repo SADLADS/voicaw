@@ -1,5 +1,6 @@
 import { MAX_MEDIA_WIDTH, MAX_MEDIA_HEIGHT } from './mediaBox';
 import { isEpub } from './epub';
+import { isPdf } from './pdf';
 
 // Images bigger than this aren't decoded when attached, and without a thumbnail are shown as a
 // file to download rather than in the chat (Attachment.jsx).
@@ -11,12 +12,19 @@ export const MAX_INLINE_IMAGE_BYTES = 50 * 1024 * 1024;
 // see what it is without downloading any of the video itself. A big still image also gets a
 // `thumbnail` (a Blob, see makeThumbnail), shown in the chat in its place; the file itself is
 // sent exactly as it is. An EPUB book gets its cover as the `thumbnail` (services/epub/epubCover.js),
-// with the cover's size.
+// with the cover's size. A PDF up to MAX_INLINE_IMAGE_BYTES gets its first page as the
+// `thumbnail` (with that page's size) and its number of `pages` (services/pdf/pdfPreview.js).
 export async function readMediaDimensions(file, objectUrl) {
   try {
     if (isEpub(file.type, file.name)) {
       const { readEpubCover } = await import('../services/epub/epubCover');
       return await readEpubCover(file);
+    }
+    if (isPdf(file.type, file.name)) {
+      // PDF.js reads the whole file into memory: too much for a phone past this.
+      if (file.size > MAX_INLINE_IMAGE_BYTES || typeof document === 'undefined') return null;
+      const { readPdfPreview } = await import('../services/pdf/pdfPreview');
+      return await readPdfPreview(file);
     }
     if (file.type.startsWith('image/')) {
       // Decoding it would take more memory than a phone has; it's sent as a plain file.
