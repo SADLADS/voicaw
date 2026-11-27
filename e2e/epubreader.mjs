@@ -139,6 +139,14 @@ try {
   check(await bob.page.locator('.epub-reader-progress').textContent() === 'Chapter 1 of 3', 'progress');
   const toolbarBox = await bob.page.locator('.epub-reader-toolbar').boundingBox();
   check(toolbarBox.y === 0, 'reader covers the app');
+  // The desktop app's title bar (html.has-title-bar): the reader starts below it and still reaches the window's bottom.
+  const underBar = await bob.page.evaluate((sel) => {
+    document.documentElement.classList.add('has-title-bar');
+    const box = document.querySelector(sel).getBoundingClientRect();
+    document.documentElement.classList.remove('has-title-bar');
+    return [box.top, box.bottom, window.innerHeight];
+  }, '.epub-reader');
+  check(underBar[0] === 32 && underBar[1] === underBar[2], `below the desktop title bar, down to the bottom (${underBar})`);
   await shot(bob.page, '3-reader');
 
   await bob.page.locator('.epub-reader-page a', { hasText: 'the lighthouse' }).click();

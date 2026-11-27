@@ -102,6 +102,14 @@ try {
   check(await bob.page.locator('.pdf-reader-page-total').textContent() === 'of 12', 'of 12');
   check(bob.page.workers().some((w) => /pdf\.worker/.test(w.url())), 'PDF.js runs in its own worker (no fallback to the page)');
   check((await bob.page.locator('.pdf-reader-toolbar').boundingBox()).y === 0, 'reader covers the app');
+  // The desktop app's title bar (html.has-title-bar): the reader starts below it and still reaches the window's bottom.
+  const underBar = await bob.page.evaluate((sel) => {
+    document.documentElement.classList.add('has-title-bar');
+    const box = document.querySelector(sel).getBoundingClientRect();
+    document.documentElement.classList.remove('has-title-bar');
+    return [box.top, box.bottom, window.innerHeight];
+  }, '.pdf-reader');
+  check(underBar[0] === 32 && underBar[1] === underBar[2], `below the desktop title bar, down to the bottom (${underBar})`);
   check(await bob.page.locator('.pdf-reader .textLayer span', { hasText: 'Page 1' }).count() >= 1, 'selectable text');
   await shot(bob.page, '3-reader');
 

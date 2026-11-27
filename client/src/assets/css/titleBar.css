@@ -20,7 +20,7 @@ html.has-title-bar #root {
 
 /* What covers the whole window starts below the bar, so the bar (and dragging the window, and
    its buttons) stays there and nothing at their top hides under it. */
-html.has-title-bar :is(.image-viewer, .vc-dialog-backdrop, .file-drop-overlay, .safety-number-backdrop, .action-sheet-backdrop, .modal, .modal-backdrop) {
+html.has-title-bar :is(.image-viewer, .epub-reader, .pdf-reader, .vc-dialog-backdrop, .file-drop-overlay, .safety-number-backdrop, .action-sheet-backdrop, .modal, .modal-backdrop) {
   top: var(--vc-title-bar-height);
 }
 
